@@ -23,10 +23,16 @@ function App() {
   const [keyReady, setKeyReady] = useState(null)
   const [filter, setFilter] = useState('')
   const [contactOnly, setContactOnly] = useState(false)
+  const [mobilePanelOpen, setMobilePanelOpen] = useState(false)
 
   useEffect(() => {
     fetch('/api/health').then((r) => r.json()).then((data) => setKeyReady(data.google_api_key_configured)).catch(() => setKeyReady(false))
   }, [])
+
+  useEffect(() => {
+    document.body.style.overflow = mobilePanelOpen ? 'hidden' : ''
+    return () => { document.body.style.overflow = '' }
+  }, [mobilePanelOpen])
 
   const leads = result?.leads ?? []
   const visibleLeads = useMemo(() => {
@@ -42,6 +48,7 @@ function App() {
 
   async function runSearch(event) {
     event.preventDefault()
+    setMobilePanelOpen(false)
     setLoading(true)
     setError('')
     try {
@@ -87,10 +94,11 @@ function App() {
 
   return (
     <div className="app-shell">
-      <aside className="sidebar">
+      <aside id="search-panel" className={`sidebar ${mobilePanelOpen ? 'mobile-open' : ''}`}>
         <div className="brand">
           <div className="brand-mark"><MapPin size={21} strokeWidth={2.5} /></div>
           <div><strong>Prospect</strong><span>Lead intelligence</span></div>
+          <button className="sidebar-close" type="button" onClick={() => setMobilePanelOpen(false)} aria-label="Fermer les paramètres"><X size={19} /></button>
         </div>
 
         <form onSubmit={runSearch} className="search-form">
@@ -132,11 +140,15 @@ function App() {
           <p className="form-footnote"><Info size={14} /> Objectif d’arrêt, sans garantie d’exhaustivité.</p>
         </form>
       </aside>
+      {mobilePanelOpen && <button className="mobile-backdrop" type="button" onClick={() => setMobilePanelOpen(false)} aria-label="Fermer le panneau de recherche" />}
 
       <main className="main-content">
         <header className="topbar">
-          <div><p className="eyebrow">Google Places API (New)</p><h1>Générateur de leads locaux</h1></div>
-          <div className={`api-status ${keyReady ? 'ready' : ''}`}><span />{keyReady === null ? 'Vérification…' : keyReady ? 'API configurée' : 'Clé API absente'}</div>
+          <div className="topbar-heading">
+            <button className="mobile-controls-button" type="button" onClick={() => setMobilePanelOpen(true)} aria-expanded={mobilePanelOpen} aria-controls="search-panel" aria-label="Ouvrir les paramètres de recherche"><Settings2 size={17} /><span>Paramètres</span></button>
+            <div><p className="eyebrow">Google Places API (New)</p><h1>Générateur de leads locaux</h1></div>
+          </div>
+          <div className={`api-status ${keyReady ? 'ready' : ''}`} title={keyReady ? 'API configurée' : 'Clé API absente'}><span />{keyReady === null ? 'Vérification…' : keyReady ? 'API configurée' : 'Clé API absente'}</div>
         </header>
 
         {error && <div className="error-banner"><AlertTriangle size={19} /><span>{error}</span><button onClick={() => setError('')} aria-label="Fermer"><X size={17} /></button></div>}
