@@ -1,0 +1,64 @@
+trigger:
+  branches:
+    include:
+      - main
+      - master
+
+pool:
+  vmImage: ubuntu-latest
+
+variables:
+  pythonVersion: '3.12'
+  nodeVersion: '22.x'
+
+steps:
+  - task: UsePythonVersion@0
+    inputs:
+      versionSpec: $(pythonVersion)
+    displayName: Utiliser Python $(pythonVersion)
+
+  - script: |
+      python -m pip install --upgrade pip
+      pip install -r backend/requirements-dev.txt
+    displayName: Installer les dépendances Python
+
+  - script: pytest --junitxml=test-results/pytest.xml
+    displayName: Exécuter les tests unitaires
+
+  - task: PublishTestResults@2
+    condition: succeededOrFailed()
+    inputs:
+      testResultsFormat: JUnit
+      testResultsFiles: test-results/pytest.xml
+      testRunTitle: Tests Python
+
+  - task: NodeTool@0
+    inputs:
+      versionSpec: $(nodeVersion)
+    displayName: Utiliser Node.js $(nodeVersion)
+
+  - script: npm ci
+    workingDirectory: client
+    displayName: Restaurer les dépendances React
+
+  - script: npm run build
+    workingDirectory: client
+    displayName: Compiler l’interface React
+
+  - task: CopyFiles@2
+    inputs:
+      SourceFolder: $(Build.SourcesDirectory)
+      Contents: |
+        backend/**
+        client/dist/**
+        README.md
+        .env.example
+      TargetFolder: $(Build.ArtifactStagingDirectory)/GoogleMapsLeadGenerator
+    displayName: Préparer l’artefact Web
+
+  - task: PublishPipelineArtifact@1
+    inputs:
+      targetPath: $(Build.ArtifactStagingDirectory)/GoogleMapsLeadGenerator
+      artifact: GoogleMapsLeadGenerator
+    displayName: Publier l’application
+

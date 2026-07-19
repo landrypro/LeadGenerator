@@ -1,0 +1,13 @@
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.venv/
+.env
+client/node_modules/
+client/.npm-cache/
+client/dist/
+test-results/
+artifacts/
+.idea/
+.vs/
+.vscode/
