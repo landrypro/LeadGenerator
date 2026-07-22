@@ -89,6 +89,10 @@ class SearchResponse(BaseModel):
     generated_at: datetime
 
 
+class LeadGenerationResponse(SearchResponse):
+    map_snapshot_token: str
+
+
 class ExportRequest(BaseModel):
     leads: list[Lead] = Field(max_length=1000)
     search: dict[str, Any] = Field(default_factory=dict)
@@ -104,3 +108,7 @@ class MapSnapshotRequest(BaseModel):
     center_longitude: float = Field(ge=-180, le=180)
     radius_km: float = Field(gt=0, le=50)
     points: list[MapPoint] = Field(default_factory=list, max_length=50)
+
+
+class MapSnapshotTokenRequest(BaseModel):
+    token: str = Field(min_length=32, max_length=128)

@@ -171,7 +171,13 @@ function App() {
         {keyReady === false && <div className="setup-banner"><div className="setup-icon"><Info size={20} /></div><div><strong>Une étape avant la première recherche</strong><p>Ajoutez <code>GOOGLE_MAPS_API_KEY</code> aux variables d’environnement du serveur, puis relancez l’API.</p></div></div>}
 
         <section className="overview-grid">
-          <CoverageMap leads={leads} form={form} loading={loading} generatedAt={result?.generated_at} />
+          <CoverageMap
+            leads={leads}
+            form={form}
+            loading={loading}
+            generatedAt={result?.generated_at}
+            resultToken={result?.map_snapshot_token}
+          />
           <div className="metric-stack">
             <Metric icon={<UsersRound />} label="Leads uniques" value={leads.length} detail={result?.stats.target_reached ? 'Objectif atteint' : `sur ${form.target} visés`} tone="green" />
             <Metric icon={<Map />} label="Zones explorées" value={result?.stats.zones_searched ?? 0} detail={`sur ${form.max_tiles} configurées`} tone="blue" />
@@ -212,13 +218,13 @@ function Metric({ icon, label, value, detail, tone }) {
   return <div className="metric-card"><div className={`metric-icon ${tone}`}>{icon}</div><div className="metric-copy"><span>{label}</span><strong>{number.format(value)}</strong><small>{detail}</small></div><ArrowUpRight size={17} className="metric-arrow" /></div>
 }
 
-function CoverageMap({ leads, form, loading, generatedAt }) {
+function CoverageMap({ leads, form, loading, generatedAt, resultToken }) {
   const [snapshotUrl, setSnapshotUrl] = useState('')
   const [snapshotLoading, setSnapshotLoading] = useState(false)
   const [snapshotError, setSnapshotError] = useState('')
 
   useEffect(() => {
-    if (!generatedAt) return
+    if (!generatedAt || !resultToken) return
     const controller = new AbortController()
     let objectUrl = ''
     setSnapshotLoading(true)
@@ -228,10 +234,7 @@ function CoverageMap({ leads, form, loading, generatedAt }) {
       headers: { 'Content-Type': 'application/json' },
       signal: controller.signal,
       body: JSON.stringify({
-        center_latitude: form.center_latitude,
-        center_longitude: form.center_longitude,
-        radius_km: form.radius_km,
-        points: leads.filter((lead) => lead.latitude != null).slice(0, 50).map((lead) => ({ latitude: lead.latitude, longitude: lead.longitude })),
+        token: resultToken,
       }),
     }).then(async (response) => {
       if (!response.ok) {
@@ -247,7 +250,7 @@ function CoverageMap({ leads, form, loading, generatedAt }) {
       controller.abort()
       if (objectUrl) URL.revokeObjectURL(objectUrl)
     }
-  }, [generatedAt])
+  }, [generatedAt, resultToken])
 
   return <div className="coverage-card">
     <div className="map-top"><div><p className="eyebrow">Aperçu de couverture</p><h2>Rayon de {form.radius_km} km</h2></div><div className="zone-pill"><Target size={14} /> {form.max_tiles} zones</div></div>

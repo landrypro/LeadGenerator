@@ -90,7 +90,7 @@ Puis activez les contacts, et augmentez progressivement le nombre de zones. Util
 
 Au clic sur « Générer les leads », le prénom, la raison sociale et l’adresse professionnelle sont requis. Une même adresse ne peut lancer qu’une génération à la fois. Ce verrou est conservé uniquement en mémoire ; pour plusieurs processus ou serveurs en production, remplacez-le par un verrou distribué (par exemple Redis).
 
-La capture Google Maps est chargée après une génération afin d’éviter des appels Maps Static inutiles pendant le réglage du formulaire. Elle constitue un appel Google Maps Platform potentiellement facturable.
+La capture Google Maps est chargée après une génération afin d’éviter des appels Maps Static inutiles pendant le réglage du formulaire. Elle constitue un appel Google Maps Platform potentiellement facturable. L’API délivre après chaque recherche un jeton de carte éphémère et à usage unique : les coordonnées de la capture ne peuvent donc pas être envoyées librement au point d’accès Maps. Ces jetons sont conservés en mémoire ; une exécution avec plusieurs processus ou serveurs nécessite un registre partagé.
 
 ## Tests
 
