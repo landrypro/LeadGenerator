@@ -45,6 +45,7 @@ function App() {
   }, [identityModalOpen, loading])
 
   const leads = result?.leads ?? []
+  const resultForm = result?.search_parameters ?? form
   const visibleLeads = useMemo(() => {
     const needle = filter.trim().toLowerCase()
     return leads.filter((lead) => {
@@ -88,7 +89,7 @@ function App() {
     try {
       const response = await fetch('/api/leads/export', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ leads, search: form }),
+        body: JSON.stringify({ leads, search: resultForm }),
       })
       if (!response.ok) {
         const data = await response.json()
@@ -98,7 +99,7 @@ function App() {
       const url = URL.createObjectURL(blob)
       const anchor = document.createElement('a')
       anchor.href = url
-      anchor.download = `leads-${form.query.replace(/\s+/g, '-').toLowerCase()}.xlsx`
+      anchor.download = `leads-${resultForm.query.replace(/\s+/g, '-').toLowerCase()}.xlsx`
       anchor.click()
       URL.revokeObjectURL(url)
     } catch (err) {
@@ -173,14 +174,14 @@ function App() {
         <section className="overview-grid">
           <CoverageMap
             leads={leads}
-            form={form}
+            form={resultForm}
             loading={loading}
             generatedAt={result?.generated_at}
             resultToken={result?.map_snapshot_token}
           />
           <div className="metric-stack">
-            <Metric icon={<UsersRound />} label="Leads uniques" value={leads.length} detail={result?.stats.target_reached ? 'Objectif atteint' : `sur ${form.target} visés`} tone="green" />
-            <Metric icon={<Map />} label="Zones explorées" value={result?.stats.zones_searched ?? 0} detail={`sur ${form.max_tiles} configurées`} tone="blue" />
+            <Metric icon={<UsersRound />} label="Leads uniques" value={leads.length} detail={result?.stats.target_reached ? 'Objectif atteint' : `sur ${resultForm.target} visés`} tone="green" />
+            <Metric icon={<Map />} label="Zones explorées" value={result?.stats.zones_searched ?? 0} detail={`sur ${resultForm.max_tiles} configurées`} tone="blue" />
             <Metric icon={<Clock3 />} label="Appels effectués" value={result?.stats.api_calls ?? 0} detail={`${result?.stats.duplicates_removed ?? 0} doublons retirés`} tone="gold" />
           </div>
         </section>

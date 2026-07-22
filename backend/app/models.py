@@ -91,6 +91,7 @@ class SearchResponse(BaseModel):
 
 class LeadGenerationResponse(SearchResponse):
     map_snapshot_token: str
+    search_parameters: SearchRequest
 
 
 class ExportRequest(BaseModel):

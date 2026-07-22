@@ -21,6 +21,7 @@ from .models import (
     MapPoint,
     MapSnapshotRequest,
     MapSnapshotTokenRequest,
+    SearchRequest,
 )
 from .places import GooglePlacesClient, GooglePlacesError, GooglePlacesSettings
 from .search_service import LeadSearchService
@@ -66,6 +67,7 @@ async def search_leads(request: LeadGenerationRequest) -> LeadGenerationResponse
             return LeadGenerationResponse(
                 **result.model_dump(),
                 map_snapshot_token=snapshot_token,
+                search_parameters=SearchRequest.model_validate(request.model_dump(exclude={"requester"})),
             )
     except AddressGenerationInProgress as exc:
         raise HTTPException(
