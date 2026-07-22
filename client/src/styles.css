@@ -406,3 +406,48 @@ tbody tr:hover { background: linear-gradient(90deg, rgba(232,248,253,.48), rgba(
   .visible-count { display: none; }
   .metric-card { min-height: 108px; }
 }
+
+/* Real Google Maps snapshot */
+.map-canvas.real-map { background: linear-gradient(145deg, #eef8fb, #f3f9eb); }
+.map-canvas.real-map::before { display: none; }
+.map-snapshot { display: block; width: 100%; height: 100%; object-fit: cover; animation: map-reveal .35s ease both; }
+@keyframes map-reveal { from { opacity: 0; transform: scale(1.015); } }
+.map-pending { position: absolute; z-index: 4; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 5px; padding: 20px; text-align: center; background: radial-gradient(circle at 50% 45%, rgba(185,237,104,.18), transparent 90px), linear-gradient(145deg, #eef9fd, #f7fbe9); color: #177ba3; }
+.map-pending > div { position: relative; display: grid; place-items: center; width: 48px; height: 48px; border-radius: 15px; background: white; border: 1px solid #d4e7ec; box-shadow: 0 8px 22px rgba(34,103,128,.1); }
+.map-pending > div span { position: absolute; top: -3px; right: -3px; width: 11px; height: 11px; border: 2px solid white; border-radius: 50%; background: var(--lime); }
+.map-pending strong { color: #214553; font-size: 11px; }
+.map-pending small { max-width: 290px; color: #779099; font-size: 9px; line-height: 1.45; }
+.map-pending.map-error { color: #bd6859; background: #fff8f5; }
+.map-pending.map-error strong { color: #8f463a; }
+
+/* Identity confirmation */
+.dialog-backdrop { position: fixed; z-index: 100; inset: 0; display: grid; place-items: center; padding: 18px; background: rgba(8,40,54,.44); backdrop-filter: blur(7px); animation: dialog-backdrop-in .2s ease both; }
+@keyframes dialog-backdrop-in { from { opacity: 0; } }
+.identity-dialog { width: min(560px, 100%); max-height: calc(100dvh - 36px); overflow-y: auto; padding: 25px; background: #fbfefd; border: 1px solid rgba(205,230,235,.95); border-radius: 20px; box-shadow: 0 28px 80px rgba(7,47,64,.3); animation: dialog-in .26s cubic-bezier(.2,.8,.3,1) both; }
+@keyframes dialog-in { from { opacity: 0; transform: translateY(14px) scale(.98); } }
+.dialog-head { display: grid; grid-template-columns: auto 1fr auto; align-items: center; gap: 12px; }
+.dialog-head .eyebrow { margin-bottom: 3px; }
+.dialog-head h2 { margin: 0; color: #123747; font-size: 19px; letter-spacing: -.45px; }
+.dialog-head > button { display: grid; place-items: center; width: 34px; height: 34px; padding: 0; color: #647d87; border: 1px solid #d9e7eb; border-radius: 10px; background: #f4f9fa; }
+.dialog-icon { display: grid; place-items: center; width: 42px; height: 42px; color: #126f92; border-radius: 12px; background: linear-gradient(145deg, #dff4fc, #eef9d9); }
+.dialog-intro { margin: 17px 0 20px; color: #677e88; font-size: 12px; line-height: 1.55; }
+.identity-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.identity-dialog .field { margin-bottom: 15px; }
+.privacy-note { display: flex; align-items: flex-start; gap: 6px; margin: 3px 0 19px; color: #7a8f98; font-size: 10px; line-height: 1.45; }
+.privacy-note svg { flex: 0 0 auto; margin-top: 1px; }
+.privacy-note a { color: #147da5; font-weight: 700; }
+.dialog-actions { display: grid; grid-template-columns: .7fr 1.3fr; gap: 9px; }
+.dialog-actions .primary-button { min-height: 42px; }
+.secondary-button { min-height: 42px; color: #52707d; border: 1px solid #d4e4e9; border-radius: 11px; background: #f8fbfc; font-weight: 700; font-size: 12px; }
+.secondary-button:hover { color: #214e61; border-color: #a9cdd8; background: white; }
+
+footer a { color: #6c8994; text-decoration: none; font-weight: 600; }
+footer a:hover { color: #147da5; text-decoration: underline; }
+
+@media (max-width: 600px) {
+  .dialog-backdrop { align-items: end; padding: 0; }
+  .identity-dialog { width: 100%; max-height: 92dvh; padding: 21px 18px calc(18px + env(safe-area-inset-bottom)); border-radius: 22px 22px 0 0; }
+  .identity-grid { grid-template-columns: 1fr; gap: 0; }
+  .dialog-actions { position: sticky; bottom: 0; margin: 0 -4px; padding-top: 8px; background: linear-gradient(transparent, #fbfefd 18%); }
+  footer { display: flex; flex-wrap: wrap; align-items: center; line-height: 1.5; }
+}

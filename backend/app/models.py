@@ -6,6 +6,20 @@ from typing import Any
 from pydantic import BaseModel, Field, field_validator
 
 
+class RequesterInfo(BaseModel):
+    first_name: str = Field(min_length=1, max_length=80)
+    company_name: str = Field(min_length=2, max_length=160)
+    business_address: str = Field(min_length=5, max_length=240)
+
+    @field_validator("first_name", "company_name", "business_address")
+    @classmethod
+    def clean_identity_field(cls, value: str) -> str:
+        value = " ".join(value.split())
+        if not value:
+            raise ValueError("Ce champ est requis.")
+        return value
+
+
 class SearchRequest(BaseModel):
     query: str = Field(min_length=2, max_length=120)
     center_latitude: float = Field(default=46.8139, ge=-90, le=90)
@@ -31,6 +45,10 @@ class SearchRequest(BaseModel):
     @classmethod
     def normalize_region(cls, value: str) -> str:
         return value.upper()
+
+
+class LeadGenerationRequest(SearchRequest):
+    requester: RequesterInfo
 
 
 class Lead(BaseModel):
@@ -75,3 +93,14 @@ class ExportRequest(BaseModel):
     leads: list[Lead] = Field(max_length=1000)
     search: dict[str, Any] = Field(default_factory=dict)
 
+
+class MapPoint(BaseModel):
+    latitude: float = Field(ge=-90, le=90)
+    longitude: float = Field(ge=-180, le=180)
+
+
+class MapSnapshotRequest(BaseModel):
+    center_latitude: float = Field(ge=-90, le=90)
+    center_longitude: float = Field(ge=-180, le=180)
+    radius_km: float = Field(gt=0, le=50)
+    points: list[MapPoint] = Field(default_factory=list, max_length=50)

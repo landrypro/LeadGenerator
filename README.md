@@ -23,11 +23,13 @@ Application Web pour rechercher des entreprises avec **Google Places API (New) �
 - téléphone, site Web, adresse, coordonnées et URL Google Maps ;
 - export `.xlsx` mis en forme, avec onglet récapitulatif ;
 - retry exponentiel simple sur HTTP 429, erreurs 5xx, timeouts et erreurs réseau ;
-- interface responsive avec aperçu de couverture et statistiques d’exécution.
+- interface responsive avec capture réelle Google Maps et statistiques d’exécution ;
+- identification du demandeur avant chaque génération et blocage des générations simultanées pour une même adresse ;
+- pages publiques de conditions d’utilisation et de politique de confidentialité.
 
 ## Installation locale
 
-Prérequis : Python 3.12+, Node.js 22+, un projet Google Cloud facturé avec **Places API (New)** activée et une clé restreinte à cette API.
+Prérequis : Python 3.12+, Node.js 22+, un projet Google Cloud facturé avec **Places API (New)** et **Maps Static API** activées.
 
 ```powershell
 python -m venv .venv
@@ -39,9 +41,11 @@ npm install
 cd ..
 
 $env:GOOGLE_MAPS_API_KEY = "VOTRE_CLE"
+# Recommandé : clé serveur distincte, restreinte à Maps Static API.
+$env:GOOGLE_MAPS_STATIC_API_KEY = "VOTRE_CLE_STATIC_MAPS"
 ```
 
-Ne commitez jamais la clé. Le fichier `.env.example` ne contient qu’une valeur fictive.
+Ne commitez jamais les clés. Si `GOOGLE_MAPS_STATIC_API_KEY` est absente, le serveur utilise `GOOGLE_MAPS_API_KEY` pour la carte ; cette clé doit alors être autorisée pour les deux API. Les clés restent côté serveur et ne sont jamais envoyées au navigateur.
 
 ### Développement
 
@@ -84,6 +88,10 @@ Dans l’interface, utilisez :
 
 Puis activez les contacts, et augmentez progressivement le nombre de zones. Utilisez un terme métier simple comme `plombier`, sans ajouter `Québec` à la requête : un lieu explicite dans `textQuery` peut prendre le dessus sur `locationBias`.
 
+Au clic sur « Générer les leads », le prénom, la raison sociale et l’adresse professionnelle sont requis. Une même adresse ne peut lancer qu’une génération à la fois. Ce verrou est conservé uniquement en mémoire ; pour plusieurs processus ou serveurs en production, remplacez-le par un verrou distribué (par exemple Redis).
+
+La capture Google Maps est chargée après une génération afin d’éviter des appels Maps Static inutiles pendant le réglage du formulaire. Elle constitue un appel Google Maps Platform potentiellement facturable.
+
 ## Tests
 
 ```powershell
@@ -104,12 +112,13 @@ La suite couvre la géométrie, le maillage, la pagination, la déduplication, l
 - Les entreprises de service sans coordonnées peuvent être conservées, mais leur présence dans le rayon ne peut pas être vérifiée.
 - Validez les conditions de stockage, d’affichage et de rafraîchissement de Google Maps Platform pour votre usage.
 - Respectez les lois canadiennes et américaines applicables à la prospection et au consentement.
+- Complétez l’identité juridique et les coordonnées de contact dans `client/public/conditions.html` et `client/public/confidentialite.html` avant toute mise en production commerciale.
 
 ## Références officielles
 
 - [Text Search (New)](https://developers.google.com/maps/documentation/places/web-service/text-search)
 - [Sécurité des clés API](https://developers.google.com/maps/api-security-best-practices)
+- [Maps Static API](https://developers.google.com/maps/documentation/maps-static/overview)
 - [FastAPI](https://fastapi.tiangolo.com/)
 - [openpyxl](https://openpyxl.readthedocs.io/)
 - [pytest](https://docs.pytest.org/)
-

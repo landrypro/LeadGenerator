@@ -1,0 +1,24 @@
+@import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Manrope:wght@600;700;800&display=swap');
+
+:root { font-family: 'DM Sans', system-ui, sans-serif; color: #153544; background: #f6fbfc; }
+* { box-sizing: border-box; }
+body { margin: 0; background: radial-gradient(circle at 85% 5%, #dff5ff, transparent 32rem), radial-gradient(circle at 10% 95%, #effbdc, transparent 30rem), #f7fbfc; }
+a { color: #147da5; }
+.legal-shell { width: min(900px, calc(100% - 32px)); margin: 0 auto; padding: 28px 0 60px; }
+.legal-nav { display: flex; align-items: center; justify-content: space-between; margin-bottom: 34px; }
+.brand { display: flex; align-items: center; gap: 10px; text-decoration: none; color: #102f3d; }
+.brand-mark { display: grid; place-items: center; width: 38px; height: 38px; border-radius: 12px 12px 12px 4px; background: linear-gradient(145deg, #b9ed68, #72d8e9); font-weight: 800; }
+.brand strong { font: 800 18px 'Manrope', sans-serif; }
+.back { padding: 9px 13px; border: 1px solid #d1e4ea; border-radius: 10px; background: #ffffffc9; text-decoration: none; font-size: 13px; font-weight: 700; }
+.legal-card { padding: clamp(24px, 5vw, 58px); background: rgba(255,255,255,.9); border: 1px solid #d9e8ec; border-radius: 22px; box-shadow: 0 20px 60px rgba(25,73,91,.09); }
+.eyebrow { margin: 0 0 9px; color: #628895; text-transform: uppercase; letter-spacing: 1.2px; font-size: 11px; font-weight: 700; }
+h1 { margin: 0; color: #102f3e; font: 800 clamp(28px, 5vw, 44px)/1.12 'Manrope', sans-serif; letter-spacing: -1.4px; }
+.updated { margin: 12px 0 34px; color: #7a9099; font-size: 13px; }
+h2 { margin: 31px 0 10px; color: #164a60; font: 700 18px 'Manrope', sans-serif; }
+p, li { color: #506a75; font-size: 14px; line-height: 1.72; }
+ul { padding-left: 20px; }
+.notice { margin: 28px 0; padding: 16px 18px; border: 1px solid #dcebbd; border-radius: 13px; background: #f5fae9; }
+.notice strong { color: #4c7022; }
+.legal-footer { margin-top: 22px; text-align: center; color: #82959c; font-size: 12px; }
+@media (max-width: 600px) { .legal-shell { width: min(100% - 20px, 900px); padding-top: 16px; }.legal-nav { margin-bottom: 18px; }.legal-card { border-radius: 17px; }.back { font-size: 0; }.back::after { content: '←'; font-size: 18px; } }
+

@@ -24,15 +24,25 @@ function App() {
   const [filter, setFilter] = useState('')
   const [contactOnly, setContactOnly] = useState(false)
   const [mobilePanelOpen, setMobilePanelOpen] = useState(false)
+  const [identityModalOpen, setIdentityModalOpen] = useState(false)
+  const [requester, setRequester] = useState({ first_name: '', company_name: '', business_address: '' })
 
   useEffect(() => {
     fetch('/api/health').then((r) => r.json()).then((data) => setKeyReady(data.google_api_key_configured)).catch(() => setKeyReady(false))
   }, [])
 
   useEffect(() => {
-    document.body.style.overflow = mobilePanelOpen ? 'hidden' : ''
+    document.body.style.overflow = mobilePanelOpen || identityModalOpen ? 'hidden' : ''
     return () => { document.body.style.overflow = '' }
-  }, [mobilePanelOpen])
+  }, [mobilePanelOpen, identityModalOpen])
+
+  useEffect(() => {
+    const closeOnEscape = (event) => {
+      if (event.key === 'Escape' && identityModalOpen && !loading) setIdentityModalOpen(false)
+    }
+    window.addEventListener('keydown', closeOnEscape)
+    return () => window.removeEventListener('keydown', closeOnEscape)
+  }, [identityModalOpen, loading])
 
   const leads = result?.leads ?? []
   const visibleLeads = useMemo(() => {
@@ -46,14 +56,20 @@ function App() {
   const projectedCalls = form.max_tiles * form.max_pages
   const update = (key, value) => setForm((current) => ({ ...current, [key]: value }))
 
-  async function runSearch(event) {
+  function requestGeneration(event) {
     event.preventDefault()
     setMobilePanelOpen(false)
+    setIdentityModalOpen(true)
+  }
+
+  async function runSearch(event) {
+    event.preventDefault()
+    setIdentityModalOpen(false)
     setLoading(true)
     setError('')
     try {
       const response = await fetch('/api/leads/search', {
-        method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(form),
+        method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ...form, requester }),
       })
       const data = await response.json()
       if (!response.ok) throw new Error(data.detail || 'La recherche a échoué.')
@@ -101,7 +117,7 @@ function App() {
           <button className="sidebar-close" type="button" onClick={() => setMobilePanelOpen(false)} aria-label="Fermer les paramètres"><X size={19} /></button>
         </div>
 
-        <form onSubmit={runSearch} className="search-form">
+        <form onSubmit={requestGeneration} className="search-form">
           <div className="sidebar-title">
             <span>Nouvelle recherche</span>
             <Settings2 size={17} />
@@ -155,7 +171,7 @@ function App() {
         {keyReady === false && <div className="setup-banner"><div className="setup-icon"><Info size={20} /></div><div><strong>Une étape avant la première recherche</strong><p>Ajoutez <code>GOOGLE_MAPS_API_KEY</code> aux variables d’environnement du serveur, puis relancez l’API.</p></div></div>}
 
         <section className="overview-grid">
-          <CoverageMap leads={leads} form={form} loading={loading} />
+          <CoverageMap leads={leads} form={form} loading={loading} generatedAt={result?.generated_at} />
           <div className="metric-stack">
             <Metric icon={<UsersRound />} label="Leads uniques" value={leads.length} detail={result?.stats.target_reached ? 'Objectif atteint' : `sur ${form.target} visés`} tone="green" />
             <Metric icon={<Map />} label="Zones explorées" value={result?.stats.zones_searched ?? 0} detail={`sur ${form.max_tiles} configurées`} tone="blue" />
@@ -177,8 +193,9 @@ function App() {
 
           {loading ? <LoadingRows /> : visibleLeads.length ? <LeadTable leads={visibleLeads} /> : <EmptyState hasSearch={!!result} />}
         </section>
-        <footer><span>Données fournies par Google Places</span><span>•</span><span>Respectez les conditions Google Maps Platform et les lois de prospection applicables.</span></footer>
+        <footer><span>Données fournies par Google Places</span><span>•</span><a href="/conditions.html">Conditions d’utilisation</a><span>•</span><a href="/confidentialite.html">Politique de confidentialité</a></footer>
       </main>
+      {identityModalOpen && <IdentityModal requester={requester} setRequester={setRequester} onClose={() => setIdentityModalOpen(false)} onConfirm={runSearch} />}
     </div>
   )
 }
@@ -195,22 +212,73 @@ function Metric({ icon, label, value, detail, tone }) {
   return <div className="metric-card"><div className={`metric-icon ${tone}`}>{icon}</div><div className="metric-copy"><span>{label}</span><strong>{number.format(value)}</strong><small>{detail}</small></div><ArrowUpRight size={17} className="metric-arrow" /></div>
 }
 
-function CoverageMap({ leads, form, loading }) {
-  const pins = leads.filter((lead) => lead.latitude != null).slice(0, 40).map((lead) => {
-    const dx = (lead.longitude - form.center_longitude) * 111 * Math.cos(form.center_latitude * Math.PI / 180)
-    const dy = (lead.latitude - form.center_latitude) * 111
-    return { ...lead, x: Math.max(5, Math.min(95, 50 + (dx / form.radius_km) * 45)), y: Math.max(5, Math.min(95, 50 - (dy / form.radius_km) * 45)) }
-  })
+function CoverageMap({ leads, form, loading, generatedAt }) {
+  const [snapshotUrl, setSnapshotUrl] = useState('')
+  const [snapshotLoading, setSnapshotLoading] = useState(false)
+  const [snapshotError, setSnapshotError] = useState('')
+
+  useEffect(() => {
+    if (!generatedAt) return
+    const controller = new AbortController()
+    let objectUrl = ''
+    setSnapshotLoading(true)
+    setSnapshotError('')
+    fetch('/api/map/snapshot', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      signal: controller.signal,
+      body: JSON.stringify({
+        center_latitude: form.center_latitude,
+        center_longitude: form.center_longitude,
+        radius_km: form.radius_km,
+        points: leads.filter((lead) => lead.latitude != null).slice(0, 50).map((lead) => ({ latitude: lead.latitude, longitude: lead.longitude })),
+      }),
+    }).then(async (response) => {
+      if (!response.ok) {
+        const data = await response.json().catch(() => ({}))
+        throw new Error(data.detail || 'La carte Google est indisponible.')
+      }
+      objectUrl = URL.createObjectURL(await response.blob())
+      setSnapshotUrl(objectUrl)
+    }).catch((error) => {
+      if (error.name !== 'AbortError') setSnapshotError(error.message)
+    }).finally(() => setSnapshotLoading(false))
+    return () => {
+      controller.abort()
+      if (objectUrl) URL.revokeObjectURL(objectUrl)
+    }
+  }, [generatedAt])
+
   return <div className="coverage-card">
     <div className="map-top"><div><p className="eyebrow">Aperçu de couverture</p><h2>Rayon de {form.radius_km} km</h2></div><div className="zone-pill"><Target size={14} /> {form.max_tiles} zones</div></div>
-    <div className="map-canvas">
-      <div className="map-road road-one" /><div className="map-road road-two" /><div className="map-road road-three" />
-      <div className="radius-ring ring-one" /><div className="radius-ring ring-two" /><div className="center-marker"><MapPin size={17} fill="currentColor" /></div>
-      {pins.map((pin, index) => <span key={`${pin.place_id}-${index}`} className="lead-pin" title={pin.name} style={{ left: `${pin.x}%`, top: `${pin.y}%`, animationDelay: `${index * 18}ms` }} />)}
-      {!pins.length && !loading && <div className="map-empty"><MapPin size={22} /><span>Les résultats apparaîtront ici</span></div>}
+    <div className="map-canvas real-map">
+      {snapshotUrl && !snapshotLoading && <img className="map-snapshot" src={snapshotUrl} alt={`Carte Google des ${leads.length} entreprises trouvées dans un rayon de ${form.radius_km} kilomètres`} />}
+      {!generatedAt && !loading && <div className="map-pending"><div><MapPin size={24} /><span /></div><strong>Carte Google après génération</strong><small>La capture réelle et les entreprises trouvées apparaîtront ici.</small></div>}
+      {snapshotLoading && <div className="map-pending"><LoaderCircle className="spin" size={25} /><strong>Création de la carte Google…</strong></div>}
+      {snapshotError && !snapshotLoading && <div className="map-pending map-error"><AlertTriangle size={23} /><strong>Carte non disponible</strong><small>{snapshotError}</small></div>}
       {loading && <div className="scan"><span /></div>}
-      <div className="map-legend"><i /> Centre <b /> Lead</div>
     </div>
+  </div>
+}
+
+function IdentityModal({ requester, setRequester, onClose, onConfirm }) {
+  const updateRequester = (key, value) => setRequester((current) => ({ ...current, [key]: value }))
+  return <div className="dialog-backdrop" role="presentation" onMouseDown={(event) => event.target === event.currentTarget && onClose()}>
+    <section className="identity-dialog" role="dialog" aria-modal="true" aria-labelledby="identity-title">
+      <div className="dialog-head"><div className="dialog-icon"><Building2 size={21} /></div><div><p className="eyebrow">Identification de la demande</p><h2 id="identity-title">Avant de générer les leads</h2></div><button type="button" onClick={onClose} aria-label="Fermer"><X size={18} /></button></div>
+      <p className="dialog-intro">Indiquez qui effectue cette recherche. Une même adresse professionnelle ne peut lancer qu’une génération à la fois.</p>
+      <form onSubmit={onConfirm}>
+        <div className="identity-grid">
+          <Field label="Prénom"><input aria-label="Prénom" autoFocus autoComplete="given-name" value={requester.first_name} onChange={(event) => updateRequester('first_name', event.target.value)} placeholder="Votre prénom" minLength="1" maxLength="80" required /></Field>
+          <Field label="Raison sociale"><input aria-label="Raison sociale" autoComplete="organization" value={requester.company_name} onChange={(event) => updateRequester('company_name', event.target.value)} placeholder="Nom de l’entreprise" minLength="2" maxLength="160" required /></Field>
+        </div>
+        <Field label="Adresse professionnelle">
+          <div className="input-with-icon"><MapPin size={17} /><input aria-label="Adresse professionnelle" autoComplete="street-address" value={requester.business_address} onChange={(event) => updateRequester('business_address', event.target.value)} placeholder="Numéro, rue, ville et pays" minLength="5" maxLength="240" required /></div>
+        </Field>
+        <p className="privacy-note"><Info size={14} /> Ces informations sont utilisées pendant la génération. Consultez notre <a href="/confidentialite.html" target="_blank" rel="noreferrer">politique de confidentialité</a>.</p>
+        <div className="dialog-actions"><button className="secondary-button" type="button" onClick={onClose}>Annuler</button><button className="primary-button" type="submit"><Sparkles size={17} /> Confirmer et générer</button></div>
+      </form>
+    </section>
   </div>
 }
 

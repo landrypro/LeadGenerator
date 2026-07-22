@@ -15,6 +15,15 @@ HEADERS = [
     "DistanceKm", "RadiusVerified", "CollectedAt",
 ]
 
+DANGEROUS_EXCEL_PREFIXES = ("=", "+", "-", "@", "\t", "\r", "\n")
+
+
+def safe_excel_value(value: object) -> object:
+    """Keep external text from being interpreted as an Excel formula."""
+    if isinstance(value, str) and value.startswith(DANGEROUS_EXCEL_PREFIXES):
+        return f"'{value}"
+    return value
+
 
 def build_workbook(payload: ExportRequest) -> bytes:
     workbook = Workbook()
@@ -22,13 +31,14 @@ def build_workbook(payload: ExportRequest) -> bytes:
     sheet.title = "Leads"
     sheet.append(HEADERS)
     for lead in payload.leads:
-        sheet.append([
+        row = [
             lead.name, lead.address, lead.phone, lead.international_phone, lead.website,
             lead.google_maps_url, lead.latitude, lead.longitude, lead.place_id,
             lead.primary_type, lead.business_status, lead.service_area_business,
             lead.zone_index, lead.zone_latitude, lead.zone_longitude, lead.distance_km,
             lead.radius_verified, lead.collected_at.isoformat(),
-        ])
+        ]
+        sheet.append([safe_excel_value(value) for value in row])
 
     header_fill = PatternFill("solid", fgColor="163E34")
     for cell in sheet[1]:
@@ -51,7 +61,7 @@ def build_workbook(payload: ExportRequest) -> bytes:
     summary = workbook.create_sheet("Recherche")
     summary.append(["Paramètre", "Valeur"])
     for key, value in payload.search.items():
-        summary.append([key, str(value)])
+        summary.append([safe_excel_value(key), safe_excel_value(str(value))])
     for cell in summary[1]:
         cell.fill = header_fill
         cell.font = Font(color="FFFFFF", bold=True)
@@ -62,4 +72,3 @@ def build_workbook(payload: ExportRequest) -> bytes:
     buffer = BytesIO()
     workbook.save(buffer)
     return buffer.getvalue()
-
