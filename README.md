@@ -169,18 +169,29 @@ flowchart LR
 
 ### Organisation du code
 
-| Fichier | Responsabilité |
+Le backend suit une Clean Architecture pragmatique. Les dépendances pointent vers l’intérieur : la présentation et l’infrastructure dépendent de l’application, tandis que le domaine ne dépend d’aucun framework.
+
+| Dossier ou fichier | Responsabilité |
 | --- | --- |
-| `backend/app/main.py` | Routes FastAPI, configuration CORS et service du build React. |
-| `backend/app/models.py` | Modèles et contraintes Pydantic des requêtes et réponses. |
-| `backend/app/places.py` | Client Google Places, masque de champs, délais et nouvelles tentatives. |
-| `backend/app/search_service.py` | Orchestration des zones, pagination, déduplication et filtrage par rayon. |
-| `backend/app/geo.py` | Calcul Haversine et génération du maillage radial. |
-| `backend/app/generation_lock.py` | Verrou de génération et normalisation Unicode des adresses. |
-| `backend/app/map_snapshot.py` | Calcul du zoom et construction de l’URL Maps Static. |
-| `backend/app/map_snapshot_grants.py` | Jetons éphémères et à usage unique pour les cartes facturables. |
-| `backend/app/excel.py` | Création du classeur et neutralisation des formules externes. |
-| `client/src/App.jsx` | État de l’application, appels API et composants principaux. |
+| `backend/app/domain/` | Objets métier et calculs géographiques sans FastAPI, Pydantic ni fournisseur externe. |
+| `backend/app/application/use_cases/` | Recherche, génération, carte et export sous forme de cas d’utilisation. |
+| `backend/app/application/ports/` | Interfaces des services Google, verrous, jetons, cartes et exports. |
+| `backend/app/infrastructure/google/` | Clients et adaptateurs Google Places et Maps Static. |
+| `backend/app/infrastructure/memory/` | Implémentations locales temporaires des verrous et jetons. |
+| `backend/app/infrastructure/export/` | Adaptateur de génération Excel. |
+| `backend/app/presentation/api/` | Schémas, mappers, dépendances et routes FastAPI. |
+| `backend/app/config.py` | Chargement et validation centralisés des variables d’environnement. |
+| `backend/app/bootstrap.py` | `create_app()` et composition des dépendances concrètes. |
+| `backend/app/container.py` | Conteneur injecté dans les routes. |
+| `backend/app/main.py` | Point d’entrée ASGI minimal pour Uvicorn. |
+| `backend/app/{models,places,search_service,...}.py` | Façades temporaires maintenant les anciens imports compatibles. |
+| `client/src/app/` | Composant racine, registre des chemins CRM et routage côté navigateur. |
+| `client/src/features/lead-search/` | Page, composants, hooks et API de la fonctionnalité de recherche actuelle. |
+| `client/src/shared/api/` | Client HTTP, erreurs réseau et décodage centralisé des réponses. |
+| `client/src/shared/browser/` | Téléchargement des fichiers et gestion des URL temporaires. |
+| `client/src/shared/hooks/` | Comportements d’interface réutilisables sans dépendance métier. |
+| `client/src/shared/ui/` | Contrôles visuels partagés. |
+| `client/src/App.jsx` | Façade temporaire maintenant l’ancien import compatible. |
 | `client/public/` | Pages légales et leur feuille de style. |
 
 ## Contrat API
@@ -284,7 +295,8 @@ La suite couvre notamment :
 - export Excel et neutralisation des formules ;
 - normalisation Unicode et verrouillage par adresse ;
 - durée de vie, usage unique et concurrence des jetons Maps ;
-- conservation des paramètres réellement soumis.
+- conservation des paramètres réellement soumis ;
+- chargement de `Settings`, fabrique `create_app()` et injection des cas d’utilisation.
 
 `azure-pipelines.yml` installe Python et Node.js, exécute pytest, compile React et publie un artefact contenant le backend, le build frontal et la documentation.
 
