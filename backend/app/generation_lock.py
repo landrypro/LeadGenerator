@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import asyncio
 import hashlib
-import re
 import unicodedata
 from contextlib import asynccontextmanager
 from collections.abc import AsyncIterator
@@ -21,9 +20,16 @@ class AddressGenerationRegistry:
 
     @staticmethod
     def address_key(address: str) -> str:
-        normalized = unicodedata.normalize("NFKD", address).encode("ascii", "ignore").decode().lower()
-        normalized = re.sub(r"[^a-z0-9]+", "", normalized)
-        return hashlib.sha256(normalized.encode()).hexdigest()
+        decomposed = unicodedata.normalize("NFKD", address).casefold()
+        without_marks = "".join(
+            character
+            for character in decomposed
+            if not unicodedata.category(character).startswith("M")
+        )
+        normalized = "".join(character for character in without_marks if character.isalnum())
+        if not normalized:
+            normalized = unicodedata.normalize("NFKC", address).casefold().strip()
+        return hashlib.sha256(normalized.encode("utf-8")).hexdigest()
 
     @asynccontextmanager
     async def hold(self, address: str) -> AsyncIterator[None]:
@@ -37,4 +43,3 @@ class AddressGenerationRegistry:
         finally:
             async with self._guard:
                 self._active_address_hashes.discard(key)
-
