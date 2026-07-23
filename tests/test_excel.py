@@ -1,4 +1,4 @@
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from io import BytesIO
 
 from openpyxl import load_workbook
@@ -9,8 +9,13 @@ from backend.app.models import ExportRequest, Lead
 
 def test_excel_export_contains_leads_and_search_summary():
     lead = Lead(
-        name="Plomberie Boréale", address="Québec", place_id="abc", zone_index=1,
-        zone_latitude=46.8, zone_longitude=-71.2, collected_at=datetime.now(timezone.utc),
+        name="Plomberie Boréale",
+        address="Québec",
+        place_id="abc",
+        zone_index=1,
+        zone_latitude=46.8,
+        zone_longitude=-71.2,
+        collected_at=datetime.now(UTC),
     )
 
     content = build_workbook(ExportRequest(leads=[lead], search={"query": "plombier"}))
@@ -24,13 +29,13 @@ def test_excel_export_contains_leads_and_search_summary():
 
 def test_excel_export_neutralizes_formula_like_text():
     lead = Lead(
-        name="=HYPERLINK(\"https://example.invalid\",\"Cliquez\")",
+        name='=HYPERLINK("https://example.invalid","Cliquez")',
         address="@adresse",
         place_id="formula-test",
         zone_index=1,
         zone_latitude=46.8,
         zone_longitude=-71.2,
-        collected_at=datetime.now(timezone.utc),
+        collected_at=datetime.now(UTC),
     )
 
     content = build_workbook(ExportRequest(leads=[lead], search={"query": "=1+1"}))

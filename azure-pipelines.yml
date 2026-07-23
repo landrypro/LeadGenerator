@@ -22,8 +22,17 @@ steps:
       pip install -r backend/requirements-dev.txt
     displayName: Installer les dépendances Python
 
+  - script: python -m ruff check backend/app tests
+    displayName: Vérifier le lint Python avec Ruff
+
+  - script: python -m ruff format --check backend/app tests
+    displayName: Vérifier le formatage Python avec Ruff
+
+  - script: python -m mypy
+    displayName: Vérifier les types Python avec mypy
+
   - script: pytest --junitxml=test-results/pytest.xml
-    displayName: Exécuter les tests unitaires
+    displayName: Exécuter les tests Python unitaires et d’intégration
 
   - task: PublishTestResults@2
     condition: succeededOrFailed()
@@ -41,6 +50,21 @@ steps:
     workingDirectory: client
     displayName: Restaurer les dépendances React
 
+  - script: npm run lint
+    workingDirectory: client
+    displayName: Vérifier le frontend avec ESLint
+
+  - script: npm run test:ci
+    workingDirectory: client
+    displayName: Exécuter les tests frontend
+
+  - task: PublishTestResults@2
+    condition: succeededOrFailed()
+    inputs:
+      testResultsFormat: JUnit
+      testResultsFiles: test-results/vitest.xml
+      testRunTitle: Tests React
+
   - script: npm run build
     workingDirectory: client
     displayName: Compiler l’interface React
@@ -51,6 +75,7 @@ steps:
       Contents: |
         backend/**
         client/dist/**
+        docs/**
         README.md
         .env.example
       TargetFolder: $(Build.ArtifactStagingDirectory)/GoogleMapsLeadGenerator
@@ -61,4 +86,3 @@ steps:
       targetPath: $(Build.ArtifactStagingDirectory)/GoogleMapsLeadGenerator
       artifact: GoogleMapsLeadGenerator
     displayName: Publier l’application
-

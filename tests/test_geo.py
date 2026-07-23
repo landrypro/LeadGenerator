@@ -12,4 +12,3 @@ def test_tile_planner_returns_requested_count_and_center_first():
     assert tiles[0].latitude == 46.8139
     assert tiles[0].longitude == -71.2080
     assert all(0 < tile.bias_radius_m <= 50_000 for tile in tiles)
-

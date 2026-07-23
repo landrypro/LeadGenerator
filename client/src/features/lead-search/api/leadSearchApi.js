@@ -6,6 +6,7 @@ export const leadSearchApi = {
     return request('/api/health', { signal, fallbackMessage: 'Impossible de vérifier la configuration.' })
   },
 
+  /** @deprecated Remplacé en V1 par une recherche Google limitée sans balayage multi-zone. */
   search(payload, signal) {
     return postJson('/api/leads/search', payload, {
       signal,
@@ -13,6 +14,7 @@ export const leadSearchApi = {
     })
   },
 
+  /** @deprecated Remplacé en V1 par l’export des seules données internes du CRM. */
   export(payload) {
     return postJson('/api/leads/export', payload, {
       responseType: 'blob',

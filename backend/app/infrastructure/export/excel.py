@@ -11,10 +11,24 @@ from openpyxl.utils import get_column_letter
 from ...domain.lead import Lead
 
 HEADERS = [
-    "Name", "Address", "Phone", "InternationalPhone", "Website", "GoogleMapsUrl",
-    "Latitude", "Longitude", "PlaceId", "PrimaryType", "BusinessStatus",
-    "ServiceAreaBusiness", "ZoneIndex", "ZoneLatitude", "ZoneLongitude",
-    "DistanceKm", "RadiusVerified", "CollectedAt",
+    "Name",
+    "Address",
+    "Phone",
+    "InternationalPhone",
+    "Website",
+    "GoogleMapsUrl",
+    "Latitude",
+    "Longitude",
+    "PlaceId",
+    "PrimaryType",
+    "BusinessStatus",
+    "ServiceAreaBusiness",
+    "ZoneIndex",
+    "ZoneLatitude",
+    "ZoneLongitude",
+    "DistanceKm",
+    "RadiusVerified",
+    "CollectedAt",
 ]
 DANGEROUS_EXCEL_PREFIXES = ("=", "+", "-", "@", "\t", "\r", "\n")
 
@@ -27,20 +41,35 @@ def safe_excel_value(value: object) -> object:
 
 
 class ExcelLeadExporter:
+    """Adaptateur transitoire supprimé lors de la migration vers les exports CRM V1."""
+
     def export(self, leads: Sequence[Lead], search: Mapping[str, Any]) -> bytes:
         workbook = Workbook()
         sheet = workbook.active
         sheet.title = "Leads"
         sheet.append(HEADERS)
         for lead in leads:
-            row = [
-                lead.name, lead.address, lead.phone, lead.international_phone, lead.website,
-                lead.google_maps_url, lead.latitude, lead.longitude, lead.place_id,
-                lead.primary_type, lead.business_status, lead.service_area_business,
-                lead.zone_index, lead.zone_latitude, lead.zone_longitude, lead.distance_km,
-                lead.radius_verified, lead.collected_at.isoformat() if lead.collected_at else "",
+            data_row = [
+                lead.name,
+                lead.address,
+                lead.phone,
+                lead.international_phone,
+                lead.website,
+                lead.google_maps_url,
+                lead.latitude,
+                lead.longitude,
+                lead.place_id,
+                lead.primary_type,
+                lead.business_status,
+                lead.service_area_business,
+                lead.zone_index,
+                lead.zone_latitude,
+                lead.zone_longitude,
+                lead.distance_km,
+                lead.radius_verified,
+                lead.collected_at.isoformat() if lead.collected_at else "",
             ]
-            sheet.append([safe_excel_value(value) for value in row])
+            sheet.append([safe_excel_value(value) for value in data_row])
 
         header_fill = PatternFill("solid", fgColor="163E34")
         for cell in sheet[1]:
@@ -53,9 +82,9 @@ class ExcelLeadExporter:
         widths = [28, 42, 18, 22, 34, 36, 12, 12, 30, 22, 18, 20, 12, 15, 15, 13, 15, 25]
         for index, width in enumerate(widths, 1):
             sheet.column_dimensions[get_column_letter(index)].width = width
-        for row in range(2, sheet.max_row + 1):
+        for row_index in range(2, sheet.max_row + 1):
             for column in (5, 6):
-                cell = sheet.cell(row, column)
+                cell = sheet.cell(row_index, column)
                 if cell.value:
                     cell.hyperlink = cell.value
                     cell.style = "Hyperlink"

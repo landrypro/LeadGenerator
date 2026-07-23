@@ -1,4 +1,4 @@
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from backend.app.models import LeadGenerationResponse, SearchRequest, SearchStats
 
@@ -18,7 +18,7 @@ def test_generation_response_preserves_effective_search_parameters() -> None:
     response = LeadGenerationResponse(
         leads=[],
         stats=SearchStats(),
-        generated_at=datetime.now(timezone.utc),
+        generated_at=datetime.now(UTC),
         map_snapshot_token="snapshot-token",
         search_parameters=parameters,
     )

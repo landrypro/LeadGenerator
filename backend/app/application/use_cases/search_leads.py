@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import re
 import unicodedata
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from ...domain.geo import SearchTile, generate_tiles, haversine_km
 from ...domain.lead import Lead, SearchResult, SearchStats
@@ -11,6 +11,8 @@ from ..ports.places import PlaceCandidate, PlacesGateway
 
 
 class SearchLeadsUseCase:
+    """Recherche multi-zone transitoire, remplacée par la recherche Google limitée de la V1."""
+
     def __init__(self, places: PlacesGateway) -> None:
         self._places = places
 
@@ -19,7 +21,7 @@ class SearchLeadsUseCase:
         leads: list[Lead] = []
         seen_place_ids: set[str] = set()
         seen_fallback: set[str] = set()
-        collected_at = datetime.now(timezone.utc)
+        collected_at = datetime.now(UTC)
         tiles = generate_tiles(
             criteria.center_latitude,
             criteria.center_longitude,
@@ -77,20 +79,20 @@ class SearchLeadsUseCase:
         tile: SearchTile,
         collected_at: datetime,
     ) -> Lead:
-        has_location = place.latitude is not None and place.longitude is not None
-        distance = (
-            round(
+        latitude = place.latitude
+        longitude = place.longitude
+        if latitude is not None and longitude is not None:
+            distance = round(
                 haversine_km(
                     criteria.center_latitude,
                     criteria.center_longitude,
-                    float(place.latitude),
-                    float(place.longitude),
+                    latitude,
+                    longitude,
                 ),
                 3,
             )
-            if has_location
-            else None
-        )
+        else:
+            distance = None
         return Lead(
             name=place.name,
             address=place.address,
@@ -98,8 +100,8 @@ class SearchLeadsUseCase:
             international_phone=place.international_phone,
             website=place.website,
             google_maps_url=place.google_maps_url,
-            latitude=float(place.latitude) if has_location else None,
-            longitude=float(place.longitude) if has_location else None,
+            latitude=latitude,
+            longitude=longitude,
             place_id=place.place_id,
             primary_type=place.primary_type,
             business_status=place.business_status,
@@ -108,7 +110,7 @@ class SearchLeadsUseCase:
             zone_latitude=tile.latitude,
             zone_longitude=tile.longitude,
             distance_km=distance,
-            radius_verified=has_location,
+            radius_verified=latitude is not None and longitude is not None,
             collected_at=collected_at,
         )
 

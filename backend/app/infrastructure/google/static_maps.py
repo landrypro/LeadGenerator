@@ -36,9 +36,7 @@ def build_static_map_url(payload: MapSnapshot, api_key: str) -> str:
         ("style", "feature:poi|element:labels|visibility:simplified"),
     ]
     if payload.points:
-        lead_locations = "|".join(
-            f"{point.latitude:.6f},{point.longitude:.6f}" for point in payload.points
-        )
+        lead_locations = "|".join(f"{point.latitude:.6f},{point.longitude:.6f}" for point in payload.points)
         parameters.append(("markers", f"size:tiny|color:0xa8db47|{lead_locations}"))
     parameters.append(("key", api_key))
     return f"{STATIC_MAPS_URL}?{urlencode(parameters)}"

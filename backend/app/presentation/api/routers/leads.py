@@ -11,7 +11,7 @@ from ..schemas import ExportRequest, LeadGenerationRequest, LeadGenerationRespon
 router = APIRouter(prefix="/api/leads", tags=["leads"])
 
 
-@router.post("/search", response_model=LeadGenerationResponse)
+@router.post("/search", response_model=LeadGenerationResponse, deprecated=True)
 async def search_leads(
     request: LeadGenerationRequest,
     container: ContainerDependency,
@@ -40,7 +40,7 @@ async def search_leads(
         raise HTTPException(status_code=status, detail=str(exc)) from exc
 
 
-@router.post("/export")
+@router.post("/export", deprecated=True)
 async def export_leads(payload: ExportRequest, container: ContainerDependency) -> Response:
     try:
         content = container.export_leads.execute(

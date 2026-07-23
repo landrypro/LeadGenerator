@@ -20,9 +20,8 @@ async def test_same_normalized_address_cannot_generate_twice_concurrently() -> N
 async def test_different_addresses_can_generate_concurrently() -> None:
     registry = AddressGenerationRegistry()
 
-    async with registry.hold("100 rue Principale, Québec"):
-        async with registry.hold("200 rue Principale, Québec"):
-            pass
+    async with registry.hold("100 rue Principale, Québec"), registry.hold("200 rue Principale, Québec"):
+        pass
 
 
 def test_non_latin_addresses_do_not_collapse_to_the_same_key() -> None:

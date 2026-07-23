@@ -20,9 +20,7 @@ class InMemoryGenerationGuard:
     def address_key(address: str) -> str:
         decomposed = unicodedata.normalize("NFKD", address).casefold()
         without_marks = "".join(
-            character
-            for character in decomposed
-            if not unicodedata.category(character).startswith("M")
+            character for character in decomposed if not unicodedata.category(character).startswith("M")
         )
         normalized = "".join(character for character in without_marks if character.isalnum())
         if not normalized:

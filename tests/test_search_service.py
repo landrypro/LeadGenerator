@@ -70,10 +70,12 @@ async def test_keeps_service_area_business_without_location_as_unverified():
 
 @pytest.mark.asyncio
 async def test_follows_next_page_token_and_stops_at_page_limit():
-    client = FakePlacesClient([
-        PlacesPage([place("one")], "token-2"),
-        PlacesPage([place("two")], "token-3"),
-    ])
+    client = FakePlacesClient(
+        [
+            PlacesPage([place("one")], "token-2"),
+            PlacesPage([place("two")], "token-3"),
+        ]
+    )
     request = SearchRequest(query="plombier", max_tiles=1, max_pages=2, target=10)
 
     result = await LeadSearchService(client).search(request)
@@ -81,4 +83,3 @@ async def test_follows_next_page_token_and_stops_at_page_limit():
     assert len(result.leads) == 2
     assert client.calls == [(1, None), (1, "token-2")]
     assert result.stats.api_calls == 2
-

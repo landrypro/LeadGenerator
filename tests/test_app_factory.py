@@ -1,6 +1,6 @@
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
-from fastapi.testclient import TestClient
+from httpx import ASGITransport, AsyncClient
 
 from backend.app.application.use_cases.generate_leads import GenerateLeadsResult
 from backend.app.bootstrap import create_app
@@ -21,23 +21,23 @@ class StubGenerateLeads:
             search=SearchResult(
                 leads=[],
                 stats=SearchStats(),
-                generated_at=datetime.now(timezone.utc),
+                generated_at=datetime.now(UTC),
             ),
             map_snapshot_token="injected-token",
         )
 
 
-def test_create_app_uses_injected_settings_for_health() -> None:
+async def test_create_app_uses_injected_settings_for_health() -> None:
     app = create_app(Settings(google_maps_api_key="configured"))
 
-    with TestClient(app) as client:
-        response = client.get("/api/health")
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+        response = await client.get("/api/health")
 
     assert response.status_code == 200
     assert response.json() == {"status": "ok", "google_api_key_configured": True}
 
 
-def test_routes_receive_injected_use_cases() -> None:
+async def test_routes_receive_injected_use_cases() -> None:
     settings = Settings(google_maps_api_key="fake-key")
     generate_leads = StubGenerateLeads()
     container = AppContainer(
@@ -48,8 +48,8 @@ def test_routes_receive_injected_use_cases() -> None:
     )
     app = create_app(container=container)
 
-    with TestClient(app) as client:
-        response = client.post(
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+        response = await client.post(
             "/api/leads/search",
             json={
                 "query": "plombier",

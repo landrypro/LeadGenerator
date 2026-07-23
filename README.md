@@ -18,6 +18,8 @@ Ce fichier réunit la documentation utilisateur et la documentation technique du
 - identification du demandeur et blocage des recherches simultanées pour une même adresse ;
 - pages de conditions d’utilisation et de politique de confidentialité.
 
+> **Migration CRM V1 :** la recherche multi-zone/multi-page et l’export des résultats Google bruts sont transitoires. Leurs routes et paramètres sont marqués `deprecated` dans OpenAPI. Leur remplacement et leurs règles de suppression sont suivis dans [`docs/TRANSITIONAL_FEATURES.md`](docs/TRANSITIONAL_FEATURES.md).
+
 ## Guide utilisateur
 
 ### 1. Préparer une recherche
@@ -200,7 +202,7 @@ Le backend suit une Clean Architecture pragmatique. Les dépendances pointent ve
 
 Retourne l’état de l’API et indique si `GOOGLE_MAPS_API_KEY` est présente.
 
-### `POST /api/leads/search`
+### `POST /api/leads/search` — transitoire
 
 Exécute une recherche et exige l’identité du demandeur.
 
@@ -252,7 +254,7 @@ Le serveur détermine lui-même le centre, le rayon et les marqueurs associés. 
 
 Le registre conserve au maximum 1 000 jetons dans le processus courant.
 
-### `POST /api/leads/export`
+### `POST /api/leads/export` — transitoire
 
 Reçoit la liste des leads et les paramètres de recherche, puis retourne un fichier Excel. Une liste vide produit une erreur 400 et la requête accepte au maximum 1 000 leads.
 
@@ -273,16 +275,21 @@ Le jeton Maps protège l’appel direct à Maps Static API, mais ne remplace pas
 
 ## Tests et intégration continue
 
-Exécuter les tests Python :
+Vérifier puis tester le backend :
 
 ```powershell
+.\.venv\Scripts\python.exe -m ruff check backend/app tests
+.\.venv\Scripts\python.exe -m ruff format --check backend/app tests
+.\.venv\Scripts\python.exe -m mypy
 .\.venv\Scripts\python.exe -m pytest -q
 ```
 
-Compiler l’interface :
+Vérifier, tester puis compiler l’interface :
 
 ```powershell
 cd client
+npm run lint
+npm test
 npm run build
 ```
 
@@ -296,9 +303,12 @@ La suite couvre notamment :
 - normalisation Unicode et verrouillage par adresse ;
 - durée de vie, usage unique et concurrence des jetons Maps ;
 - conservation des paramètres réellement soumis ;
-- chargement de `Settings`, fabrique `create_app()` et injection des cas d’utilisation.
+- chargement de `Settings`, fabrique `create_app()` et injection des cas d’utilisation ;
+- parcours d’intégration FastAPI avec faux adaptateurs Google ;
+- client HTTP, parcours de recherche React, erreurs communes et registre des routes CRM ;
+- frontières Clean Architecture et statut déprécié des fonctions transitoires.
 
-`azure-pipelines.yml` installe Python et Node.js, exécute pytest, compile React et publie un artefact contenant le backend, le build frontal et la documentation.
+`azure-pipelines.yml` installe Python et Node.js, exécute Ruff, mypy, pytest, ESLint, Vitest et le build React, publie les résultats JUnit puis prépare l’artefact de déploiement.
 
 ## Build et déploiement
 

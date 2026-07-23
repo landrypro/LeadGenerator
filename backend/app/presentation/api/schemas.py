@@ -25,9 +25,9 @@ class SearchRequest(BaseModel):
     center_latitude: float = Field(default=46.8139, ge=-90, le=90)
     center_longitude: float = Field(default=-71.2080, ge=-180, le=180)
     radius_km: float = Field(default=15, gt=0, le=50)
-    target: int = Field(default=200, ge=1, le=500)
-    max_tiles: int = Field(default=8, ge=1, le=30)
-    max_pages: int = Field(default=3, ge=1, le=3)
+    target: int = Field(default=200, ge=1, le=500, deprecated=True)
+    max_tiles: int = Field(default=8, ge=1, le=30, deprecated=True)
+    max_pages: int = Field(default=3, ge=1, le=3, deprecated=True)
     contact_fields: bool = False
     include_service_area_businesses: bool = True
     language_code: str = Field(default="fr", min_length=2, max_length=10)

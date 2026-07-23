@@ -45,4 +45,3 @@ async def test_contact_field_mask_is_optional():
     assert "nationalPhoneNumber" not in masks[0]
     assert "nationalPhoneNumber" in masks[1]
     assert "websiteUri" in masks[1]
-

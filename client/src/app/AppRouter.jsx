@@ -1,20 +1,7 @@
 import { useEffect, useState } from 'react'
 
+import { currentPath, NAVIGATION_EVENT } from './navigation'
 import { routes } from './routes'
-
-const NAVIGATION_EVENT = 'prospect:navigation'
-
-
-function currentPath() {
-  return window.location.pathname.replace(/\/$/, '') || '/'
-}
-
-
-export function navigate(path) {
-  if (currentPath() === path) return
-  window.history.pushState({}, '', path)
-  window.dispatchEvent(new Event(NAVIGATION_EVENT))
-}
 
 
 export function AppRouter() {

@@ -40,6 +40,6 @@ class SearchStats:
 
 @dataclass(frozen=True, slots=True)
 class SearchResult:
+    generated_at: datetime
     leads: list[Lead] = field(default_factory=list)
     stats: SearchStats = field(default_factory=SearchStats)
-    generated_at: datetime | None = None

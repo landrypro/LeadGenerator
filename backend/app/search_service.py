@@ -15,7 +15,7 @@ from .presentation.api.schemas import Lead, SearchRequest, SearchResponse, Searc
 class PlacesClient(Protocol):
     async def search_page(
         self,
-        request: SearchRequest,
+        request: SearchCriteria,
         tile: SearchTile,
         page_token: str | None = None,
     ) -> PlacesPage: ...
@@ -33,8 +33,7 @@ class _LegacyPlacesGateway:
     ) -> PlaceSearchPage:
         page = await self._client.search_page(criteria, tile, page_token)
         candidates = [
-            place if isinstance(place, PlaceCandidate) else google_place_to_candidate(place)
-            for place in page.places
+            place if isinstance(place, PlaceCandidate) else google_place_to_candidate(place) for place in page.places
         ]
         return PlaceSearchPage(candidates, page.next_page_token)
 

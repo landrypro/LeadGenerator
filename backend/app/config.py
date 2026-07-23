@@ -42,11 +42,9 @@ class Settings:
     def from_env(cls, environ: Mapping[str, str] | None = None) -> Settings:
         values = os.environ if environ is None else environ
         configured_origins = values.get("CORS_ALLOWED_ORIGINS", "")
-        origins = tuple(
-            origin.strip()
-            for origin in configured_origins.split(",")
-            if origin.strip()
-        ) or DEFAULT_CORS_ORIGINS
+        origins = (
+            tuple(origin.strip() for origin in configured_origins.split(",") if origin.strip()) or DEFAULT_CORS_ORIGINS
+        )
         return cls(
             google_maps_api_key=values.get("GOOGLE_MAPS_API_KEY", "").strip(),
             google_maps_static_api_key=values.get("GOOGLE_MAPS_STATIC_API_KEY", "").strip(),
