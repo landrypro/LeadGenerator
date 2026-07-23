@@ -22,3 +22,29 @@ class StaticMapProviderError(RuntimeError):
 
 class EmptyExportError(ValueError):
     """Un export a été demandé sans aucune donnée."""
+
+
+class InvalidCredentials(RuntimeError):
+    """Les informations de connexion ne correspondent pas à un compte actif."""
+
+
+class AuthenticationRequired(RuntimeError):
+    """Une session valide est obligatoire."""
+
+
+class CsrfValidationFailed(RuntimeError):
+    """Le jeton ou l’origine CSRF est invalide."""
+
+
+class AuthenticationServiceUnavailable(RuntimeError):
+    """Une dépendance de sécurité ne permet pas d’authentifier la requête."""
+
+
+class LoginRateLimited(RuntimeError):
+    def __init__(self, retry_after_seconds: int) -> None:
+        super().__init__("Trop de tentatives de connexion.")
+        self.retry_after_seconds = max(1, retry_after_seconds)
+
+
+class PlatformAdministratorAlreadyExists(RuntimeError):
+    """Le bootstrap initial a déjà été exécuté."""

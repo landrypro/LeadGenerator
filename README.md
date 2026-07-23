@@ -1,103 +1,73 @@
-# Prospect — générateur de leads Google Maps
+# Prospect CRM
 
-Prospect est une application Web Python + React qui recherche des entreprises locales avec **Google Places API (New) — Text Search**, élimine les doublons, vérifie leur présence dans un rayon donné et exporte les résultats dans un classeur Excel.
+Prospect est une application React et FastAPI en migration vers un CRM de gestion commerciale. La phase 1 fournit une recherche Google Places ponctuelle et conforme : une seule requête Text Search par action, vingt établissements au maximum, aucun contact dans la liste et aucune persistance des résultats Google.
 
-Ce fichier réunit la documentation utilisateur et la documentation technique du projet.
+Ce fichier réunit le guide utilisateur et la documentation technique du socle actuel. La spécification complète se trouve dans [`docs/SPECIFICATION_CRM_V1.md`](docs/SPECIFICATION_CRM_V1.md), les décisions validées sur les sources dans [`docs/PHASE_1_1_ACQUISITION_CONSERVATION.md`](docs/PHASE_1_1_ACQUISITION_CONSERVATION.md) et la conception validée des fondations dans [`docs/PHASE_2_SPECIFICATIONS_DETAILLEES.md`](docs/PHASE_2_SPECIFICATIONS_DETAILLEES.md).
 
-## Fonctionnalités
+## Fonctionnalités disponibles
 
-- recherche multi-zones autour de coordonnées géographiques ;
-- pagination Google Places, jusqu’à trois pages par zone ;
-- déduplication par `PlaceId`, avec repli sur le nom et l’adresse ;
-- filtrage géographique par distance Haversine ;
-- prise en charge configurable des entreprises de zone de service ;
-- récupération facultative du téléphone et du site Web ;
-- carte Google statique des résultats ;
-- filtrage des résultats dans l’interface ;
-- export Excel avec feuille de données et récapitulatif de la recherche ;
-- identification du demandeur et blocage des recherches simultanées pour une même adresse ;
-- pages de conditions d’utilisation et de politique de confidentialité.
-
-> **Migration CRM V1 :** la recherche multi-zone/multi-page et l’export des résultats Google bruts sont transitoires. Leurs routes et paramètres sont marqués `deprecated` dans OpenAPI. Leur remplacement et leurs règles de suppression sont suivis dans [`docs/TRANSITIONAL_FEATURES.md`](docs/TRANSITIONAL_FEATURES.md).
+- connexion et déconnexion avec un compte créé par l’exploitant ;
+- mots de passe hachés avec Argon2id et inscription publique désactivée ;
+- session opaque conservée côté serveur dans Redis, cookie `HttpOnly` et protection CSRF ;
+- expiration après 30 minutes d’inactivité et 12 heures au maximum, configurables ;
+- limitation des échecs de connexion par adresse réseau et identité pseudonymisée ;
+- recherche explicite d’établissements autour d’un point et d’un rayon ;
+- exactement un appel Text Search par action, sans page suivante ni balayage multi-zone ;
+- réponse et affichage limités à vingt établissements ;
+- liste sans téléphone ni site Web ;
+- résultats temporaires conservés uniquement dans l’état mémoire React ;
+- attribution visible `Google Maps`, non traduisible et conforme au style textuel officiel dans le conteneur des résultats ;
+- carte Google statique protégée par un jeton serveur court et à usage unique ;
+- identification temporaire du demandeur et verrou par adresse professionnelle ;
+- export des résultats Google indisponible : bouton visible mais désactivé et route historique absente ;
+- pages de conditions d’utilisation et de confidentialité.
 
 ## Guide utilisateur
 
-### 1. Préparer une recherche
+### Se connecter
 
-Le panneau de gauche contient les paramètres suivants :
+1. Ouvrez l’application et saisissez le courriel du compte fourni par l’administrateur.
+2. Saisissez le mot de passe sans le partager ni l’enregistrer dans un emplacement non approuvé.
+3. Cliquez sur **Se connecter**.
+4. Utilisez le bouton **Se déconnecter** dans l’en-tête lorsque vous avez terminé.
 
-| Paramètre | Utilisation |
-| --- | --- |
-| Type d’entreprise | Terme métier simple, par exemple `plombier` ou `électricien`. Évitez d’ajouter la ville au terme. |
-| Latitude et longitude | Centre géographique de la recherche. |
-| Rayon global | Distance maximale autour du centre, de 1 à 50 km. |
-| Objectif | Nombre de leads souhaité, de 1 à 500. La recherche s’arrête lorsque cet objectif est atteint. |
-| Zones | Nombre de points de recherche Google, de 1 à 30. |
-| Pages par zone | Nombre maximal de pages Google consultées, de 1 à 3. |
-| Téléphone et site Web | Active les champs de contact, susceptibles d’augmenter le coût Google. |
-| Entreprises de zone de service | Conserve les entreprises qui masquent leur adresse ou leurs coordonnées. |
+Le navigateur reçoit un cookie de session inaccessible à JavaScript. Le jeton CSRF reste uniquement dans la mémoire de la page. Aucun mot de passe, identifiant de session ou jeton n’est écrit dans `localStorage` ou `sessionStorage`. La création d’organisation, les invitations et la gestion des rôles seront livrées dans l’incrément 2.3.
 
-L’estimation affichée correspond au maximum théorique `zones × pages`. Le nombre réel d’appels peut être inférieur lorsque l’objectif est atteint ou qu’aucune page suivante n’est disponible.
+### Effectuer une recherche
 
-### 2. Identifier le demandeur
+1. Saisissez un type d’entreprise simple, par exemple `plombier`.
+2. Indiquez le centre géographique et un rayon de 1 à 50 km.
+3. Choisissez si les entreprises de zone de service doivent être incluses.
+4. Cliquez sur **Rechercher des établissements**.
+5. Renseignez le prénom, la raison sociale et l’adresse professionnelle du demandeur, puis confirmez.
 
-Au clic sur **Générer les leads**, renseignez :
+Le serveur interroge Google une seule fois avec `pageSize: 20`. Il ne suit pas `nextPageToken`. Les résultats situés hors du rayon sont exclus ; les établissements sans coordonnées ne sont conservés que si l’option de zone de service est active.
 
-- votre prénom ;
-- la raison sociale ;
-- l’adresse professionnelle.
+### Consulter les résultats
 
-Ces informations sont validées par le serveur. Elles ne sont ni incluses dans l’export ni renvoyées dans les paramètres de résultat. Une même adresse normalisée ne peut lancer qu’une génération à la fois dans le processus serveur courant.
+La page affiche le nom, l’adresse, la distance, le statut, le type d’activité et, lorsqu’elle est fournie, l’URL Google Maps. Le téléphone et le site Web ne font pas partie de cette liste. Le filtre local utilise uniquement le nom, l’adresse et le type.
 
-### 3. Consulter les résultats
+Les résultats :
 
-Après la recherche, l’application affiche :
+- ne sont écrits dans aucune base applicative ;
+- ne sont pas placés dans `localStorage`, `sessionStorage`, IndexedDB ou un cache de service worker ;
+- ne sont pas exportables ;
+- disparaissent lorsque la vue est rechargée ou fermée.
 
-- le nombre de leads uniques ;
-- le nombre de zones explorées ;
-- le nombre d’appels Google effectués et de doublons retirés ;
-- une carte Google avec le centre et jusqu’à 50 résultats géolocalisés ;
-- le nom, les contacts demandés, l’adresse, la distance et le statut des entreprises.
-
-La carte, les métriques et l’export restent associés aux paramètres réellement soumis. Il est donc possible de préparer une nouvelle recherche dans le formulaire sans modifier les informations de la recherche terminée.
-
-Les entreprises sans coordonnées peuvent être conservées lorsque l’option correspondante est activée. Leur distance est alors indiquée comme non vérifiable.
-
-### 4. Filtrer et exporter
-
-Le champ situé au-dessus du tableau filtre les résultats par nom, adresse, téléphone ou type d’entreprise. Le filtre **Avec contact** limite l’affichage aux entreprises possédant un téléphone ou un site Web.
-
-Le bouton **Exporter Excel** télécharge un fichier `.xlsx` contenant :
-
-- une feuille `Leads` avec les entreprises ;
-- une feuille `Recherche` avec les paramètres réellement utilisés.
-
-Les textes externes commençant comme une formule Excel sont neutralisés avant l’écriture afin d’empêcher leur interprétation comme formule active.
-
-### Premier essai recommandé
-
-Pour limiter les coûts pendant la prise en main :
-
-- objectif : `20` ;
-- zones : `1` ;
-- pages par zone : `1` ;
-- téléphone et site Web : désactivés.
-
-Augmentez ensuite progressivement la couverture et activez les champs de contact si nécessaire.
+Le bouton **Exporter Excel** reste affiché pour préparer le futur module d’échanges du CRM, mais il est toujours désactivé pendant cette phase.
 
 ## Installation locale
 
 ### Prérequis
 
-- Python 3.12 ou version ultérieure ;
-- Node.js 22 ou version ultérieure ;
+- Python 3.12 ou ultérieur ;
+- Node.js 22 ou ultérieur ;
 - un projet Google Cloud avec facturation activée ;
-- **Places API (New)** activée ;
-- **Maps Static API** activée pour afficher la carte.
+- Places API (New) activée ;
+- Maps Static API activée pour la carte.
+- Docker Desktop avec les conteneurs Linux pour PostgreSQL et Redis.
 
-### Installer les dépendances
-
-Depuis la racine du projet, sous PowerShell :
+### Dépendances
 
 ```powershell
 python -m venv .venv
@@ -109,23 +79,42 @@ npm ci
 cd ..
 ```
 
-### Configurer les clés Google
+### Clés Google
 
 ```powershell
 $env:GOOGLE_MAPS_API_KEY = "VOTRE_CLE_PLACES"
 $env:GOOGLE_MAPS_STATIC_API_KEY = "VOTRE_CLE_MAPS_STATIC"
 ```
 
-| Variable | Obligatoire | Description |
+| Variable | Obligatoire | Usage |
 | --- | --- | --- |
-| `GOOGLE_MAPS_API_KEY` | Oui | Clé serveur utilisée pour Places API (New). |
-| `GOOGLE_MAPS_STATIC_API_KEY` | Non | Clé serveur distincte recommandée pour Maps Static API. En son absence, la clé Places est réutilisée. |
+| `GOOGLE_MAPS_API_KEY` | Oui | Clé serveur restreinte à Places API (New). |
+| `GOOGLE_MAPS_STATIC_API_KEY` | Non | Clé serveur distincte recommandée pour Maps Static API ; la clé Places sert de repli. |
 
-Le fichier `.env.example` sert de modèle, mais l’application ne charge pas automatiquement un fichier `.env`. Injectez les valeurs dans l’environnement du processus ou dans le gestionnaire de secrets de la plateforme.
+Les clés sont lues depuis l’environnement du serveur et ne sont jamais renvoyées au navigateur. Restreignez-les aux API nécessaires et aux adresses IP du serveur lorsque l’hébergement le permet.
 
-Ne commitez jamais les clés. Restreignez chaque clé aux API nécessaires et, lorsque l’infrastructure le permet, aux adresses IP du serveur. Les clés restent côté serveur et ne sont jamais envoyées au navigateur.
+### Démarrage
 
-### Démarrer en développement
+Démarrez d’abord les dépendances locales :
+
+```powershell
+docker compose up -d --wait
+$env:DATABASE_URL = "postgresql+asyncpg://prospect:prospect-development-only@127.0.0.1:5432/prospect"
+$env:MIGRATION_DATABASE_URL = $env:DATABASE_URL
+$env:REDIS_URL = "redis://127.0.0.1:6379/0"
+.\.venv\Scripts\python.exe -m alembic -c backend\alembic.ini upgrade head
+```
+
+Créez ensuite, une seule fois, le premier administrateur de plateforme. La commande refuse de créer un second administrateur initial et ne prend jamais le mot de passe en argument de ligne de commande :
+
+```powershell
+$env:BOOTSTRAP_PLATFORM_ADMIN_CONFIRM = "CREATE_FIRST_PLATFORM_ADMIN"
+$env:BOOTSTRAP_PLATFORM_ADMIN_EMAIL = "admin@example.ca"
+$env:BOOTSTRAP_PLATFORM_ADMIN_DISPLAY_NAME = "Administrateur"
+.\.venv\Scripts\python.exe -m backend.app.cli.bootstrap_platform_admin
+```
+
+Le mot de passe est demandé de manière interactive. Pour une automatisation contrôlée, `BOOTSTRAP_PLATFORM_ADMIN_PASSWORD` peut être fourni par un coffre de secrets et doit être retiré immédiatement après usage.
 
 Terminal 1 :
 
@@ -141,72 +130,35 @@ cd client
 npm run dev
 ```
 
-Ouvrez `http://localhost:5173`. Vite redirige les requêtes `/api` vers `http://127.0.0.1:8000`.
+Ouvrez `http://localhost:5173`. Vite redirige `/api` vers `http://127.0.0.1:8000`.
 
-## Architecture technique
+`GET /api/health/live` vérifie le processus. `GET /api/health/ready` retourne `200` uniquement lorsque PostgreSQL et Redis répondent ; la route historique `GET /api/health` reste disponible pendant la migration.
 
-### Stack
+Variables d’identité principales :
 
-- API : FastAPI, Pydantic et HTTPX ;
-- logique métier : Python 3.12 ;
-- interface : React 19 et Vite ;
-- export : openpyxl ;
-- tests : pytest et `httpx.MockTransport` ;
-- intégration continue : Azure Pipelines.
+| Variable | Valeur initiale | Usage |
+| --- | --- | --- |
+| `PUBLIC_APP_URL` | `http://localhost:5173` en local | Origine publique de confiance. |
+| `CORS_ALLOWED_ORIGINS` | origines Vite locales | Liste exacte des origines autorisées. |
+| `SESSION_COOKIE_NAME` | `prospect_session` | En production : `__Host-prospect_session`. |
+| `SESSION_COOKIE_SECURE` | `false` en local | Obligatoirement `true` en production. |
+| `SESSION_IDLE_SECONDS` | `1800` | Expiration d’inactivité. |
+| `SESSION_ABSOLUTE_SECONDS` | `43200` | Durée absolue maximale. |
+| `LOGIN_RATE_LIMIT_WINDOW_SECONDS` | `900` | Fenêtre de limitation des connexions. |
 
-### Flux principal
+## Contrat API de la phase 1
 
-```mermaid
-flowchart LR
-    U["Navigateur React"] -->|"POST /api/leads/search"| A["API FastAPI"]
-    A --> L["Verrou par adresse"]
-    L --> P["Google Places API"]
-    P --> S["Déduplication et filtrage"]
-    S -->|"Leads, paramètres et jeton"| U
-    U -->|"POST /api/map/snapshot + jeton"| G["Registre de jetons"]
-    G --> M["Google Maps Static API"]
-    M --> U
-    U -->|"POST /api/leads/export"| X["Génération Excel"]
-```
+### Authentification — incrément 2.2
 
-### Organisation du code
+- `POST /api/auth/login` vérifie le courriel et le mot de passe, crée une session opaque et pose le cookie ;
+- `GET /api/auth/me` restaure l’utilisateur, l’organisation active éventuelle, les appartenances, les capacités et le jeton CSRF ;
+- `POST /api/auth/logout` exige `X-CSRF-Token`, révoque la session puis supprime le cookie.
 
-Le backend suit une Clean Architecture pragmatique. Les dépendances pointent vers l’intérieur : la présentation et l’infrastructure dépendent de l’application, tandis que le domaine ne dépend d’aucun framework.
+Les réponses portent `Cache-Control: no-store`. Une erreur de connexion reste générique et ne révèle pas si le courriel existe. Les mutations authentifiées acceptent exclusivement JSON et vérifient une origine ou un référent de confiance.
 
-| Dossier ou fichier | Responsabilité |
-| --- | --- |
-| `backend/app/domain/` | Objets métier et calculs géographiques sans FastAPI, Pydantic ni fournisseur externe. |
-| `backend/app/application/use_cases/` | Recherche, génération, carte et export sous forme de cas d’utilisation. |
-| `backend/app/application/ports/` | Interfaces des services Google, verrous, jetons, cartes et exports. |
-| `backend/app/infrastructure/google/` | Clients et adaptateurs Google Places et Maps Static. |
-| `backend/app/infrastructure/memory/` | Implémentations locales temporaires des verrous et jetons. |
-| `backend/app/infrastructure/export/` | Adaptateur de génération Excel. |
-| `backend/app/presentation/api/` | Schémas, mappers, dépendances et routes FastAPI. |
-| `backend/app/config.py` | Chargement et validation centralisés des variables d’environnement. |
-| `backend/app/bootstrap.py` | `create_app()` et composition des dépendances concrètes. |
-| `backend/app/container.py` | Conteneur injecté dans les routes. |
-| `backend/app/main.py` | Point d’entrée ASGI minimal pour Uvicorn. |
-| `backend/app/{models,places,search_service,...}.py` | Façades temporaires maintenant les anciens imports compatibles. |
-| `client/src/app/` | Composant racine, registre des chemins CRM et routage côté navigateur. |
-| `client/src/features/lead-search/` | Page, composants, hooks et API de la fonctionnalité de recherche actuelle. |
-| `client/src/shared/api/` | Client HTTP, erreurs réseau et décodage centralisé des réponses. |
-| `client/src/shared/browser/` | Téléchargement des fichiers et gestion des URL temporaires. |
-| `client/src/shared/hooks/` | Comportements d’interface réutilisables sans dépendance métier. |
-| `client/src/shared/ui/` | Contrôles visuels partagés. |
-| `client/src/App.jsx` | Façade temporaire maintenant l’ancien import compatible. |
-| `client/public/` | Pages légales et leur feuille de style. |
+### `POST /api/google/places/search`
 
-## Contrat API
-
-### `GET /api/health`
-
-Retourne l’état de l’API et indique si `GOOGLE_MAPS_API_KEY` est présente.
-
-### `POST /api/leads/search` — transitoire
-
-Exécute une recherche et exige l’identité du demandeur.
-
-Exemple minimal :
+Exemple :
 
 ```json
 {
@@ -214,10 +166,6 @@ Exemple minimal :
   "center_latitude": 46.8139,
   "center_longitude": -71.208,
   "radius_km": 15,
-  "target": 20,
-  "max_tiles": 1,
-  "max_pages": 1,
-  "contact_fields": false,
   "include_service_area_businesses": true,
   "language_code": "fr",
   "region_code": "CA",
@@ -229,13 +177,9 @@ Exemple minimal :
 }
 ```
 
-La réponse contient :
+La réponse contient `places`, `stats`, `searched_at`, les `search_parameters` réellement soumis et un `map_snapshot_token`. Le schéma des établissements n’expose ni téléphone ni site Web. La liste possède au maximum vingt éléments et la réponse porte `Cache-Control: no-store, max-age=0`.
 
-- `leads` : entreprises normalisées ;
-- `stats` : appels, pages, zones, doublons et exclusions ;
-- `generated_at` : horodatage UTC ;
-- `search_parameters` : paramètres validés réellement utilisés, sans identité ;
-- `map_snapshot_token` : jeton de carte éphémère.
+Les anciens chemins `POST /api/leads/search` et `POST /api/leads/export` ne sont plus montés et sont absents du schéma OpenAPI.
 
 ### `POST /api/map/snapshot`
 
@@ -245,46 +189,70 @@ La réponse contient :
 }
 ```
 
-Le serveur détermine lui-même le centre, le rayon et les marqueurs associés. Le navigateur ne peut pas fournir librement ces paramètres. Le jeton :
+Le serveur conserve les coordonnées de la carte et refuse qu’elles soient fournies librement par le navigateur. Le jeton :
 
-- expire après 5 minutes ;
-- est utilisable une seule fois après une réponse Google réussie ;
-- refuse une utilisation simultanée ;
-- redevient disponible si l’appel Google échoue temporairement.
+- expire après cinq minutes par défaut ;
+- n’autorise qu’un appel simultané ;
+- est consommé après une réponse Google réussie ;
+- redevient disponible si l’appel Google échoue ;
+- protège l’unique génération de carte facturable associée à la recherche.
 
-Le registre conserve au maximum 1 000 jetons dans le processus courant.
+La réponse de carte porte également `Cache-Control: no-store, max-age=0`.
 
-### `POST /api/leads/export` — transitoire
+## Architecture
 
-Reçoit la liste des leads et les paramètres de recherche, puis retourne un fichier Excel. Une liste vide produit une erreur 400 et la requête accepte au maximum 1 000 leads.
+Le backend conserve des dépendances dirigées vers le domaine et l’application :
 
-## Sécurité et protections
+| Zone | Responsabilité |
+| --- | --- |
+| `backend/app/domain/` | Identité, rôles, session, modèles Google et règles sans framework. |
+| `backend/app/application/use_cases/` | Authentification, bootstrap, readiness, recherche et carte. |
+| `backend/app/application/ports/` | Interfaces des dépôts, mots de passe, sessions, limites, PostgreSQL/Redis et Google. |
+| `backend/app/infrastructure/postgres/` | Modèles d’identité, dépôt, unités de travail et migrations Alembic. |
+| `backend/app/infrastructure/redis/` | Sessions opaques et limitation atomique des connexions. |
+| `backend/app/infrastructure/security/` | Adaptateur Argon2id exécuté hors de la boucle asynchrone. |
+| `backend/app/infrastructure/google/` | Appel HTTP Google et adaptation des données. |
+| `backend/app/infrastructure/memory/` | Verrou et jetons temporaires, remplaçables par Redis. |
+| `backend/app/presentation/api/` | Schémas Pydantic, mappers et routes FastAPI. |
+| `client/src/features/lead-search/` | Écran transitoire de recherche, état local et composants React. |
+| `client/src/features/auth/` | Connexion, restauration et état de session conservé uniquement en mémoire. |
+| `client/src/shared/` | Client HTTP, erreurs et comportements réutilisables. |
 
-- les clés Google ne quittent pas le serveur ;
-- les recherches concurrentes pour une même adresse sont bloquées ;
-- la clé du verrou conserve les écritures Unicode tout en harmonisant casse, accents, ponctuation et caractères pleine largeur ;
-- la route Maps exige un jeton aléatoire, court et à usage unique émis après une recherche réussie ;
-- les coordonnées Maps sont conservées côté serveur et ne sont pas acceptées depuis le navigateur ;
-- les valeurs Excel susceptibles d’être interprétées comme des formules sont converties en texte ;
-- Pydantic limite les longueurs, coordonnées, rayons, pages, zones et volumes exportés ;
-- CORS autorise uniquement les origines locales Vite prévues pour le développement.
+Le port `PlacesGateway` expose une seule méthode `search`. Il ne connaît aucun jeton de pagination. Le masque de champs Google n’inclut ni contact ni `nextPageToken`, et le client HTTP n’effectue aucune nouvelle tentative automatique afin de garantir un seul POST Text Search par action.
 
-Les registres de verrouillage et de jetons sont actuellement conservés en mémoire. Pour plusieurs workers, plusieurs conteneurs ou plusieurs serveurs, utilisez un stockage partagé avec expiration et opérations atomiques, par exemple Redis.
+## Sécurité et conformité
 
-Le jeton Maps protège l’appel direct à Maps Static API, mais ne remplace pas une authentification, une limitation de débit et des quotas par organisation si l’application est exposée publiquement.
+- clés Google exclusivement côté serveur ;
+- mot de passe Argon2id de 12 à 128 caractères, sans normalisation ni troncature ;
+- session aléatoire de 256 bits dont seul le hash indexe Redis ;
+- cookie `HttpOnly`, `SameSite=Lax`, `Secure` et préfixé `__Host-` en production ;
+- CSRF en mémoire et validation stricte de l’origine sur les mutations authentifiées ;
+- compte désactivé ou version d’identité modifiée refusant immédiatement une ancienne session ;
+- erreurs d’authentification minimisées, sans écho du mot de passe ;
+- masque de champs Google minimal ;
+- aucune persistance ni cache navigateur des résultats ;
+- réponses Google et carte marquées `no-store` ;
+- verrou Unicode par adresse professionnelle ;
+- carte facturable derrière un jeton aléatoire et à usage unique ;
+- résultat limité dans le client Google, le cas d’usage et le schéma HTTP ;
+- attribution `Google Maps` visible sur la liste ;
+- route d’export historique absente.
 
-## Tests et intégration continue
+Les registres de verrou et de jetons restent en mémoire pour cette phase. Ils devront passer dans un stockage partagé avant un déploiement répliqué.
 
-Vérifier puis tester le backend :
+## Qualité
+
+Backend :
 
 ```powershell
 .\.venv\Scripts\python.exe -m ruff check backend/app tests
 .\.venv\Scripts\python.exe -m ruff format --check backend/app tests
 .\.venv\Scripts\python.exe -m mypy
+.\.venv\Scripts\python.exe -m alembic -c backend\alembic.ini check
 .\.venv\Scripts\python.exe -m pytest -q
 ```
 
-Vérifier, tester puis compiler l’interface :
+Frontend :
 
 ```powershell
 cd client
@@ -293,77 +261,15 @@ npm test
 npm run build
 ```
 
-La suite couvre notamment :
+La suite protège notamment l’appel Google unique, l’absence de pagination, la limite de vingt, l’absence des contacts, le retrait de l’export HTTP, l’absence de stockage navigateur, l’attribution, le parcours React et le jeton de carte.
 
-- géométrie et maillage ;
-- pagination et déduplication ;
-- filtrage par rayon et entreprises de service ;
-- retry après HTTP 429 et masque de champs ;
-- export Excel et neutralisation des formules ;
-- normalisation Unicode et verrouillage par adresse ;
-- durée de vie, usage unique et concurrence des jetons Maps ;
-- conservation des paramètres réellement soumis ;
-- chargement de `Settings`, fabrique `create_app()` et injection des cas d’utilisation ;
-- parcours d’intégration FastAPI avec faux adaptateurs Google ;
-- client HTTP, parcours de recherche React, erreurs communes et registre des routes CRM ;
-- frontières Clean Architecture et statut déprécié des fonctions transitoires.
+## Suite de la migration CRM V1
 
-`azure-pipelines.yml` installe Python et Node.js, exécute Ruff, mypy, pytest, ESLint, Vitest et le build React, publie les résultats JUnit puis prépare l’artefact de déploiement.
+Les incréments 2.1 et 2.2 sont implémentés et documentés dans [`docs/PHASE_2_1_RAPPORT_IMPLEMENTATION.md`](docs/PHASE_2_1_RAPPORT_IMPLEMENTATION.md) et [`docs/PHASE_2_2_RAPPORT_IMPLEMENTATION.md`](docs/PHASE_2_2_RAPPORT_IMPLEMENTATION.md). L’incrément 2.3 ajoutera l’administration des organisations et membres, les invitations à usage unique, l’isolation RLS et la protection authentifiée des routes Google. Le découpage complet reste défini dans [`docs/PHASE_2_SPECIFICATIONS_DETAILLEES.md`](docs/PHASE_2_SPECIFICATIONS_DETAILLEES.md).
 
-## Build et déploiement
-
-```powershell
-cd client
-npm ci
-npm run build
-cd ..
-uvicorn backend.app.main:app --host 0.0.0.0 --port 8000
-```
-
-Lorsque `client/dist` existe, FastAPI le sert automatiquement à la racine. Le mode ci-dessus utilise un seul processus et convient au registre en mémoire actuel.
-
-Avant une mise en production publique :
-
-- ajoutez une authentification et des quotas côté serveur ;
-- remplacez les registres en mémoire si le service est répliqué ;
-- placez l’application derrière HTTPS et un proxy correctement configuré ;
-- injectez les clés avec un gestionnaire de secrets ;
-- configurez les quotas et alertes budgétaires Google Cloud ;
-- complétez et faites valider `client/public/conditions.html` et `client/public/confidentialite.html`.
-
-## Codes d’erreur usuels
-
-| Code | Situation courante |
-| --- | --- |
-| `400` | Export demandé sans lead. |
-| `403` | Jeton Maps invalide, expiré ou déjà utilisé. |
-| `409` | Recherche déjà active pour cette adresse ou carte déjà en génération. |
-| `422` | Données absentes ou hors des contraintes Pydantic. |
-| `429` | Quota ou limitation renvoyée par Google Places. |
-| `502` | Google Places ou Maps Static est temporairement indisponible ou refuse la requête. |
-| `503` | Clé Google requise absente du serveur. |
-
-## Données exportées
-
-La feuille `Leads` contient : `Name`, `Address`, `Phone`, `InternationalPhone`, `Website`, `GoogleMapsUrl`, `Latitude`, `Longitude`, `PlaceId`, `PrimaryType`, `BusinessStatus`, `ServiceAreaBusiness`, `ZoneIndex`, `ZoneLatitude`, `ZoneLongitude`, `DistanceKm`, `RadiusVerified` et `CollectedAt`.
-
-## Limites, coûts et conformité
-
-- chaque zone et chaque page peut entraîner un appel Google facturable ;
-- les champs de contact peuvent modifier le niveau de facturation ;
-- Maps Static API peut être facturée séparément ;
-- plusieurs biais géographiques améliorent la couverture sans garantir l’exhaustivité ;
-- Google ne garantit ni la stabilité ni l’exactitude des résultats ;
-- la présence dans le rayon ne peut pas être confirmée pour une entreprise sans coordonnées ;
-- l’utilisateur reste responsable du respect des conditions Google Maps Platform et des lois applicables à la prospection ;
-- les pages légales fournies sont des modèles à compléter et ne remplacent pas un avis juridique.
-
-## Références officielles
+## Références
 
 - [Text Search (New)](https://developers.google.com/maps/documentation/places/web-service/text-search)
+- [Attribution Google Maps](https://developers.google.com/maps/documentation/places/web-service/policies)
 - [Sécurité des clés API Google Maps](https://developers.google.com/maps/api-security-best-practices)
 - [Maps Static API](https://developers.google.com/maps/documentation/maps-static/overview)
-- [FastAPI](https://fastapi.tiangolo.com/)
-- [Pydantic](https://docs.pydantic.dev/)
-- [openpyxl](https://openpyxl.readthedocs.io/)
-- [pytest](https://docs.pytest.org/)

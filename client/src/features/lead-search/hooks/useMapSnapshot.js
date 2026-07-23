@@ -4,13 +4,13 @@ import { toUserMessage } from '../../../shared/api/errors'
 import { leadSearchApi } from '../api/leadSearchApi'
 
 
-export function useMapSnapshot(generatedAt, resultToken) {
+export function useMapSnapshot(searchedAt, resultToken) {
   const [snapshotUrl, setSnapshotUrl] = useState('')
   const [snapshotLoading, setSnapshotLoading] = useState(false)
   const [snapshotError, setSnapshotError] = useState('')
 
   useEffect(() => {
-    if (!generatedAt || !resultToken) return undefined
+    if (!searchedAt || !resultToken) return undefined
     const controller = new AbortController()
     let objectUrl = ''
     setSnapshotLoading(true)
@@ -32,7 +32,7 @@ export function useMapSnapshot(generatedAt, resultToken) {
       controller.abort()
       if (objectUrl) URL.revokeObjectURL(objectUrl)
     }
-  }, [generatedAt, resultToken])
+  }, [searchedAt, resultToken])
 
   return { snapshotUrl, snapshotLoading, snapshotError }
 }

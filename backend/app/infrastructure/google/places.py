@@ -1,39 +1,26 @@
 from __future__ import annotations
 
-import asyncio
 from dataclasses import dataclass
 from typing import Any
 
 import httpx
 
 from ...application.errors import PlacesProviderError
-from ...application.models import SearchCriteria
-from ...application.ports.places import PlaceCandidate, PlaceSearchPage
-from ...domain.geo import SearchTile
+from ...application.models import GooglePlaceSearchCriteria
+from ...application.ports.places import PlaceCandidate
 
 PLACES_URL = "https://places.googleapis.com/v1/places:searchText"
-BASE_FIELDS = (
+PAGE_SIZE = 20
+PLACE_LIST_FIELDS = (
     "places.id,places.displayName,places.formattedAddress,places.location,"
-    "places.googleMapsUri,places.primaryType,places.businessStatus,places.pureServiceAreaBusiness,"
-    "nextPageToken"
+    "places.googleMapsUri,places.primaryType,places.businessStatus,places.pureServiceAreaBusiness"
 )
-CONTACT_FIELDS = ",places.nationalPhoneNumber,places.internationalPhoneNumber,places.websiteUri"
 
 
 @dataclass(frozen=True)
 class GooglePlacesSettings:
     api_key: str
     timeout_seconds: float = 30.0
-    max_retries: int = 3
-    retry_base_seconds: float = 0.4
-
-
-@dataclass(frozen=True)
-class PlacesPage:
-    """Réponse brute conservée pour la compatibilité du client historique."""
-
-    places: list[dict[str, Any]]
-    next_page_token: str | None
 
 
 class GooglePlacesError(RuntimeError):
@@ -43,103 +30,74 @@ class GooglePlacesError(RuntimeError):
 
 
 class GooglePlacesClient:
-    """Client HTTP bas niveau de Google Places, limité au transport externe."""
+    """Client Text Search effectuant exactement un POST par recherche utilisateur."""
 
     def __init__(self, settings: GooglePlacesSettings, http_client: httpx.AsyncClient | None = None) -> None:
         self.settings = settings
         self._client = http_client
 
-    async def search_page(
-        self,
-        request: SearchCriteria,
-        tile: SearchTile,
-        page_token: str | None = None,
-    ) -> PlacesPage:
+    async def search(self, request: GooglePlaceSearchCriteria) -> list[dict[str, Any]]:
         body: dict[str, Any] = {
             "textQuery": request.query,
             "languageCode": request.language_code,
             "regionCode": request.region_code,
-            "pageSize": 20,
+            "pageSize": PAGE_SIZE,
             "includePureServiceAreaBusinesses": request.include_service_area_businesses,
             "locationBias": {
                 "circle": {
-                    "center": {"latitude": tile.latitude, "longitude": tile.longitude},
-                    "radius": tile.bias_radius_m,
+                    "center": {
+                        "latitude": request.center_latitude,
+                        "longitude": request.center_longitude,
+                    },
+                    "radius": request.radius_km * 1_000,
                 }
             },
         }
-        if page_token:
-            body["pageToken"] = page_token
-
         headers = {
             "X-Goog-Api-Key": self.settings.api_key,
-            "X-Goog-FieldMask": BASE_FIELDS + (CONTACT_FIELDS if request.contact_fields else ""),
+            "X-Goog-FieldMask": PLACE_LIST_FIELDS,
             "Content-Type": "application/json",
         }
-        response = await self._post_with_retry(body, headers)
-        payload = response.json()
-        return PlacesPage(payload.get("places", []), payload.get("nextPageToken"))
+        response = await self._post_once(body, headers)
+        places = response.json().get("places", [])
+        return places[:PAGE_SIZE] if isinstance(places, list) else []
 
-    async def _post_with_retry(self, body: dict[str, Any], headers: dict[str, str]) -> httpx.Response:
+    async def _post_once(self, body: dict[str, Any], headers: dict[str, str]) -> httpx.Response:
         owns_client = self._client is None
         client = self._client or httpx.AsyncClient(timeout=self.settings.timeout_seconds)
         try:
-            for attempt in range(self.settings.max_retries + 1):
-                try:
-                    response = await client.post(PLACES_URL, json=body, headers=headers)
-                except (httpx.TimeoutException, httpx.NetworkError) as exc:
-                    if attempt >= self.settings.max_retries:
-                        raise GooglePlacesError("Google Places est temporairement injoignable.") from exc
-                    await asyncio.sleep(self.settings.retry_base_seconds * (2**attempt))
-                    continue
-
-                retryable = response.status_code == 429 or response.status_code >= 500
-                if retryable and attempt < self.settings.max_retries:
-                    retry_after = response.headers.get("Retry-After")
-                    delay = (
-                        float(retry_after)
-                        if retry_after and retry_after.isdigit()
-                        else self.settings.retry_base_seconds * (2**attempt)
-                    )
-                    await asyncio.sleep(delay)
-                    continue
-
-                if response.is_error:
-                    try:
-                        detail = response.json().get("error", {}).get("message", response.text)
-                    except ValueError:
-                        detail = response.text
-                    raise GooglePlacesError(
-                        f"Google Places a refusé la requête : {detail}",
-                        response.status_code,
-                    )
-                return response
+            try:
+                response = await client.post(PLACES_URL, json=body, headers=headers)
+            except (httpx.TimeoutException, httpx.NetworkError) as exc:
+                raise GooglePlacesError("Google Places est temporairement injoignable.") from exc
         finally:
             if owns_client:
                 await client.aclose()
-        raise GooglePlacesError("La requête Google Places a échoué après plusieurs tentatives.")
+
+        if response.is_error:
+            try:
+                detail = response.json().get("error", {}).get("message", response.text)
+            except ValueError:
+                detail = response.text
+            raise GooglePlacesError(
+                f"Google Places a refusé la requête : {detail}",
+                response.status_code,
+            )
+        return response
 
 
 class GooglePlacesGateway:
-    """Adapte la réponse Google brute au contrat stable de l’application."""
+    """Adapte la réponse Google temporaire au port applicatif sans contacts."""
 
     def __init__(self, client: GooglePlacesClient) -> None:
         self._client = client
 
-    async def search_page(
-        self,
-        criteria: SearchCriteria,
-        tile: SearchTile,
-        page_token: str | None = None,
-    ) -> PlaceSearchPage:
+    async def search(self, criteria: GooglePlaceSearchCriteria) -> list[PlaceCandidate]:
         try:
-            page = await self._client.search_page(criteria, tile, page_token)
+            places = await self._client.search(criteria)
         except GooglePlacesError as exc:
             raise PlacesProviderError(str(exc), exc.status_code) from exc
-        return PlaceSearchPage(
-            places=[google_place_to_candidate(place) for place in page.places],
-            next_page_token=page.next_page_token,
-        )
+        return [google_place_to_candidate(place) for place in places]
 
 
 def google_place_to_candidate(place: dict[str, Any]) -> PlaceCandidate:
@@ -147,16 +105,15 @@ def google_place_to_candidate(place: dict[str, Any]) -> PlaceCandidate:
     latitude = location.get("latitude")
     longitude = location.get("longitude")
     display_name = place.get("displayName") or {}
+    parsed_latitude = float(latitude) if isinstance(latitude, int | float) else None
+    parsed_longitude = float(longitude) if isinstance(longitude, int | float) else None
     return PlaceCandidate(
         place_id=place.get("id", ""),
         name=display_name.get("text", ""),
         address=place.get("formattedAddress", ""),
-        phone=place.get("nationalPhoneNumber", ""),
-        international_phone=place.get("internationalPhoneNumber", ""),
-        website=place.get("websiteUri", ""),
         google_maps_url=place.get("googleMapsUri", ""),
-        latitude=float(latitude) if latitude is not None and longitude is not None else None,
-        longitude=float(longitude) if latitude is not None and longitude is not None else None,
+        latitude=parsed_latitude if parsed_longitude is not None else None,
+        longitude=parsed_longitude if parsed_latitude is not None else None,
         primary_type=place.get("primaryType", ""),
         business_status=place.get("businessStatus", ""),
         service_area_business=bool(place.get("pureServiceAreaBusiness", False)),

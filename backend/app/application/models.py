@@ -4,15 +4,11 @@ from dataclasses import dataclass, field
 
 
 @dataclass(frozen=True, slots=True)
-class SearchCriteria:
+class GooglePlaceSearchCriteria:
     query: str
     center_latitude: float = 46.8139
     center_longitude: float = -71.2080
     radius_km: float = 15
-    target: int = 200
-    max_tiles: int = 8
-    max_pages: int = 3
-    contact_fields: bool = False
     include_service_area_businesses: bool = True
     language_code: str = "fr"
     region_code: str = "CA"

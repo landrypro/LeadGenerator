@@ -19,10 +19,10 @@ export const AlertTriangle = (p) => <Svg {...p}><path d="M10.3 3.6 2.4 18a2 2 0 
 export const X = (p) => <Svg {...p}><path d="m18 6-12 12M6 6l12 12"/></Svg>
 export const Download = (p) => <Svg {...p}><path d="M12 3v12m0 0 5-5m-5 5-5-5M5 21h14"/></Svg>
 export const Phone = (p) => <Svg {...p}><path d="M22 16.9v3a2 2 0 0 1-2.2 2 20 20 0 0 1-8.7-3.1 19.6 19.6 0 0 1-6-6A20 20 0 0 1 2 4.1 2 2 0 0 1 4 2h3a2 2 0 0 1 2 1.7c.1 1 .4 2 .7 2.8a2 2 0 0 1-.5 2.1L8 9.8a16 16 0 0 0 6 6l1.2-1.2a2 2 0 0 1 2.1-.5c.9.4 1.8.6 2.8.7a2 2 0 0 1 1.9 2.1Z"/></Svg>
+export const LogOut = (p) => <Svg {...p}><path d="M10 17l5-5-5-5M15 12H3M21 19V5a2 2 0 0 0-2-2h-6"/></Svg>
 export const Check = (p) => <Svg {...p}><path d="m20 6-11 11-5-5"/></Svg>
 export const Building2 = (p) => <Svg {...p}><path d="M6 22V4h12v18M2 22h20M9 8h2M13 8h2M9 12h2M13 12h2M9 16h2M13 16h2"/></Svg>
 export const Globe2 = (p) => <Svg {...p}><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3a15 15 0 0 1 0 18M12 3a15 15 0 0 0 0 18"/></Svg>
 export const ExternalLink = (p) => <Svg {...p}><path d="M15 3h6v6M10 14 21 3M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/></Svg>
 export const Target = (p) => <Svg {...p}><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="5"/><circle cx="12" cy="12" r="1"/></Svg>
 export const LoaderCircle = (p) => <Svg {...p}><path d="M21 12a9 9 0 1 1-6.2-8.6"/></Svg>
-

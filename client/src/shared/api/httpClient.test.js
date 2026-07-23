@@ -1,9 +1,12 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
-import { ApiError, postJson, request } from './httpClient'
+import { ApiError, configureHttpSecurity, postJson, request } from './httpClient'
 
 
-afterEach(() => vi.unstubAllGlobals())
+afterEach(() => {
+  configureHttpSecurity()
+  vi.unstubAllGlobals()
+})
 
 
 describe('httpClient', () => {
@@ -40,5 +43,34 @@ describe('httpClient', () => {
     vi.stubGlobal('fetch', vi.fn().mockRejectedValue(new TypeError('network details')))
 
     await expect(request('/api/test')).rejects.toEqual(new ApiError('Impossible de joindre le serveur.'))
+  })
+
+  it('joint le cookie et le jeton CSRF en mémoire aux mutations', async () => {
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      status: 204,
+    })
+    vi.stubGlobal('fetch', fetchMock)
+    configureHttpSecurity({ token: 'csrf-en-memoire' })
+
+    await postJson('/api/auth/logout', {})
+
+    expect(fetchMock).toHaveBeenCalledWith('/api/auth/logout', expect.objectContaining({
+      credentials: 'same-origin',
+      headers: expect.objectContaining({ 'X-CSRF-Token': 'csrf-en-memoire' }),
+    }))
+  })
+
+  it('signale centralement la perte de session après un 401', async () => {
+    const onUnauthorized = vi.fn()
+    configureHttpSecurity({ onUnauthorized })
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({
+      ok: false,
+      status: 401,
+      json: vi.fn().mockResolvedValue({ error: { message: 'Authentification requise.' } }),
+    }))
+
+    await expect(request('/api/auth/me')).rejects.toMatchObject({ status: 401 })
+    expect(onUnauthorized).toHaveBeenCalledTimes(1)
   })
 })

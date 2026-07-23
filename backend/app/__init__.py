@@ -1,1 +1,1 @@
-"""Google Maps Lead Generator backend."""
+"""Backend de Prospect CRM."""

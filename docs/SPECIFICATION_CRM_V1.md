@@ -3,8 +3,8 @@
 | Métadonnée | Valeur |
 | --- | --- |
 | Produit | Prospect CRM |
-| Version du document | 1.0 |
-| Statut | Périmètre V1 validé, prêt pour conception technique |
+| Version du document | 1.2 |
+| Statut | Périmètre V1 et spécification détaillée de la phase 2 validés |
 | Date | 22 juillet 2026 |
 | Marché initial | Canada |
 | Langue initiale | Français canadien (`fr-CA`) |
@@ -21,7 +21,7 @@ Ce document ne constitue pas un avis juridique. La conformité finale dépendra 
 ## 2. Décisions produit validées
 
 1. Le produit devient **Prospect CRM** et n’est plus présenté comme un générateur ou un extracteur de leads.
-2. Le bouton et la route d’export des données Google Places sont supprimés.
+2. La route d’export des données Google Places est supprimée ; pendant la migration, le bouton reste visible mais désactivé et inaccessible.
 3. La recherche Google reste disponible, mais elle est limitée, explicite et sans pagination automatique.
 4. Une recherche retourne au maximum 20 établissements.
 5. Les résultats Google sont affichés temporairement et ne sont pas persistés dans la base CRM.
@@ -106,6 +106,22 @@ Lorsqu’un prospect possédant un `place_id` est ouvert :
 
 Google recommande de rafraîchir les Place IDs âgés de plus de douze mois. Un traitement de maintenance devra vérifier les identifiants concernés sans enregistrer les détails retournés.
 
+### 4.5 Sources d’acquisition et conservation
+
+Le portefeuille CRM accepte les origines suivantes : référence Google, saisie manuelle, import appartenant au client, acquisition entrante, recommandation ou partenaire, fournisseur B2B licencié et source publique dont la licence autorise l’usage prévu.
+
+Le référentiel validé des règles de provenance, autorisation de contact, déduplication, conservation, suppression et export est défini dans [`PHASE_1_1_ACQUISITION_CONSERVATION.md`](PHASE_1_1_ACQUISITION_CONSERVATION.md).
+
+Principes structurants :
+
+- une source inconnue ou sans preuve de droit d’utilisation est refusée ou mise en quarantaine ;
+- la provenance du prospect et de chaque coordonnée persistante est obligatoire ;
+- l’autorisation de contact est distincte de la provenance et gérée par canal ;
+- un statut de canal inconnu bloque les actions automatisées jusqu’à justification ;
+- les durées de conservation sont configurables, documentées et soumises à une revue ;
+- l’import conforme est avancé après le socle des prospects internes pour accélérer la croissance du portefeuille ;
+- la création groupée depuis Google accepte au maximum vingt `place_id` explicitement sélectionnés et aucun champ descriptif Google.
+
 ## 5. Utilisateurs et autorisations
 
 ### 5.1 Rôles
@@ -160,7 +176,7 @@ Google recommande de rafraîchir les Place IDs âgés de plus de douze mois. Un 
 - création manuelle d’un prospect ;
 - création depuis un résultat Google en conservant uniquement le `place_id` ;
 - alias interne facultatif ;
-- origine : manuel, import client, fournisseur autorisé ou référence Google ;
+- origine : référence Google, manuel, import client, entrant, partenaire, fournisseur autorisé ou source publique autorisée ;
 - responsable, étape, priorité, étiquettes et prochaine action ;
 - archivage et restauration ;
 - détection des doublons de `place_id` dans une même organisation ;
@@ -370,13 +386,17 @@ Google recommande de rafraîchir les Place IDs âgés de plus de douze mois. Un 
 | `users` | `id`, `email`, `password_hash`, `display_name`, `status`, `created_at`, `last_login_at` |
 | `memberships` | `organization_id`, `user_id`, `role`, `created_at` |
 | `pipeline_stages` | `id`, `organization_id`, `system_category`, `label`, `color`, `position`, `is_active` |
-| `prospects` | `id`, `organization_id`, `google_place_id`, `internal_alias`, `origin`, `owner_id`, `stage_id`, `priority`, `next_action_at`, `version`, `created_at`, `updated_at`, `archived_at` |
-| `prospect_contacts` | `id`, `prospect_id`, `type`, `value`, `provenance`, `source_label`, `obtained_at`, `created_by`, `archived_at` |
+| `prospects` | `id`, `organization_id`, `google_place_id`, `internal_alias`, `origin`, `source_label`, `acquired_at`, `acquisition_record_id`, `owner_id`, `stage_id`, `priority`, `next_action_at`, `retention_review_at`, `version`, `created_at`, `updated_at`, `archived_at` |
+| `acquisition_records` | déclaration ou événement d’acquisition, finalité, droits attestés, restrictions et références de preuve |
+| `prospect_contacts` | `id`, `prospect_id`, `type`, `value`, `provenance`, `source_label`, `purpose`, `obtained_at`, `verified_at`, `created_by`, `archived_at` |
 | `tags` / `prospect_tags` | étiquettes propres à l’organisation et association aux prospects |
 | `activities` | `id`, `prospect_id`, `type`, `outcome`, `content`, `occurred_at`, `created_by`, `updated_at`, `deleted_at` |
 | `tasks` | `id`, `prospect_id`, `assignee_id`, `title`, `due_at`, `priority`, `status`, `completed_at` |
 | `opportunities` | `id`, `prospect_id`, `owner_id`, `name`, `amount`, `currency`, `probability`, `stage`, `expected_close_at`, `lost_reason`, `version` |
-| `contact_preferences` | `prospect_id`, `status`, `reason`, `source`, `effective_at`, `updated_by` |
+| `contact_permissions` | `prospect_id`, `channel`, `status`, `basis`, `evidence_reference`, `effective_at`, `expires_at`, `reason`, `updated_by` |
+| `consent_evidence` | référence minimale vers la preuve, la finalité et la version d’avis applicable |
+| `data_providers` / `provider_contract_rules` | fournisseur, territoires, champs, usages, restrictions et échéances contractuelles |
+| `retention_policies` / `retention_holds` | politique configurable par catégorie et suspension motivée d’une purge |
 | `audit_events` | `id`, `organization_id`, `actor_id`, `action`, `entity_type`, `entity_id`, `metadata`, `occurred_at` |
 | `usage_counters` | `organization_id`, `user_id`, `service`, `period`, `count` |
 | `import_jobs` / `export_jobs` | auteur, statut, statistiques, erreurs, dates et emplacement temporaire |
@@ -386,6 +406,8 @@ Google recommande de rafraîchir les Place IDs âgés de plus de douze mois. Un 
 - clés primaires UUID ;
 - dates enregistrées en UTC ;
 - contrainte unique partielle sur `(organization_id, google_place_id)` pour les prospects actifs ;
+- origine obligatoire et référence de provenance pour toute coordonnée persistante ;
+- aucune fusion automatique sur une correspondance approximative ;
 - montant d’opportunité en `NUMERIC`, devise ISO 4217 ;
 - verrouillage optimiste avec `version` pour prospects et opportunités ;
 - suppression logique pour les données métier ;
@@ -473,7 +495,7 @@ La création depuis Google accepte un `google_place_id` mais aucun champ descrip
 - `PATCH /api/tasks/{task_id}`
 - `GET/POST /api/prospects/{prospect_id}/opportunities`
 - `PATCH /api/opportunities/{opportunity_id}`
-- `GET/PATCH /api/prospects/{prospect_id}/contact-preference`
+- `GET/PATCH /api/prospects/{prospect_id}/contact-permissions`
 
 ### Pilotage et échanges
 
@@ -574,42 +596,56 @@ Ces valeurs sont configurables par l’Administrateur dans les bornes fixées pa
 
 ## 14. Stratégie de migration du code actuel
 
-### Phase 0 — Verrou de conformité
+### Phase 1 — Verrou de conformité
 
-- supprimer le bouton et la route d’export Google ;
+- désactiver et rendre inaccessible le bouton d’export Google, puis supprimer sa route ;
 - supprimer l’objectif massif, les zones multiples et la pagination automatique ;
 - renommer l’application et les libellés orientés « génération de leads » ;
 - corriger l’attribution `Google Maps` sur la liste et la fiche ;
 - mettre à jour README, conditions d’utilisation et confidentialité ;
 - conserver les protections existantes sur les clés, jetons de carte et entrées.
 
-### Phase 1 — Fondations
+### Phase 1.1 — Acquisition et conservation (validée)
+
+Les huit décisions produit de cette phase ont été validées le 22 juillet 2026 et deviennent des contraintes de conception pour la phase 2.
+
+- valider les sources autorisées et refusées ;
+- séparer origine, provenance, permission de contact et conservation ;
+- définir l’ajout groupé de références Google sélectionnées ;
+- définir les règles d’import, fournisseur, déduplication, export et suppression ;
+- préparer les contraintes que le modèle de données de la phase 2 devra supporter.
+
+### Phase 2 — Fondations
+
+La conception détaillée, le découpage testable et les dix décisions techniques validées sont décrits dans [`PHASE_2_SPECIFICATIONS_DETAILLEES.md`](PHASE_2_SPECIFICATIONS_DETAILLEES.md). Ils constituent la référence obligatoire de l’implémentation de la phase 2.
 
 - PostgreSQL, SQLAlchemy et Alembic ;
 - Redis ;
 - organisations, utilisateurs, sessions et rôles ;
 - isolation multi-organisation ;
 - journal d’audit ;
-- configuration et secrets par environnement.
+- configuration et secrets par environnement ;
+- tables et contraintes de provenance, permissions de contact, fournisseurs et rétention.
 
-### Phase 2 — Cœur CRM
+### Phase 3 — Cœur CRM
 
 - prospects et provenance ;
+- création manuelle et import client conforme ;
 - pipeline ;
 - activités, tâches et rappels ;
 - opportunités ;
-- préférences de contact ;
+- permissions de contact par canal ;
 - recherche Google limitée et hydratation en direct.
 
-### Phase 3 — Pilotage et échanges
+### Phase 4 — Pilotage et échanges
 
 - tableau de bord ;
-- imports et exports internes ;
+- exports internes et administration des imports ;
 - quotas et rapports d’usage ;
 - worker asynchrone ;
 - tests de bout en bout.
 
-### Phase 4 — Préproduction et déploiement
+### Phase 5 — Préproduction et déploiement
 
 - environnement de préproduction isolé ;
 - migration et restauration testées ;
@@ -678,20 +714,36 @@ La V1 est prête pour la production lorsque :
 - la préproduction a passé les tests fonctionnels, de sécurité, de charge et de coûts ;
 - le plan de retour arrière est documenté et testé.
 
-## 17. Décisions restant à confirmer avant l’implémentation
+## 17. Décisions confirmées et points restant ouverts
 
-| Décision | Recommandation V1 |
+### 17.1 Phase 1.1 — Décisions confirmées
+
+| Décision | Choix V1 validé |
+| --- | --- |
+| Sources autorisées | Les sept sources définies dans le référentiel ; toute source inconnue est refusée |
+| Ajout depuis Google | Sélection explicite de vingt `place_id` maximum par action |
+| Données Google conservées | `place_id` uniquement ; les détails sont réaffichés en direct |
+| Ordre d’implémentation | Import conforme immédiatement après le module de prospects internes |
+| Modèle de conformité | Provenance, permission de contact et conservation sont gérées séparément |
+| Permission inconnue | Aucun envoi ni appel automatisé avant qualification du canal |
+| Durées de conservation | Aucune durée universelle avant validation juridique ; politiques configurables et dates de revue |
+| Opposition | Trace minimale conservée pendant la durée juridiquement nécessaire |
+
+Ces huit décisions ont été validées le 22 juillet 2026. Le détail normatif figure dans [`PHASE_1_1_ACQUISITION_CONSERVATION.md`](PHASE_1_1_ACQUISITION_CONSERVATION.md).
+
+### 17.2 Points restant ouverts avant la production
+
+| Décision | Orientation actuelle |
 | --- | --- |
 | Mode d’authentification | Courriel et mot de passe avec sessions serveur |
 | Création des organisations | Réservée à un administrateur de la plateforme |
 | Inscriptions publiques | Désactivées en V1 |
 | Personnalisation du pipeline | Libellé, couleur et ordre configurables ; catégories système fixes |
-| Import initial | CSV et XLSX avec déclaration de provenance |
 | Hébergement | À choisir pendant la conception de déploiement |
-| Durée de conservation des audits | À valider juridiquement et opérationnellement |
-| Durée de conservation des fichiers d’export | Téléchargement court puis suppression automatique |
+| Durée chiffrée de conservation des audits | À valider juridiquement et opérationnellement |
+| Durée chiffrée de conservation des fichiers d’export | À valider juridiquement et opérationnellement |
 
-Ces décisions n’empêchent pas de commencer la Phase 0 et la conception du modèle de données, mais elles doivent être closes avant la fin de la Phase 1.
+Ces points n’empêchent pas de commencer la phase 2, à condition de conserver les durées configurables et de ne pas figer prématurément les choix d’infrastructure.
 
 ## 18. Références
 

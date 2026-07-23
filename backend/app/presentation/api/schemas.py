@@ -2,8 +2,45 @@ from __future__ import annotations
 
 from datetime import datetime
 from typing import Any
+from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator
+
+
+class StrictCommand(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+
+class LoginRequest(StrictCommand):
+    email: str = Field(min_length=3, max_length=254)
+    password: str = Field(min_length=1, max_length=128)
+
+
+class AuthenticatedUserResponse(BaseModel):
+    id: UUID
+    email: str
+    display_name: str
+    status: str
+    platform_role: str | None
+
+
+class OrganizationSummaryResponse(BaseModel):
+    id: UUID
+    name: str
+
+
+class MembershipSummaryResponse(BaseModel):
+    id: UUID
+    organization: OrganizationSummaryResponse
+    role: str
+
+
+class AuthenticationResponse(BaseModel):
+    user: AuthenticatedUserResponse
+    active_organization: OrganizationSummaryResponse | None
+    memberships: list[MembershipSummaryResponse]
+    capabilities: list[str]
+    csrf_token: str
 
 
 class RequesterInfo(BaseModel):
@@ -20,15 +57,11 @@ class RequesterInfo(BaseModel):
         return value
 
 
-class SearchRequest(BaseModel):
+class GooglePlaceSearchParameters(BaseModel):
     query: str = Field(min_length=2, max_length=120)
     center_latitude: float = Field(default=46.8139, ge=-90, le=90)
     center_longitude: float = Field(default=-71.2080, ge=-180, le=180)
     radius_km: float = Field(default=15, gt=0, le=50)
-    target: int = Field(default=200, ge=1, le=500, deprecated=True)
-    max_tiles: int = Field(default=8, ge=1, le=30, deprecated=True)
-    max_pages: int = Field(default=3, ge=1, le=3, deprecated=True)
-    contact_fields: bool = False
     include_service_area_businesses: bool = True
     language_code: str = Field(default="fr", min_length=2, max_length=10)
     region_code: str = Field(default="CA", min_length=2, max_length=2)
@@ -47,10 +80,47 @@ class SearchRequest(BaseModel):
         return value.upper()
 
 
-class LeadGenerationRequest(SearchRequest):
+class GooglePlaceSearchRequest(GooglePlaceSearchParameters):
     requester: RequesterInfo
 
 
+class GooglePlaceSummary(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    place_id: str
+    name: str = ""
+    address: str = ""
+    google_maps_url: str = ""
+    latitude: float | None = None
+    longitude: float | None = None
+    primary_type: str = ""
+    business_status: str = ""
+    service_area_business: bool = False
+    distance_km: float | None = None
+    radius_verified: bool = True
+
+
+class GooglePlaceSearchStats(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    api_calls: int
+    raw_results: int
+    displayed_results: int
+    duplicates_removed: int = 0
+    outside_radius_removed: int = 0
+    service_area_unverified: int = 0
+
+
+class GooglePlaceSearchResponse(BaseModel):
+    places: list[GooglePlaceSummary] = Field(max_length=20)
+    stats: GooglePlaceSearchStats
+    searched_at: datetime
+    map_snapshot_token: str
+    search_parameters: GooglePlaceSearchParameters
+
+
+# Contrat Python historique conservé uniquement pour tester la neutralisation Excel.
+# Aucune route HTTP ne l'expose pendant la migration CRM.
 class Lead(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
@@ -74,30 +144,6 @@ class Lead(BaseModel):
     collected_at: datetime
 
 
-class SearchStats(BaseModel):
-    model_config = ConfigDict(from_attributes=True)
-
-    api_calls: int = 0
-    zones_searched: int = 0
-    pages_fetched: int = 0
-    raw_results: int = 0
-    duplicates_removed: int = 0
-    outside_radius_removed: int = 0
-    service_area_unverified: int = 0
-    target_reached: bool = False
-
-
-class SearchResponse(BaseModel):
-    leads: list[Lead]
-    stats: SearchStats
-    generated_at: datetime
-
-
-class LeadGenerationResponse(SearchResponse):
-    map_snapshot_token: str
-    search_parameters: SearchRequest
-
-
 class ExportRequest(BaseModel):
     leads: list[Lead] = Field(max_length=1000)
     search: dict[str, Any] = Field(default_factory=dict)
@@ -112,7 +158,7 @@ class MapSnapshotRequest(BaseModel):
     center_latitude: float = Field(ge=-90, le=90)
     center_longitude: float = Field(ge=-180, le=180)
     radius_km: float = Field(gt=0, le=50)
-    points: list[MapPoint] = Field(default_factory=list, max_length=50)
+    points: list[MapPoint] = Field(default_factory=list, max_length=20)
 
 
 class MapSnapshotTokenRequest(BaseModel):

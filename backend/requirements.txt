@@ -2,5 +2,9 @@ fastapi==0.116.1
 httpx==0.28.1
 openpyxl==3.1.5
 pydantic==2.11.7
+SQLAlchemy[asyncio]==2.0.51
+alembic==1.18.5
+asyncpg==0.31.0
+redis==8.0.1
+argon2-cffi==25.1.0
 uvicorn[standard]==0.35.0
-

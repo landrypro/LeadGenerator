@@ -7,6 +7,7 @@ describe('routes CRM', () => {
   it('conserve la page actuelle et réserve les neuf modules V1', () => {
     expect(routes[0].path).toBe('/')
     expect(CRM_PATHS).toMatchObject({
+      login: '/login',
       dashboard: '/dashboard',
       prospects: '/prospects',
       pipeline: '/pipeline',

@@ -11,25 +11,23 @@ import { SearchSidebar } from './components/SearchSidebar'
 import { TopBar } from './components/TopBar'
 import { initialForm, initialRequester } from './config'
 import { useApiHealth } from './hooks/useApiHealth'
-import { useLeadExport } from './hooks/useLeadExport'
 import { useLeadSearch } from './hooks/useLeadSearch'
 
 
-export function LeadGeneratorPage() {
+export function PlaceSearchPage({ session = null, onLogout = null }) {
   const [form, setForm] = useState(initialForm)
   const [requester, setRequester] = useState(initialRequester)
   const [mobilePanelOpen, setMobilePanelOpen] = useState(false)
   const [identityModalOpen, setIdentityModalOpen] = useState(false)
   const { error, clearError, reportError } = useErrorNotice()
   const { result, loading, runSearch } = useLeadSearch({ clearError, reportError })
-  const { exporting, exportLeads } = useLeadExport({ clearError, reportError })
   const keyReady = useApiHealth()
 
   useBodyScrollLock(mobilePanelOpen || identityModalOpen)
   const closeIdentityModal = useCallback(() => setIdentityModalOpen(false), [])
   useEscapeKey(identityModalOpen && !loading, closeIdentityModal)
 
-  const leads = result?.leads ?? []
+  const places = result?.places ?? []
   const resultForm = result?.search_parameters ?? form
   const updateForm = (key, value) => setForm((current) => ({ ...current, [key]: value }))
 
@@ -60,17 +58,17 @@ export function LeadGeneratorPage() {
         keyReady={keyReady}
         mobilePanelOpen={mobilePanelOpen}
         onOpenSettings={() => setMobilePanelOpen(true)}
+        session={session}
+        onLogout={onLogout}
       />
       <Notices error={error} keyReady={keyReady} onClearError={clearError} />
-      <SearchOverview leads={leads} result={result} resultForm={resultForm} loading={loading} />
+      <SearchOverview places={places} result={result} resultForm={resultForm} loading={loading} />
       <ResultsCard
-        leads={leads}
+        places={places}
         result={result}
         loading={loading}
-        exporting={exporting}
-        onExport={() => exportLeads(leads, resultForm)}
       />
-      <footer><span>Données fournies par Google Places</span><span>•</span><a href="/conditions.html">Conditions d’utilisation</a><span>•</span><a href="/confidentialite.html">Politique de confidentialité</a></footer>
+      <footer><span>Données temporaires — Google Maps</span><span>•</span><a href="/conditions.html">Conditions d’utilisation</a><span>•</span><a href="/confidentialite.html">Politique de confidentialité</a></footer>
     </main>
 
     {identityModalOpen && <IdentityModal requester={requester} setRequester={setRequester} onClose={closeIdentityModal} onConfirm={confirmGeneration} />}

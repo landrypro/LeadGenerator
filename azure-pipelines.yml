@@ -10,6 +10,8 @@ pool:
 variables:
   pythonVersion: '3.12'
   nodeVersion: '22.x'
+  testDatabaseUrl: 'postgresql+asyncpg://prospect_test:prospect-test-only@127.0.0.1:55432/prospect_test'
+  testRedisUrl: 'redis://127.0.0.1:56379/0'
 
 steps:
   - task: UsePythonVersion@0
@@ -31,8 +33,25 @@ steps:
   - script: python -m mypy
     displayName: Vérifier les types Python avec mypy
 
+  - script: docker compose -f compose.test.yaml up -d --wait
+    displayName: Démarrer PostgreSQL et Redis de test
+
+  - script: python -m alembic -c backend/alembic.ini upgrade head
+    displayName: Appliquer les migrations Alembic
+    env:
+      MIGRATION_DATABASE_URL: $(testDatabaseUrl)
+
+  - script: python -m alembic -c backend/alembic.ini check
+    displayName: Vérifier la synchronisation des modèles et migrations
+    env:
+      MIGRATION_DATABASE_URL: $(testDatabaseUrl)
+
   - script: pytest --junitxml=test-results/pytest.xml
     displayName: Exécuter les tests Python unitaires et d’intégration
+    env:
+      TEST_DATABASE_URL: $(testDatabaseUrl)
+      TEST_REDIS_URL: $(testRedisUrl)
+      REQUIRE_INFRASTRUCTURE_TESTS: 'true'
 
   - task: PublishTestResults@2
     condition: succeededOrFailed()
@@ -40,6 +59,10 @@ steps:
       testResultsFormat: JUnit
       testResultsFiles: test-results/pytest.xml
       testRunTitle: Tests Python
+
+  - script: docker compose -f compose.test.yaml down --volumes
+    condition: always()
+    displayName: Arrêter les dépendances de test
 
   - task: NodeTool@0
     inputs:

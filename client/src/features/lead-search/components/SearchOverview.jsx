@@ -8,19 +8,19 @@ function Metric({ icon, label, value, detail, tone }) {
 }
 
 
-export function SearchOverview({ leads, result, resultForm, loading }) {
+export function SearchOverview({ places, result, resultForm, loading }) {
   return <section className="overview-grid">
     <CoverageMap
-      leads={leads}
+      places={places}
       form={resultForm}
       loading={loading}
-      generatedAt={result?.generated_at}
+      searchedAt={result?.searched_at}
       resultToken={result?.map_snapshot_token}
     />
     <div className="metric-stack">
-      <Metric icon={<UsersRound />} label="Leads uniques" value={leads.length} detail={result?.stats.target_reached ? 'Objectif atteint' : `sur ${resultForm.target} visés`} tone="green" />
-      <Metric icon={<Map />} label="Zones explorées" value={result?.stats.zones_searched ?? 0} detail={`sur ${resultForm.max_tiles} configurées`} tone="blue" />
-      <Metric icon={<Clock3 />} label="Appels effectués" value={result?.stats.api_calls ?? 0} detail={`${result?.stats.duplicates_removed ?? 0} doublons retirés`} tone="gold" />
+      <Metric icon={<UsersRound />} label="Résultats Google" value={places.length} detail="20 maximum par recherche" tone="green" />
+      <Metric icon={<Map />} label="Zone interrogée" value={result ? 1 : 0} detail={`rayon de ${resultForm.radius_km} km`} tone="blue" />
+      <Metric icon={<Clock3 />} label="Appels effectués" value={result?.stats.api_calls ?? 0} detail="un seul appel Text Search" tone="gold" />
     </div>
   </section>
 }

@@ -11,7 +11,7 @@ def test_zoom_decreases_when_radius_increases() -> None:
     assert 2 <= wide_zoom < close_zoom <= 19
 
 
-def test_static_map_url_contains_center_and_lead_markers() -> None:
+def test_static_map_url_contains_center_and_place_markers() -> None:
     payload = MapSnapshotRequest(
         center_latitude=46.8139,
         center_longitude=-71.2080,

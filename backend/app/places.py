@@ -1,21 +1,19 @@
-"""Façade de compatibilité du client Google Places historique."""
+"""Façade de compatibilité du client Google Places."""
 
 from .infrastructure.google.places import (
-    BASE_FIELDS,
-    CONTACT_FIELDS,
+    PAGE_SIZE,
+    PLACE_LIST_FIELDS,
     PLACES_URL,
     GooglePlacesClient,
     GooglePlacesError,
     GooglePlacesSettings,
-    PlacesPage,
 )
 
 __all__ = [
-    "BASE_FIELDS",
-    "CONTACT_FIELDS",
+    "PAGE_SIZE",
     "PLACES_URL",
+    "PLACE_LIST_FIELDS",
     "GooglePlacesClient",
     "GooglePlacesError",
     "GooglePlacesSettings",
-    "PlacesPage",
 ]

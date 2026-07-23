@@ -1,17 +1,5 @@
-"""Façade de compatibilité des fonctions géographiques."""
+"""Façade de compatibilité des fonctions géographiques encore actives."""
 
-from .domain.geo import (
-    EARTH_RADIUS_KM,
-    SearchTile,
-    destination_point,
-    generate_tiles,
-    haversine_km,
-)
+from .domain.geo import EARTH_RADIUS_KM, haversine_km
 
-__all__ = [
-    "EARTH_RADIUS_KM",
-    "SearchTile",
-    "destination_point",
-    "generate_tiles",
-    "haversine_km",
-]
+__all__ = ["EARTH_RADIUS_KM", "haversine_km"]
