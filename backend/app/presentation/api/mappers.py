@@ -1,6 +1,7 @@
 from ...application.models import GooglePlaceSearchCriteria
 from ...application.use_cases.search_google_places import SearchGooglePlacesOutcome
 from ...domain.identity import AuthenticatedIdentity, capabilities_for
+from ...domain.provisioning import ProvisioningView
 from .schemas import (
     AuthenticatedUserResponse,
     AuthenticationResponse,
@@ -11,6 +12,9 @@ from .schemas import (
     GooglePlaceSummary,
     MembershipSummaryResponse,
     OrganizationSummaryResponse,
+    PlatformInvitationResponse,
+    PlatformOrganizationResponse,
+    ProvisioningResponse,
 )
 
 
@@ -47,6 +51,30 @@ def to_authentication_response(identity: AuthenticatedIdentity) -> Authenticatio
         memberships=memberships,
         capabilities=list(capabilities_for(identity.user, identity.active_membership)),
         csrf_token=identity.csrf_token,
+    )
+
+
+def to_provisioning_response(view: ProvisioningView) -> ProvisioningResponse:
+    return ProvisioningResponse(
+        organization=PlatformOrganizationResponse(
+            id=view.organization.id,
+            name=view.organization.name,
+            locale=view.organization.locale,
+            timezone=view.organization.timezone,
+            status=view.organization.status,
+            version=view.organization.version,
+            created_at=view.organization.created_at,
+            activated_at=view.organization.activated_at,
+        ),
+        first_invitation=PlatformInvitationResponse(
+            id=view.first_invitation.id,
+            recipient_email=view.first_invitation.recipient_email,
+            role=view.first_invitation.role.value,
+            state=view.first_invitation.state.value,
+            delivery_status=view.first_invitation.delivery_status.value,
+            expires_at=view.first_invitation.expires_at,
+        ),
+        replayed=view.replayed,
     )
 
 

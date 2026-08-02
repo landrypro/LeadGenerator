@@ -8,11 +8,30 @@ from .map_grants import MapSnapshotGrantStore
 from .maps import MapImage, StaticMapGateway
 from .passwords import PasswordHasher
 from .places import PlaceCandidate, PlacesGateway
+from .provisioning import (
+    AcceptanceGatewayResult,
+    AcceptanceResultCode,
+    InvitationAcceptanceGateway,
+    InvitationDelivery,
+    InvitationLimitStatus,
+    InvitationRateLimiter,
+    InvitationTokenGenerator,
+    PlatformProvisioningGateway,
+    ProvisionGatewayResult,
+    ProvisionResultCode,
+    ResendGatewayResult,
+    ResendResultCode,
+    RevokeGatewayResult,
+    RevokeResultCode,
+)
 from .runtime import AsyncResource
 from .sessions import SessionStore
-from .unit_of_work import UnitOfWork, UnitOfWorkFactory
+from .unit_of_work import ActorUnitOfWorkFactory, TenantUnitOfWorkFactory, UnitOfWork, UnitOfWorkFactory
 
 __all__ = [
+    "AcceptanceGatewayResult",
+    "AcceptanceResultCode",
+    "ActorUnitOfWorkFactory",
     "AsyncResource",
     "Clock",
     "DependencyHealth",
@@ -21,6 +40,11 @@ __all__ = [
     "IdentityRepository",
     "IdentityUnitOfWork",
     "IdentityUnitOfWorkFactory",
+    "InvitationAcceptanceGateway",
+    "InvitationDelivery",
+    "InvitationLimitStatus",
+    "InvitationRateLimiter",
+    "InvitationTokenGenerator",
     "LeadExporter",
     "LoginLimitStatus",
     "LoginRateLimiter",
@@ -29,8 +53,16 @@ __all__ = [
     "PasswordHasher",
     "PlaceCandidate",
     "PlacesGateway",
+    "PlatformProvisioningGateway",
+    "ProvisionGatewayResult",
+    "ProvisionResultCode",
+    "ResendGatewayResult",
+    "ResendResultCode",
+    "RevokeGatewayResult",
+    "RevokeResultCode",
     "SessionStore",
     "StaticMapGateway",
+    "TenantUnitOfWorkFactory",
     "UnitOfWork",
     "UnitOfWorkFactory",
 ]

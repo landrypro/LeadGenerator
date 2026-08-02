@@ -4,7 +4,7 @@
 | --- | --- |
 | Incrément | 2.2 — Identité, mots de passe et sessions |
 | Date | 23 juillet 2026 |
-| Statut | Implémenté, double revue terminée, validation produit en attente |
+| Statut | Implémenté, double revue terminée, validation produit obtenue |
 | Changement fonctionnel | Écran de connexion et session utilisateur ; recherche Google inchangée |
 
 ## 1. Résultat livré
@@ -105,6 +105,6 @@ Cette frontière permet de tester l’authentification avant d’introduire l’
 - la première exécution Azure Pipelines doit confirmer la reproductibilité de tous les contrôles ;
 - aucun déploiement public ne doit précéder la protection authentifiée des routes Google prévue en 2.3.
 
-## 7. Verdict technique
+## 7. Verdict technique et produit
 
-Le verrou final local est entièrement vert : l’incrément 2.2 peut être présenté à la validation produit. Après cette validation, le démarrage de 2.3 est recommandé avec les routes d’organisation et l’isolation RLS avant l’ouverture des appels Google aux comptes authentifiés.
+Le verrou final local est entièrement vert. Le responsable produit a validé le parcours local de connexion, restauration et déconnexion le 23 juillet 2026. L’incrément 2.2 est donc accepté et le démarrage des spécifications de 2.3 est autorisé.

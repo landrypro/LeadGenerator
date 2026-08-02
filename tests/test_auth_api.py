@@ -167,6 +167,7 @@ async def test_login_rejects_untrusted_origin_and_production_cookie_is_secure() 
         session_cookie_name="__Host-prospect_session",
         session_cookie_secure=True,
         google_maps_api_key="key",
+        rate_limit_hmac_key="test-rate-limit-key-with-at-least-32-bytes",
         cors_allowed_origins=("https://crm.example",),
     )
     authenticated_identity = identity()

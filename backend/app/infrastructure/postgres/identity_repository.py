@@ -15,7 +15,7 @@ from ...domain.identity import (
     UserIdentity,
     UserStatus,
 )
-from .models import MembershipModel, OrganizationModel, UserModel
+from .models import UserModel
 
 
 class SqlAlchemyIdentityRepository:
@@ -84,28 +84,51 @@ class SqlAlchemyIdentityRepository:
             raise RuntimeError("L’administrateur créé n’a pas pu être relu.")
         return identity
 
+    async def replace_platform_administrator_password(
+        self,
+        *,
+        user_id: UUID,
+        expected_version: int,
+        password_hash: str,
+        occurred_at: datetime,
+    ) -> bool:
+        updated_user_id = await self._session.scalar(
+            update(UserModel)
+            .where(
+                UserModel.id == user_id,
+                UserModel.platform_role == PlatformRole.PLATFORM_ADMIN.value,
+                UserModel.version == expected_version,
+            )
+            .values(
+                password_hash=password_hash,
+                updated_at=occurred_at,
+                version=UserModel.version + 1,
+            )
+            .returning(UserModel.id)
+        )
+        return updated_user_id is not None
+
     async def _to_identity(self, model: UserModel | None) -> UserIdentity | None:
         if model is None:
             return None
+        await self._session.execute(
+            text("SELECT set_config('app.actor_id', :actor_id, true)"),
+            {"actor_id": str(model.id)},
+        )
         membership_rows = (
-            await self._session.execute(
-                select(MembershipModel, OrganizationModel)
-                .join(OrganizationModel, OrganizationModel.id == MembershipModel.organization_id)
-                .where(MembershipModel.user_id == model.id)
-                .order_by(MembershipModel.created_at, MembershipModel.id)
-            )
-        ).all()
+            await self._session.execute(text("SELECT * FROM app_private.identity_memberships()"))
+        ).mappings()
         memberships = tuple(
             MembershipIdentity(
-                id=membership.id,
-                organization_id=organization.id,
-                organization_name=organization.name,
-                role=MembershipRole(membership.role),
-                status=MembershipStatus(membership.status),
-                organization_status=OrganizationStatus(organization.status),
-                created_at=membership.created_at,
+                id=row["membership_id"],
+                organization_id=row["organization_id"],
+                organization_name=row["organization_name"],
+                role=MembershipRole(row["membership_role"]),
+                status=MembershipStatus(row["membership_status"]),
+                organization_status=OrganizationStatus(row["organization_status"]),
+                created_at=row["membership_created_at"],
             )
-            for membership, organization in membership_rows
+            for row in membership_rows
         )
         return UserIdentity(
             id=model.id,

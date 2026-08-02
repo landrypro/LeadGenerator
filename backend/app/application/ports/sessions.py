@@ -17,6 +17,16 @@ class SessionStore(Protocol):
         now: datetime,
     ) -> CreatedSession: ...
 
+    async def rotate(
+        self,
+        *,
+        current_token: str,
+        user_id: UUID,
+        active_organization_id: UUID | None,
+        user_version: int,
+        now: datetime,
+    ) -> CreatedSession: ...
+
     async def load_and_touch(self, token: str, now: datetime) -> SessionRecord | None: ...
 
     async def revoke(self, token: str) -> None: ...

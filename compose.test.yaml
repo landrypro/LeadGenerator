@@ -2,7 +2,7 @@ name: prospect-crm-test
 
 services:
   postgresql:
-    image: postgres:17.5-alpine
+    image: postgres:17.10-alpine
     environment:
       POSTGRES_DB: prospect_test
       POSTGRES_USER: prospect_test
@@ -17,8 +17,24 @@ services:
     tmpfs:
       - /var/lib/postgresql/data
 
+  database-role-provisioner:
+    image: postgres:17.10-alpine
+    profiles: ["database-tools"]
+    depends_on:
+      postgresql:
+        condition: service_healthy
+    environment:
+      POSTGRES_DB: prospect_test
+      POSTGRES_USER: prospect_test
+      POSTGRES_PASSWORD: prospect-test-only
+      POSTGRES_APP_USER: prospect_app
+      POSTGRES_APP_PASSWORD: prospect-app-test-only
+    volumes:
+      - ./backend/database/provision-postgres-roles.sh:/provision-postgres-roles.sh:ro
+    command: ["sh", "/provision-postgres-roles.sh"]
+
   redis:
-    image: redis:7.4.5-alpine
+    image: redis:7.4.9-alpine
     ports:
       - "56379:6379"
     healthcheck:
@@ -26,3 +42,12 @@ services:
       interval: 2s
       timeout: 3s
       retries: 20
+
+  mailpit:
+    image: axllent/mailpit:v1.30.5
+    environment:
+      MP_MAX_MESSAGES: 100
+      MP_DATABASE: /tmp/mailpit.db
+    ports:
+      - "127.0.0.1:51025:1025"
+      - "127.0.0.1:58025:8025"

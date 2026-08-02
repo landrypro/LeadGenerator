@@ -9,8 +9,10 @@ import pytest
 from backend.app.application.errors import (
     AuthenticationRequired,
     CsrfValidationFailed,
+    IdentityConcurrentUpdate,
     InvalidCredentials,
     PlatformAdministratorAlreadyExists,
+    PlatformAdministratorNotFound,
 )
 from backend.app.application.ports import LoginLimitStatus
 from backend.app.application.use_cases import (
@@ -18,6 +20,7 @@ from backend.app.application.use_cases import (
     GetCurrentSessionUseCase,
     LoginUseCase,
     LogoutUseCase,
+    ResetPlatformAdministratorPasswordUseCase,
 )
 from backend.app.domain.identity import (
     CreatedSession,
@@ -62,6 +65,8 @@ class FakeIdentityRepository:
         self.user = user
         self.platform_admin_exists = platform_admin_exists
         self.login_recorded = False
+        self.password_replacement_succeeds = True
+        self.replacement: tuple[UUID, int, str, datetime] | None = None
 
     async def get_by_normalized_email(self, email_normalized: str) -> UserIdentity | None:
         return self.user if self.user and email_normalized == "admin@example.ca" else None
@@ -93,6 +98,17 @@ class FakeIdentityRepository:
         del email_normalized, occurred_at
         self.user = platform_user(email=email, display_name=display_name, password_hash=password_hash)
         return self.user
+
+    async def replace_platform_administrator_password(
+        self,
+        *,
+        user_id: UUID,
+        expected_version: int,
+        password_hash: str,
+        occurred_at: datetime,
+    ) -> bool:
+        self.replacement = (user_id, expected_version, password_hash, occurred_at)
+        return self.password_replacement_succeeds
 
 
 class FakeIdentityUnitOfWork:
@@ -303,3 +319,58 @@ async def test_platform_bootstrap_is_unique_and_validates_password_without_norma
             display_name="Second",
             password="autre-mot-de-passe-solide",
         )
+
+
+async def test_platform_admin_password_reset_hashes_updates_and_commits() -> None:
+    user = platform_user()
+    repository = FakeIdentityRepository(user)
+    unit_of_work_factory = FakeIdentityUnitOfWorkFactory(repository)
+    use_case = ResetPlatformAdministratorPasswordUseCase(
+        unit_of_work_factory,
+        FakePasswordHasher(),
+        FixedClock(),
+    )
+
+    user_id = await use_case.execute(email="ADMIN@example.ca", password="nouveau-mot-de-passe")
+
+    assert user_id == user.id
+    assert repository.replacement == (user.id, user.version, "hashed:nouveau-mot-de-passe", NOW)
+    assert unit_of_work_factory.unit_of_work.committed
+
+
+async def test_platform_admin_password_reset_rejects_non_platform_account() -> None:
+    regular_user = UserIdentity(
+        id=uuid4(),
+        email="admin@example.ca",
+        display_name="Compte organisation",
+        password_hash="existing-hash",
+        status=UserStatus.ACTIVE,
+        platform_role=None,
+        last_active_organization_id=None,
+        version=1,
+        memberships=(),
+    )
+    repository = FakeIdentityRepository(regular_user)
+    use_case = ResetPlatformAdministratorPasswordUseCase(
+        FakeIdentityUnitOfWorkFactory(repository),
+        FakePasswordHasher(),
+        FixedClock(),
+    )
+
+    with pytest.raises(PlatformAdministratorNotFound):
+        await use_case.execute(email="admin@example.ca", password="nouveau-mot-de-passe")
+
+    assert repository.replacement is None
+
+
+async def test_platform_admin_password_reset_detects_concurrent_update() -> None:
+    repository = FakeIdentityRepository(platform_user())
+    repository.password_replacement_succeeds = False
+    use_case = ResetPlatformAdministratorPasswordUseCase(
+        FakeIdentityUnitOfWorkFactory(repository),
+        FakePasswordHasher(),
+        FixedClock(),
+    )
+
+    with pytest.raises(IdentityConcurrentUpdate):
+        await use_case.execute(email="admin@example.ca", password="nouveau-mot-de-passe")

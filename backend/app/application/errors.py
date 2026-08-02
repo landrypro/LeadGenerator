@@ -48,3 +48,73 @@ class LoginRateLimited(RuntimeError):
 
 class PlatformAdministratorAlreadyExists(RuntimeError):
     """Le bootstrap initial a déjà été exécuté."""
+
+
+class PlatformAdministratorNotFound(RuntimeError):
+    """Le compte ciblé n’est pas un administrateur de plateforme connu."""
+
+
+class IdentityConcurrentUpdate(RuntimeError):
+    """L’identité a changé depuis sa lecture dans la transaction."""
+
+
+class InsufficientCapability(RuntimeError):
+    """L’acteur authentifié ne possède pas la capacité demandée."""
+
+
+class ProvisioningServiceUnavailable(RuntimeError):
+    """Le stockage nécessaire au provisioning est indisponible."""
+
+
+class InvitationDeliveryUnavailable(RuntimeError):
+    """Aucun transport d’invitation autorisé n’est configuré."""
+
+
+class InvitationDeliveryFailed(RuntimeError):
+    """Le transport configuré n’a pas accepté le message."""
+
+
+class ProvisioningOutcomeUnknown(RuntimeError):
+    """La transaction principale a réussi mais sa finalisation est inconnue."""
+
+
+class IdempotencyKeyReused(RuntimeError):
+    """Une clé d’idempotence a été réutilisée avec une autre commande."""
+
+
+class ProvisioningResourceNotFound(RuntimeError):
+    """La ressource de provisioning n’existe pas ou n’est plus modifiable."""
+
+
+class InvitationInvalid(RuntimeError):
+    """Le jeton ne correspond pas à une invitation utilisable."""
+
+
+class InvitationAuthenticationRequired(RuntimeError):
+    """Le compte invité existant doit être authentifié."""
+
+
+class InvitationAccountMismatch(RuntimeError):
+    """La session active n’appartient pas au destinataire invité."""
+
+
+class InvitationAlreadyAccepted(RuntimeError):
+    """Une invitation acceptée ne peut plus être révoquée."""
+
+
+class MembershipReactivationRequired(RuntimeError):
+    """Une appartenance désactivée doit être réactivée explicitement."""
+
+
+class SessionConflict(RuntimeError):
+    """Une autre session doit être fermée avant la création du compte invité."""
+
+
+class InvitationRateLimited(RuntimeError):
+    def __init__(self, retry_after_seconds: int) -> None:
+        super().__init__("Trop de tentatives d’invitation.")
+        self.retry_after_seconds = max(1, retry_after_seconds)
+
+
+class SessionCreationFailedAfterAcceptance(RuntimeError):
+    """L’invitation est acceptée, mais la nouvelle session n’a pas pu être créée."""

@@ -2,7 +2,7 @@
 
 Prospect est une application React et FastAPI en migration vers un CRM de gestion commerciale. La phase 1 fournit une recherche Google Places ponctuelle et conforme : une seule requête Text Search par action, vingt établissements au maximum, aucun contact dans la liste et aucune persistance des résultats Google.
 
-Ce fichier réunit le guide utilisateur et la documentation technique du socle actuel. La spécification complète se trouve dans [`docs/SPECIFICATION_CRM_V1.md`](docs/SPECIFICATION_CRM_V1.md), les décisions validées sur les sources dans [`docs/PHASE_1_1_ACQUISITION_CONSERVATION.md`](docs/PHASE_1_1_ACQUISITION_CONSERVATION.md) et la conception validée des fondations dans [`docs/PHASE_2_SPECIFICATIONS_DETAILLEES.md`](docs/PHASE_2_SPECIFICATIONS_DETAILLEES.md).
+Ce fichier réunit le guide utilisateur et la documentation technique du socle actuel. La spécification complète se trouve dans [`docs/SPECIFICATION_CRM_V1.md`](docs/SPECIFICATION_CRM_V1.md), les décisions validées sur les sources dans [`docs/PHASE_1_1_ACQUISITION_CONSERVATION.md`](docs/PHASE_1_1_ACQUISITION_CONSERVATION.md) et la conception validée des fondations dans [`docs/PHASE_2_SPECIFICATIONS_DETAILLEES.md`](docs/PHASE_2_SPECIFICATIONS_DETAILLEES.md). Le contrat de 2.3.2 et son rapport d’implémentation se trouvent dans [`docs/PHASE_2_3_2_SPECIFICATIONS_DETAILLEES.md`](docs/PHASE_2_3_2_SPECIFICATIONS_DETAILLEES.md) et [`docs/PHASE_2_3_2_RAPPORT_IMPLEMENTATION.md`](docs/PHASE_2_3_2_RAPPORT_IMPLEMENTATION.md).
 
 ## Fonctionnalités disponibles
 
@@ -11,6 +11,13 @@ Ce fichier réunit le guide utilisateur et la documentation technique du socle a
 - session opaque conservée côté serveur dans Redis, cookie `HttpOnly` et protection CSRF ;
 - expiration après 30 minutes d’inactivité et 12 heures au maximum, configurables ;
 - limitation des échecs de connexion par adresse réseau et identité pseudonymisée ;
+- provisioning plateforme idempotent d’une organisation et de sa première invitation Admin ;
+- invitation à usage unique, renvoi explicite plafonné, révocation et acceptation par compte nouveau ou existant ;
+- organisation activée atomiquement avec sa première appartenance Admin ;
+- page d’acceptation dédiée, jeton retiré du fragment avant React et conservé uniquement en mémoire ;
+- compte authentifié sans organisation placé dans un état restreint sans capacité fonctionnelle ;
+- rôle PostgreSQL Web non propriétaire et tables locataires protégées par Row-Level Security ;
+- contexte d’organisation limité à chaque transaction, sans persistance dans le pool de connexions ;
 - recherche explicite d’établissements autour d’un point et d’un rayon ;
 - exactement un appel Text Search par action, sans page suivante ni balayage multi-zone ;
 - réponse et affichage limités à vingt établissements ;
@@ -31,7 +38,16 @@ Ce fichier réunit le guide utilisateur et la documentation technique du socle a
 3. Cliquez sur **Se connecter**.
 4. Utilisez le bouton **Se déconnecter** dans l’en-tête lorsque vous avez terminé.
 
-Le navigateur reçoit un cookie de session inaccessible à JavaScript. Le jeton CSRF reste uniquement dans la mémoire de la page. Aucun mot de passe, identifiant de session ou jeton n’est écrit dans `localStorage` ou `sessionStorage`. La création d’organisation, les invitations et la gestion des rôles seront livrées dans l’incrément 2.3.
+Le navigateur reçoit un cookie de session inaccessible à JavaScript. Le jeton CSRF reste uniquement dans la mémoire de la page. Aucun mot de passe, identifiant de session ou jeton n’est écrit dans `localStorage` ou `sessionStorage`.
+
+### Accepter une invitation
+
+1. Ouvrez le lien complet reçu par courriel. Le jeton placé après `#token=` est retiré de l’adresse avant tout appel réseau.
+2. Si le courriel ne correspond encore à aucun compte, saisissez un nom affiché et un nouveau mot de passe deux fois.
+3. Si le compte existe, connectez-vous dans la page d’invitation, puis confirmez l’acceptation sans changer de page.
+4. Après succès, l’organisation passe à `active`, la première appartenance Admin est créée et une nouvelle session est installée.
+
+Un lien expiré, révoqué, déjà utilisé ou inconnu produit volontairement le même message public. Un compte actif sans organisation reste limité à l’acceptation d’invitation et à la déconnexion ; il n’accède pas à la recherche.
 
 ### Effectuer une recherche
 
@@ -60,12 +76,12 @@ Le bouton **Exporter Excel** reste affiché pour préparer le futur module d’�
 
 ### Prérequis
 
-- Python 3.12 ou ultérieur ;
+- Python 3.12, version de référence utilisée par la CI (qualifier séparément toute version majeure ultérieure) ;
 - Node.js 22 ou ultérieur ;
 - un projet Google Cloud avec facturation activée ;
 - Places API (New) activée ;
 - Maps Static API activée pour la carte.
-- Docker Desktop avec les conteneurs Linux pour PostgreSQL et Redis.
+- Docker Desktop avec les conteneurs Linux pour PostgreSQL, Redis et Mailpit.
 
 ### Dépendances
 
@@ -81,10 +97,15 @@ cd ..
 
 ### Clés Google
 
+Le fichier réel reste local et ignoré par Git :
+
 ```powershell
-$env:GOOGLE_MAPS_API_KEY = "VOTRE_CLE_PLACES"
-$env:GOOGLE_MAPS_STATIC_API_KEY = "VOTRE_CLE_MAPS_STATIC"
+Copy-Item .env.example .env
+notepad .env
 ```
+
+Renseignez `GOOGLE_MAPS_API_KEY` dans `.env`. `GOOGLE_MAPS_STATIC_API_KEY` reste facultative ; la clé Places sert de
+repli. Le backend doit être démarré avec `--env-file .env` et entièrement redémarré après toute modification du fichier.
 
 | Variable | Obligatoire | Usage |
 | --- | --- | --- |
@@ -99,11 +120,20 @@ Démarrez d’abord les dépendances locales :
 
 ```powershell
 docker compose up -d --wait
-$env:DATABASE_URL = "postgresql+asyncpg://prospect:prospect-development-only@127.0.0.1:5432/prospect"
-$env:MIGRATION_DATABASE_URL = $env:DATABASE_URL
+docker compose run --rm database-role-provisioner
+$env:MIGRATION_DATABASE_URL = "postgresql+asyncpg://prospect:prospect-development-only@127.0.0.1:5432/prospect"
 $env:REDIS_URL = "redis://127.0.0.1:6379/0"
 .\.venv\Scripts\python.exe -m alembic -c backend\alembic.ini upgrade head
+$env:DATABASE_URL = "postgresql+asyncpg://prospect_app:prospect-app-development-only@127.0.0.1:5432/prospect"
 ```
+
+La commande `docker compose run --rm database-role-provisioner` provisionne ou remet en conformité le rôle fixe
+`prospect_app` sans recréer le volume. Le serveur Web utilise exclusivement `DATABASE_URL` ; Alembic utilise
+exclusivement `MIGRATION_DATABASE_URL`. Ne remplacez pas le rôle Web par le propriétaire en cas d’erreur RLS.
+
+Le passage de PostgreSQL 17.5 à 17.10 reste dans la même version majeure. Avant la première mise à niveau d’un volume
+contenant des données utiles, réalisez néanmoins une sauvegarde vérifiée du volume ou un export PostgreSQL. Le fichier
+Compose de test utilise un stockage temporaire indépendant et ne touche jamais au volume de développement.
 
 Créez ensuite, une seule fois, le premier administrateur de plateforme. La commande refuse de créer un second administrateur initial et ne prend jamais le mot de passe en argument de ligne de commande :
 
@@ -116,11 +146,23 @@ $env:BOOTSTRAP_PLATFORM_ADMIN_DISPLAY_NAME = "Administrateur"
 
 Le mot de passe est demandé de manière interactive. Pour une automatisation contrôlée, `BOOTSTRAP_PLATFORM_ADMIN_PASSWORD` peut être fourni par un coffre de secrets et doit être retiré immédiatement après usage.
 
+Si le mot de passe du premier administrateur est perdu, il ne peut pas être relu depuis son hash Argon2id. Utilisez la
+commande de récupération locale, après avoir configuré `MIGRATION_DATABASE_URL` :
+
+```powershell
+$env:ADMIN_PASSWORD_RESET_CONFIRM = "RESET_PLATFORM_ADMIN_PASSWORD"
+$env:ADMIN_PASSWORD_RESET_EMAIL = "admin@example.ca"
+.\.venv\Scripts\python.exe -m backend.app.cli.reset_platform_admin_password
+```
+
+Le nouveau mot de passe est demandé et confirmé sans être affiché. La commande refuse un compte non plateforme et
+incrémente sa version afin d’invalider toutes les sessions antérieures.
+
 Terminal 1 :
 
 ```powershell
 .\.venv\Scripts\Activate.ps1
-uvicorn backend.app.main:app --reload --host 127.0.0.1 --port 8000
+.\.venv\Scripts\python.exe -m uvicorn backend.app.main:app --reload --host 127.0.0.1 --port 8000 --env-file .env
 ```
 
 Terminal 2 :
@@ -134,6 +176,8 @@ Ouvrez `http://localhost:5173`. Vite redirige `/api` vers `http://127.0.0.1:8000
 
 `GET /api/health/live` vérifie le processus. `GET /api/health/ready` retourne `200` uniquement lorsque PostgreSQL et Redis répondent ; la route historique `GET /api/health` reste disponible pendant la migration.
 
+Mailpit reçoit uniquement les courriels locaux de test. Son interface est disponible sur `http://127.0.0.1:8025` et n’entre pas dans la disponibilité globale de l’application.
+
 Variables d’identité principales :
 
 | Variable | Valeur initiale | Usage |
@@ -145,6 +189,25 @@ Variables d’identité principales :
 | `SESSION_IDLE_SECONDS` | `1800` | Expiration d’inactivité. |
 | `SESSION_ABSOLUTE_SECONDS` | `43200` | Durée absolue maximale. |
 | `LOGIN_RATE_LIMIT_WINDOW_SECONDS` | `900` | Fenêtre de limitation des connexions. |
+| `DATABASE_URL` | rôle `prospect_app` | Connexion du serveur Web, non propriétaire et sans `BYPASSRLS`. |
+| `MIGRATION_DATABASE_URL` | rôle propriétaire | Connexion réservée aux migrations Alembic. |
+| `POSTGRES_APP_PASSWORD` | secret local distinct | Mot de passe provisionné pour `prospect_app`, identique à celui de `DATABASE_URL`. |
+| `INVITATION_DELIVERY_BACKEND` | `mailpit` | Interception locale seulement ; refusée en staging et production. |
+| `INVITATION_SMTP_HOST` / `INVITATION_SMTP_PORT` | `127.0.0.1:1025` | Destination Mailpit locale, jamais dérivée d’une requête. |
+| `RATE_LIMIT_HMAC_KEY` | aucun secret par défaut | Secret local aléatoire d’au moins 32 octets pour pseudonymiser les dimensions Redis. |
+
+### Tester le provisioning local
+
+La page d’administration plateforme arrivera en 2.3.5. En attendant, le script passe par les vraies routes, le cookie et le CSRF, sans accès direct à la base et sans afficher le jeton :
+
+```powershell
+.\scripts\Test-ProvisioningLocal.ps1 `
+  -AdministratorEmail "admin@example.ca" `
+  -OrganizationName "Entreprise Démonstration" `
+  -InviteeEmail "nouvel-admin@example.ca"
+```
+
+Le mot de passe plateforme est demandé de façon interactive. Relevez le `CreationRequestId` retourné, ouvrez Mailpit, puis suivez le lien du message. Pour tester l’idempotence HTTP, rejouez manuellement le même UUID et le même corps ; une commande différente avec cet UUID doit être refusée.
 
 ## Contrat API de la phase 1
 
@@ -199,6 +262,17 @@ Le serveur conserve les coordonnées de la carte et refuse qu’elles soient fou
 
 La réponse de carte porte également `Cache-Control: no-store, max-age=0`.
 
+### Provisioning et invitations — incrément 2.3.2
+
+- `GET /api/platform/organizations` liste uniquement les métadonnées de provisioning ;
+- `POST /api/platform/organizations` crée de manière idempotente avec `creation_request_id` ;
+- `POST /api/platform/organizations/{id}/first-invitation/resend` exige un nouveau `resend_request_id` ;
+- `POST /api/platform/organizations/{id}/first-invitation/revoke` révoque l’invitation active ;
+- `POST /api/auth/invitations/preview` expose seulement organisation, rôle, expiration et existence éventuelle du compte ;
+- `POST /api/auth/invitations/accept` accepte pour un nouveau compte, ou pour la session correspondant au destinataire avec CSRF.
+
+Les routes plateforme exigent la capacité plateforme, une origine fiable et JSON strict. Toutes les réponses sont `no-store`. Aucun jeton brut, hash, mot de passe, détail SMTP ou trace SQL n’apparaît dans les réponses ou dans OpenAPI.
+
 ## Architecture
 
 Le backend conserve des dépendances dirigées vers le domaine et l’application :
@@ -206,16 +280,19 @@ Le backend conserve des dépendances dirigées vers le domaine et l’applicatio
 | Zone | Responsabilité |
 | --- | --- |
 | `backend/app/domain/` | Identité, rôles, session, modèles Google et règles sans framework. |
-| `backend/app/application/use_cases/` | Authentification, bootstrap, readiness, recherche et carte. |
-| `backend/app/application/ports/` | Interfaces des dépôts, mots de passe, sessions, limites, PostgreSQL/Redis et Google. |
-| `backend/app/infrastructure/postgres/` | Modèles d’identité, dépôt, unités de travail et migrations Alembic. |
-| `backend/app/infrastructure/redis/` | Sessions opaques et limitation atomique des connexions. |
+| `backend/app/application/use_cases/` | Authentification, provisioning, invitations, readiness, recherche et carte. |
+| `backend/app/application/ports/` | Interfaces des dépôts, mots de passe, sessions, limites, livraison, PostgreSQL/Redis et Google. |
+| `backend/app/application/tenancy.py` | Contextes locataire et acteur plateforme, créés par le serveur et indépendants de PostgreSQL. |
+| `backend/app/infrastructure/postgres/` | Modèles, passerelle de provisioning, unités de travail acteur/locataire et migrations Alembic. |
+| `backend/app/infrastructure/redis/` | Sessions opaques, rotation atomique et limitations HMAC connexion/invitation. |
+| `backend/app/infrastructure/invitations/` | Jetons cryptographiques et livraison SMTP Mailpit locale. |
 | `backend/app/infrastructure/security/` | Adaptateur Argon2id exécuté hors de la boucle asynchrone. |
 | `backend/app/infrastructure/google/` | Appel HTTP Google et adaptation des données. |
 | `backend/app/infrastructure/memory/` | Verrou et jetons temporaires, remplaçables par Redis. |
 | `backend/app/presentation/api/` | Schémas Pydantic, mappers et routes FastAPI. |
 | `client/src/features/lead-search/` | Écran transitoire de recherche, état local et composants React. |
 | `client/src/features/auth/` | Connexion, restauration et état de session conservé uniquement en mémoire. |
+| `client/src/features/invitations/` | Extraction pré-React du fragment et parcours d’acceptation en mémoire. |
 | `client/src/shared/` | Client HTTP, erreurs et comportements réutilisables. |
 
 Le port `PlacesGateway` expose une seule méthode `search`. Il ne connaît aucun jeton de pagination. Le masque de champs Google n’inclut ni contact ni `nextPageToken`, et le client HTTP n’effectue aucune nouvelle tentative automatique afin de garantir un seul POST Text Search par action.
@@ -228,6 +305,13 @@ Le port `PlacesGateway` expose une seule méthode `search`. Il ne connaît aucun
 - cookie `HttpOnly`, `SameSite=Lax`, `Secure` et préfixé `__Host-` en production ;
 - CSRF en mémoire et validation stricte de l’origine sur les mutations authentifiées ;
 - compte désactivé ou version d’identité modifiée refusant immédiatement une ancienne session ;
+- rôle Web PostgreSQL non propriétaire, sans privilège élevé et sans droit de suppression physique ;
+- politiques `ENABLE` et `FORCE ROW LEVEL SECURITY` sur organisations, appartenances et invitations ;
+- fonctions `SECURITY DEFINER` étroites, `search_path` fixé, `PUBLIC` révoqué et signatures seules accordées au rôle Web ;
+- jetons d’invitation aléatoires de 256 bits dont seul le SHA-256 est conservé en PostgreSQL ;
+- limitation Redis atomique par HMAC d’adresse et de hash de jeton, fermée en cas d’indisponibilité ;
+- première acceptation et activation sérialisées en transaction PostgreSQL ;
+- paramètres RLS posés avec une portée strictement transactionnelle puis effacés au commit ou rollback ;
 - erreurs d’authentification minimisées, sans écho du mot de passe ;
 - masque de champs Google minimal ;
 - aucune persistance ni cache navigateur des résultats ;
@@ -261,11 +345,11 @@ npm test
 npm run build
 ```
 
-La suite protège notamment l’appel Google unique, l’absence de pagination, la limite de vingt, l’absence des contacts, le retrait de l’export HTTP, l’absence de stockage navigateur, l’attribution, le parcours React et le jeton de carte.
+Le dernier passage complet valide 105 tests backend et d’intégration, sans test ignoré, ainsi que 22 tests React répartis dans 9 fichiers. La suite protège aussi les migrations, RLS, courses de provisioning et d’acceptation, rotation de session, livraison Mailpit, erreurs minimisées, absence de stockage navigateur et toutes les garanties Google historiques.
 
 ## Suite de la migration CRM V1
 
-Les incréments 2.1 et 2.2 sont implémentés et documentés dans [`docs/PHASE_2_1_RAPPORT_IMPLEMENTATION.md`](docs/PHASE_2_1_RAPPORT_IMPLEMENTATION.md) et [`docs/PHASE_2_2_RAPPORT_IMPLEMENTATION.md`](docs/PHASE_2_2_RAPPORT_IMPLEMENTATION.md). L’incrément 2.3 ajoutera l’administration des organisations et membres, les invitations à usage unique, l’isolation RLS et la protection authentifiée des routes Google. Le découpage complet reste défini dans [`docs/PHASE_2_SPECIFICATIONS_DETAILLEES.md`](docs/PHASE_2_SPECIFICATIONS_DETAILLEES.md).
+Les incréments 2.1, 2.2, 2.3.1 et l’implémentation technique de 2.3.2 sont terminés localement. Le rapport de 2.3.2, ses trois critiques et ses deux revues de code figurent dans [`docs/PHASE_2_3_2_RAPPORT_IMPLEMENTATION.md`](docs/PHASE_2_3_2_RAPPORT_IMPLEMENTATION.md). La validation produit de son protocole local reste nécessaire avant de déclencher 2.3.3.
 
 ## Références
 

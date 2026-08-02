@@ -1,6 +1,8 @@
 from types import TracebackType
 from typing import Protocol, Self
 
+from ..tenancy import ActorContext, TenantContext
+
 
 class UnitOfWork(Protocol):
     async def __aenter__(self) -> Self: ...
@@ -19,3 +21,11 @@ class UnitOfWork(Protocol):
 
 class UnitOfWorkFactory(Protocol):
     def __call__(self) -> UnitOfWork: ...
+
+
+class TenantUnitOfWorkFactory(Protocol):
+    def __call__(self, context: TenantContext) -> UnitOfWork: ...
+
+
+class ActorUnitOfWorkFactory(Protocol):
+    def __call__(self, context: ActorContext) -> UnitOfWork: ...

@@ -4,20 +4,26 @@ from collections.abc import AsyncIterator, Awaitable, Callable
 from contextlib import asynccontextmanager
 from pathlib import Path
 
-from fastapi import FastAPI, Request, Response
+from fastapi import FastAPI, HTTPException, Request, Response
 from fastapi.exception_handlers import request_validation_exception_handler
 from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse
+from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 
-from .application.ports import AsyncResource, DependencyProbe, UnitOfWorkFactory
+from .application.ports import AsyncResource, DependencyProbe, TenantUnitOfWorkFactory, UnitOfWorkFactory
 from .application.use_cases import (
+    AcceptInvitationUseCase,
     CheckReadinessUseCase,
+    CreateOrganizationUseCase,
     GetCurrentSessionUseCase,
     GetMapSnapshotUseCase,
+    ListPlatformOrganizationsUseCase,
     LoginUseCase,
     LogoutUseCase,
+    PreviewInvitationUseCase,
+    ResendInitialInvitationUseCase,
+    RevokeInitialInvitationUseCase,
     SearchGooglePlacesUseCase,
 )
 from .config import Settings
@@ -30,17 +36,32 @@ from .infrastructure.google.places import (
 )
 from .infrastructure.google.static_maps import GoogleStaticMapGateway
 from .infrastructure.health import UnconfiguredDependencyProbe
+from .infrastructure.invitations import (
+    DisabledInvitationDelivery,
+    MailpitInvitationDelivery,
+    SecureInvitationTokenGenerator,
+)
 from .infrastructure.memory import InMemoryGenerationGuard, InMemoryMapSnapshotGrantStore
-from .infrastructure.postgres import PostgresDatabase
-from .infrastructure.redis import RedisLoginRateLimiter, RedisResource, RedisSessionStore
+from .infrastructure.postgres import PostgresDatabase, SqlAlchemyProvisioningGateway
+from .infrastructure.redis import RedisInvitationRateLimiter, RedisLoginRateLimiter, RedisResource, RedisSessionStore
 from .infrastructure.security import Argon2PasswordHasher
-from .presentation.api.routers import auth_router, google_places_router, health_router, maps_router
+from .presentation.api.routers import (
+    auth_router,
+    google_places_router,
+    health_router,
+    invitations_router,
+    maps_router,
+    platform_router,
+)
+
+DEVELOPMENT_RATE_LIMIT_KEY = b"prospect-development-only-rate-limit-key"
 
 
 def build_container(settings: Settings) -> AppContainer:
     probes: list[DependencyProbe] = []
     resources: list[AsyncResource] = []
     unit_of_work_factory: UnitOfWorkFactory | None = None
+    tenant_unit_of_work_factory: TenantUnitOfWorkFactory | None = None
     database: PostgresDatabase | None = None
     redis: RedisResource | None = None
 
@@ -56,6 +77,7 @@ def build_container(settings: Settings) -> AppContainer:
         probes.append(database)
         resources.append(database)
         unit_of_work_factory = database.unit_of_work
+        tenant_unit_of_work_factory = database.tenant_unit_of_work
     else:
         probes.append(UnconfiguredDependencyProbe("postgresql"))
 
@@ -90,8 +112,15 @@ def build_container(settings: Settings) -> AppContainer:
     login: LoginUseCase | None = None
     get_current_session: GetCurrentSessionUseCase | None = None
     logout: LogoutUseCase | None = None
+    create_organization: CreateOrganizationUseCase | None = None
+    list_platform_organizations: ListPlatformOrganizationsUseCase | None = None
+    resend_initial_invitation: ResendInitialInvitationUseCase | None = None
+    revoke_initial_invitation: RevokeInitialInvitationUseCase | None = None
+    preview_invitation: PreviewInvitationUseCase | None = None
+    accept_invitation: AcceptInvitationUseCase | None = None
     if database is not None and redis is not None:
         clock = SystemClock()
+        rate_limit_key = settings.rate_limit_hmac_key.encode("utf-8") or DEVELOPMENT_RATE_LIMIT_KEY
         session_store = RedisSessionStore(
             redis.client,
             environment=settings.app_env,
@@ -104,6 +133,27 @@ def build_container(settings: Settings) -> AppContainer:
             window_seconds=settings.login_rate_limit_window_seconds,
             pair_limit=settings.login_rate_limit_pair_failures,
             address_limit=settings.login_rate_limit_address_failures,
+            hmac_key=rate_limit_key,
+        )
+        invitation_rate_limiter = RedisInvitationRateLimiter(
+            redis.client,
+            environment=settings.app_env,
+            window_seconds=settings.invitation_attempt_window_seconds,
+            address_limit=settings.invitation_attempt_address_max,
+            token_limit=settings.invitation_attempt_token_max,
+            hmac_key=rate_limit_key,
+        )
+        provisioning_gateway = SqlAlchemyProvisioningGateway(database)
+        token_generator = SecureInvitationTokenGenerator()
+        invitation_delivery = (
+            MailpitInvitationDelivery(
+                host=settings.invitation_smtp_host,
+                port=settings.invitation_smtp_port,
+                timeout_seconds=settings.invitation_smtp_timeout_seconds,
+                from_email=settings.invitation_from_email,
+            )
+            if settings.invitation_delivery_backend == "mailpit"
+            else DisabledInvitationDelivery()
         )
         login = LoginUseCase(
             database.identity_unit_of_work,
@@ -114,6 +164,36 @@ def build_container(settings: Settings) -> AppContainer:
         )
         get_current_session = GetCurrentSessionUseCase(database.identity_unit_of_work, session_store, clock)
         logout = LogoutUseCase(session_store, clock)
+        create_organization = CreateOrganizationUseCase(
+            provisioning_gateway,
+            token_generator,
+            invitation_delivery,
+            clock,
+            public_app_url=settings.public_app_url,
+            invitation_ttl_seconds=settings.invitation_ttl_seconds,
+        )
+        list_platform_organizations = ListPlatformOrganizationsUseCase(provisioning_gateway, clock)
+        resend_initial_invitation = ResendInitialInvitationUseCase(
+            provisioning_gateway,
+            token_generator,
+            invitation_delivery,
+            clock,
+            public_app_url=settings.public_app_url,
+            invitation_ttl_seconds=settings.invitation_ttl_seconds,
+            cooldown_seconds=settings.invitation_resend_cooldown_seconds,
+            window_seconds=settings.invitation_resend_window_seconds,
+            max_per_window=settings.invitation_resend_max_per_window,
+        )
+        revoke_initial_invitation = RevokeInitialInvitationUseCase(provisioning_gateway, clock)
+        preview_invitation = PreviewInvitationUseCase(provisioning_gateway, invitation_rate_limiter, clock)
+        accept_invitation = AcceptInvitationUseCase(
+            provisioning_gateway,
+            database.identity_unit_of_work,
+            Argon2PasswordHasher(),
+            session_store,
+            invitation_rate_limiter,
+            clock,
+        )
 
     return AppContainer(
         settings=settings,
@@ -127,7 +207,14 @@ def build_container(settings: Settings) -> AppContainer:
         login=login,
         get_current_session=get_current_session,
         logout=logout,
+        create_organization=create_organization,
+        list_platform_organizations=list_platform_organizations,
+        resend_initial_invitation=resend_initial_invitation,
+        revoke_initial_invitation=revoke_initial_invitation,
+        preview_invitation=preview_invitation,
+        accept_invitation=accept_invitation,
         unit_of_work_factory=unit_of_work_factory,
+        tenant_unit_of_work_factory=tenant_unit_of_work_factory,
         resources=tuple(resources),
     )
 
@@ -167,6 +254,20 @@ def create_app(
     async def sanitized_auth_validation_error(request: Request, error: RequestValidationError) -> Response:
         if not request.url.path.startswith("/api/auth/"):
             return await request_validation_exception_handler(request, error)
+        if request.url.path.startswith("/api/auth/invitations/") and any(
+            item.get("loc") and item["loc"][-1] == "token" for item in error.errors()
+        ):
+            return JSONResponse(
+                status_code=400,
+                content={
+                    "error": {
+                        "code": "invitation_invalid",
+                        "message": "L’invitation n’est pas utilisable.",
+                        "request_id": getattr(request.state, "request_id", ""),
+                    }
+                },
+                headers={"Cache-Control": "no-store, max-age=0"},
+            )
         fields = {str(item["loc"][-1]): "Valeur invalide." for item in error.errors() if item.get("loc")}
         return JSONResponse(
             status_code=422,
@@ -183,12 +284,26 @@ def create_app(
 
     app.include_router(health_router)
     app.include_router(auth_router)
+    app.include_router(invitations_router)
+    app.include_router(platform_router)
     app.include_router(google_places_router)
     app.include_router(maps_router)
 
     frontend_dist = Path(__file__).resolve().parents[2] / "client" / "dist"
     if frontend_dist.exists():
-        app.mount("/", StaticFiles(directory=frontend_dist, html=True), name="frontend")
+        assets = frontend_dist / "assets"
+        if assets.exists():
+            app.mount("/assets", StaticFiles(directory=assets), name="frontend-assets")
+
+        @app.get("/{frontend_path:path}", include_in_schema=False)
+        async def frontend_route(frontend_path: str) -> Response:
+            if frontend_path.startswith("api/"):
+                raise HTTPException(status_code=404)
+            candidate = (frontend_dist / frontend_path).resolve()
+            if candidate.is_relative_to(frontend_dist.resolve()) and candidate.is_file():
+                return FileResponse(candidate)
+            return FileResponse(frontend_dist / "index.html")
+
     return app
 
 
@@ -199,4 +314,6 @@ async def _add_request_id(request: Request, call_next: Callable[[Request], Await
     request.state.request_id = request_id
     response = await call_next(request)
     response.headers["X-Request-ID"] = request_id
+    response.headers["X-Content-Type-Options"] = "nosniff"
+    response.headers["Referrer-Policy"] = "no-referrer"
     return response

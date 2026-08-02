@@ -3,10 +3,10 @@
 | Métadonnée | Valeur |
 | --- | --- |
 | Produit | Prospect CRM |
-| Version du document | 1.1 |
-| Statut | Spécification validée ; incréments 2.1 et 2.2 implémentés |
+| Version du document | 1.7 |
+| Statut | Spécification validée ; 2.1, 2.2 et 2.3.1 acceptés ; détail 2.3.2 validé |
 | Date | 23 juillet 2026 |
-| Validation produit | 22 juillet 2026 |
+| Validation produit | 22 juillet 2026 ; détails 2.3 et 2.3.2 validés le 23 juillet 2026 |
 | Phase couverte | Phase 2 — Fondations |
 | Marché initial | Canada |
 
@@ -112,7 +112,7 @@ Validation avant de poursuivre :
 
 ### 2.2 — Identité, mots de passe et sessions
 
-**État d’implémentation :** livré et doublement revu le 23 juillet 2026 ; validation produit en attente. Les contrôles locaux utilisent PostgreSQL et Redis réels. Le rapport détaillé se trouve dans [`PHASE_2_2_RAPPORT_IMPLEMENTATION.md`](PHASE_2_2_RAPPORT_IMPLEMENTATION.md).
+**État d’implémentation :** livré, doublement revu et validé localement par le responsable produit le 23 juillet 2026. Les contrôles utilisent PostgreSQL et Redis réels. Le rapport détaillé se trouve dans [`PHASE_2_2_RAPPORT_IMPLEMENTATION.md`](PHASE_2_2_RAPPORT_IMPLEMENTATION.md).
 
 Livrables :
 
@@ -133,6 +133,12 @@ Validation avant de poursuivre :
 - absence de mot de passe, jeton ou cookie dans les journaux.
 
 ### 2.3 — Organisations, rôles et isolation
+
+**État de spécification :** contrat général validé par le responsable produit le 23 juillet 2026. Il se trouve dans
+[`PHASE_2_3_SPECIFICATIONS_DETAILLEES.md`](PHASE_2_3_SPECIFICATIONS_DETAILLEES.md). Le socle 2.3.1 est accepté et le
+contrat détaillé validé de 2.3.2 se trouve dans
+[`PHASE_2_3_2_SPECIFICATIONS_DETAILLEES.md`](PHASE_2_3_2_SPECIFICATIONS_DETAILLEES.md). Son implémentation est
+autorisée.
 
 Livrables :
 

@@ -10,8 +10,11 @@ pool:
 variables:
   pythonVersion: '3.12'
   nodeVersion: '22.x'
-  testDatabaseUrl: 'postgresql+asyncpg://prospect_test:prospect-test-only@127.0.0.1:55432/prospect_test'
+  testDatabaseUrl: 'postgresql+asyncpg://prospect_app:prospect-app-test-only@127.0.0.1:55432/prospect_test'
+  testMigrationDatabaseUrl: 'postgresql+asyncpg://prospect_test:prospect-test-only@127.0.0.1:55432/prospect_test'
   testRedisUrl: 'redis://127.0.0.1:56379/0'
+  testMailpitApiUrl: 'http://127.0.0.1:58025'
+  testMailpitSmtpPort: '51025'
 
 steps:
   - task: UsePythonVersion@0
@@ -34,23 +37,36 @@ steps:
     displayName: Vérifier les types Python avec mypy
 
   - script: docker compose -f compose.test.yaml up -d --wait
-    displayName: Démarrer PostgreSQL et Redis de test
+    displayName: Démarrer PostgreSQL, Redis et Mailpit de test
+
+  - script: docker compose -f compose.test.yaml run --rm database-role-provisioner
+    displayName: Provisionner les rôles PostgreSQL de test
 
   - script: python -m alembic -c backend/alembic.ini upgrade head
     displayName: Appliquer les migrations Alembic
     env:
-      MIGRATION_DATABASE_URL: $(testDatabaseUrl)
+      MIGRATION_DATABASE_URL: $(testMigrationDatabaseUrl)
+
+  - script: |
+      python -m alembic -c backend/alembic.ini downgrade 20260723_0002
+      python -m alembic -c backend/alembic.ini upgrade head
+    displayName: Vérifier le downgrade et la reconstruction RLS/provisioning
+    env:
+      MIGRATION_DATABASE_URL: $(testMigrationDatabaseUrl)
 
   - script: python -m alembic -c backend/alembic.ini check
     displayName: Vérifier la synchronisation des modèles et migrations
     env:
-      MIGRATION_DATABASE_URL: $(testDatabaseUrl)
+      MIGRATION_DATABASE_URL: $(testMigrationDatabaseUrl)
 
   - script: pytest --junitxml=test-results/pytest.xml
     displayName: Exécuter les tests Python unitaires et d’intégration
     env:
       TEST_DATABASE_URL: $(testDatabaseUrl)
+      TEST_MIGRATION_DATABASE_URL: $(testMigrationDatabaseUrl)
       TEST_REDIS_URL: $(testRedisUrl)
+      TEST_MAILPIT_API_URL: $(testMailpitApiUrl)
+      TEST_MAILPIT_SMTP_PORT: $(testMailpitSmtpPort)
       REQUIRE_INFRASTRUCTURE_TESTS: 'true'
 
   - task: PublishTestResults@2
@@ -99,6 +115,7 @@ steps:
         backend/**
         client/dist/**
         docs/**
+        scripts/**
         README.md
         .env.example
       TargetFolder: $(Build.ArtifactStagingDirectory)/GoogleMapsLeadGenerator

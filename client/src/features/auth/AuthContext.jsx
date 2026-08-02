@@ -46,6 +46,9 @@ export function AuthProvider({ children }) {
     }
   }, [clearSession])
 
-  const value = useMemo(() => ({ status, session, login, logout }), [status, session, login, logout])
+  const value = useMemo(
+    () => ({ status, session, login, logout, adoptSession: installSession }),
+    [status, session, login, logout, installSession],
+  )
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>
 }

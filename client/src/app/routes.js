@@ -12,6 +12,7 @@ export const CRM_PATHS = Object.freeze({
   compliance: '/compliance',
   importsExports: '/imports-exports',
   administration: '/administration',
+  acceptInvitation: '/accept-invitation',
 })
 
 // Les chemins CRM sont réservés ci-dessus. Ils seront activés au fur et à mesure

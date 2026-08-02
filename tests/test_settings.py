@@ -146,3 +146,41 @@ def test_production_requires_secure_host_cookie_and_matching_public_origin() -> 
             session_cookie_name="__Host-prospect_session",
             session_cookie_secure=True,
         )
+
+
+def test_mailpit_is_local_only_and_requires_a_public_app_origin() -> None:
+    with pytest.raises(ValueError, match="PUBLIC_APP_URL"):
+        Settings(app_env="development", invitation_delivery_backend="mailpit")
+    with pytest.raises(ValueError, match="Mailpit"):
+        Settings(
+            app_env="staging",
+            invitation_delivery_backend="mailpit",
+            public_app_url="https://crm.example",
+            rate_limit_hmac_key="test-rate-limit-key-with-at-least-32-bytes",
+        )
+
+    settings = Settings(
+        app_env="development",
+        invitation_delivery_backend="mailpit",
+        public_app_url="http://localhost:5173",
+    )
+    assert settings.invitation_delivery_backend == "mailpit"
+
+
+def test_rate_limit_hmac_key_is_redacted_bounded_and_mandatory_in_production() -> None:
+    with pytest.raises(ValueError, match="32 octets"):
+        Settings(rate_limit_hmac_key="too-short")
+    with pytest.raises(ValueError, match="RATE_LIMIT_HMAC_KEY"):
+        Settings(
+            app_env="production",
+            database_url="postgresql+asyncpg://app:secret@db/prospect",
+            redis_url="rediss://redis:6379/0",
+            google_maps_api_key="key",
+            public_app_url="https://crm.example",
+            session_cookie_name="__Host-prospect_session",
+            session_cookie_secure=True,
+            cors_allowed_origins=("https://crm.example",),
+        )
+
+    secret = "a-secret-rate-limit-key-with-at-least-32-bytes"
+    assert secret not in repr(Settings(rate_limit_hmac_key=secret))

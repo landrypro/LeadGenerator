@@ -9,7 +9,6 @@ from ...domain.identity import (
     CreatedSession,
     InvalidEmail,
     MembershipIdentity,
-    PlatformRole,
     UserIdentity,
     normalize_email,
     select_active_organization,
@@ -77,11 +76,7 @@ class LoginUseCase:
             await self._password_hasher.verify_dummy(password)
 
         active_organization_id = select_active_organization(user) if user is not None else None
-        account_can_login = bool(
-            user is not None
-            and user.is_active
-            and (active_organization_id is not None or user.platform_role is PlatformRole.PLATFORM_ADMIN)
-        )
+        account_can_login = bool(user is not None and user.is_active)
         if not verified or not account_can_login or user is None:
             failure_limit = await self._rate_limiter.record_failure(
                 client_address=client_address,
@@ -149,10 +144,7 @@ class GetCurrentSessionUseCase:
             user is not None
             and user.is_active
             and user.version == session.user_version
-            and (
-                active_membership is not None
-                or (session.active_organization_id is None and user.platform_role is PlatformRole.PLATFORM_ADMIN)
-            )
+            and (active_membership is not None or session.active_organization_id is None)
         )
         if not valid or user is None:
             await self._session_store.revoke(token)

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import hashlib
+import hmac
 from typing import cast
 
 from redis.asyncio import Redis
@@ -29,11 +30,13 @@ class RedisLoginRateLimiter:
         window_seconds: int,
         pair_limit: int,
         address_limit: int,
+        hmac_key: bytes,
     ) -> None:
         self._client = client
         self._window_seconds = window_seconds
         self._pair_limit = pair_limit
         self._address_limit = address_limit
+        self._hmac_key = hmac_key
         self._prefix = f"prospect:{environment}:login-limit:"
 
     async def check(self, *, client_address: str, email_dimension: str) -> LoginLimitStatus:
@@ -75,13 +78,13 @@ class RedisLoginRateLimiter:
             raise AuthenticationServiceUnavailable from error
 
     def _keys(self, client_address: str, email_dimension: str) -> tuple[str, str]:
-        address_hash = _dimension_hash(client_address or "unknown")
-        pair_hash = _dimension_hash(f"{client_address or 'unknown'}\0{email_dimension}")
+        address_hash = _dimension_hash(client_address or "unknown", self._hmac_key)
+        pair_hash = _dimension_hash(f"{client_address or 'unknown'}\0{email_dimension}", self._hmac_key)
         return (
             f"{self._prefix}pair:{pair_hash}",
             f"{self._prefix}address:{address_hash}",
         )
 
 
-def _dimension_hash(value: str) -> str:
-    return hashlib.sha256(value.encode("utf-8")).hexdigest()
+def _dimension_hash(value: str, key: bytes) -> str:
+    return hmac.new(key, value.encode("utf-8"), hashlib.sha256).hexdigest()

@@ -22,6 +22,7 @@ class UserStatus(StrEnum):
 
 
 class OrganizationStatus(StrEnum):
+    PROVISIONING = "provisioning"
     ACTIVE = "active"
     SUSPENDED = "suspended"
 
@@ -170,7 +171,7 @@ def select_active_organization(user: UserIdentity) -> UUID | None:
 def capabilities_for(identity: UserIdentity, active_membership: MembershipIdentity | None) -> tuple[str, ...]:
     capabilities: list[str] = []
     if identity.platform_role is PlatformRole.PLATFORM_ADMIN:
-        capabilities.append("platform:organizations:create")
+        capabilities.extend(("platform:organizations:read", "platform:organizations:create"))
     if active_membership is not None and active_membership.is_active:
         capabilities.extend(CAPABILITIES_BY_ROLE[active_membership.role])
     return tuple(capabilities)

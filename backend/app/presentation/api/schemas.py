@@ -43,6 +43,74 @@ class AuthenticationResponse(BaseModel):
     csrf_token: str
 
 
+class CreateOrganizationRequest(StrictCommand):
+    name: str = Field(min_length=1, max_length=160)
+    locale: str = Field(min_length=2, max_length=16)
+    timezone: str = Field(min_length=1, max_length=64)
+    first_administrator_email: str = Field(min_length=3, max_length=254)
+    creation_request_id: UUID
+
+
+class ResendInitialInvitationRequest(StrictCommand):
+    resend_request_id: UUID
+
+
+class EmptyCommand(StrictCommand):
+    pass
+
+
+class PlatformOrganizationResponse(BaseModel):
+    id: UUID
+    name: str
+    locale: str
+    timezone: str
+    status: str
+    version: int
+    created_at: datetime
+    activated_at: datetime | None
+
+
+class PlatformInvitationResponse(BaseModel):
+    id: UUID
+    recipient_email: str
+    role: str
+    state: str
+    delivery_status: str
+    expires_at: datetime
+
+
+class ProvisioningResponse(BaseModel):
+    organization: PlatformOrganizationResponse
+    first_invitation: PlatformInvitationResponse
+    replayed: bool
+
+
+class PlatformOrganizationPageResponse(BaseModel):
+    items: list[ProvisioningResponse]
+    next_cursor: str | None
+
+
+class InvitationPreviewRequest(StrictCommand):
+    token: str = Field(min_length=1, max_length=128)
+
+
+class InvitationPreviewResponse(BaseModel):
+    organization_name: str
+    role: str
+    expires_at: datetime
+    existing_account: bool
+
+
+class NewInvitationAccountRequest(StrictCommand):
+    display_name: str = Field(min_length=1, max_length=120)
+    password: str = Field(min_length=12, max_length=128)
+
+
+class AcceptInvitationRequest(StrictCommand):
+    token: str = Field(min_length=1, max_length=128)
+    new_account: NewInvitationAccountRequest | None = None
+
+
 class RequesterInfo(BaseModel):
     first_name: str = Field(min_length=1, max_length=80)
     company_name: str = Field(min_length=2, max_length=160)

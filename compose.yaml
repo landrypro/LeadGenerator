@@ -2,7 +2,7 @@ name: prospect-crm
 
 services:
   postgresql:
-    image: postgres:17.5-alpine
+    image: postgres:17.10-alpine
     environment:
       POSTGRES_DB: ${POSTGRES_DB:-prospect}
       POSTGRES_USER: ${POSTGRES_USER:-prospect}
@@ -17,8 +17,24 @@ services:
     volumes:
       - prospect-postgresql-data:/var/lib/postgresql/data
 
+  database-role-provisioner:
+    image: postgres:17.10-alpine
+    profiles: ["database-tools"]
+    depends_on:
+      postgresql:
+        condition: service_healthy
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-prospect}
+      POSTGRES_USER: ${POSTGRES_USER:-prospect}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-prospect-development-only}
+      POSTGRES_APP_USER: prospect_app
+      POSTGRES_APP_PASSWORD: ${POSTGRES_APP_PASSWORD:-prospect-app-development-only}
+    volumes:
+      - ./backend/database/provision-postgres-roles.sh:/provision-postgres-roles.sh:ro
+    command: ["sh", "/provision-postgres-roles.sh"]
+
   redis:
-    image: redis:7.4.5-alpine
+    image: redis:7.4.9-alpine
     command: ["redis-server", "--appendonly", "yes"]
     ports:
       - "${REDIS_PORT:-6379}:6379"
@@ -29,6 +45,15 @@ services:
       retries: 20
     volumes:
       - prospect-redis-data:/data
+
+  mailpit:
+    image: axllent/mailpit:v1.30.5
+    environment:
+      MP_MAX_MESSAGES: 100
+      MP_DATABASE: /tmp/mailpit.db
+    ports:
+      - "127.0.0.1:${MAILPIT_SMTP_PORT:-1025}:1025"
+      - "127.0.0.1:${MAILPIT_UI_PORT:-8025}:8025"
 
 volumes:
   prospect-postgresql-data:

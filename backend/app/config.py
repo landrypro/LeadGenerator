@@ -32,6 +32,18 @@ class Settings:
     session_idle_seconds: int = 1_800
     session_absolute_seconds: int = 43_200
     invitation_ttl_seconds: int = 259_200
+    invitation_delivery_backend: str = "disabled"
+    invitation_from_email: str = "no-reply@prospect.local"
+    invitation_smtp_host: str = "127.0.0.1"
+    invitation_smtp_port: int = 1025
+    invitation_smtp_timeout_seconds: float = 5.0
+    invitation_attempt_window_seconds: int = 900
+    invitation_attempt_address_max: int = 30
+    invitation_attempt_token_max: int = 10
+    invitation_resend_cooldown_seconds: int = 60
+    invitation_resend_window_seconds: int = 86_400
+    invitation_resend_max_per_window: int = 5
+    rate_limit_hmac_key: str = field(default="", repr=False)
     login_rate_limit_window_seconds: int = 900
     login_rate_limit_pair_failures: int = 5
     login_rate_limit_address_failures: int = 20
@@ -43,7 +55,7 @@ class Settings:
     map_grant_ttl_seconds: float = 300.0
     map_grant_max_entries: int = 1_000
     app_title: str = "Prospect CRM"
-    app_version: str = "1.3.0"
+    app_version: str = "1.4.0"
 
     def __post_init__(self) -> None:
         if self.app_env not in VALID_APP_ENVIRONMENTS:
@@ -66,6 +78,30 @@ class Settings:
             raise ValueError("Les durées d’identité doivent être positives.")
         if self.login_rate_limit_pair_failures <= 0 or self.login_rate_limit_address_failures <= 0:
             raise ValueError("Les seuils de connexion doivent être positifs.")
+        if self.invitation_delivery_backend not in {"disabled", "mailpit"}:
+            raise ValueError("INVITATION_DELIVERY_BACKEND doit être disabled ou mailpit.")
+        if self.invitation_delivery_backend == "mailpit" and self.app_env not in {"development", "test"}:
+            raise ValueError("Mailpit est interdit en staging et production.")
+        if self.invitation_delivery_backend != "disabled" and not _is_http_origin(self.public_app_url):
+            raise ValueError("PUBLIC_APP_URL doit être une origine HTTP valide pour envoyer des invitations.")
+        if not self.invitation_from_email or "@" not in self.invitation_from_email:
+            raise ValueError("INVITATION_FROM_EMAIL est invalide.")
+        if not self.invitation_smtp_host or not 1 <= self.invitation_smtp_port <= 65_535:
+            raise ValueError("La configuration SMTP des invitations est invalide.")
+        if self.invitation_smtp_timeout_seconds <= 0:
+            raise ValueError("Le délai SMTP doit être positif.")
+        invitation_limits = (
+            self.invitation_attempt_window_seconds,
+            self.invitation_attempt_address_max,
+            self.invitation_attempt_token_max,
+            self.invitation_resend_cooldown_seconds,
+            self.invitation_resend_window_seconds,
+            self.invitation_resend_max_per_window,
+        )
+        if any(value <= 0 for value in invitation_limits):
+            raise ValueError("Les limites d’invitation doivent être positives.")
+        if self.rate_limit_hmac_key and len(self.rate_limit_hmac_key.encode("utf-8")) < 32:
+            raise ValueError("RATE_LIMIT_HMAC_KEY doit contenir au moins 32 octets.")
         if not self.cors_allowed_origins:
             raise ValueError("Au moins une origine CORS doit être configurée.")
         if self.places_timeout_seconds <= 0 or self.static_maps_timeout_seconds <= 0:
@@ -88,6 +124,8 @@ class Settings:
             raise ValueError("Les origines CORS de production doivent être explicites et publiques.")
         if self.public_app_url not in self.cors_allowed_origins:
             raise ValueError("PUBLIC_APP_URL doit être présente dans CORS_ALLOWED_ORIGINS.")
+        if not self.rate_limit_hmac_key:
+            raise ValueError("RATE_LIMIT_HMAC_KEY est obligatoire hors développement local.")
 
     @property
     def static_maps_api_key(self) -> str:
@@ -122,6 +160,18 @@ class Settings:
             session_idle_seconds=int(values.get("SESSION_IDLE_SECONDS", "1800")),
             session_absolute_seconds=int(values.get("SESSION_ABSOLUTE_SECONDS", "43200")),
             invitation_ttl_seconds=int(values.get("INVITATION_TTL_SECONDS", "259200")),
+            invitation_delivery_backend=values.get("INVITATION_DELIVERY_BACKEND", "disabled").strip().lower(),
+            invitation_from_email=values.get("INVITATION_FROM_EMAIL", "no-reply@prospect.local").strip(),
+            invitation_smtp_host=values.get("INVITATION_SMTP_HOST", "127.0.0.1").strip(),
+            invitation_smtp_port=int(values.get("INVITATION_SMTP_PORT", "1025")),
+            invitation_smtp_timeout_seconds=float(values.get("INVITATION_SMTP_TIMEOUT_SECONDS", "5")),
+            invitation_attempt_window_seconds=int(values.get("INVITATION_ATTEMPT_WINDOW_SECONDS", "900")),
+            invitation_attempt_address_max=int(values.get("INVITATION_ATTEMPT_ADDRESS_MAX", "30")),
+            invitation_attempt_token_max=int(values.get("INVITATION_ATTEMPT_TOKEN_MAX", "10")),
+            invitation_resend_cooldown_seconds=int(values.get("INVITATION_RESEND_COOLDOWN_SECONDS", "60")),
+            invitation_resend_window_seconds=int(values.get("INVITATION_RESEND_WINDOW_SECONDS", "86400")),
+            invitation_resend_max_per_window=int(values.get("INVITATION_RESEND_MAX_PER_WINDOW", "5")),
+            rate_limit_hmac_key=values.get("RATE_LIMIT_HMAC_KEY", "").strip(),
             login_rate_limit_window_seconds=int(values.get("LOGIN_RATE_LIMIT_WINDOW_SECONDS", "900")),
             login_rate_limit_pair_failures=int(values.get("LOGIN_RATE_LIMIT_PAIR_FAILURES", "5")),
             login_rate_limit_address_failures=int(values.get("LOGIN_RATE_LIMIT_ADDRESS_FAILURES", "20")),
@@ -148,6 +198,23 @@ def _is_public_https_origin(origin: str) -> bool:
         parsed.scheme == "https"
         and hostname
         and hostname not in {"localhost", "127.0.0.1", "::1"}
+        and parsed.username is None
+        and parsed.password is None
+        and not parsed.path
+        and not parsed.query
+        and not parsed.fragment
+    )
+
+
+def _is_http_origin(origin: str) -> bool:
+    try:
+        parsed = urlsplit(origin)
+        _ = parsed.port
+    except ValueError:
+        return False
+    return bool(
+        parsed.scheme in {"http", "https"}
+        and parsed.hostname
         and parsed.username is None
         and parsed.password is None
         and not parsed.path

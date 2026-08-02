@@ -72,6 +72,21 @@ redis.call('DEL', KEYS[1])
 return #hashes
 """
 
+ROTATE_SESSION_SCRIPT = """
+if redis.call('EXISTS', KEYS[2]) == 1 then return 0 end
+local old = redis.call('GET', KEYS[1])
+if not old then return -1 end
+local decoded_ok, decoded = pcall(cjson.decode, old)
+if not decoded_ok or type(decoded) ~= 'table' or decoded.user_id ~= ARGV[3] then return -2 end
+redis.call('SET', KEYS[2], ARGV[1], 'EX', ARGV[2])
+redis.call('SREM', KEYS[3], ARGV[5])
+redis.call('SADD', KEYS[3], ARGV[4])
+local current_ttl = redis.call('TTL', KEYS[3])
+if current_ttl < tonumber(ARGV[6]) then redis.call('EXPIRE', KEYS[3], ARGV[6]) end
+redis.call('DEL', KEYS[1])
+return 1
+"""
+
 
 class RedisSessionStore:
     def __init__(
@@ -150,6 +165,52 @@ class RedisSessionStore:
         except (KeyError, TypeError, ValueError, json.JSONDecodeError):
             await self.revoke(token)
             return None
+
+    async def rotate(
+        self,
+        *,
+        current_token: str,
+        user_id: UUID,
+        active_organization_id: UUID | None,
+        user_version: int,
+        now: datetime,
+    ) -> CreatedSession:
+        issued_at = _as_utc(now)
+        record = SessionRecord(
+            user_id=user_id,
+            active_organization_id=active_organization_id,
+            issued_at=issued_at,
+            last_seen_at=issued_at,
+            absolute_expires_at=issued_at + timedelta(seconds=self._absolute_seconds),
+            csrf_token=secrets.token_urlsafe(32),
+            user_version=user_version,
+        )
+        payload = _serialize(record)
+        current_hash = _token_hash(current_token)
+        try:
+            for _ in range(3):
+                token = secrets.token_urlsafe(32)
+                token_hash = _token_hash(token)
+                rotated = await self._client.eval(
+                    ROTATE_SESSION_SCRIPT,
+                    3,
+                    self._session_key(current_hash),
+                    self._session_key(token_hash),
+                    self._user_index_key(user_id),
+                    payload,
+                    self._idle_seconds,
+                    str(user_id),
+                    token_hash,
+                    current_hash,
+                    self._absolute_seconds,
+                )
+                if rotated == 1:
+                    return CreatedSession(token=token, record=record)
+                if rotated in {-1, -2}:
+                    raise AuthenticationServiceUnavailable("La session courante ne peut pas être renouvelée.")
+        except RedisError as error:
+            raise AuthenticationServiceUnavailable from error
+        raise AuthenticationServiceUnavailable("Impossible de faire tourner l’identifiant de session.")
 
     async def revoke(self, token: str) -> None:
         token_hash = _token_hash(token)

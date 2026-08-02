@@ -19,7 +19,12 @@ from backend.app.domain.identity import UserIdentity
 from backend.app.infrastructure.clock import SystemClock
 from backend.app.infrastructure.postgres import PostgresDatabase
 from backend.app.infrastructure.postgres.models import UserModel
-from backend.app.infrastructure.redis import RedisLoginRateLimiter, RedisResource, RedisSessionStore
+from backend.app.infrastructure.redis import (
+    RedisInvitationRateLimiter,
+    RedisLoginRateLimiter,
+    RedisResource,
+    RedisSessionStore,
+)
 from backend.app.infrastructure.security import Argon2PasswordHasher
 
 pytestmark = pytest.mark.integration
@@ -33,6 +38,15 @@ def dependency_urls() -> tuple[str, str]:
             pytest.fail("Les URL PostgreSQL et Redis sont obligatoires dans cet environnement.")
         pytest.skip("TEST_DATABASE_URL et TEST_REDIS_URL sont requis pour ce test d’intégration.")
     return database_url, redis_url
+
+
+def migration_database_url() -> str:
+    database_url = os.environ.get("TEST_MIGRATION_DATABASE_URL", "")
+    if not database_url:
+        if os.environ.get("REQUIRE_INFRASTRUCTURE_TESTS", "").lower() == "true":
+            pytest.fail("TEST_MIGRATION_DATABASE_URL est obligatoire dans cet environnement.")
+        pytest.skip("TEST_MIGRATION_DATABASE_URL est requis pour ce test d’intégration.")
+    return database_url
 
 
 async def test_real_postgresql_and_redis_are_ready() -> None:
@@ -60,7 +74,8 @@ async def test_real_postgresql_and_redis_are_ready() -> None:
 
 
 async def test_unit_of_work_rolls_back_uncommitted_transaction() -> None:
-    database_url, _ = dependency_urls()
+    dependency_urls()
+    database_url = migration_database_url()
     database = PostgresDatabase(
         database_url,
         connect_timeout_seconds=2,
@@ -83,7 +98,8 @@ async def test_unit_of_work_rolls_back_uncommitted_transaction() -> None:
 
 
 async def test_identity_migration_created_all_expected_tables_and_indexes() -> None:
-    database_url, _ = dependency_urls()
+    dependency_urls()
+    database_url = migration_database_url()
     database = PostgresDatabase(
         database_url,
         connect_timeout_seconds=2,
@@ -107,7 +123,13 @@ async def test_identity_migration_created_all_expected_tables_and_indexes() -> N
     finally:
         await database.close()
 
-    assert {"organizations", "users", "memberships", "user_invitations"}.issubset(table_names)
+    assert {
+        "organizations",
+        "users",
+        "memberships",
+        "user_invitations",
+        "invitation_delivery_attempts",
+    }.issubset(table_names)
     assert "ix_memberships_user_id_status" in {index["name"] for index in membership_indexes}
     assert "uq_user_invitations_active_organization_email" in {index["name"] for index in invitation_indexes}
     created_by = next(column for column in membership_columns if column["name"] == "created_by")
@@ -116,6 +138,14 @@ async def test_identity_migration_created_all_expected_tables_and_indexes() -> N
 
 async def test_real_identity_login_session_and_logout_workflow() -> None:
     database_url, redis_url = dependency_urls()
+    owner_database = PostgresDatabase(
+        migration_database_url(),
+        connect_timeout_seconds=2,
+        pool_size=1,
+        max_overflow=0,
+        pool_timeout_seconds=2,
+        statement_timeout_ms=2_000,
+    )
     database = PostgresDatabase(
         database_url,
         connect_timeout_seconds=2,
@@ -140,6 +170,7 @@ async def test_real_identity_login_session_and_logout_workflow() -> None:
         window_seconds=900,
         pair_limit=5,
         address_limit=20,
+        hmac_key=b"integration-test-rate-limit-key-32-bytes",
     )
     email = f"admin-{uuid4().hex}@example.ca"
     password = "mot-de-passe-integration-solide"
@@ -192,11 +223,12 @@ async def test_real_identity_login_session_and_logout_workflow() -> None:
         assert await sessions.load_and_touch(outcome.session.token, clock.now()) is None
     finally:
         if user_id is not None:
-            async with database.engine.begin() as connection:
+            async with owner_database.engine.begin() as connection:
                 await connection.execute(delete(UserModel).where(UserModel.id == user_id))
             await sessions.revoke_user(user_id)
         await redis.close()
         await database.close()
+        await owner_database.close()
 
 
 async def test_real_redis_enforces_idle_absolute_and_login_limits() -> None:
@@ -215,6 +247,7 @@ async def test_real_redis_enforces_idle_absolute_and_login_limits() -> None:
         window_seconds=900,
         pair_limit=2,
         address_limit=10,
+        hmac_key=b"integration-test-rate-limit-key-32-bytes",
     )
     now = datetime.now(UTC).replace(microsecond=0)
     user_id = uuid4()
@@ -235,16 +268,67 @@ async def test_real_redis_enforces_idle_absolute_and_login_limits() -> None:
         await redis.client.set(corrupted_key, b"not-json", ex=1_800)
         assert await sessions.load_and_touch(corrupted_session.token, now) is None
 
+        current_session = await sessions.create(
+            user_id=user_id,
+            active_organization_id=None,
+            user_version=1,
+            now=now,
+        )
+        next_organization_id = uuid4()
+        rotated = await sessions.rotate(
+            current_token=current_session.token,
+            user_id=user_id,
+            active_organization_id=next_organization_id,
+            user_version=2,
+            now=now + timedelta(minutes=1),
+        )
+        assert await sessions.load_and_touch(current_session.token, now + timedelta(minutes=1)) is None
+        rotated_record = await sessions.load_and_touch(rotated.token, now + timedelta(minutes=1))
+        assert rotated_record is not None
+        assert rotated_record.active_organization_id == next_organization_id
+        assert rotated_record.user_version == 2
+
         first_failure = await limiter.record_failure(client_address="192.0.2.20", email_dimension="hash-me")
         second_failure = await limiter.record_failure(client_address="192.0.2.20", email_dimension="hash-me")
         blocked = await limiter.check(client_address="192.0.2.20", email_dimension="hash-me")
         await limiter.reset_after_success(client_address="192.0.2.20", email_dimension="hash-me")
         unblocked = await limiter.check(client_address="192.0.2.20", email_dimension="hash-me")
+        limiter_keys = [key.decode() async for key in redis.client.scan_iter(match=f"prospect:{environment}:login:*")]
 
         assert not first_failure.blocked
         assert second_failure.blocked
         assert blocked.blocked and blocked.retry_after_seconds > 0
         assert not unblocked.blocked
+        assert all("192.0.2.20" not in key and "hash-me" not in key for key in limiter_keys)
     finally:
         await sessions.revoke_user(user_id)
         await redis.close()
+
+
+async def test_invitation_limit_is_global_per_token_and_redis_keys_are_pseudonymized() -> None:
+    _, redis_url = dependency_urls()
+    redis = RedisResource(redis_url, connect_timeout_seconds=2, max_connections=3)
+    environment = f"invitation-{uuid4().hex}"
+    limiter = RedisInvitationRateLimiter(
+        redis.client,
+        environment=environment,
+        window_seconds=900,
+        address_limit=30,
+        token_limit=1,
+        hmac_key=b"integration-test-rate-limit-key-32-bytes",
+    )
+    token_hash = "f" * 64
+    try:
+        first = await limiter.consume(client_address="192.0.2.30", token_hash=token_hash)
+        second_address = await limiter.consume(client_address="198.51.100.20", token_hash=token_hash)
+        keys = [key.decode() async for key in redis.client.scan_iter(match=f"prospect:{environment}:*")]
+    finally:
+        matching_keys = [key async for key in redis.client.scan_iter(match=f"prospect:{environment}:*")]
+        if matching_keys:
+            await redis.client.delete(*matching_keys)
+        await redis.close()
+
+    assert not first.blocked
+    assert second_address.blocked
+    assert keys
+    assert all("192.0.2.30" not in key and "198.51.100.20" not in key and token_hash not in key for key in keys)

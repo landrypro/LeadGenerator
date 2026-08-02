@@ -32,6 +32,15 @@ class IdentityRepository(Protocol):
         occurred_at: datetime,
     ) -> UserIdentity: ...
 
+    async def replace_platform_administrator_password(
+        self,
+        *,
+        user_id: UUID,
+        expected_version: int,
+        password_hash: str,
+        occurred_at: datetime,
+    ) -> bool: ...
+
 
 class IdentityUnitOfWork(Protocol):
     @property
