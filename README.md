@@ -349,7 +349,7 @@ Le dernier passage complet valide 105 tests backend et d’intégration, sans te
 
 ## Suite de la migration CRM V1
 
-Les incréments 2.1, 2.2, 2.3.1 et l’implémentation technique de 2.3.2 sont terminés localement. Le rapport de 2.3.2, ses trois critiques et ses deux revues de code figurent dans [`docs/PHASE_2_3_2_RAPPORT_IMPLEMENTATION.md`](docs/PHASE_2_3_2_RAPPORT_IMPLEMENTATION.md). La validation produit de son protocole local reste nécessaire avant de déclencher 2.3.3.
+Les incréments 2.1, 2.2, 2.3.1 et 2.3.2 sont terminés localement. Le parcours nominal de 2.3.2 a été validé avec PostgreSQL, Redis, Mailpit, acceptation et connexion ; son rapport, ses trois critiques et ses deux revues de code figurent dans [`docs/PHASE_2_3_2_RAPPORT_IMPLEMENTATION.md`](docs/PHASE_2_3_2_RAPPORT_IMPLEMENTATION.md). Les seize décisions de la [spécification 2.3.3](docs/PHASE_2_3_3_SPECIFICATIONS_DETAILLEES.md) ont été validées le 2 août 2026 et son implémentation est autorisée.
 
 ## Références
 

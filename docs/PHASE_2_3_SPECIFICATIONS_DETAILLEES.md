@@ -4,10 +4,10 @@
 | --- | --- |
 | Produit | Prospect CRM |
 | Incrément | 2.3 — Organisations, rôles et isolation |
-| Version | 1.4 |
-| Date | 23 juillet 2026 |
-| Statut | Spécification générale validée ; 2.3.1 accepté ; détail 2.3.2 validé |
-| Validation produit | 23 juillet 2026 |
+| Version | 1.5 |
+| Date | 2 août 2026 |
+| Statut | Spécification générale validée ; 2.3.2 accepté localement ; détail 2.3.3 validé |
+| Validation produit | 2 août 2026 pour le parcours local 2.3.2 |
 | Prérequis | Incréments 2.1 et 2.2 validés localement |
 | Marché initial | Canada |
 
@@ -368,7 +368,7 @@ Cas d’utilisation minimaux :
 - `InvitationTokenGenerator` ;
 - `InvitationDelivery` ;
 - `SessionStore.rotate(...)` en plus des opérations de 2.2 ;
-- port de révocation utilisateur existant ;
+- purge des sessions utilisateur antérieures à une version de sécurité donnée ;
 - garde de recherche utilisant une clé interne, plus une concession cartographique liée à l’acteur.
 
 ### 12.4 Présentation
@@ -642,10 +642,10 @@ locale figurent dans [`PHASE_2_3_1_RAPPORT_IMPLEMENTATION.md`](PHASE_2_3_1_RAPPO
 - prévisualisation, acceptation, renvoi et révocation ;
 - tests nouveau compte et compte existant.
 
-État au 23 juillet 2026 : le contrat d’implémentation détaillé, ses deux critiques préalables et ses seize décisions
-complémentaires validées figurent dans
-[`PHASE_2_3_2_SPECIFICATIONS_DETAILLEES.md`](PHASE_2_3_2_SPECIFICATIONS_DETAILLEES.md). L’implémentation de 2.3.2 est
-autorisée.
+État au 2 août 2026 : implémenté, automatiquement contrôlé et validé localement sur le parcours nominal de
+provisioning, livraison Mailpit, acceptation et connexion. Le contrat figure dans
+[`PHASE_2_3_2_SPECIFICATIONS_DETAILLEES.md`](PHASE_2_3_2_SPECIFICATIONS_DETAILLEES.md) et les preuves techniques dans
+[`PHASE_2_3_2_RAPPORT_IMPLEMENTATION.md`](PHASE_2_3_2_RAPPORT_IMPLEMENTATION.md).
 
 ### 2.3.3 — Membres, capacités et changement d’organisation
 
@@ -653,6 +653,11 @@ autorisée.
 - protection concurrente du dernier Administrateur ;
 - rotation et révocation des sessions ;
 - matrice d’autorisation API.
+
+État au 2 août 2026 : la spécification détaillée, ses trois critiques préalables et les seize décisions complémentaires
+validées figurent dans
+[`PHASE_2_3_3_SPECIFICATIONS_DETAILLEES.md`](PHASE_2_3_3_SPECIFICATIONS_DETAILLEES.md). L’implémentation 2.3.3 est
+autorisée ; toute dérogation doit être documentée et validée.
 
 ### 2.3.4 — Protection Google et transition de l’écran
 

@@ -1,9 +1,9 @@
 # Incrément 2.3.2 — Rapport d’implémentation
 
-Version : 1.0  
-Date : 24 juillet 2026  
+Version : 1.1
+Date : 2 août 2026
 Statut technique : implémenté et validé automatiquement  
-Validation restante : protocole produit local
+Validation produit : parcours local provisioning, Mailpit, acceptation et connexion validé le 2 août 2026
 
 ## 1. Résultat
 
@@ -265,9 +265,12 @@ la livraison, pas l’intégrité du modèle. Aucun bloqueur SQL ou multi-tenant
 7. Créer le compte, confirmer la connexion et l’organisation active.
 8. Refaire le scénario avec le même courriel pour valider le parcours du compte existant.
 9. Tester un renvoi après le délai, confirmer l’invalidité de l’ancien lien, puis tester une révocation.
-10. Confirmer le protocole produit avant d’autoriser 2.3.3.
+10. Confirmer le protocole produit avant d’autoriser l’implémentation de 2.3.3.
 
 ## 10. Décision de sortie
 
-L’incrément 2.3.2 est techniquement prêt pour la validation locale du responsable produit. Il ne doit être déclaré
-fonctionnellement accepté ni servir de base au démarrage de 2.3.3 avant la réussite du protocole de la section 9.
+Le parcours local nominal de l’incrément 2.3.2 a été accepté par le responsable produit le 2 août 2026 après création
+de l’organisation, réception du courriel dans Mailpit, acceptation de l’invitation et connexion du nouvel utilisateur.
+Les scénarios de concurrence, idempotence, renvoi, révocation et non-régression restent couverts par la matrice
+automatisée consignée dans ce rapport. La spécification de 2.3.3 peut commencer ; son implémentation reste soumise à
+la validation préalable de ses décisions détaillées.
