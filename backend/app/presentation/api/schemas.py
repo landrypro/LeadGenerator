@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from datetime import datetime
-from typing import Any
+from typing import Any, Literal
 from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator
@@ -41,6 +41,81 @@ class AuthenticationResponse(BaseModel):
     memberships: list[MembershipSummaryResponse]
     capabilities: list[str]
     csrf_token: str
+
+
+class SwitchOrganizationRequest(StrictCommand):
+    membership_id: UUID
+
+
+class UpdateOrganizationRequest(StrictCommand):
+    version: int = Field(ge=1)
+    name: str | None = Field(default=None, min_length=1, max_length=160)
+    locale: Literal["fr-CA", "en-CA"] | None = None
+    timezone: str | None = Field(default=None, min_length=1, max_length=64)
+
+
+class OrganizationResponse(BaseModel):
+    id: UUID
+    name: str
+    locale: str
+    timezone: str
+    status: str
+    version: int
+    created_at: datetime
+    updated_at: datetime
+
+
+class MemberUserResponse(BaseModel):
+    id: UUID
+    email: str
+    display_name: str
+
+
+class MemberResponse(BaseModel):
+    membership_id: UUID
+    user: MemberUserResponse
+    role: str
+    status: str
+    version: int
+    created_at: datetime
+    updated_at: datetime
+
+
+class MemberPageResponse(BaseModel):
+    items: list[MemberResponse]
+    next_cursor: str | None
+
+
+class UpdateMembershipRequest(StrictCommand):
+    version: int = Field(ge=1)
+    role: Literal["admin", "manager", "sales"] | None = None
+    status: Literal["active", "disabled"] | None = None
+
+
+class CreateMemberInvitationRequest(StrictCommand):
+    email: str = Field(min_length=3, max_length=254)
+    role: Literal["admin", "manager", "sales"]
+    invitation_request_id: UUID
+
+
+class ResendMemberInvitationRequest(StrictCommand):
+    resend_request_id: UUID
+
+
+class MemberInvitationResponse(BaseModel):
+    id: UUID
+    recipient_email: str
+    role: str
+    state: str
+    delivery_status: str
+    expires_at: datetime
+    created_at: datetime
+    replayed: bool
+
+
+class MemberInvitationPageResponse(BaseModel):
+    items: list[MemberInvitationResponse]
+    next_cursor: str | None
 
 
 class CreateOrganizationRequest(StrictCommand):

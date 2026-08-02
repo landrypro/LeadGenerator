@@ -3,6 +3,7 @@ from .database import PostgresDatabase
 from .identity_repository import SqlAlchemyIdentityRepository
 from .identity_unit_of_work import SqlAlchemyIdentityUnitOfWork
 from .models import NAMING_CONVENTION, Base
+from .organization_gateway import SqlAlchemyOrganizationAdministrationGateway
 from .provisioning_gateway import SqlAlchemyProvisioningGateway
 from .tenant_unit_of_work import SqlAlchemyTenantUnitOfWork
 from .unit_of_work import SqlAlchemyUnitOfWork
@@ -14,6 +15,7 @@ __all__ = [
     "SqlAlchemyActorUnitOfWork",
     "SqlAlchemyIdentityRepository",
     "SqlAlchemyIdentityUnitOfWork",
+    "SqlAlchemyOrganizationAdministrationGateway",
     "SqlAlchemyProvisioningGateway",
     "SqlAlchemyTenantUnitOfWork",
     "SqlAlchemyUnitOfWork",

@@ -287,6 +287,24 @@ async def test_real_redis_enforces_idle_absolute_and_login_limits() -> None:
         assert rotated_record is not None
         assert rotated_record.active_organization_id == next_organization_id
         assert rotated_record.user_version == 2
+        assert rotated_record.absolute_expires_at == current_session.record.absolute_expires_at
+
+        stale_session = await sessions.create(
+            user_id=user_id,
+            active_organization_id=None,
+            user_version=1,
+            now=now + timedelta(minutes=2),
+        )
+        fresh_session = await sessions.create(
+            user_id=user_id,
+            active_organization_id=next_organization_id,
+            user_version=2,
+            now=now + timedelta(minutes=2),
+        )
+        await sessions.revoke_user_before_version(user_id, 2)
+        assert await sessions.load_and_touch(stale_session.token, now + timedelta(minutes=2)) is None
+        assert await sessions.load_and_touch(fresh_session.token, now + timedelta(minutes=2)) is not None
+        assert await sessions.load_and_touch(rotated.token, now + timedelta(minutes=2)) is not None
 
         first_failure = await limiter.record_failure(client_address="192.0.2.20", email_dimension="hash-me")
         second_failure = await limiter.record_failure(client_address="192.0.2.20", email_dimension="hash-me")

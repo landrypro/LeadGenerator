@@ -9,12 +9,16 @@ from ....application.errors import (
     CsrfValidationFailed,
     InvalidCredentials,
     LoginRateLimited,
+    OrganizationAdministrationUnavailable,
+    OrganizationResourceNotFound,
+    OrganizationSwitchForbidden,
+    SessionRotationFailed,
 )
-from ..dependencies import ContainerDependency
+from ..dependencies import ContainerDependency, required_authentication
 from ..mappers import to_authentication_response
 from ..responses import NO_STORE_HEADERS, api_error, delete_session_cookie, set_session_cookie
-from ..schemas import AuthenticationResponse, LoginRequest
-from ..security import require_json_content_type, require_trusted_origin
+from ..schemas import AuthenticationResponse, LoginRequest, SwitchOrganizationRequest
+from ..security import require_csrf_token, require_json_content_type, require_trusted_origin
 
 router = APIRouter(prefix="/api/auth", tags=["authentication"])
 
@@ -101,3 +105,45 @@ async def logout(request: Request, container: ContainerDependency) -> Response:
     logout_response = Response(status_code=204, headers=NO_STORE_HEADERS)
     delete_session_cookie(logout_response, container.settings)
     return logout_response
+
+
+@router.post("/switch-organization", response_model=AuthenticationResponse)
+async def switch_organization(
+    payload: SwitchOrganizationRequest,
+    request: Request,
+    container: ContainerDependency,
+) -> Response:
+    try:
+        require_json_content_type(request)
+        require_trusted_origin(request, container.settings.cors_allowed_origins)
+        authentication = await required_authentication(request, container)
+        require_csrf_token(request, authentication.identity.csrf_token)
+        if container.switch_organization is None:
+            raise OrganizationAdministrationUnavailable
+        outcome = await container.switch_organization.execute(
+            identity=authentication.identity,
+            current_session_token=authentication.token,
+            membership_id=payload.membership_id,
+            request_id=getattr(request.state, "request_id", "unknown"),
+        )
+    except AuthenticationRequired:
+        return api_error(request, 401, "authentication_required", "Authentification requise.")
+    except CsrfValidationFailed:
+        return api_error(request, 403, "request_rejected", "La requête a été refusée.")
+    except OrganizationResourceNotFound:
+        return api_error(request, 404, "membership_not_found", "Appartenance introuvable.")
+    except OrganizationSwitchForbidden:
+        return api_error(request, 403, "organization_switch_forbidden", "Le changement est interdit.")
+    except (AuthenticationServiceUnavailable, OrganizationAdministrationUnavailable, SessionRotationFailed):
+        return api_error(
+            request,
+            503,
+            "organization_switch_unavailable",
+            "Le changement d’organisation est temporairement indisponible.",
+        )
+    response = JSONResponse(
+        to_authentication_response(outcome.identity).model_dump(mode="json"),
+        headers=NO_STORE_HEADERS,
+    )
+    set_session_cookie(response, container.settings, outcome.session.token)
+    return response

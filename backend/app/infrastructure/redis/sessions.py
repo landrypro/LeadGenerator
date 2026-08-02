@@ -72,19 +72,50 @@ redis.call('DEL', KEYS[1])
 return #hashes
 """
 
+REVOKE_USER_BEFORE_VERSION_SCRIPT = """
+local hashes = redis.call('SMEMBERS', KEYS[1])
+local removed = 0
+local minimum_version = tonumber(ARGV[2])
+for _, token_hash in ipairs(hashes) do
+  local session_key = ARGV[1] .. token_hash
+  local raw = redis.call('GET', session_key)
+  if not raw then
+    redis.call('SREM', KEYS[1], token_hash)
+  else
+    local decoded_ok, decoded = pcall(cjson.decode, raw)
+    local version = decoded_ok and type(decoded) == 'table' and tonumber(decoded.user_version) or nil
+    if not version or version < minimum_version then
+      redis.call('DEL', session_key)
+      redis.call('SREM', KEYS[1], token_hash)
+      removed = removed + 1
+    end
+  end
+end
+if redis.call('SCARD', KEYS[1]) == 0 then redis.call('DEL', KEYS[1]) end
+return removed
+"""
+
 ROTATE_SESSION_SCRIPT = """
 if redis.call('EXISTS', KEYS[2]) == 1 then return 0 end
 local old = redis.call('GET', KEYS[1])
 if not old then return -1 end
 local decoded_ok, decoded = pcall(cjson.decode, old)
-if not decoded_ok or type(decoded) ~= 'table' or decoded.user_id ~= ARGV[3] then return -2 end
-redis.call('SET', KEYS[2], ARGV[1], 'EX', ARGV[2])
+if not decoded_ok or type(decoded) ~= 'table' or decoded.user_id ~= ARGV[3]
+   or not decoded.absolute_expires_at then return -2 end
+local replacement_ok, replacement = pcall(cjson.decode, ARGV[1])
+if not replacement_ok or type(replacement) ~= 'table' then return -2 end
+local remaining = math.floor(tonumber(decoded.absolute_expires_at) - tonumber(ARGV[7]))
+if remaining < 1 then return -3 end
+replacement.absolute_expires_at = decoded.absolute_expires_at
+local replacement_raw = cjson.encode(replacement)
+local ttl = math.floor(math.min(tonumber(ARGV[2]), remaining))
+redis.call('SET', KEYS[2], replacement_raw, 'EX', ttl)
 redis.call('SREM', KEYS[3], ARGV[5])
 redis.call('SADD', KEYS[3], ARGV[4])
 local current_ttl = redis.call('TTL', KEYS[3])
 if current_ttl < tonumber(ARGV[6]) then redis.call('EXPIRE', KEYS[3], ARGV[6]) end
 redis.call('DEL', KEYS[1])
-return 1
+return replacement_raw
 """
 
 
@@ -203,10 +234,11 @@ class RedisSessionStore:
                     token_hash,
                     current_hash,
                     self._absolute_seconds,
+                    int(issued_at.timestamp()),
                 )
-                if rotated == 1:
-                    return CreatedSession(token=token, record=record)
-                if rotated in {-1, -2}:
+                if isinstance(rotated, (bytes, str)):
+                    return CreatedSession(token=token, record=_deserialize(rotated))
+                if rotated in {-1, -2, -3}:
                     raise AuthenticationServiceUnavailable("La session courante ne peut pas être renouvelée.")
         except RedisError as error:
             raise AuthenticationServiceUnavailable from error
@@ -232,6 +264,20 @@ class RedisSessionStore:
                 1,
                 self._user_index_key(user_id),
                 self._session_prefix,
+            )
+        except RedisError as error:
+            raise AuthenticationServiceUnavailable from error
+
+    async def revoke_user_before_version(self, user_id: UUID, minimum_valid_version: int) -> None:
+        if minimum_valid_version < 1:
+            raise ValueError("La version minimale de session doit être positive.")
+        try:
+            await self._client.eval(
+                REVOKE_USER_BEFORE_VERSION_SCRIPT,
+                1,
+                self._user_index_key(user_id),
+                self._session_prefix,
+                minimum_valid_version,
             )
         except RedisError as error:
             raise AuthenticationServiceUnavailable from error

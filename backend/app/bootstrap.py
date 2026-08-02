@@ -15,16 +15,25 @@ from .application.ports import AsyncResource, DependencyProbe, TenantUnitOfWorkF
 from .application.use_cases import (
     AcceptInvitationUseCase,
     CheckReadinessUseCase,
+    CreateMemberInvitationUseCase,
     CreateOrganizationUseCase,
     GetCurrentSessionUseCase,
     GetMapSnapshotUseCase,
+    GetOrganizationUseCase,
+    ListMemberInvitationsUseCase,
+    ListMembersUseCase,
     ListPlatformOrganizationsUseCase,
     LoginUseCase,
     LogoutUseCase,
     PreviewInvitationUseCase,
     ResendInitialInvitationUseCase,
+    ResendMemberInvitationUseCase,
     RevokeInitialInvitationUseCase,
+    RevokeMemberInvitationUseCase,
     SearchGooglePlacesUseCase,
+    SwitchOrganizationUseCase,
+    UpdateMembershipUseCase,
+    UpdateOrganizationUseCase,
 )
 from .config import Settings
 from .container import AppContainer
@@ -42,7 +51,12 @@ from .infrastructure.invitations import (
     SecureInvitationTokenGenerator,
 )
 from .infrastructure.memory import InMemoryGenerationGuard, InMemoryMapSnapshotGrantStore
-from .infrastructure.postgres import PostgresDatabase, SqlAlchemyProvisioningGateway
+from .infrastructure.pagination import HmacCursorCodec
+from .infrastructure.postgres import (
+    PostgresDatabase,
+    SqlAlchemyOrganizationAdministrationGateway,
+    SqlAlchemyProvisioningGateway,
+)
 from .infrastructure.redis import RedisInvitationRateLimiter, RedisLoginRateLimiter, RedisResource, RedisSessionStore
 from .infrastructure.security import Argon2PasswordHasher
 from .presentation.api.routers import (
@@ -51,6 +65,7 @@ from .presentation.api.routers import (
     health_router,
     invitations_router,
     maps_router,
+    organization_router,
     platform_router,
 )
 
@@ -118,9 +133,19 @@ def build_container(settings: Settings) -> AppContainer:
     revoke_initial_invitation: RevokeInitialInvitationUseCase | None = None
     preview_invitation: PreviewInvitationUseCase | None = None
     accept_invitation: AcceptInvitationUseCase | None = None
+    get_organization: GetOrganizationUseCase | None = None
+    update_organization: UpdateOrganizationUseCase | None = None
+    list_members: ListMembersUseCase | None = None
+    update_membership: UpdateMembershipUseCase | None = None
+    list_member_invitations: ListMemberInvitationsUseCase | None = None
+    create_member_invitation: CreateMemberInvitationUseCase | None = None
+    resend_member_invitation: ResendMemberInvitationUseCase | None = None
+    revoke_member_invitation: RevokeMemberInvitationUseCase | None = None
+    switch_organization: SwitchOrganizationUseCase | None = None
     if database is not None and redis is not None:
         clock = SystemClock()
         rate_limit_key = settings.rate_limit_hmac_key.encode("utf-8") or DEVELOPMENT_RATE_LIMIT_KEY
+        cursor_codec = HmacCursorCodec(rate_limit_key)
         session_store = RedisSessionStore(
             redis.client,
             environment=settings.app_env,
@@ -144,6 +169,7 @@ def build_container(settings: Settings) -> AppContainer:
             hmac_key=rate_limit_key,
         )
         provisioning_gateway = SqlAlchemyProvisioningGateway(database)
+        organization_gateway = SqlAlchemyOrganizationAdministrationGateway(database)
         token_generator = SecureInvitationTokenGenerator()
         invitation_delivery = (
             MailpitInvitationDelivery(
@@ -194,6 +220,37 @@ def build_container(settings: Settings) -> AppContainer:
             invitation_rate_limiter,
             clock,
         )
+        get_organization = GetOrganizationUseCase(organization_gateway)
+        update_organization = UpdateOrganizationUseCase(organization_gateway, clock)
+        list_members = ListMembersUseCase(organization_gateway, cursor_codec)
+        update_membership = UpdateMembershipUseCase(organization_gateway, session_store, clock)
+        list_member_invitations = ListMemberInvitationsUseCase(organization_gateway, clock, cursor_codec)
+        create_member_invitation = CreateMemberInvitationUseCase(
+            organization_gateway,
+            token_generator,
+            invitation_delivery,
+            clock,
+            public_app_url=settings.public_app_url,
+            invitation_ttl_seconds=settings.invitation_ttl_seconds,
+        )
+        resend_member_invitation = ResendMemberInvitationUseCase(
+            organization_gateway,
+            token_generator,
+            invitation_delivery,
+            clock,
+            public_app_url=settings.public_app_url,
+            invitation_ttl_seconds=settings.invitation_ttl_seconds,
+            cooldown_seconds=settings.invitation_resend_cooldown_seconds,
+            window_seconds=settings.invitation_resend_window_seconds,
+            max_per_window=settings.invitation_resend_max_per_window,
+        )
+        revoke_member_invitation = RevokeMemberInvitationUseCase(organization_gateway, clock)
+        switch_organization = SwitchOrganizationUseCase(
+            organization_gateway,
+            database.identity_unit_of_work,
+            session_store,
+            clock,
+        )
 
     return AppContainer(
         settings=settings,
@@ -213,6 +270,15 @@ def build_container(settings: Settings) -> AppContainer:
         revoke_initial_invitation=revoke_initial_invitation,
         preview_invitation=preview_invitation,
         accept_invitation=accept_invitation,
+        get_organization=get_organization,
+        update_organization=update_organization,
+        list_members=list_members,
+        update_membership=update_membership,
+        list_member_invitations=list_member_invitations,
+        create_member_invitation=create_member_invitation,
+        resend_member_invitation=resend_member_invitation,
+        revoke_member_invitation=revoke_member_invitation,
+        switch_organization=switch_organization,
         unit_of_work_factory=unit_of_work_factory,
         tenant_unit_of_work_factory=tenant_unit_of_work_factory,
         resources=tuple(resources),
@@ -245,7 +311,7 @@ def create_app(
         CORSMiddleware,
         allow_origins=list(resolved_settings.cors_allowed_origins),
         allow_credentials=True,
-        allow_methods=["GET", "POST"],
+        allow_methods=["GET", "POST", "PATCH", "DELETE"],
         allow_headers=["*"],
     )
     app.middleware("http")(_add_request_id)
@@ -286,6 +352,7 @@ def create_app(
     app.include_router(auth_router)
     app.include_router(invitations_router)
     app.include_router(platform_router)
+    app.include_router(organization_router)
     app.include_router(google_places_router)
     app.include_router(maps_router)
 

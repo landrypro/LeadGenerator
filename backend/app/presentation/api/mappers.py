@@ -1,6 +1,7 @@
 from ...application.models import GooglePlaceSearchCriteria
 from ...application.use_cases.search_google_places import SearchGooglePlacesOutcome
 from ...domain.identity import AuthenticatedIdentity, capabilities_for
+from ...domain.organization import MemberInvitationView, MemberView, OrganizationView
 from ...domain.provisioning import ProvisioningView
 from .schemas import (
     AuthenticatedUserResponse,
@@ -10,12 +11,54 @@ from .schemas import (
     GooglePlaceSearchResponse,
     GooglePlaceSearchStats,
     GooglePlaceSummary,
+    MemberInvitationResponse,
+    MemberResponse,
     MembershipSummaryResponse,
+    MemberUserResponse,
+    OrganizationResponse,
     OrganizationSummaryResponse,
     PlatformInvitationResponse,
     PlatformOrganizationResponse,
     ProvisioningResponse,
 )
+
+
+def to_organization_response(view: OrganizationView) -> OrganizationResponse:
+    return OrganizationResponse(
+        id=view.id,
+        name=view.name,
+        locale=view.locale,
+        timezone=view.timezone,
+        status=view.status,
+        version=view.version,
+        created_at=view.created_at,
+        updated_at=view.updated_at,
+    )
+
+
+def to_member_response(view: MemberView) -> MemberResponse:
+    return MemberResponse(
+        membership_id=view.membership_id,
+        user=MemberUserResponse(id=view.user_id, email=view.email, display_name=view.display_name),
+        role=view.role.value,
+        status=view.status.value,
+        version=view.version,
+        created_at=view.created_at,
+        updated_at=view.updated_at,
+    )
+
+
+def to_member_invitation_response(view: MemberInvitationView) -> MemberInvitationResponse:
+    return MemberInvitationResponse(
+        id=view.id,
+        recipient_email=view.recipient_email,
+        role=view.role.value,
+        state=view.state.value,
+        delivery_status=view.delivery_status.value,
+        expires_at=view.expires_at,
+        created_at=view.created_at,
+        replayed=view.replayed,
+    )
 
 
 def to_authentication_response(identity: AuthenticatedIdentity) -> AuthenticationResponse:

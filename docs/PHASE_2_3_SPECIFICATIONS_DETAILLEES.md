@@ -6,7 +6,7 @@
 | Incrément | 2.3 — Organisations, rôles et isolation |
 | Version | 1.5 |
 | Date | 2 août 2026 |
-| Statut | Spécification générale validée ; 2.3.2 accepté localement ; détail 2.3.3 validé |
+| Statut | Spécification générale validée ; 2.3.2 accepté ; 2.3.3 implémenté, validation locale attendue |
 | Validation produit | 2 août 2026 pour le parcours local 2.3.2 |
 | Prérequis | Incréments 2.1 et 2.2 validés localement |
 | Marché initial | Canada |

@@ -55,7 +55,7 @@ class Settings:
     map_grant_ttl_seconds: float = 300.0
     map_grant_max_entries: int = 1_000
     app_title: str = "Prospect CRM"
-    app_version: str = "1.4.0"
+    app_version: str = "1.5.0"
 
     def __post_init__(self) -> None:
         if self.app_env not in VALID_APP_ENVIRONMENTS:

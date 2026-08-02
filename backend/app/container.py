@@ -4,16 +4,25 @@ from .application.ports import AsyncResource, TenantUnitOfWorkFactory, UnitOfWor
 from .application.use_cases import (
     AcceptInvitationUseCase,
     CheckReadinessUseCase,
+    CreateMemberInvitationUseCase,
     CreateOrganizationUseCase,
     GetCurrentSessionUseCase,
     GetMapSnapshotUseCase,
+    GetOrganizationUseCase,
+    ListMemberInvitationsUseCase,
+    ListMembersUseCase,
     ListPlatformOrganizationsUseCase,
     LoginUseCase,
     LogoutUseCase,
     PreviewInvitationUseCase,
     ResendInitialInvitationUseCase,
+    ResendMemberInvitationUseCase,
     RevokeInitialInvitationUseCase,
+    RevokeMemberInvitationUseCase,
     SearchGooglePlacesUseCase,
+    SwitchOrganizationUseCase,
+    UpdateMembershipUseCase,
+    UpdateOrganizationUseCase,
 )
 from .config import Settings
 
@@ -33,6 +42,15 @@ class AppContainer:
     revoke_initial_invitation: RevokeInitialInvitationUseCase | None = None
     preview_invitation: PreviewInvitationUseCase | None = None
     accept_invitation: AcceptInvitationUseCase | None = None
+    get_organization: GetOrganizationUseCase | None = None
+    update_organization: UpdateOrganizationUseCase | None = None
+    list_members: ListMembersUseCase | None = None
+    update_membership: UpdateMembershipUseCase | None = None
+    list_member_invitations: ListMemberInvitationsUseCase | None = None
+    create_member_invitation: CreateMemberInvitationUseCase | None = None
+    resend_member_invitation: ResendMemberInvitationUseCase | None = None
+    revoke_member_invitation: RevokeMemberInvitationUseCase | None = None
+    switch_organization: SwitchOrganizationUseCase | None = None
     unit_of_work_factory: UnitOfWorkFactory | None = None
     tenant_unit_of_work_factory: TenantUnitOfWorkFactory | None = None
     resources: tuple[AsyncResource, ...] = ()

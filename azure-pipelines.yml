@@ -50,7 +50,7 @@ steps:
   - script: |
       python -m alembic -c backend/alembic.ini downgrade 20260723_0002
       python -m alembic -c backend/alembic.ini upgrade head
-    displayName: Vérifier le downgrade et la reconstruction RLS/provisioning
+    displayName: Vérifier le downgrade et la reconstruction RLS/provisioning/membres
     env:
       MIGRATION_DATABASE_URL: $(testMigrationDatabaseUrl)
 

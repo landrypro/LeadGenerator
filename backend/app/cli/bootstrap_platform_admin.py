@@ -7,6 +7,7 @@ import os
 from ..application.errors import PlatformAdministratorAlreadyExists
 from ..application.use_cases import BootstrapPlatformAdministratorUseCase
 from ..config import Settings
+from ..domain.identity import InvalidPassword
 from ..infrastructure.clock import SystemClock
 from ..infrastructure.postgres import PostgresDatabase
 from ..infrastructure.security import Argon2PasswordHasher
@@ -53,6 +54,9 @@ async def run() -> int:
     )
     try:
         user = await use_case.execute(email=email, display_name=display_name, password=password)
+    except InvalidPassword as error:
+        print(f"Bootstrap refusé : {error}")
+        return 2
     except PlatformAdministratorAlreadyExists:
         print("Bootstrap refusé : un administrateur de plateforme existe déjà.")
         return 1

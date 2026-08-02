@@ -118,3 +118,47 @@ class InvitationRateLimited(RuntimeError):
 
 class SessionCreationFailedAfterAcceptance(RuntimeError):
     """L’invitation est acceptée, mais la nouvelle session n’a pas pu être créée."""
+
+
+class OrganizationAdministrationUnavailable(RuntimeError):
+    """Le stockage d’administration locataire est temporairement indisponible."""
+
+
+class OrganizationResourceNotFound(RuntimeError):
+    """La ressource n’existe pas dans l’organisation active."""
+
+
+class OrganizationVersionConflict(RuntimeError):
+    def __init__(self, current_version: int | None = None) -> None:
+        super().__init__("L’organisation a été modifiée depuis sa lecture.")
+        self.current_version = current_version
+
+
+class MembershipVersionConflict(RuntimeError):
+    def __init__(self, current_version: int | None = None) -> None:
+        super().__init__("L’appartenance a été modifiée depuis sa lecture.")
+        self.current_version = current_version
+
+
+class LastActiveAdministrator(RuntimeError):
+    """La modification supprimerait le dernier Administrateur actif."""
+
+
+class MembershipAlreadyActive(RuntimeError):
+    """Le destinataire possède déjà une appartenance active."""
+
+
+class InvitationAlreadyPending(RuntimeError):
+    """Une invitation non terminale existe déjà pour ce destinataire."""
+
+
+class OrganizationNotActive(RuntimeError):
+    """L’organisation n’est pas active pour cette opération."""
+
+
+class OrganizationSwitchForbidden(RuntimeError):
+    """L’appartenance ou l’organisation ne permet pas le changement demandé."""
+
+
+class SessionRotationFailed(RuntimeError):
+    """La session courante n’a pas pu être renouvelée sans ambiguïté."""

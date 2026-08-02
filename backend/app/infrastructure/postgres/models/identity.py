@@ -92,6 +92,7 @@ class MembershipModel(Base):
     __table_args__ = (
         CheckConstraint("role IN ('admin', 'manager', 'sales')", name="role_allowed"),
         CheckConstraint("status IN ('active', 'disabled')", name="status_allowed"),
+        CheckConstraint("version > 0", name="version_positive"),
         UniqueConstraint("organization_id", "user_id"),
         UniqueConstraint("organization_id", "id"),
         Index("ix_memberships_user_id_status", "user_id", "status"),
@@ -103,8 +104,10 @@ class MembershipModel(Base):
     role: Mapped[str] = mapped_column(String(16))
     status: Mapped[str] = mapped_column(String(16), server_default=text("'active'"))
     created_by: Mapped[UUID] = mapped_column(ForeignKey("users.id", ondelete="RESTRICT"))
+    updated_by: Mapped[UUID] = mapped_column(ForeignKey("users.id", ondelete="RESTRICT"))
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=text("CURRENT_TIMESTAMP"))
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=text("CURRENT_TIMESTAMP"))
+    version: Mapped[int] = mapped_column(Integer, server_default=text("1"))
 
 
 class UserInvitationModel(Base):

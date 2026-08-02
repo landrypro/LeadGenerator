@@ -44,7 +44,7 @@ describe('InvitationPage', () => {
   it('prévisualise une seule fois sous StrictMode et accepte un nouveau compte sans stockage navigateur', async () => {
     const preview = {
       organization_name: 'Entreprise Exemple',
-      role: 'admin',
+      role: 'manager',
       expires_at: '2026-07-26T12:00:00Z',
       existing_account: false,
     }
@@ -63,6 +63,8 @@ describe('InvitationPage', () => {
     render(<StrictMode><InvitationPage initialToken={token} auth={auth} /></StrictMode>)
 
     expect(await screen.findByText('Entreprise Exemple')).toBeInTheDocument()
+    expect(screen.getByText('Rôle proposé : Gestionnaire')).toBeInTheDocument()
+    expect(screen.getByText('Créez votre compte pour rejoindre l’organisation.')).toBeInTheDocument()
     expect(invitationApi.preview).toHaveBeenCalledTimes(1)
     fireEvent.change(screen.getByLabelText('Nom affiché'), { target: { value: 'Alex Tremblay' } })
     fireEvent.change(screen.getByLabelText('Mot de passe'), { target: { value: 'mot-de-passe-tres-solide' } })

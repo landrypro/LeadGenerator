@@ -178,6 +178,11 @@ class FakeSessionStore:
         del user_id
         self.record = None
 
+    async def revoke_user_before_version(self, user_id: UUID, minimum_valid_version: int) -> None:
+        del user_id
+        if self.record is not None and self.record.user_version < minimum_valid_version:
+            self.record = None
+
 
 class FakeLoginRateLimiter:
     def __init__(self) -> None:

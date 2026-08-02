@@ -127,13 +127,13 @@ function InvitationFlow({ preview, auth, tokenRef, onAccepted }) {
   return <>
     <div className="invitation-summary">
       <strong>{preview.organization_name}</strong>
-      <span>Rôle proposé : Administrateur</span>
+      <span>Rôle proposé : {roleLabel(preview.role)}</span>
       <small>Valide jusqu’au {new Date(preview.expires_at).toLocaleString('fr-CA')}</small>
     </div>
     {error && <div className="error-banner" role="alert"><span>{error}</span></div>}
     {!preview.existing_account && session && <SessionConflict onLogout={auth.logout} />}
     {!preview.existing_account && !session && <form onSubmit={createAccount}>
-      <p className="invitation-copy">Créez votre compte pour activer l’organisation.</p>
+      <p className="invitation-copy">Créez votre compte pour rejoindre l’organisation.</p>
       <InvitationField id="invitation-name" label="Nom affiché" value={displayName} onChange={setDisplayName}
         autoComplete="name" maxLength={120} />
       <InvitationField id="invitation-password" label="Mot de passe" value={password} onChange={setPassword}
@@ -141,7 +141,7 @@ function InvitationFlow({ preview, auth, tokenRef, onAccepted }) {
       <InvitationField id="invitation-password-confirmation" label="Confirmer le mot de passe" value={confirmation}
         onChange={setConfirmation} type="password" autoComplete="new-password" minLength={12} maxLength={128} />
       <button className="primary-button invitation-action" type="submit" disabled={working}>
-        {working ? 'Activation…' : 'Créer le compte et accepter'}
+        {working ? 'Traitement…' : 'Créer le compte et accepter'}
       </button>
     </form>}
     {preview.existing_account && !session && auth?.status !== 'loading' && <form onSubmit={login}>
@@ -159,7 +159,7 @@ function InvitationFlow({ preview, auth, tokenRef, onAccepted }) {
     {preview.existing_account && session && <div>
       <p className="invitation-copy">Compte connecté : <strong>{session.user.display_name}</strong></p>
       <button className="primary-button invitation-action" type="button" disabled={working} onClick={acceptExisting}>
-        {working ? 'Activation…' : 'Accepter l’invitation'}
+        {working ? 'Traitement…' : 'Accepter l’invitation'}
       </button>
       <button className="invitation-logout" type="button" onClick={auth.logout}>Utiliser un autre compte</button>
     </div>}
@@ -193,4 +193,9 @@ function TerminalInvitationState({ message }) {
 
 function messageFor(error) {
   return ERROR_MESSAGES[error?.code] || error?.message || 'Une erreur inattendue est survenue.'
+}
+
+
+function roleLabel(role) {
+  return ({ admin: 'Administrateur', manager: 'Gestionnaire', sales: 'Commercial' })[role] || 'Membre'
 }

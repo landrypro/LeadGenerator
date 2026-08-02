@@ -112,10 +112,18 @@ async def create_tenant_fixture(owner: PostgresDatabase) -> TenantFixture:
         await connection.execute(
             text(
                 """
-                INSERT INTO memberships (id, organization_id, user_id, role, created_by, created_at, updated_at)
+                INSERT INTO memberships (
+                    id, organization_id, user_id, role, created_by, updated_by, created_at, updated_at, version
+                )
                 VALUES
-                    (:membership_a_id, :organization_a_id, :actor_a_id, 'admin', :actor_a_id, :now, :now),
-                    (:membership_b_id, :organization_b_id, :actor_b_id, 'admin', :actor_b_id, :now, :now)
+                    (
+                        :membership_a_id, :organization_a_id, :actor_a_id, 'admin',
+                        :actor_a_id, :actor_a_id, :now, :now, 1
+                    ),
+                    (
+                        :membership_b_id, :organization_b_id, :actor_b_id, 'admin',
+                        :actor_b_id, :actor_b_id, :now, :now, 1
+                    )
                 """
             ),
             {
@@ -224,6 +232,30 @@ async def test_application_role_and_rls_metadata_are_locked_down() -> None:
             may_delete = await connection.scalar(
                 text("SELECT has_table_privilege(current_user, 'public.organizations', 'DELETE')")
             )
+            may_execute_organization_functions = (
+                await connection.execute(
+                    text(
+                        """
+                        SELECT
+                            has_function_privilege(
+                                current_user,
+                                'app_private.tenant_update_organization(text,text,text,integer,timestamp with time zone)',
+                                'EXECUTE'
+                            ),
+                            has_function_privilege(
+                                current_user,
+                                'app_private.tenant_update_membership(uuid,text,text,integer,timestamp with time zone)',
+                                'EXECUTE'
+                            ),
+                            has_function_privilege(
+                                current_user,
+                                'app_private.switch_active_organization(uuid,timestamp with time zone)',
+                                'EXECUTE'
+                            )
+                        """
+                    )
+                )
+            ).one()
 
         async with owner.engine.connect() as connection:
             rls_rows = (
@@ -290,6 +322,48 @@ async def test_application_role_and_rls_metadata_are_locked_down() -> None:
                     """
                 )
             )
+            organization_function_metadata = (
+                (
+                    await connection.execute(
+                        text(
+                            """
+                            SELECT function.proname, owner_role.rolname AS owner_name,
+                                   function.prosecdef, function.proconfig
+                            FROM pg_proc AS function
+                            JOIN pg_namespace AS namespace ON namespace.oid = function.pronamespace
+                            JOIN pg_roles AS owner_role ON owner_role.oid = function.proowner
+                            WHERE namespace.nspname = 'app_private'
+                              AND function.proname IN (
+                                  'tenant_update_organization', 'tenant_update_membership',
+                                  'tenant_create_member_invitation', 'tenant_resend_member_invitation',
+                                  'tenant_revoke_member_invitation',
+                                  'tenant_finalize_member_invitation_delivery',
+                                  'switch_active_organization'
+                              )
+                            """
+                        )
+                    )
+                )
+                .mappings()
+                .all()
+            )
+            public_organization_function_grants = await connection.scalar(
+                text(
+                    """
+                    SELECT count(*)
+                    FROM information_schema.routine_privileges
+                    WHERE routine_schema = 'app_private'
+                      AND routine_name IN (
+                          'tenant_update_organization', 'tenant_update_membership',
+                          'tenant_create_member_invitation', 'tenant_resend_member_invitation',
+                          'tenant_revoke_member_invitation',
+                          'tenant_finalize_member_invitation_delivery',
+                          'switch_active_organization'
+                      )
+                      AND grantee = 'PUBLIC'
+                    """
+                )
+            )
     finally:
         await app.close()
         await owner.close()
@@ -306,6 +380,7 @@ async def test_application_role_and_rls_metadata_are_locked_down() -> None:
     assert "prospect_app" not in table_owners
     assert privileged_memberships == 0
     assert may_delete is False
+    assert may_execute_organization_functions == (True, True, True)
     assert len(rls_rows) == 4
     assert all(row["relrowsecurity"] and row["relforcerowsecurity"] for row in rls_rows)
     assert policies == {
@@ -318,6 +393,11 @@ async def test_application_role_and_rls_metadata_are_locked_down() -> None:
     assert function_security["prosecdef"] is True
     assert "search_path=pg_catalog, public, pg_temp" in function_security["proconfig"]
     assert public_function_grants == 0
+    assert len(organization_function_metadata) == 7
+    assert all(row["owner_name"] == "prospect_rls_definer" for row in organization_function_metadata)
+    assert all(row["prosecdef"] is True for row in organization_function_metadata)
+    assert all("search_path=pg_catalog, public, pg_temp" in row["proconfig"] for row in organization_function_metadata)
+    assert public_organization_function_grants == 0
 
 
 async def test_rls_defaults_to_deny_and_isolates_cross_tenant_operations() -> None:

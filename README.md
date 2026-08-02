@@ -2,7 +2,7 @@
 
 Prospect est une application React et FastAPI en migration vers un CRM de gestion commerciale. La phase 1 fournit une recherche Google Places ponctuelle et conforme : une seule requête Text Search par action, vingt établissements au maximum, aucun contact dans la liste et aucune persistance des résultats Google.
 
-Ce fichier réunit le guide utilisateur et la documentation technique du socle actuel. La spécification complète se trouve dans [`docs/SPECIFICATION_CRM_V1.md`](docs/SPECIFICATION_CRM_V1.md), les décisions validées sur les sources dans [`docs/PHASE_1_1_ACQUISITION_CONSERVATION.md`](docs/PHASE_1_1_ACQUISITION_CONSERVATION.md) et la conception validée des fondations dans [`docs/PHASE_2_SPECIFICATIONS_DETAILLEES.md`](docs/PHASE_2_SPECIFICATIONS_DETAILLEES.md). Le contrat de 2.3.2 et son rapport d’implémentation se trouvent dans [`docs/PHASE_2_3_2_SPECIFICATIONS_DETAILLEES.md`](docs/PHASE_2_3_2_SPECIFICATIONS_DETAILLEES.md) et [`docs/PHASE_2_3_2_RAPPORT_IMPLEMENTATION.md`](docs/PHASE_2_3_2_RAPPORT_IMPLEMENTATION.md).
+Ce fichier réunit le guide utilisateur et la documentation technique du socle actuel. La spécification complète se trouve dans [`docs/SPECIFICATION_CRM_V1.md`](docs/SPECIFICATION_CRM_V1.md), les décisions validées sur les sources dans [`docs/PHASE_1_1_ACQUISITION_CONSERVATION.md`](docs/PHASE_1_1_ACQUISITION_CONSERVATION.md) et la conception validée des fondations dans [`docs/PHASE_2_SPECIFICATIONS_DETAILLEES.md`](docs/PHASE_2_SPECIFICATIONS_DETAILLEES.md). Le contrat de 2.3.3 et son rapport d’implémentation se trouvent dans [`docs/PHASE_2_3_3_SPECIFICATIONS_DETAILLEES.md`](docs/PHASE_2_3_3_SPECIFICATIONS_DETAILLEES.md) et [`docs/PHASE_2_3_3_RAPPORT_IMPLEMENTATION.md`](docs/PHASE_2_3_3_RAPPORT_IMPLEMENTATION.md).
 
 ## Fonctionnalités disponibles
 
@@ -14,6 +14,11 @@ Ce fichier réunit le guide utilisateur et la documentation technique du socle a
 - provisioning plateforme idempotent d’une organisation et de sa première invitation Admin ;
 - invitation à usage unique, renvoi explicite plafonné, révocation et acceptation par compte nouveau ou existant ;
 - organisation activée atomiquement avec sa première appartenance Admin ;
+- consultation et modification optimiste de l’organisation active ;
+- annuaire paginé des membres selon la matrice Administrateur/Gestionnaire/Commercial ;
+- modification versionnée des rôles et états, avec protection concurrente du dernier Administrateur actif ;
+- invitations de membres Admin, Gestionnaire ou Commercial, renvoi et révocation ;
+- changement d’organisation active par appartenance avec rotation atomique du cookie et du CSRF ;
 - page d’acceptation dédiée, jeton retiré du fragment avant React et conservé uniquement en mémoire ;
 - compte authentifié sans organisation placé dans un état restreint sans capacité fonctionnelle ;
 - rôle PostgreSQL Web non propriétaire et tables locataires protégées par Row-Level Security ;
@@ -45,7 +50,7 @@ Le navigateur reçoit un cookie de session inaccessible à JavaScript. Le jeton 
 1. Ouvrez le lien complet reçu par courriel. Le jeton placé après `#token=` est retiré de l’adresse avant tout appel réseau.
 2. Si le courriel ne correspond encore à aucun compte, saisissez un nom affiché et un nouveau mot de passe deux fois.
 3. Si le compte existe, connectez-vous dans la page d’invitation, puis confirmez l’acceptation sans changer de page.
-4. Après succès, l’organisation passe à `active`, la première appartenance Admin est créée et une nouvelle session est installée.
+4. Après succès, une nouvelle session est installée dans l’organisation rejointe. Seule la toute première invitation Admin active une organisation encore en provisioning ; une invitation de membre conserve l’organisation active et applique exactement le rôle proposé.
 
 Un lien expiré, révoqué, déjà utilisé ou inconnu produit volontairement le même message public. Un compte actif sans organisation reste limité à l’acceptation d’invitation et à la déconnexion ; il n’accède pas à la recherche.
 
@@ -209,6 +214,28 @@ La page d’administration plateforme arrivera en 2.3.5. En attendant, le script
 
 Le mot de passe plateforme est demandé de façon interactive. Relevez le `CreationRequestId` retourné, ouvrez Mailpit, puis suivez le lien du message. Pour tester l’idempotence HTTP, rejouez manuellement le même UUID et le même corps ; une commande différente avec cet UUID doit être refusée.
 
+### Tester les membres et le changement d’organisation
+
+Jusqu’aux écrans d’administration de 2.3.5, le script 2.3.3 appelle exclusivement les vraies routes HTTP. Sans option,
+il affiche l’organisation active, les membres autorisés et les invitations visibles :
+
+```powershell
+.\scripts\Test-OrganizationAdministrationLocal.ps1 `
+  -AdministratorEmail "admin-organisation@example.ca"
+```
+
+Pour inviter un Gestionnaire :
+
+```powershell
+.\scripts\Test-OrganizationAdministrationLocal.ps1 `
+  -AdministratorEmail "admin-organisation@example.ca" `
+  -InviteeEmail "gestionnaire@example.ca" `
+  -InviteeRole manager
+```
+
+Le script accepte aussi `-MembershipId`, `-MembershipVersion`, `-NewRole`, `-NewStatus` et
+`-SwitchMembershipId`. Le mot de passe reste interactif ; aucun jeton d’invitation, cookie ou CSRF n’est affiché.
+
 ## Contrat API de la phase 1
 
 ### Authentification — incrément 2.2
@@ -273,18 +300,35 @@ La réponse de carte porte également `Cache-Control: no-store, max-age=0`.
 
 Les routes plateforme exigent la capacité plateforme, une origine fiable et JSON strict. Toutes les réponses sont `no-store`. Aucun jeton brut, hash, mot de passe, détail SMTP ou trace SQL n’apparaît dans les réponses ou dans OpenAPI.
 
+### Organisation, membres et invitations — incrément 2.3.3
+
+- `GET /api/organization` lit l’organisation active ;
+- `PATCH /api/organization` modifie nom, langue ou fuseau avec `version` obligatoire ;
+- `GET /api/organization/members` retourne une page de membres avec un curseur signé ;
+- `PATCH /api/organization/members/{membership_id}` modifie rôle ou état avec verrou optimiste ;
+- `GET/POST /api/organization/invitations` liste ou crée les invitations de membre ;
+- `POST /api/organization/invitations/{id}/resend` renouvelle le jeton de façon idempotente ;
+- `DELETE /api/organization/invitations/{id}` révoque sans suppression physique ;
+- `POST /api/auth/switch-organization` choisit une appartenance active et fait tourner la seule session courante.
+
+Un Administrateur gère l’organisation, les membres et les invitations. Un Gestionnaire lit l’organisation et les
+membres, sans mutation. Un Commercial lit uniquement l’organisation et conserve la capacité de recherche. Les
+identifiants absents ou appartenant à une autre organisation produisent le même `404`. Une auto-rétrogradation ou
+auto-désactivation réussie expire le cookie courant et exige une reconnexion.
+
 ## Architecture
 
 Le backend conserve des dépendances dirigées vers le domaine et l’application :
 
 | Zone | Responsabilité |
 | --- | --- |
-| `backend/app/domain/` | Identité, rôles, session, modèles Google et règles sans framework. |
-| `backend/app/application/use_cases/` | Authentification, provisioning, invitations, readiness, recherche et carte. |
+| `backend/app/domain/` | Identité, organisation, membres, invitations, session, modèles Google et règles sans framework. |
+| `backend/app/application/use_cases/` | Authentification, provisioning, administration locataire, invitations, readiness, recherche et carte. |
 | `backend/app/application/ports/` | Interfaces des dépôts, mots de passe, sessions, limites, livraison, PostgreSQL/Redis et Google. |
 | `backend/app/application/tenancy.py` | Contextes locataire et acteur plateforme, créés par le serveur et indépendants de PostgreSQL. |
-| `backend/app/infrastructure/postgres/` | Modèles, passerelle de provisioning, unités de travail acteur/locataire et migrations Alembic. |
-| `backend/app/infrastructure/redis/` | Sessions opaques, rotation atomique et limitations HMAC connexion/invitation. |
+| `backend/app/infrastructure/postgres/` | Passerelles de provisioning et d’organisation, unités de travail acteur/locataire, RLS et migrations Alembic. |
+| `backend/app/infrastructure/redis/` | Sessions opaques, rotation atomique, purge par version et limitations HMAC. |
+| `backend/app/infrastructure/pagination.py` | Curseurs opaques signés HMAC pour les listes locataires. |
 | `backend/app/infrastructure/invitations/` | Jetons cryptographiques et livraison SMTP Mailpit locale. |
 | `backend/app/infrastructure/security/` | Adaptateur Argon2id exécuté hors de la boucle asynchrone. |
 | `backend/app/infrastructure/google/` | Appel HTTP Google et adaptation des données. |
@@ -305,6 +349,10 @@ Le port `PlacesGateway` expose une seule méthode `search`. Il ne connaît aucun
 - cookie `HttpOnly`, `SameSite=Lax`, `Secure` et préfixé `__Host-` en production ;
 - CSRF en mémoire et validation stricte de l’origine sur les mutations authentifiées ;
 - compte désactivé ou version d’identité modifiée refusant immédiatement une ancienne session ;
+- purge Redis sélective supprimant uniquement les sessions antérieures à la nouvelle version d’identité ;
+- changement d’organisation renouvelant uniquement la session courante, sans modifier les autres sessions ;
+- protection du dernier Administrateur sous verrou PostgreSQL organisation puis appartenance ;
+- curseurs de pagination 2.3.3 signés et vérifiés avant toute requête ;
 - rôle Web PostgreSQL non propriétaire, sans privilège élevé et sans droit de suppression physique ;
 - politiques `ENABLE` et `FORCE ROW LEVEL SECURITY` sur organisations, appartenances et invitations ;
 - fonctions `SECURITY DEFINER` étroites, `search_path` fixé, `PUBLIC` révoqué et signatures seules accordées au rôle Web ;
@@ -345,11 +393,18 @@ npm test
 npm run build
 ```
 
-Le dernier passage complet valide 105 tests backend et d’intégration, sans test ignoré, ainsi que 22 tests React répartis dans 9 fichiers. La suite protège aussi les migrations, RLS, courses de provisioning et d’acceptation, rotation de session, livraison Mailpit, erreurs minimisées, absence de stockage navigateur et toutes les garanties Google historiques.
+Le dernier passage valide 111 tests backend hors intégration et 21 tests d’intégration, dont les scénarios
+PostgreSQL/Redis/Mailpit exécutés sur une base temporaire vierge, soit 132 scénarios backend sans test ignoré, ainsi
+que 22 tests React répartis dans 9 fichiers. La suite protège
+les migrations 0001→0005, RLS, concurrence du dernier Administrateur, cycles d’invitation, rotation et purge de
+session, Mailpit, absence de stockage navigateur et toutes les garanties Google historiques.
 
 ## Suite de la migration CRM V1
 
-Les incréments 2.1, 2.2, 2.3.1 et 2.3.2 sont terminés localement. Le parcours nominal de 2.3.2 a été validé avec PostgreSQL, Redis, Mailpit, acceptation et connexion ; son rapport, ses trois critiques et ses deux revues de code figurent dans [`docs/PHASE_2_3_2_RAPPORT_IMPLEMENTATION.md`](docs/PHASE_2_3_2_RAPPORT_IMPLEMENTATION.md). Les seize décisions de la [spécification 2.3.3](docs/PHASE_2_3_3_SPECIFICATIONS_DETAILLEES.md) ont été validées le 2 août 2026 et son implémentation est autorisée.
+Les incréments 2.1, 2.2, 2.3.1 et 2.3.2 sont terminés localement. L’implémentation 2.3.3 est complète, sa matrice
+automatisée est verte et ses trois critiques ainsi que ses deux revues figurent dans
+[`docs/PHASE_2_3_3_RAPPORT_IMPLEMENTATION.md`](docs/PHASE_2_3_3_RAPPORT_IMPLEMENTATION.md). Il reste au responsable
+produit à exécuter le protocole local avant de déclarer 2.3.3 accepté et d’autoriser 2.3.4.
 
 ## Références
 

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import hashlib
+import logging
 from dataclasses import dataclass
 from uuid import UUID, uuid4
 
@@ -26,6 +27,8 @@ from ..ports import (
 from ..ports.provisioning import AcceptanceGatewayResult, AcceptanceResultCode
 from ..tenancy import ActorContext
 from .authentication import LoginOutcome
+
+LOGGER = logging.getLogger(__name__)
 
 
 class PreviewInvitationUseCase:
@@ -140,6 +143,17 @@ class AcceptInvitationUseCase:
             )
         except AuthenticationServiceUnavailable as error:
             raise SessionCreationFailedAfterAcceptance from error
+        try:
+            await self._sessions.revoke_user_before_version(accepted.user_id, accepted.user_version)
+        except AuthenticationServiceUnavailable:
+            LOGGER.warning(
+                "La purge des anciennes sessions après acceptation a échoué.",
+                extra={
+                    "request_id": request_id,
+                    "user_id": str(accepted.user_id),
+                    "minimum_valid_version": accepted.user_version,
+                },
+            )
         return LoginOutcome(
             AuthenticatedIdentity(
                 refreshed,

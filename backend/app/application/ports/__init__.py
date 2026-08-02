@@ -6,6 +6,20 @@ from .identity import IdentityRepository, IdentityUnitOfWork, IdentityUnitOfWork
 from .login_limits import LoginLimitStatus, LoginRateLimiter
 from .map_grants import MapSnapshotGrantStore
 from .maps import MapImage, StaticMapGateway
+from .organization import (
+    CreateMemberInvitationGatewayResult,
+    CreateMemberInvitationResultCode,
+    MemberInvitationMutationGatewayResult,
+    MemberInvitationMutationResultCode,
+    OrganizationAdministrationGateway,
+    SwitchOrganizationGatewayResult,
+    SwitchOrganizationResultCode,
+    UpdateMembershipGatewayResult,
+    UpdateMembershipResultCode,
+    UpdateOrganizationGatewayResult,
+    UpdateOrganizationResultCode,
+)
+from .pagination import CursorCodec
 from .passwords import PasswordHasher
 from .places import PlaceCandidate, PlacesGateway
 from .provisioning import (
@@ -34,6 +48,9 @@ __all__ = [
     "ActorUnitOfWorkFactory",
     "AsyncResource",
     "Clock",
+    "CreateMemberInvitationGatewayResult",
+    "CreateMemberInvitationResultCode",
+    "CursorCodec",
     "DependencyHealth",
     "DependencyProbe",
     "GenerationGuard",
@@ -50,6 +67,9 @@ __all__ = [
     "LoginRateLimiter",
     "MapImage",
     "MapSnapshotGrantStore",
+    "MemberInvitationMutationGatewayResult",
+    "MemberInvitationMutationResultCode",
+    "OrganizationAdministrationGateway",
     "PasswordHasher",
     "PlaceCandidate",
     "PlacesGateway",
@@ -62,7 +82,13 @@ __all__ = [
     "RevokeResultCode",
     "SessionStore",
     "StaticMapGateway",
+    "SwitchOrganizationGatewayResult",
+    "SwitchOrganizationResultCode",
     "TenantUnitOfWorkFactory",
     "UnitOfWork",
     "UnitOfWorkFactory",
+    "UpdateMembershipGatewayResult",
+    "UpdateMembershipResultCode",
+    "UpdateOrganizationGatewayResult",
+    "UpdateOrganizationResultCode",
 ]
