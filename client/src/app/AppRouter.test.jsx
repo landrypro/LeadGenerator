@@ -13,6 +13,10 @@ vi.mock('../features/organizations/OrganizationPage', () => ({
   OrganizationPage: () => <main><h1>Fiche de l’organisation</h1></main>,
 }))
 
+vi.mock('../features/organizations/MembersPage', () => ({
+  MembersPage: () => <main><h1>Administration des membres</h1></main>,
+}))
+
 
 describe('AppRouter', () => {
   it('redirige une visite anonyme vers la route de connexion', async () => {
@@ -85,6 +89,17 @@ describe('AppRouter', () => {
 
     expect(screen.getByRole('heading', { name: 'Fiche de l’organisation' })).toBeInTheDocument()
     expect(screen.getByRole('link', { name: 'Organisation' })).toHaveAttribute('aria-current', 'page')
+  })
+
+  it('ouvre la page Membres uniquement avec la capacité de lecture', () => {
+    window.history.replaceState({}, '', '/app/admin/users')
+    renderRouter(authenticatedSession({
+      activeOrganization: { id: 'org-1', name: 'Entreprise' },
+      capabilities: ['members:read'],
+    }))
+
+    expect(screen.getByRole('heading', { name: 'Administration des membres' })).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: 'Membres' })).toHaveAttribute('aria-current', 'page')
   })
 
   it('affiche une vraie page 404 pour une route inconnue', () => {

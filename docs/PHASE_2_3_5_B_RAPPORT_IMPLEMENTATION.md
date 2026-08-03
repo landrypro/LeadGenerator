@@ -5,7 +5,8 @@
 | Produit | Prospect CRM |
 | Lot | 2.3.5-B — Organisation active |
 | Date | 3 août 2026 |
-| Statut | Implémenté ; validation produit locale attendue |
+| Statut | Implémenté et validé localement par le responsable produit |
+| Validation produit | 3 août 2026 |
 | Migration SQL | Aucune |
 | Révision Alembic | `20260802_0005 (head)` |
 
@@ -153,4 +154,4 @@ capacités serveur et RLS déjà testés dans les incréments précédents. Le l
 Le responsable produit peut accepter 2.3.5-B si le parcours multi-organisation, la purge des données, les permissions
 de la page Organisation, l’échec contrôlé et le conflit de version correspondent aux comportements ci-dessus.
 
-Après cette validation, le prochain lot est **2.3.5-C — Membres et invitations**.
+Le responsable produit a validé ce parcours le 3 août 2026. Le lot suivant est **2.3.5-C — Membres et invitations**.

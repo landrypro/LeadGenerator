@@ -422,8 +422,9 @@ PostgreSQL/Redis/Mailpit sans `skip` reste une barrière de déploiement, mais n
 contrat et les preuves de 2.3.4 se trouvent dans
 [`docs/PHASE_2_3_4_SPECIFICATIONS_DETAILLEES.md`](docs/PHASE_2_3_4_SPECIFICATIONS_DETAILLEES.md) et
 [`docs/PHASE_2_3_4_RAPPORT_IMPLEMENTATION.md`](docs/PHASE_2_3_4_RAPPORT_IMPLEMENTATION.md).
-Les seize décisions de 2.3.5 ont été validées le 2 août 2026. Le lot 2.3.5-A — Routage et shell a été validé
-localement le 3 août 2026. Le lot 2.3.5-B — Organisation active est implémenté et attend sa validation produit locale.
+Les seize décisions de 2.3.5 ont été validées le 2 août 2026. Les lots 2.3.5-A — Routage et shell et
+2.3.5-B — Organisation active ont été validés localement le 3 août 2026. Le lot 2.3.5-C — Membres et invitations est
+implémenté et attend sa validation produit locale.
 Le contrat et les preuves se trouvent dans
 [`docs/PHASE_2_3_5_SPECIFICATIONS_DETAILLEES.md`](docs/PHASE_2_3_5_SPECIFICATIONS_DETAILLEES.md) et
 les rapports
@@ -432,7 +433,11 @@ les rapports
 `/` dirige vers la première page autorisée. Compte est disponible à `/app/account` et Organisation à
 `/app/admin/organization` avec `organization:read`. Le sélecteur du bandeau apparaît dès deux appartenances actives ;
 il conserve l’ancien contexte si la rotation échoue. La page Organisation est modifiable avec `organization:update`
-et strictement en lecture seule sinon. Les pages Membres et Plateforme restent invisibles jusqu’aux lots C et D.
+et strictement en lecture seule sinon. Membres et invitations est disponible à `/app/admin/users` avec
+`members:read`. Un Gestionnaire consulte les membres sans action ; un Administrateur peut modifier les appartenances,
+inviter, renvoyer et révoquer selon ses capacités. Les mutations sensibles exigent une confirmation et les intentions
+idempotentes restent uniquement en mémoire. La page Plateforme reste invisible jusqu’au lot D. Le rapport C est dans
+[`docs/PHASE_2_3_5_C_RAPPORT_IMPLEMENTATION.md`](docs/PHASE_2_3_5_C_RAPPORT_IMPLEMENTATION.md).
 
 ## Références
 

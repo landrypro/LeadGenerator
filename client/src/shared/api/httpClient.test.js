@@ -29,6 +29,7 @@ describe('httpClient', () => {
     vi.stubGlobal('fetch', vi.fn().mockResolvedValue({
       ok: false,
       status: 429,
+      headers: { get: vi.fn().mockReturnValue('60') },
       json: vi.fn().mockResolvedValue({
         error: { code: 'quota_reached', message: 'Quota atteint.', fields: { limit: '20' } },
       }),
@@ -40,6 +41,7 @@ describe('httpClient', () => {
       status: 429,
       code: 'quota_reached',
       fields: { limit: '20' },
+      retryAfter: '60',
     })
   })
 

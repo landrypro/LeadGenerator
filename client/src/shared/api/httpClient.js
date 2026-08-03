@@ -1,10 +1,11 @@
 export class ApiError extends Error {
-  constructor(message, status = 0, code = '', fields = {}) {
+  constructor(message, status = 0, code = '', fields = {}, retryAfter = '') {
     super(message)
     this.name = 'ApiError'
     this.status = status
     this.code = code
     this.fields = fields
+    this.retryAfter = retryAfter
   }
 }
 
@@ -47,7 +48,8 @@ export async function request(path, { responseType = 'json', fallbackMessage = '
   if (!response.ok) {
     if (response.status === 401 && unauthorizedHandler) unauthorizedHandler()
     const error = await readError(response, fallbackMessage)
-    throw new ApiError(error.message, response.status, error.code, error.fields)
+    const retryAfter = response.headers?.get?.('Retry-After') || ''
+    throw new ApiError(error.message, response.status, error.code, error.fields, retryAfter)
   }
   if (responseType === 'blob') return response.blob()
   if (response.status === 204) return null

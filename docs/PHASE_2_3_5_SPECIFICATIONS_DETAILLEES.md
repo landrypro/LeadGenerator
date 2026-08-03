@@ -4,10 +4,10 @@
 | --- | --- |
 | Produit | Prospect CRM |
 | Incrément | 2.3.5 — Interface d’administration et verrou qualité |
-| Version | 1.2 |
+| Version | 1.3 |
 | Date | 3 août 2026 |
-| Statut | Spécification validée ; 2.3.5-A validé ; 2.3.5-B implémenté, validation produit locale attendue |
-| Validation produit | 2 août 2026 — seize décisions ; 3 août 2026 — acceptation de 2.3.5-A |
+| Statut | Spécification validée ; 2.3.5-A/B validés ; 2.3.5-C implémenté, validation produit locale attendue |
+| Validation produit | 2 août 2026 — seize décisions ; 3 août 2026 — acceptation de 2.3.5-A et 2.3.5-B |
 | Prérequis | 2.3.4 implémenté et validé localement par le responsable produit |
 | Migration SQL | Aucune nouvelle révision prévue |
 | Marché initial | Canada |
@@ -572,10 +572,9 @@ protocole d’acceptation figurent dans
 - page Organisation lecture/modification ;
 - tests de rotation, conflits et réponses tardives.
 
-État au 3 août 2026 : lot implémenté et matrice automatisée verte. Le détail des protections, les revues et le
-protocole d’acceptation locale figurent dans
-[`PHASE_2_3_5_B_RAPPORT_IMPLEMENTATION.md`](PHASE_2_3_5_B_RAPPORT_IMPLEMENTATION.md). La validation produit locale
-reste nécessaire avant de déclarer B terminé.
+État au 3 août 2026 : lot implémenté, matrice automatisée verte et parcours local accepté par le responsable produit.
+Le détail des protections, les revues et le protocole d’acceptation locale figurent dans
+[`PHASE_2_3_5_B_RAPPORT_IMPLEMENTATION.md`](PHASE_2_3_5_B_RAPPORT_IMPLEMENTATION.md).
 
 ### 2.3.5-C — Membres et invitations
 
@@ -584,6 +583,11 @@ reste nécessaire avant de déclarer B terminé.
 - édition versionnée ;
 - invitations idempotentes, renvoi et révocation ;
 - tests de rôles, dernier Admin et auto-invalidation.
+
+État au 3 août 2026 : lot implémenté et matrice automatisée verte. Les contrats consommés, les preuves, les revues et
+le protocole d’acceptation figurent dans
+[`PHASE_2_3_5_C_RAPPORT_IMPLEMENTATION.md`](PHASE_2_3_5_C_RAPPORT_IMPLEMENTATION.md). La validation produit locale
+reste nécessaire avant de déclarer C terminé.
 
 ### 2.3.5-D — Plateforme
 
@@ -737,6 +741,7 @@ l’incrément 2.3.5 ; toute dérogation doit être documentée et validée avan
 - [`PHASE_2_3_4_RAPPORT_IMPLEMENTATION.md`](PHASE_2_3_4_RAPPORT_IMPLEMENTATION.md)
 - [`PHASE_2_3_5_A_RAPPORT_IMPLEMENTATION.md`](PHASE_2_3_5_A_RAPPORT_IMPLEMENTATION.md)
 - [`PHASE_2_3_5_B_RAPPORT_IMPLEMENTATION.md`](PHASE_2_3_5_B_RAPPORT_IMPLEMENTATION.md)
+- [`PHASE_2_3_5_C_RAPPORT_IMPLEMENTATION.md`](PHASE_2_3_5_C_RAPPORT_IMPLEMENTATION.md)
 - [`PHASE_2_3_3_SPECIFICATIONS_DETAILLEES.md`](PHASE_2_3_3_SPECIFICATIONS_DETAILLEES.md)
 - [`PHASE_2_3_3_RAPPORT_IMPLEMENTATION.md`](PHASE_2_3_3_RAPPORT_IMPLEMENTATION.md)
 - [`PHASE_2_SPECIFICATIONS_DETAILLEES.md`](PHASE_2_SPECIFICATIONS_DETAILLEES.md)

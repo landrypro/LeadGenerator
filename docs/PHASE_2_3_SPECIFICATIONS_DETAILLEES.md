@@ -4,10 +4,10 @@
 | --- | --- |
 | Produit | Prospect CRM |
 | Incrément | 2.3 — Organisations, rôles et isolation |
-| Version | 1.9 |
+| Version | 2.0 |
 | Date | 3 août 2026 |
-| Statut | Spécification générale validée ; 2.3.5-A validé ; 2.3.5-B implémenté, validation produit locale attendue |
-| Validation produit | 2 août 2026 pour 2.3.3/2.3.4 et les seize décisions de 2.3.5 ; 3 août 2026 pour 2.3.5-A |
+| Statut | Spécification générale validée ; 2.3.5-A/B validés ; 2.3.5-C implémenté, validation produit locale attendue |
+| Validation produit | 2 août 2026 pour 2.3.3/2.3.4 et les seize décisions ; 3 août 2026 pour 2.3.5-A/B |
 | Prérequis | Incréments 2.1 et 2.2 validés localement |
 | Marché initial | Canada |
 
@@ -686,9 +686,9 @@ La spécification détaillée et ses seize décisions validées le 2 août 2026 
 garder la migration, Ruff, mypy, pytest, ESLint, Vitest et le build verts. Aucun sous-incrément ne peut affaiblir
 temporairement la protection des routes Google.
 
-État au 3 août 2026 : 2.3.5-A est accepté par le responsable produit. 2.3.5-B est implémenté et contrôlé ; son
-parcours multi-organisation et sa page Organisation attendent la validation produit locale. Les preuves figurent dans
-[`PHASE_2_3_5_B_RAPPORT_IMPLEMENTATION.md`](PHASE_2_3_5_B_RAPPORT_IMPLEMENTATION.md).
+État au 3 août 2026 : 2.3.5-A et B sont acceptés par le responsable produit. 2.3.5-C est implémenté et contrôlé ; ses
+parcours Membres et Invitations attendent la validation produit locale. Les preuves figurent dans
+[`PHASE_2_3_5_C_RAPPORT_IMPLEMENTATION.md`](PHASE_2_3_5_C_RAPPORT_IMPLEMENTATION.md).
 
 ## 20. Double critique préalable de la spécification
 
@@ -745,6 +745,7 @@ Ces seize décisions ont été validées par le responsable produit le 23 juille
 - [`PHASE_2_3_5_SPECIFICATIONS_DETAILLEES.md`](PHASE_2_3_5_SPECIFICATIONS_DETAILLEES.md)
 - [`PHASE_2_3_5_A_RAPPORT_IMPLEMENTATION.md`](PHASE_2_3_5_A_RAPPORT_IMPLEMENTATION.md)
 - [`PHASE_2_3_5_B_RAPPORT_IMPLEMENTATION.md`](PHASE_2_3_5_B_RAPPORT_IMPLEMENTATION.md)
+- [`PHASE_2_3_5_C_RAPPORT_IMPLEMENTATION.md`](PHASE_2_3_5_C_RAPPORT_IMPLEMENTATION.md)
 - [PostgreSQL 17 — Row Security Policies](https://www.postgresql.org/docs/17/ddl-rowsecurity.html)
 - [PostgreSQL 17 — `set_config` et `current_setting`](https://www.postgresql.org/docs/17/functions-admin.html)
 - [PostgreSQL — écriture sûre des fonctions `SECURITY DEFINER`](https://www.postgresql.org/docs/current/sql-createfunction.html)

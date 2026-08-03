@@ -19,13 +19,14 @@ describe('routes CRM', () => {
     })
   })
 
-  it('n’active que les pages terminées jusqu’au lot B', () => {
+  it('n’active que les pages terminées jusqu’au lot C', () => {
     expect(routes.map((route) => route.path)).toEqual([
       '/app/search',
       '/app/admin/organization',
+      '/app/admin/users',
       '/app/account',
     ])
-    expect(findRoute('/app/admin/users')).toBeNull()
+    expect(findRoute('/app/platform/organizations')).toBeNull()
   })
 
   it('filtre les routes selon l’organisation active et les capacités', () => {
@@ -34,11 +35,12 @@ describe('routes CRM', () => {
 
     const tenant = session({
       activeOrganization: { id: 'org-1', name: 'Entreprise' },
-      capabilities: ['google:search', 'organization:read'],
+      capabilities: ['google:search', 'organization:read', 'members:read'],
     })
     expect(navigationRoutes(tenant).map((route) => route.id)).toEqual([
       'google-place-search',
       'organization',
+      'members',
       'account',
     ])
     expect(canAccessRoute(findRoute('/app/search'), tenant)).toBe(true)

@@ -1,6 +1,7 @@
 import { AccountPage } from '../features/account/AccountPage'
 import { PlaceSearchPage } from '../features/lead-search/LeadGeneratorPage'
 import { OrganizationPage } from '../features/organizations/OrganizationPage'
+import { MembersPage } from '../features/organizations/MembersPage'
 
 
 export const CRM_PATHS = Object.freeze({
@@ -35,6 +36,15 @@ export const routes = Object.freeze([
     requiredCapability: 'organization:read',
     requiresActiveOrganization: true,
     Component: OrganizationPage,
+  }),
+  Object.freeze({
+    id: 'members',
+    path: CRM_PATHS.users,
+    label: 'Membres',
+    title: 'Membres et invitations',
+    requiredCapability: 'members:read',
+    requiresActiveOrganization: true,
+    Component: MembersPage,
   }),
   Object.freeze({
     id: 'account',
