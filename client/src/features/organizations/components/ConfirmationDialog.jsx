@@ -4,6 +4,7 @@ import { useEffect, useRef } from 'react'
 export function ConfirmationDialog({ busy = false, children, confirmLabel, onCancel, onConfirm, title }) {
   const cancelRef = useRef(null)
   const confirmRef = useRef(null)
+  const dialogRef = useRef(null)
   const returnFocusRef = useRef(null)
 
   useEffect(() => {
@@ -12,9 +13,18 @@ export function ConfirmationDialog({ busy = false, children, confirmLabel, onCan
     return () => returnFocusRef.current?.focus?.()
   }, [])
 
+  useEffect(() => {
+    if (busy) dialogRef.current?.focus()
+  }, [busy])
+
   function handleKeyDown(event) {
     if (event.key === 'Escape' && !busy) onCancel()
     if (event.key !== 'Tab') return
+    if (busy) {
+      event.preventDefault()
+      dialogRef.current?.focus()
+      return
+    }
     if (event.shiftKey && document.activeElement === cancelRef.current) {
       event.preventDefault()
       confirmRef.current?.focus()
@@ -26,11 +36,13 @@ export function ConfirmationDialog({ busy = false, children, confirmLabel, onCan
 
   return <div className="confirmation-overlay" role="presentation">
     <section
+      ref={dialogRef}
       className="confirmation-dialog"
       role="alertdialog"
       aria-modal="true"
       aria-labelledby="confirmation-title"
       aria-describedby="confirmation-description"
+      tabIndex="-1"
       onKeyDown={handleKeyDown}
     >
       <h2 id="confirmation-title">{title}</h2>

@@ -17,6 +17,10 @@ vi.mock('../features/organizations/MembersPage', () => ({
   MembersPage: () => <main><h1>Administration des membres</h1></main>,
 }))
 
+vi.mock('../features/platform/PlatformOrganizationsPage', () => ({
+  PlatformOrganizationsPage: () => <main><h1>Organisations de la plateforme</h1></main>,
+}))
+
 
 describe('AppRouter', () => {
   it('redirige une visite anonyme vers la route de connexion', async () => {
@@ -59,7 +63,7 @@ describe('AppRouter', () => {
     expect(screen.queryByText('Recherche d’établissements')).not.toBeInTheDocument()
   })
 
-  it('donne accès au compte à un administrateur plateforme sans organisation jusqu’au lot D', async () => {
+  it('dirige un administrateur plateforme sans organisation vers la plateforme', async () => {
     window.history.replaceState({}, '', '/')
     renderRouter(authenticatedSession({
       activeOrganization: null,
@@ -67,9 +71,17 @@ describe('AppRouter', () => {
       platformRole: 'platform_admin',
     }))
 
-    expect(await screen.findByRole('heading', { name: 'Mon compte' })).toBeInTheDocument()
-    expect(window.location.pathname).toBe('/app/account')
+    expect(await screen.findByRole('heading', { name: 'Organisations de la plateforme' })).toBeInTheDocument()
+    expect(window.location.pathname).toBe('/app/platform/organizations')
     expect(screen.queryByText('Recherche d’établissements')).not.toBeInTheDocument()
+  })
+
+  it('ouvre la plateforme uniquement avec sa capacité de lecture', () => {
+    window.history.replaceState({}, '', '/app/platform/organizations')
+    renderRouter(authenticatedSession({ activeOrganization: null, capabilities: ['platform:organizations:read'], platformRole: 'platform_admin' }))
+
+    expect(screen.getByRole('heading', { name: 'Organisations de la plateforme' })).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: 'Plateforme' })).toHaveAttribute('aria-current', 'page')
   })
 
   it('affiche un refus contrôlé sans la capacité google:search', () => {

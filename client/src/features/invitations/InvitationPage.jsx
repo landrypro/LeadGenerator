@@ -3,6 +3,7 @@ import { useEffect, useRef, useState } from 'react'
 import { Building2 } from '../../icons'
 import { navigate } from '../../app/navigation'
 import { CRM_PATHS } from '../../app/routes'
+import { ErrorBanner } from '../../shared/ui/Feedback'
 import { invitationApi } from './api/invitationApi'
 
 
@@ -130,7 +131,7 @@ function InvitationFlow({ preview, auth, tokenRef, onAccepted }) {
       <span>Rôle proposé : {roleLabel(preview.role)}</span>
       <small>Valide jusqu’au {new Date(preview.expires_at).toLocaleString('fr-CA')}</small>
     </div>
-    {error && <div className="error-banner" role="alert"><span>{error}</span></div>}
+    {error && <ErrorBanner><span>{error}</span></ErrorBanner>}
     {!preview.existing_account && session && <SessionConflict onLogout={auth.logout} />}
     {!preview.existing_account && !session && <form onSubmit={createAccount}>
       <p className="invitation-copy">Créez votre compte pour rejoindre l’organisation.</p>

@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 
 import { Building2, Check, LoaderCircle } from '../../icons'
 import { toUserMessage } from '../../shared/api/errors'
+import { ErrorBanner } from '../../shared/ui/Feedback'
 import { organizationApi } from './api/organizationApi'
 import { useOrganization } from './hooks/useOrganization'
 
@@ -149,8 +150,8 @@ export function OrganizationPage({ session, onOrganizationUpdated }) {
       <p>Consultez les informations de l’organisation active{canUpdate ? ' et mettez-les à jour.' : '.'}</p>
     </header>
 
-    {loadError && <div className="error-banner" role="alert"><span>{loadError}</span></div>}
-    {mutationError && <div className="error-banner" role="alert"><span>{mutationError}</span></div>}
+    {loadError && <ErrorBanner><span>{loadError}</span></ErrorBanner>}
+    {mutationError && <ErrorBanner><span>{mutationError}</span></ErrorBanner>}
     {success && <div className="success-banner" role="status"><Check size={18} /><span>{success}</span></div>}
     {conflictVersion && <section className="conflict-banner" role="alert" aria-labelledby="organization-conflict-title">
       <h2 id="organization-conflict-title">Une version plus récente existe</h2>

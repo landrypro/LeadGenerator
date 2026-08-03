@@ -4,6 +4,7 @@ import { UsersRound } from '../../icons'
 import { navigate } from '../../app/navigation'
 import { CRM_PATHS } from '../../app/routes'
 import { toUserMessage } from '../../shared/api/errors'
+import { ErrorBanner } from '../../shared/ui/Feedback'
 import { organizationApi } from './api/organizationApi'
 import { InvitationPanel } from './components/InvitationPanel'
 import { MemberEditor, ROLE_LABELS } from './components/MemberEditor'
@@ -41,6 +42,18 @@ export function MembersPage({ createId, onSessionInvalidated, session }) {
   useEffect(() => {
     if (!canReadInvitations && tab === 'invitations') setTab('members')
   }, [canReadInvitations, tab])
+
+  function navigateTabs(event) {
+    const keys = { ArrowLeft: -1, ArrowRight: 1 }
+    if (!(event.key in keys) && event.key !== 'Home' && event.key !== 'End') return
+    event.preventDefault()
+    const tabs = Array.from(event.currentTarget.querySelectorAll('[role="tab"]'))
+    const currentIndex = tabs.indexOf(document.activeElement)
+    const nextIndex = event.key === 'Home' ? 0 : event.key === 'End'
+      ? tabs.length - 1 : (currentIndex + keys[event.key] + tabs.length) % tabs.length
+    tabs[nextIndex]?.focus()
+    tabs[nextIndex]?.click()
+  }
 
   function selectMember(member) {
     setSelectedMemberId(member.membership_id)
@@ -107,12 +120,12 @@ export function MembersPage({ createId, onSessionInvalidated, session }) {
       </div>
     </header>
 
-    {canReadInvitations && <div className="administration-tabs" role="tablist" aria-label="Administration des accès">
-      <button role="tab" aria-selected={tab === 'members'} type="button" onClick={() => setTab('members')}>Membres</button>
-      <button role="tab" aria-selected={tab === 'invitations'} type="button" onClick={() => setTab('invitations')}>Invitations</button>
+    {canReadInvitations && <div className="administration-tabs" role="tablist" aria-label="Administration des accès" onKeyDown={navigateTabs}>
+      <button id="members-tab" role="tab" aria-controls="members-panel" aria-selected={tab === 'members'} tabIndex={tab === 'members' ? 0 : -1} type="button" onClick={() => setTab('members')}>Membres</button>
+      <button id="invitations-tab" role="tab" aria-controls="invitations-panel" aria-selected={tab === 'invitations'} tabIndex={tab === 'invitations' ? 0 : -1} type="button" onClick={() => setTab('invitations')}>Invitations</button>
     </div>}
 
-    <div role="tabpanel" aria-label="Membres" hidden={tab !== 'members'}>
+    <div id="members-panel" role="tabpanel" aria-labelledby={canReadInvitations ? 'members-tab' : undefined} aria-label={canReadInvitations ? undefined : 'Membres'} hidden={tab !== 'members'}>
       {success && <div className="success-banner" role="status"><span>{success}</span></div>}
       {selectedMember && canManageMembers && <MemberEditor
         member={selectedMember}
@@ -126,7 +139,7 @@ export function MembersPage({ createId, onSessionInvalidated, session }) {
       <MemberList members={members} canManage={canManageMembers} onSelect={selectMember} />
     </div>
 
-    {canReadInvitations && <div role="tabpanel" aria-label="Invitations" hidden={tab !== 'invitations'}>
+    {canReadInvitations && <div id="invitations-panel" role="tabpanel" aria-labelledby="invitations-tab" hidden={tab !== 'invitations'}>
       <InvitationPanel canManage={canManageInvitations} createId={createId} invitations={invitations} />
     </div>}
   </main>
@@ -140,7 +153,7 @@ function MemberList({ canManage, members, onSelect }) {
       <div><h2 id="member-list-title">Membres de l’organisation</h2><p>{members.items.length} membre{members.items.length > 1 ? 's' : ''} chargé{members.items.length > 1 ? 's' : ''}</p></div>
       <button className="text-button" type="button" onClick={members.refresh} disabled={members.refreshing}>Actualiser</button>
     </div>
-    {members.error && <div className="error-banner compact" role="alert"><span>{members.error}</span></div>}
+    {members.error && <ErrorBanner compact><span>{members.error}</span></ErrorBanner>}
     {!members.items.length ? <p className="administration-empty">Aucun membre accessible.</p> : <ul className="member-list">
       {members.items.map((member) => <li key={member.membership_id}>
         <div className="member-identity">

@@ -19,7 +19,7 @@ export function ResultsCard({ places, result, loading }) {
     </div>
 
     <div className="table-tools">
-      <div className="table-search"><Search size={16} /><input value={filter} onChange={(event) => setFilter(event.target.value)} placeholder="Filtrer par nom, ville ou activité…" />{filter && <button onClick={() => setFilter('')} aria-label="Effacer le filtre"><X size={15} /></button>}</div>
+      <div className="table-search"><Search size={16} /><label className="sr-only" htmlFor="places-filter">Filtrer les établissements</label><input id="places-filter" value={filter} onChange={(event) => setFilter(event.target.value)} placeholder="Filtrer par nom, ville ou activité…" />{filter && <button onClick={() => setFilter('')} aria-label="Effacer le filtre"><X size={15} /></button>}</div>
       <span className="visible-count">{visiblePlaces.length} affiché{visiblePlaces.length > 1 ? 's' : ''}</span>
     </div>
 

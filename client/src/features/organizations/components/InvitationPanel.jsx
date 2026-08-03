@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 
 import { createRequestId } from '../../../shared/ids/requestId'
 import { toUserMessage } from '../../../shared/api/errors'
+import { ErrorBanner } from '../../../shared/ui/Feedback'
 import { organizationApi } from '../api/organizationApi'
 import { ConfirmationDialog } from './ConfirmationDialog'
 import { ROLE_LABELS } from './MemberEditor'
@@ -142,7 +143,7 @@ export function InvitationPanel({ canManage = true, createId = createRequestId, 
       </form>
     </section>}
 
-    {error && <div className="error-banner" role="alert"><span>{error}</span></div>}
+    {error && <ErrorBanner><span>{error}</span></ErrorBanner>}
     {success && <div className="success-banner" role="status"><span>{success}</span></div>}
 
     <InvitationList
@@ -173,7 +174,7 @@ function InvitationList({ busyInvitationIds, canManage, invitations, onResend, o
       <div><h2 id="invitation-list-title">Invitations actionnables</h2><p>Cette liste ne constitue pas un historique complet.</p></div>
       <button className="text-button" type="button" onClick={invitations.refresh} disabled={invitations.refreshing}>Actualiser</button>
     </div>
-    {invitations.error && <div className="error-banner compact" role="alert"><span>{invitations.error}</span></div>}
+    {invitations.error && <ErrorBanner compact><span>{invitations.error}</span></ErrorBanner>}
     {!invitations.items.length ? <p className="administration-empty">Aucune invitation en attente ou expirée.</p> : <ul className="invitation-list">
       {invitations.items.map((invitation) => <li key={invitation.id}>
         <div className="invitation-identity">

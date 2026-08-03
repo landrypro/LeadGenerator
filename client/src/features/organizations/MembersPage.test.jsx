@@ -141,6 +141,24 @@ describe('MembersPage', () => {
     expect(useInvitations).toHaveBeenCalledWith(true)
   })
 
+  it('navigue entre les onglets au clavier avec un seul tab actif', () => {
+    render(<MembersPage session={session(['members:read', 'invitations:read'])} />)
+    const tabList = screen.getByRole('tablist', { name: 'Administration des accès' })
+    const membersTab = screen.getByRole('tab', { name: 'Membres' })
+    const invitationsTab = screen.getByRole('tab', { name: 'Invitations' })
+    membersTab.focus()
+
+    fireEvent.keyDown(tabList, { key: 'ArrowRight' })
+    expect(invitationsTab).toHaveFocus()
+    expect(invitationsTab).toHaveAttribute('aria-selected', 'true')
+    expect(membersTab).toHaveAttribute('tabindex', '-1')
+    expect(screen.getByRole('tabpanel', { name: 'Invitations' })).toBeVisible()
+
+    fireEvent.keyDown(tabList, { key: 'Home' })
+    expect(membersTab).toHaveFocus()
+    expect(membersTab).toHaveAttribute('tabindex', '0')
+  })
+
   it('conserve une intention ambiguë pendant un simple changement d’onglet', async () => {
     organizationApi.createInvitation
       .mockRejectedValueOnce(new ApiError('Incertain.', 503, 'invitation_outcome_unknown'))

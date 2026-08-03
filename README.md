@@ -207,7 +207,9 @@ Variables d’identité principales :
 
 ### Tester le provisioning local
 
-La page d’administration plateforme arrivera en 2.3.5. En attendant, le script passe par les vraies routes, le cookie et le CSRF, sans accès direct à la base et sans afficher le jeton :
+La page d’administration plateforme est disponible à `/app/platform/organizations`. Le script reste utile pour les
+tests HTTP automatisables : il passe par les vraies routes, le cookie et le CSRF, sans accès direct à la base et sans
+afficher le jeton :
 
 ```powershell
 .\scripts\Test-ProvisioningLocal.ps1 `
@@ -220,8 +222,8 @@ Le mot de passe plateforme est demandé de façon interactive. Relevez le `Creat
 
 ### Tester les membres et le changement d’organisation
 
-Jusqu’aux écrans d’administration de 2.3.5, le script 2.3.3 appelle exclusivement les vraies routes HTTP. Sans option,
-il affiche l’organisation active, les membres autorisés et les invitations visibles :
+Les écrans sont disponibles à `/app/admin/organization` et `/app/admin/users`. Le script 2.3.3 appelle exclusivement
+les vraies routes HTTP. Sans option, il affiche l’organisation active, les membres autorisés et les invitations visibles :
 
 ```powershell
 .\scripts\Test-OrganizationAdministrationLocal.ps1 `
@@ -392,8 +394,8 @@ Les registres de verrou et de jetons restent en mémoire pour cette phase. Ils d
 Backend :
 
 ```powershell
-.\.venv\Scripts\python.exe -m ruff check backend/app tests
-.\.venv\Scripts\python.exe -m ruff format --check backend/app tests
+.\.venv\Scripts\python.exe -m ruff check backend/app tests scripts/quality_gate.py
+.\.venv\Scripts\python.exe -m ruff format --check backend/app tests scripts/quality_gate.py
 .\.venv\Scripts\python.exe -m mypy
 .\.venv\Scripts\python.exe -m alembic -c backend\alembic.ini check
 .\.venv\Scripts\python.exe -m pytest -q
@@ -404,15 +406,24 @@ Frontend :
 ```powershell
 cd client
 npm run lint
-npm test
+npm audit --audit-level=high
+npm run test:ci
 npm run build
 ```
 
-Le passage 2.3.4 valide 115 tests backend hors intégration et 17 tests d’API Google avec fournisseurs simulés, soit
-132 scénarios réussis. Les 17 scénarios exigeant PostgreSQL, Redis et Mailpit réels restent à rejouer lorsque Docker
-est disponible. Le frontend valide 28 tests React répartis dans 9 fichiers. Ruff, mypy, ESLint et le build Vite sont
-verts. La suite protège notamment les anciennes garanties Google, les capacités, le verrou locataire, le vol de
-concession, l’échec Maps terminal et l’absence de stockage navigateur.
+Le passage complet et isolé se lance, après arrêt des serveurs Vite locaux, avec :
+
+```powershell
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\scripts\Test-QualityGateLocal.ps1
+```
+
+Le passage hors infrastructure valide 136 tests backend et en ignore 17 qui exigent PostgreSQL, Redis et Mailpit
+réels. Le frontend valide 126 tests dans 29 fichiers, dont vingt états axe, sans test ignoré. Ruff, mypy, ESLint,
+l’audit npm, Vitest et le build Vite sont verts. Le Go final exige encore le script ci-dessus avec
+`REQUIRE_INFRASTRUCTURE_TESTS=true`, un passage Azure vert et la matrice manuelle. Le détail se trouve dans
+[`docs/PHASE_2_3_5_E_RAPPORT_IMPLEMENTATION.md`](docs/PHASE_2_3_5_E_RAPPORT_IMPLEMENTATION.md). Le protocole complet
+destiné à un testeur fonctionnel QA est disponible dans
+[`docs/CAHIER_RECETTE_FONCTIONNELLE_QA.md`](docs/CAHIER_RECETTE_FONCTIONNELLE_QA.md).
 
 ## Suite de la migration CRM V1
 
@@ -423,8 +434,11 @@ contrat et les preuves de 2.3.4 se trouvent dans
 [`docs/PHASE_2_3_4_SPECIFICATIONS_DETAILLEES.md`](docs/PHASE_2_3_4_SPECIFICATIONS_DETAILLEES.md) et
 [`docs/PHASE_2_3_4_RAPPORT_IMPLEMENTATION.md`](docs/PHASE_2_3_4_RAPPORT_IMPLEMENTATION.md).
 Les seize décisions de 2.3.5 ont été validées le 2 août 2026. Les lots 2.3.5-A — Routage et shell et
-2.3.5-B — Organisation active ont été validés localement le 3 août 2026. Le lot 2.3.5-C — Membres et invitations est
-implémenté et attend sa validation produit locale.
+2.3.5-B — Organisation active, 2.3.5-C — Membres et invitations et 2.3.5-D — Plateforme ont été validés localement
+le 3 août 2026. Le verrou qualité transversal 2.3.5-E est implémenté ; sa validation finale Docker, Azure et manuelle
+reste obligatoire avant 2.4. Ses seize décisions et le rapport courant se trouvent dans
+[`docs/PHASE_2_3_5_E_SPECIFICATIONS_DETAILLEES.md`](docs/PHASE_2_3_5_E_SPECIFICATIONS_DETAILLEES.md) et
+[`docs/PHASE_2_3_5_E_RAPPORT_IMPLEMENTATION.md`](docs/PHASE_2_3_5_E_RAPPORT_IMPLEMENTATION.md).
 Le contrat et les preuves se trouvent dans
 [`docs/PHASE_2_3_5_SPECIFICATIONS_DETAILLEES.md`](docs/PHASE_2_3_5_SPECIFICATIONS_DETAILLEES.md) et
 les rapports
@@ -436,8 +450,11 @@ il conserve l’ancien contexte si la rotation échoue. La page Organisation est
 et strictement en lecture seule sinon. Membres et invitations est disponible à `/app/admin/users` avec
 `members:read`. Un Gestionnaire consulte les membres sans action ; un Administrateur peut modifier les appartenances,
 inviter, renvoyer et révoquer selon ses capacités. Les mutations sensibles exigent une confirmation et les intentions
-idempotentes restent uniquement en mémoire. La page Plateforme reste invisible jusqu’au lot D. Le rapport C est dans
-[`docs/PHASE_2_3_5_C_RAPPORT_IMPLEMENTATION.md`](docs/PHASE_2_3_5_C_RAPPORT_IMPLEMENTATION.md).
+idempotentes restent uniquement en mémoire. La page Plateforme est disponible à `/app/platform/organizations` avec
+`platform:organizations:read`; création et actions exigent `platform:organizations:create`. Elle ne donne aucun accès
+implicite aux données locataires. Les rapports C et D sont dans
+[`docs/PHASE_2_3_5_C_RAPPORT_IMPLEMENTATION.md`](docs/PHASE_2_3_5_C_RAPPORT_IMPLEMENTATION.md) et
+[`docs/PHASE_2_3_5_D_RAPPORT_IMPLEMENTATION.md`](docs/PHASE_2_3_5_D_RAPPORT_IMPLEMENTATION.md).
 
 ## Références
 

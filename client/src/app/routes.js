@@ -2,6 +2,7 @@ import { AccountPage } from '../features/account/AccountPage'
 import { PlaceSearchPage } from '../features/lead-search/LeadGeneratorPage'
 import { OrganizationPage } from '../features/organizations/OrganizationPage'
 import { MembersPage } from '../features/organizations/MembersPage'
+import { PlatformOrganizationsPage } from '../features/platform/PlatformOrganizationsPage'
 
 
 export const CRM_PATHS = Object.freeze({
@@ -15,9 +16,8 @@ export const CRM_PATHS = Object.freeze({
   platformOrganizations: '/app/platform/organizations',
 })
 
-// Seules les pages terminées sont enregistrées. Les chemins des incréments
-// suivants restent réservés dans CRM_PATHS, mais ne sont ni routables ni
-// affichés avant que leurs écrans et leurs tests soient livrés.
+// Seules les pages terminées sont enregistrées. Les chemins réservés ne sont
+// rendus routables qu’avec leurs écrans, leurs capacités et leurs tests.
 export const routes = Object.freeze([
   Object.freeze({
     id: 'google-place-search',
@@ -45,6 +45,15 @@ export const routes = Object.freeze([
     requiredCapability: 'members:read',
     requiresActiveOrganization: true,
     Component: MembersPage,
+  }),
+  Object.freeze({
+    id: 'platform-organizations',
+    path: CRM_PATHS.platformOrganizations,
+    label: 'Plateforme',
+    title: 'Organisations de la plateforme',
+    requiredCapability: 'platform:organizations:read',
+    requiresActiveOrganization: false,
+    Component: PlatformOrganizationsPage,
   }),
   Object.freeze({
     id: 'account',
@@ -82,6 +91,9 @@ export function landingPath(session) {
   }
   if (session.active_organization && session.capabilities.includes('organization:read')) {
     return CRM_PATHS.organization
+  }
+  if (session.capabilities.includes('platform:organizations:read')) {
+    return CRM_PATHS.platformOrganizations
   }
   return CRM_PATHS.account
 }

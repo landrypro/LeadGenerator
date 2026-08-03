@@ -19,14 +19,15 @@ describe('routes CRM', () => {
     })
   })
 
-  it('n’active que les pages terminées jusqu’au lot C', () => {
+  it('active les pages terminées jusqu’au lot D', () => {
     expect(routes.map((route) => route.path)).toEqual([
       '/app/search',
       '/app/admin/organization',
       '/app/admin/users',
+      '/app/platform/organizations',
       '/app/account',
     ])
-    expect(findRoute('/app/platform/organizations')).toBeNull()
+    expect(findRoute('/app/platform/organizations')?.requiredCapability).toBe('platform:organizations:read')
   })
 
   it('filtre les routes selon l’organisation active et les capacités', () => {
@@ -50,6 +51,10 @@ describe('routes CRM', () => {
     expect(landingPath(null)).toBe('/login')
     expect(landingPath(session({ activeOrganization: null }))).toBe('/app/account')
     expect(landingPath(session({
+      activeOrganization: null,
+      capabilities: ['platform:organizations:read'],
+    }))).toBe('/app/platform/organizations')
+    expect(landingPath(session({
       activeOrganization: { id: 'org-1', name: 'Entreprise' },
       capabilities: ['organization:read'],
     }))).toBe('/app/admin/organization')
@@ -57,6 +62,10 @@ describe('routes CRM', () => {
       activeOrganization: { id: 'org-1', name: 'Entreprise' },
       capabilities: ['google:search'],
     }))).toBe('/app/search')
+    expect(landingPath(session({
+      activeOrganization: { id: 'org-1', name: 'Entreprise' },
+      capabilities: ['organization:read', 'platform:organizations:read'],
+    }))).toBe('/app/admin/organization')
   })
 })
 

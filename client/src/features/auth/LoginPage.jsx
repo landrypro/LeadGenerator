@@ -1,6 +1,7 @@
 import { useState } from 'react'
 
 import { Building2 } from '../../icons'
+import { ErrorBanner } from '../../shared/ui/Feedback'
 
 
 export function LoginPage({ onLogin }) {
@@ -28,7 +29,7 @@ export function LoginPage({ onLogin }) {
       <p className="eyebrow">Prospect CRM</p>
       <h1 id="login-title">Connexion</h1>
       <p className="login-intro">Accédez à votre espace sécurisé de gestion des prospects.</p>
-      {error && <div className="error-banner" role="alert"><span>{error}</span></div>}
+      {error && <ErrorBanner><span>{error}</span></ErrorBanner>}
       <form onSubmit={submit}>
         <label className="login-field" htmlFor="login-email">
           <span>Adresse courriel</span>

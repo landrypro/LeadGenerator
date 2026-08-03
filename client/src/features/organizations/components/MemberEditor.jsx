@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 
+import { ErrorBanner } from '../../../shared/ui/Feedback'
 import { ConfirmationDialog } from './ConfirmationDialog'
 
 
@@ -44,7 +45,7 @@ export function MemberEditor({ busy, conflictVersion, error, member, onCancel, o
       <button className="text-button" type="button" onClick={onCancel} disabled={busy}>Fermer</button>
     </div>
 
-    {error && <div className="error-banner compact" role="alert"><span>{error}</span></div>}
+    {error && <ErrorBanner compact><span>{error}</span></ErrorBanner>}
     {conflictVersion && <div className="conflict-banner" role="alert">
       <h3>Une version plus récente existe</h3>
       <p>Votre saisie n’a pas été appliquée. Version chargée : {member.version}. Version actuelle : {conflictVersion}.</p>

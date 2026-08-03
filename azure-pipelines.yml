@@ -27,10 +27,10 @@ steps:
       pip install -r backend/requirements-dev.txt
     displayName: Installer les dépendances Python
 
-  - script: python -m ruff check backend/app tests
+  - script: python -m ruff check backend/app tests scripts/quality_gate.py
     displayName: Vérifier le lint Python avec Ruff
 
-  - script: python -m ruff format --check backend/app tests
+  - script: python -m ruff format --check backend/app tests scripts/quality_gate.py
     displayName: Vérifier le formatage Python avec Ruff
 
   - script: python -m mypy
@@ -69,6 +69,9 @@ steps:
       TEST_MAILPIT_SMTP_PORT: $(testMailpitSmtpPort)
       REQUIRE_INFRASTRUCTURE_TESTS: 'true'
 
+  - script: python scripts/quality_gate.py junit-no-skips test-results/pytest.xml
+    displayName: Refuser tout test Python ignoré
+
   - task: PublishTestResults@2
     condition: succeededOrFailed()
     inputs:
@@ -93,9 +96,16 @@ steps:
     workingDirectory: client
     displayName: Vérifier le frontend avec ESLint
 
+  - script: npm audit --audit-level=high
+    workingDirectory: client
+    displayName: Vérifier les vulnérabilités npm élevées
+
   - script: npm run test:ci
     workingDirectory: client
     displayName: Exécuter les tests frontend
+
+  - script: python scripts/quality_gate.py junit-no-skips test-results/vitest.xml
+    displayName: Refuser tout test frontend ignoré
 
   - task: PublishTestResults@2
     condition: succeededOrFailed()
@@ -108,6 +118,15 @@ steps:
     workingDirectory: client
     displayName: Compiler l’interface React
 
+  - script: python scripts/quality_gate.py browser-sources client/src
+    displayName: Vérifier la confidentialité du navigateur
+
+  - script: python scripts/quality_gate.py artifact client/dist
+    displayName: Vérifier l’artefact Vite
+
+  - script: git diff --check
+    displayName: Vérifier les espaces et conflits de diff
+
   - task: CopyFiles@2
     inputs:
       SourceFolder: $(Build.SourcesDirectory)
@@ -118,8 +137,19 @@ steps:
         scripts/**
         README.md
         .env.example
+        !**/__pycache__/**
+        !**/*.pyc
+        !**/*.pyo
+        !**/.pytest_cache/**
+        !**/.mypy_cache/**
+        !**/.ruff_cache/**
+        !**/node_modules/**
+        !**/test-results/**
       TargetFolder: $(Build.ArtifactStagingDirectory)/GoogleMapsLeadGenerator
     displayName: Préparer l’artefact Web
+
+  - script: python scripts/quality_gate.py artifact "$(Build.ArtifactStagingDirectory)/GoogleMapsLeadGenerator"
+    displayName: Vérifier l’artefact Web final
 
   - task: PublishPipelineArtifact@1
     inputs:

@@ -18,8 +18,8 @@ export function SearchSidebar({ form, loading, mobilePanelOpen, onClose, onSubmi
           <Settings2 size={17} />
         </div>
 
-        <Field label="Type d’entreprise" hint="Gardez un terme simple, sans ville.">
-          <div className="input-with-icon"><Search size={17} /><input value={form.query} onChange={(event) => onUpdate('query', event.target.value)} placeholder="Ex. plombier" required /></div>
+        <Field id="search-query" label="Type d’entreprise" hint="Gardez un terme simple, sans ville.">
+          <div className="input-with-icon"><Search size={17} /><input id="search-query" value={form.query} onChange={(event) => onUpdate('query', event.target.value)} placeholder="Ex. plombier" required /></div>
         </Field>
 
         <Field label="Centre de la recherche">
@@ -29,8 +29,8 @@ export function SearchSidebar({ form, loading, mobilePanelOpen, onClose, onSubmi
           </div>
         </Field>
 
-        <Field label="Rayon de recherche" value={`${form.radius_km} km`}>
-          <input className="range" type="range" min="1" max="50" value={form.radius_km} onChange={(event) => onUpdate('radius_km', +event.target.value)} />
+        <Field id="search-radius" label="Rayon de recherche" value={`${form.radius_km} km`}>
+          <input id="search-radius" className="range" type="range" min="1" max="50" value={form.radius_km} onChange={(event) => onUpdate('radius_km', +event.target.value)} />
           <div className="range-labels"><span>1 km</span><span>50 km</span></div>
         </Field>
 

@@ -4,10 +4,10 @@
 | --- | --- |
 | Produit | Prospect CRM |
 | Incrément | 2.3.5 — Interface d’administration et verrou qualité |
-| Version | 1.3 |
+| Version | 1.9 |
 | Date | 3 août 2026 |
-| Statut | Spécification validée ; 2.3.5-A/B validés ; 2.3.5-C implémenté, validation produit locale attendue |
-| Validation produit | 2 août 2026 — seize décisions ; 3 août 2026 — acceptation de 2.3.5-A et 2.3.5-B |
+| Statut | 2.3.5-A/B/C/D validés ; E implémenté, verrou final en attente des preuves Docker/Azure/manuelles |
+| Validation produit | 2 août 2026 — seize décisions ; 3 août 2026 — A/B/C/D acceptés et décisions D/E validées |
 | Prérequis | 2.3.4 implémenté et validé localement par le responsable produit |
 | Migration SQL | Aucune nouvelle révision prévue |
 | Marché initial | Canada |
@@ -584,10 +584,9 @@ Le détail des protections, les revues et le protocole d’acceptation locale fi
 - invitations idempotentes, renvoi et révocation ;
 - tests de rôles, dernier Admin et auto-invalidation.
 
-État au 3 août 2026 : lot implémenté et matrice automatisée verte. Les contrats consommés, les preuves, les revues et
+État au 3 août 2026 : lot implémenté, matrice automatisée verte et validation produit locale obtenue. Les contrats consommés, les preuves, les revues et
 le protocole d’acceptation figurent dans
-[`PHASE_2_3_5_C_RAPPORT_IMPLEMENTATION.md`](PHASE_2_3_5_C_RAPPORT_IMPLEMENTATION.md). La validation produit locale
-reste nécessaire avant de déclarer C terminé.
+[`PHASE_2_3_5_C_RAPPORT_IMPLEMENTATION.md`](PHASE_2_3_5_C_RAPPORT_IMPLEMENTATION.md).
 
 ### 2.3.5-D — Plateforme
 
@@ -597,6 +596,11 @@ reste nécessaire avant de déclarer C terminé.
 - redirection plateforme sans organisation ;
 - tests de séparation plateforme/locataire.
 
+État au 3 août 2026 : spécification, implémentation, matrice automatisée et parcours produit local validés, sans
+nouvelle migration ni API. Les décisions, preuves et revues figurent dans
+[`PHASE_2_3_5_D_SPECIFICATIONS_DETAILLEES.md`](PHASE_2_3_5_D_SPECIFICATIONS_DETAILLEES.md) et
+[`PHASE_2_3_5_D_RAPPORT_IMPLEMENTATION.md`](PHASE_2_3_5_D_RAPPORT_IMPLEMENTATION.md).
+
 ### 2.3.5-E — Verrou final
 
 - responsive, clavier et axe ;
@@ -604,6 +608,11 @@ reste nécessaire avant de déclarer C terminé.
 - documentation et rapport ;
 - suite infrastructure sans `skip` ;
 - trois critiques, deux revues de code et validation produit.
+
+État au 3 août 2026 : la spécification détaillée et ses seize décisions sont validées par le responsable produit. Elle transforme
+les contrôles existants en deux barrières reproductibles, locale et Azure, et ferme explicitement les 17 tests
+d’infrastructure ignorés. L’implémentation attend le GO explicite du responsable produit et devra respecter la section 22 de
+[`PHASE_2_3_5_E_SPECIFICATIONS_DETAILLEES.md`](PHASE_2_3_5_E_SPECIFICATIONS_DETAILLEES.md).
 
 Chaque sous-incrément reste testable isolément. Aucun écran incomplet n’est ajouté à la navigation avant que ses tests
 et sa gestion d’erreurs soient prêts.
@@ -742,6 +751,9 @@ l’incrément 2.3.5 ; toute dérogation doit être documentée et validée avan
 - [`PHASE_2_3_5_A_RAPPORT_IMPLEMENTATION.md`](PHASE_2_3_5_A_RAPPORT_IMPLEMENTATION.md)
 - [`PHASE_2_3_5_B_RAPPORT_IMPLEMENTATION.md`](PHASE_2_3_5_B_RAPPORT_IMPLEMENTATION.md)
 - [`PHASE_2_3_5_C_RAPPORT_IMPLEMENTATION.md`](PHASE_2_3_5_C_RAPPORT_IMPLEMENTATION.md)
+- [`PHASE_2_3_5_D_SPECIFICATIONS_DETAILLEES.md`](PHASE_2_3_5_D_SPECIFICATIONS_DETAILLEES.md)
+- [`PHASE_2_3_5_D_RAPPORT_IMPLEMENTATION.md`](PHASE_2_3_5_D_RAPPORT_IMPLEMENTATION.md)
+- [`PHASE_2_3_5_E_SPECIFICATIONS_DETAILLEES.md`](PHASE_2_3_5_E_SPECIFICATIONS_DETAILLEES.md)
 - [`PHASE_2_3_3_SPECIFICATIONS_DETAILLEES.md`](PHASE_2_3_3_SPECIFICATIONS_DETAILLEES.md)
 - [`PHASE_2_3_3_RAPPORT_IMPLEMENTATION.md`](PHASE_2_3_3_RAPPORT_IMPLEMENTATION.md)
 - [`PHASE_2_SPECIFICATIONS_DETAILLEES.md`](PHASE_2_SPECIFICATIONS_DETAILLEES.md)

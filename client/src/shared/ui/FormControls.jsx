@@ -1,5 +1,5 @@
-export function Field({ label, value, hint, children }) {
-  return <div className="field"><div className="field-label"><label>{label}</label>{value && <strong>{value}</strong>}</div>{children}{hint && <small>{hint}</small>}</div>
+export function Field({ id, label, value, hint, children }) {
+  return <div className="field"><div className="field-label">{id ? <label htmlFor={id}>{label}</label> : <span>{label}</span>}{value && <strong>{value}</strong>}</div>{children}{hint && <small>{hint}</small>}</div>
 }
 
 
