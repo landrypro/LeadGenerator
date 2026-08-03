@@ -1,5 +1,5 @@
 import {
-  CircleDollarSign, Info, LoaderCircle, MapPin, Search, Settings2, Sparkles, X,
+  CircleDollarSign, Info, LoaderCircle, Search, Settings2, Sparkles, X,
 } from '../../../icons'
 import { Field, Toggle } from '../../../shared/ui/FormControls'
 
@@ -7,9 +7,8 @@ import { Field, Toggle } from '../../../shared/ui/FormControls'
 export function SearchSidebar({ form, loading, mobilePanelOpen, onClose, onSubmit, onUpdate }) {
   return <>
     <aside id="search-panel" className={`sidebar ${mobilePanelOpen ? 'mobile-open' : ''}`}>
-      <div className="brand">
-        <div className="brand-mark"><MapPin size={21} strokeWidth={2.5} /></div>
-        <div><strong>Prospect</strong><span>CRM commercial</span></div>
+      <div className="search-panel-heading">
+        <div><strong>Paramètres</strong><span>Recherche Google</span></div>
         <button className="sidebar-close" type="button" onClick={onClose} aria-label="Fermer les paramètres"><X size={19} /></button>
       </div>
 

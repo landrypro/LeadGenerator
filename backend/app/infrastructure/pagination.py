@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import base64
+import binascii
 import hashlib
 import hmac
 import json
@@ -52,4 +53,14 @@ def _encode(value: bytes) -> str:
 
 
 def _decode(value: str) -> bytes:
-    return base64.urlsafe_b64decode(f"{value}{'=' * (-len(value) % 4)}")
+    try:
+        decoded = base64.b64decode(
+            f"{value}{'=' * (-len(value) % 4)}",
+            altchars=b"-_",
+            validate=True,
+        )
+    except (binascii.Error, ValueError) as error:
+        raise ValueError("Encodage Base64 URL invalide.") from error
+    if _encode(decoded) != value:
+        raise ValueError("Encodage Base64 URL non canonique.")
+    return decoded

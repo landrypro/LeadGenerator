@@ -149,4 +149,19 @@ describe('PlaceSearchPage', () => {
     createObjectUrl.mockRestore()
     revokeObjectUrl.mockRestore()
   })
+
+  it('annule une recherche en vol au démontage du contexte locataire', async () => {
+    let capturedSignal
+    leadSearchApi.search.mockImplementation((_payload, signal) => {
+      capturedSignal = signal
+      return new Promise(() => {})
+    })
+    const view = render(<PlaceSearchPage session={{ capabilities: ['google:search'] }} />)
+
+    submitSearch()
+    await waitFor(() => expect(capturedSignal).toBeInstanceOf(AbortSignal))
+    view.unmount()
+
+    expect(capturedSignal.aborted).toBe(true)
+  })
 })

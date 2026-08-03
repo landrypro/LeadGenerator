@@ -18,22 +18,27 @@ export function useMapSnapshot(searchedAt, resultToken) {
     }
     const controller = new AbortController()
     let objectUrl = ''
+    let active = true
     setSnapshotLoading(true)
     setSnapshotError('')
 
     leadSearchApi.mapSnapshot(resultToken, controller.signal)
       .then((blob) => {
+        if (!active) return
         objectUrl = URL.createObjectURL(blob)
         setSnapshotUrl(objectUrl)
       })
       .catch((error) => {
-        if (error.name !== 'AbortError') {
+        if (active && error.name !== 'AbortError') {
           setSnapshotError(toUserMessage(error, 'La carte Google est indisponible.'))
         }
       })
-      .finally(() => setSnapshotLoading(false))
+      .finally(() => {
+        if (active) setSnapshotLoading(false)
+      })
 
     return () => {
+      active = false
       controller.abort()
       if (objectUrl) URL.revokeObjectURL(objectUrl)
     }

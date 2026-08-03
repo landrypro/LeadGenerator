@@ -12,7 +12,7 @@ import { useApiHealth } from './hooks/useApiHealth'
 import { useLeadSearch } from './hooks/useLeadSearch'
 
 
-export function PlaceSearchPage({ session = null, onLogout = null }) {
+export function PlaceSearchPage({ session = null }) {
   const [form, setForm] = useState(initialForm)
   const [mobilePanelOpen, setMobilePanelOpen] = useState(false)
   const { error, clearError, reportError } = useErrorNotice()
@@ -46,8 +46,6 @@ export function PlaceSearchPage({ session = null, onLogout = null }) {
         keyReady={keyReady}
         mobilePanelOpen={mobilePanelOpen}
         onOpenSettings={() => setMobilePanelOpen(true)}
-        session={session}
-        onLogout={onLogout}
       />
       <Notices error={error} keyReady={keyReady} onClearError={clearError} />
       <SearchOverview

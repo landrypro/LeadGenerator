@@ -1,9 +1,10 @@
 export class ApiError extends Error {
-  constructor(message, status = 0, code = '') {
+  constructor(message, status = 0, code = '', fields = {}) {
     super(message)
     this.name = 'ApiError'
     this.status = status
     this.code = code
+    this.fields = fields
   }
 }
 
@@ -22,9 +23,10 @@ async function readError(response, fallbackMessage) {
     return {
       message: payload.error?.message || payload.detail || fallbackMessage,
       code: payload.error?.code || '',
+      fields: payload.error?.fields || {},
     }
   } catch {
-    return { message: fallbackMessage, code: '' }
+    return { message: fallbackMessage, code: '', fields: {} }
   }
 }
 
@@ -45,7 +47,7 @@ export async function request(path, { responseType = 'json', fallbackMessage = '
   if (!response.ok) {
     if (response.status === 401 && unauthorizedHandler) unauthorizedHandler()
     const error = await readError(response, fallbackMessage)
-    throw new ApiError(error.message, response.status, error.code)
+    throw new ApiError(error.message, response.status, error.code, error.fields)
   }
   if (responseType === 'blob') return response.blob()
   if (response.status === 204) return null

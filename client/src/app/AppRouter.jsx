@@ -3,11 +3,22 @@ import { useContext, useEffect, useState } from 'react'
 import { AuthContext } from '../features/auth/context'
 import { AccessDeniedPage } from '../features/auth/AccessDeniedPage'
 import { LoginPage } from '../features/auth/LoginPage'
+import { NotFoundPage } from '../features/auth/NotFoundPage'
 import { SessionLoadingPage } from '../features/auth/SessionLoadingPage'
 import { NoOrganizationPage } from '../features/auth/NoOrganizationPage'
 import { InvitationPage } from '../features/invitations/InvitationPage'
-import { currentPath, NAVIGATION_EVENT } from './navigation'
-import { CRM_PATHS, routes } from './routes'
+import { AuthenticatedLayout } from './AuthenticatedLayout'
+import { currentPath, navigate, NAVIGATION_EVENT } from './navigation'
+import { canAccessRoute, CRM_PATHS, findRoute, landingPath } from './routes'
+
+
+function Redirect({ to, onRedirect }) {
+  useEffect(() => {
+    navigate(to, { replace: true })
+    onRedirect(to)
+  }, [onRedirect, to])
+  return <SessionLoadingPage message="Redirection…" />
+}
 
 
 export function AppRouter({ invitationToken = '' }) {
@@ -24,19 +35,54 @@ export function AppRouter({ invitationToken = '' }) {
     }
   }, [])
 
+  useEffect(() => {
+    const routeTitle = findRoute(pathname)?.title
+    const pageTitle = pathname === CRM_PATHS.login
+      ? 'Connexion'
+      : pathname === CRM_PATHS.acceptInvitation
+        ? 'Invitation'
+        : routeTitle ?? (pathname === CRM_PATHS.home ? 'Accueil' : 'Page introuvable')
+    document.title = `${pageTitle} — Prospect CRM`
+  }, [pathname])
+
   if (pathname === CRM_PATHS.acceptInvitation) {
     return <InvitationPage initialToken={invitationToken} auth={auth} />
   }
   if (!auth || auth.status === 'loading') return <SessionLoadingPage />
-  if (!auth.session) return <LoginPage onLogin={auth.login} />
-  if (!auth.session.active_organization) {
-    return <NoOrganizationPage onLogout={auth.logout} />
+  if (!auth.session) {
+    if (pathname !== CRM_PATHS.login) return <Redirect to={CRM_PATHS.login} onRedirect={setPathname} />
+    return <LoginPage onLogin={auth.login} />
   }
 
-  const route = routes.find((candidate) => candidate.path === pathname) ?? routes[0]
-  if (route.requiredCapability && !auth.session.capabilities.includes(route.requiredCapability)) {
-    return <AccessDeniedPage onLogout={auth.logout} />
+  const homePath = landingPath(auth.session)
+  if (pathname === CRM_PATHS.home || pathname === CRM_PATHS.login) {
+    if (!auth.session.active_organization && !auth.session.user.platform_role && pathname === CRM_PATHS.home) {
+      return <NoOrganizationPage onLogout={auth.logout} />
+    }
+    return <Redirect to={homePath} onRedirect={setPathname} />
   }
-  const RouteComponent = route.Component
-  return <RouteComponent session={auth.session} onLogout={auth.logout} />
+
+  const route = findRoute(pathname)
+  let content
+  if (!route) {
+    content = <NotFoundPage homePath={homePath} />
+  } else if (!canAccessRoute(route, auth.session)) {
+    content = <AccessDeniedPage homePath={homePath} />
+  } else {
+    const RouteComponent = route.Component
+    content = <RouteComponent
+      key={auth.session.active_organization?.id ?? 'without-organization'}
+      session={auth.session}
+      onLogout={auth.logout}
+      onOrganizationUpdated={auth.updateActiveOrganizationSummary}
+    />
+  }
+
+  return <AuthenticatedLayout
+    currentRoute={route}
+    session={auth.session}
+    onLogout={auth.logout}
+    onSwitchOrganization={auth.switchOrganization}
+    switchingOrganization={auth.switchingOrganization}
+  >{content}</AuthenticatedLayout>
 }

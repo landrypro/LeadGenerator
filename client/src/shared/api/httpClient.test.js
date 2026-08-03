@@ -29,13 +29,17 @@ describe('httpClient', () => {
     vi.stubGlobal('fetch', vi.fn().mockResolvedValue({
       ok: false,
       status: 429,
-      json: vi.fn().mockResolvedValue({ detail: 'Quota atteint.' }),
+      json: vi.fn().mockResolvedValue({
+        error: { code: 'quota_reached', message: 'Quota atteint.', fields: { limit: '20' } },
+      }),
     }))
 
     await expect(request('/api/test')).rejects.toMatchObject({
       name: 'ApiError',
       message: 'Quota atteint.',
       status: 429,
+      code: 'quota_reached',
+      fields: { limit: '20' },
     })
   })
 

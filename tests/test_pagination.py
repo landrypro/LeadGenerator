@@ -28,3 +28,18 @@ def test_signed_cursor_rejects_invalid_key_naive_date_and_malformed_payload() ->
         codec.encode(datetime(2026, 8, 2, 12), uuid4())
     with pytest.raises(ValueError, match="curseur"):
         codec.decode("not-a-signed-cursor")
+
+
+def test_signed_cursor_rejects_non_canonical_base64_alias() -> None:
+    codec = HmacCursorCodec(b"canonical-pagination-key-with-32-bytes-minimum")
+    cursor = codec.encode(datetime(2026, 8, 2, 12, tzinfo=UTC), uuid4())
+    payload, signature = cursor.split(".")
+    alphabet = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_"
+    last_index = alphabet.index(signature[-1])
+    alias_index = last_index ^ 1
+    aliased_signature = f"{signature[:-1]}{alphabet[alias_index]}"
+
+    # Certaines variantes du dernier caractère décodent vers les mêmes octets
+    # lorsque les bits de remplissage ne sont pas vérifiés.
+    with pytest.raises(ValueError, match="curseur"):
+        codec.decode(f"{payload}.{aliased_signature}")

@@ -22,4 +22,11 @@ export const authApi = {
       fallbackMessage: 'La déconnexion a échoué.',
     })
   },
+
+  switchOrganization(membershipId, signal) {
+    return postJson('/api/auth/switch-organization', { membership_id: membershipId }, {
+      signal,
+      fallbackMessage: 'Le changement d’organisation a échoué.',
+    })
+  },
 }

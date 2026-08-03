@@ -26,3 +26,4 @@ export const Globe2 = (p) => <Svg {...p}><circle cx="12" cy="12" r="9"/><path d=
 export const ExternalLink = (p) => <Svg {...p}><path d="M15 3h6v6M10 14 21 3M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/></Svg>
 export const Target = (p) => <Svg {...p}><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="5"/><circle cx="12" cy="12" r="1"/></Svg>
 export const LoaderCircle = (p) => <Svg {...p}><path d="M21 12a9 9 0 1 1-6.2-8.6"/></Svg>
+export const Menu = (p) => <Svg {...p}><path d="M4 6h16M4 12h16M4 18h16"/></Svg>
