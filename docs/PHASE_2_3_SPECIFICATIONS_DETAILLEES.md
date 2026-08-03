@@ -6,8 +6,8 @@
 | Incrément | 2.3 — Organisations, rôles et isolation |
 | Version | 1.5 |
 | Date | 2 août 2026 |
-| Statut | Spécification générale validée ; 2.3.2 accepté ; 2.3.3 implémenté, validation locale attendue |
-| Validation produit | 2 août 2026 pour le parcours local 2.3.2 |
+| Statut | Spécification générale validée ; 2.3.4 accepté localement ; définition de 2.3.5 autorisée |
+| Validation produit | 2 août 2026 pour les parcours locaux 2.3.3 et 2.3.4 |
 | Prérequis | Incréments 2.1 et 2.2 validés localement |
 | Marché initial | Canada |
 
@@ -654,10 +654,9 @@ provisioning, livraison Mailpit, acceptation et connexion. Le contrat figure dan
 - rotation et révocation des sessions ;
 - matrice d’autorisation API.
 
-État au 2 août 2026 : la spécification détaillée, ses trois critiques préalables et les seize décisions complémentaires
-validées figurent dans
-[`PHASE_2_3_3_SPECIFICATIONS_DETAILLEES.md`](PHASE_2_3_3_SPECIFICATIONS_DETAILLEES.md). L’implémentation 2.3.3 est
-autorisée ; toute dérogation doit être documentée et validée.
+État au 2 août 2026 : la spécification, l’implémentation, la matrice automatisée et le parcours local ont été validés.
+Les décisions figurent dans [`PHASE_2_3_3_SPECIFICATIONS_DETAILLEES.md`](PHASE_2_3_3_SPECIFICATIONS_DETAILLEES.md) et
+les preuves dans [`PHASE_2_3_3_RAPPORT_IMPLEMENTATION.md`](PHASE_2_3_3_RAPPORT_IMPLEMENTATION.md).
 
 ### 2.3.4 — Protection Google et transition de l’écran
 
@@ -666,6 +665,13 @@ autorisée ; toute dérogation doit être documentée et validée.
 - verrou par identifiants internes ;
 - retrait du bloc `requester` et de la fenêtre temporaire ;
 - non-régression Google complète.
+
+État au 2 août 2026 : les seize décisions sont implémentées avec une limite confirmée de vingt résultats, une
+requête Text Search et aucune pagination. Le contrat figure dans
+[`PHASE_2_3_4_SPECIFICATIONS_DETAILLEES.md`](PHASE_2_3_4_SPECIFICATIONS_DETAILLEES.md) et les preuves, limites et
+revues dans [`PHASE_2_3_4_RAPPORT_IMPLEMENTATION.md`](PHASE_2_3_4_RAPPORT_IMPLEMENTATION.md). Le responsable produit
+a validé les parcours Places et Places + Maps Static. Le rejeu sans `skip` des tests PostgreSQL/Redis/Mailpit reste un
+prérequis de déploiement, sans bloquer la définition de 2.3.5.
 
 ### 2.3.5 — Interface d’administration et verrou qualité
 

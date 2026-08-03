@@ -11,7 +11,6 @@ from .presentation.api.schemas import (
     MapPoint,
     MapSnapshotRequest,
     MapSnapshotTokenRequest,
-    RequesterInfo,
 )
 
 __all__ = [
@@ -25,5 +24,4 @@ __all__ = [
     "MapPoint",
     "MapSnapshotRequest",
     "MapSnapshotTokenRequest",
-    "RequesterInfo",
 ]

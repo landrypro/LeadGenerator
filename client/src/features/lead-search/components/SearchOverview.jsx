@@ -8,7 +8,7 @@ function Metric({ icon, label, value, detail, tone }) {
 }
 
 
-export function SearchOverview({ places, result, resultForm, loading }) {
+export function SearchOverview({ places, result, resultForm, loading, mapEnabled }) {
   return <section className="overview-grid">
     <CoverageMap
       places={places}
@@ -16,6 +16,7 @@ export function SearchOverview({ places, result, resultForm, loading }) {
       loading={loading}
       searchedAt={result?.searched_at}
       resultToken={result?.map_snapshot_token}
+      mapEnabled={mapEnabled}
     />
     <div className="metric-stack">
       <Metric icon={<UsersRound />} label="Résultats Google" value={places.length} detail="20 maximum par recherche" tone="green" />

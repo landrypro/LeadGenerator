@@ -10,6 +10,8 @@
 | `POST /api/leads/search` | Route absente | Le seul chemin public est `POST /api/google/places/search`. |
 | `POST /api/leads/export` | Route absente | Le bouton reste visible mais toujours désactivé, sans action frontend. |
 | Contenu orienté extraction dans l’interface | Retiré | L’écran présente une recherche temporaire d’établissements pour Prospect CRM. |
+| Identité temporaire du demandeur | Supprimée en 2.3.4 | L’acteur et l’organisation proviennent exclusivement de la session ; `requester` est refusé par le schéma HTTP strict. |
+| Verrou Unicode par adresse déclarée | Supprimé en 2.3.4 | Le verrou utilise la paire interne `(organization_id, user_id)`. |
 
 L’ancien adaptateur Excel reste momentanément présent uniquement comme code non monté pour conserver le test de neutralisation des formules. Il n’est injecté dans aucun conteneur, n’est accessible par aucune route et ne doit pas être utilisé pour les futurs exports CRM. Son remplacement se fera par une liste blanche de données internes dans le module d’import/export.
 

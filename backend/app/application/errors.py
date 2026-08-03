@@ -1,5 +1,5 @@
-class AddressGenerationInProgress(RuntimeError):
-    """Une recherche est déjà en cours pour la même adresse normalisée."""
+class GoogleSearchInProgress(RuntimeError):
+    """Une recherche Google est déjà en cours pour le même acteur locataire."""
 
 
 class InvalidMapSnapshotGrant(RuntimeError):
@@ -8,6 +8,18 @@ class InvalidMapSnapshotGrant(RuntimeError):
 
 class MapSnapshotGrantInProgress(RuntimeError):
     """Le même jeton de carte est déjà en cours de consommation."""
+
+
+class MapSnapshotGrantCapacityReached(RuntimeError):
+    """Le stockage éphémère ne peut pas émettre une nouvelle concession."""
+
+
+class ActiveOrganizationRequired(RuntimeError):
+    """Une organisation active est obligatoire pour l’opération locataire."""
+
+
+class JsonContentTypeRequired(RuntimeError):
+    """La commande HTTP doit utiliser le type application/json."""
 
 
 class PlacesProviderError(RuntimeError):

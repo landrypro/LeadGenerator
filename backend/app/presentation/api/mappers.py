@@ -122,7 +122,7 @@ def to_provisioning_response(view: ProvisioningView) -> ProvisioningResponse:
 
 
 def to_search_criteria(request: GooglePlaceSearchRequest) -> GooglePlaceSearchCriteria:
-    return GooglePlaceSearchCriteria(**request.model_dump(exclude={"requester"}))
+    return GooglePlaceSearchCriteria(**request.model_dump())
 
 
 def to_search_response(
@@ -134,5 +134,5 @@ def to_search_response(
         stats=GooglePlaceSearchStats.model_validate(result.search.stats),
         searched_at=result.search.searched_at,
         map_snapshot_token=result.map_snapshot_token,
-        search_parameters=GooglePlaceSearchParameters.model_validate(request.model_dump(exclude={"requester"})),
+        search_parameters=GooglePlaceSearchParameters.model_validate(request.model_dump()),
     )

@@ -13,19 +13,8 @@ vi.mock('./api/leadSearchApi', () => ({
 }))
 
 
-function completeRequester() {
-  fireEvent.change(screen.getByLabelText('Prénom'), { target: { value: 'Anne' } })
-  fireEvent.change(screen.getByLabelText('Raison sociale'), { target: { value: 'Exemple Inc.' } })
-  fireEvent.change(screen.getByLabelText('Adresse professionnelle'), {
-    target: { value: '100 rue Principale, Québec' },
-  })
-}
-
-
 function submitSearch() {
   fireEvent.click(screen.getByRole('button', { name: /Rechercher des établissements/i }))
-  completeRequester()
-  fireEvent.click(screen.getByRole('button', { name: /Confirmer la recherche/i }))
 }
 
 
@@ -74,12 +63,9 @@ describe('PlaceSearchPage', () => {
     expect(payload).toMatchObject({
       query: 'plombier',
       radius_km: 15,
-      requester: {
-        first_name: 'Anne',
-        company_name: 'Exemple Inc.',
-        business_address: '100 rue Principale, Québec',
-      },
     })
+    expect(payload).not.toHaveProperty('requester')
+    expect(payload).not.toHaveProperty('organization_id')
     expect(payload).not.toHaveProperty('target')
     expect(payload).not.toHaveProperty('max_tiles')
     expect(payload).not.toHaveProperty('max_pages')
@@ -116,5 +102,51 @@ describe('PlaceSearchPage', () => {
     submitSearch()
 
     expect(await screen.findByText('Quota Google atteint.')).toBeInTheDocument()
+  })
+
+  it('ne demande pas la carte sans la capacité google:map', async () => {
+    leadSearchApi.search.mockResolvedValue(successfulResult())
+    render(<PlaceSearchPage session={{ capabilities: ['google:search'] }} />)
+
+    submitSearch()
+
+    expect(await screen.findByText('Plomberie Boréale')).toBeInTheDocument()
+    expect(leadSearchApi.mapSnapshot).not.toHaveBeenCalled()
+  })
+
+  it('demande la carte avec la capacité google:map', async () => {
+    leadSearchApi.search.mockResolvedValue(successfulResult())
+    render(<PlaceSearchPage session={{ capabilities: ['google:search', 'google:map'] }} />)
+
+    submitSearch()
+
+    await waitFor(() => expect(leadSearchApi.mapSnapshot).toHaveBeenCalledTimes(1))
+  })
+
+  it('neutralise une double soumission pendant la recherche', () => {
+    leadSearchApi.search.mockReturnValue(new Promise(() => {}))
+    render(<PlaceSearchPage />)
+
+    const submit = screen.getByRole('button', { name: /Rechercher des établissements/i })
+    fireEvent.click(submit)
+    fireEvent.click(submit)
+
+    expect(leadSearchApi.search).toHaveBeenCalledTimes(1)
+    expect(screen.getByRole('button', { name: /Recherche en cours/i })).toBeDisabled()
+  })
+
+  it('révoque l’URL blob de la carte au démontage', async () => {
+    const createObjectUrl = vi.spyOn(URL, 'createObjectURL').mockReturnValue('blob:map-test')
+    const revokeObjectUrl = vi.spyOn(URL, 'revokeObjectURL')
+    leadSearchApi.search.mockResolvedValue(successfulResult())
+    const view = render(<PlaceSearchPage session={{ capabilities: ['google:search', 'google:map'] }} />)
+
+    submitSearch()
+    await waitFor(() => expect(createObjectUrl).toHaveBeenCalledTimes(1))
+    view.unmount()
+
+    expect(revokeObjectUrl).toHaveBeenCalledWith('blob:map-test')
+    createObjectUrl.mockRestore()
+    revokeObjectUrl.mockRestore()
   })
 })

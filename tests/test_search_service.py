@@ -1,8 +1,9 @@
 from dataclasses import fields
+from uuid import uuid4
 
 import pytest
 
-from backend.app.application.models import GooglePlaceSearchCriteria
+from backend.app.application.models import GoogleAccessContext, GooglePlaceSearchCriteria
 from backend.app.application.ports.places import PlaceCandidate
 from backend.app.application.use_cases.search_google_places import (
     MAX_GOOGLE_RESULTS,
@@ -41,13 +42,17 @@ def use_case(gateway: FakePlacesGateway) -> SearchGooglePlacesUseCase:
     )
 
 
+def access_context() -> GoogleAccessContext:
+    return GoogleAccessContext(uuid4(), uuid4(), uuid4())
+
+
 @pytest.mark.asyncio
 async def test_use_case_calls_gateway_once_and_limits_results_to_twenty() -> None:
     gateway = FakePlacesGateway([candidate(index) for index in range(25)])
 
     outcome = await use_case(gateway).execute(
         GooglePlaceSearchCriteria(query="plombier"),
-        "100 rue Principale, Québec",
+        access_context(),
     )
 
     assert gateway.calls == 1
@@ -68,7 +73,7 @@ async def test_use_case_deduplicates_and_filters_outside_radius() -> None:
 
     outcome = await use_case(gateway).execute(
         GooglePlaceSearchCriteria(query="plombier", radius_km=10),
-        "100 rue Principale, Québec",
+        access_context(),
     )
 
     assert [place.place_id for place in outcome.search.places] == ["place-1"]

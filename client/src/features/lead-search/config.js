@@ -8,10 +8,4 @@ export const initialForm = {
   region_code: 'CA',
 }
 
-export const initialRequester = {
-  first_name: '',
-  company_name: '',
-  business_address: '',
-}
-
 export const numberFormatter = new Intl.NumberFormat('fr-CA')

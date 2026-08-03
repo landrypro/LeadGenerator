@@ -59,6 +59,7 @@ from .infrastructure.postgres import (
 )
 from .infrastructure.redis import RedisInvitationRateLimiter, RedisLoginRateLimiter, RedisResource, RedisSessionStore
 from .infrastructure.security import Argon2PasswordHasher
+from .presentation.api.responses import api_error
 from .presentation.api.routers import (
     auth_router,
     google_places_router,
@@ -317,9 +318,19 @@ def create_app(
     app.middleware("http")(_add_request_id)
 
     @app.exception_handler(RequestValidationError)
-    async def sanitized_auth_validation_error(request: Request, error: RequestValidationError) -> Response:
-        if not request.url.path.startswith("/api/auth/"):
+    async def sanitized_api_validation_error(request: Request, error: RequestValidationError) -> Response:
+        protected_payload = request.url.path.startswith(("/api/auth/", "/api/google/", "/api/map/"))
+        if not protected_payload:
             return await request_validation_exception_handler(request, error)
+        if request.url.path.startswith(("/api/google/", "/api/map/")):
+            content_type = request.headers.get("content-type", "").partition(";")[0].strip().lower()
+            if content_type != "application/json":
+                return api_error(
+                    request,
+                    415,
+                    "json_required",
+                    "Le type application/json est obligatoire.",
+                )
         if request.url.path.startswith("/api/auth/invitations/") and any(
             item.get("loc") and item["loc"][-1] == "token" for item in error.errors()
         ):
@@ -335,17 +346,17 @@ def create_app(
                 headers={"Cache-Control": "no-store, max-age=0"},
             )
         fields = {str(item["loc"][-1]): "Valeur invalide." for item in error.errors() if item.get("loc")}
-        return JSONResponse(
-            status_code=422,
-            content={
-                "error": {
-                    "code": "validation_failed",
-                    "message": "La requête d’authentification est invalide.",
-                    "request_id": getattr(request.state, "request_id", ""),
-                    "fields": fields,
-                }
-            },
-            headers={"Cache-Control": "no-store, max-age=0"},
+        message = (
+            "La commande Google est invalide."
+            if request.url.path.startswith(("/api/google/", "/api/map/"))
+            else "La requête d’authentification est invalide."
+        )
+        return api_error(
+            request,
+            422,
+            "validation_failed",
+            message,
+            fields=fields,
         )
 
     app.include_router(health_router)

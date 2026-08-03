@@ -5,7 +5,7 @@
 | Produit | Prospect CRM |
 | Incrément | 2.3.3 — Membres, capacités et changement d’organisation |
 | Date | 2 août 2026 |
-| Statut | Implémenté et validé automatiquement ; validation locale produit attendue |
+| Statut | Implémenté, contrôlé automatiquement et validé localement par le responsable produit |
 | Migration | `20260802_0005` |
 | Version API | `1.5.0` |
 | Contrat | `PHASE_2_3_3_SPECIFICATIONS_DETAILLEES.md` version 1.0 |
@@ -257,4 +257,5 @@ parcours par le responsable produit ; elle ne nécessite aucune correction connu
 11. Utiliser `-SwitchMembershipId` pour changer d’organisation et confirmer `CsrfRotated=True`.
 12. Tester renvoi, ancien lien et révocation, puis lancer la matrice qualité du README.
 
-2.3.3 pourra être déclaré accepté et 2.3.4 autorisé après confirmation de ce protocole par le responsable produit.
+Le responsable produit a confirmé le parcours local le 2 août 2026. L’incrément 2.3.3 est accepté et la définition de
+2.3.4 est autorisée.

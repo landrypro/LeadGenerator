@@ -2,7 +2,7 @@
 
 Prospect est une application React et FastAPI en migration vers un CRM de gestion commerciale. La phase 1 fournit une recherche Google Places ponctuelle et conforme : une seule requête Text Search par action, vingt établissements au maximum, aucun contact dans la liste et aucune persistance des résultats Google.
 
-Ce fichier réunit le guide utilisateur et la documentation technique du socle actuel. La spécification complète se trouve dans [`docs/SPECIFICATION_CRM_V1.md`](docs/SPECIFICATION_CRM_V1.md), les décisions validées sur les sources dans [`docs/PHASE_1_1_ACQUISITION_CONSERVATION.md`](docs/PHASE_1_1_ACQUISITION_CONSERVATION.md) et la conception validée des fondations dans [`docs/PHASE_2_SPECIFICATIONS_DETAILLEES.md`](docs/PHASE_2_SPECIFICATIONS_DETAILLEES.md). Le contrat de 2.3.3 et son rapport d’implémentation se trouvent dans [`docs/PHASE_2_3_3_SPECIFICATIONS_DETAILLEES.md`](docs/PHASE_2_3_3_SPECIFICATIONS_DETAILLEES.md) et [`docs/PHASE_2_3_3_RAPPORT_IMPLEMENTATION.md`](docs/PHASE_2_3_3_RAPPORT_IMPLEMENTATION.md).
+Ce fichier réunit le guide utilisateur et la documentation technique du socle actuel. La spécification complète se trouve dans [`docs/SPECIFICATION_CRM_V1.md`](docs/SPECIFICATION_CRM_V1.md), les décisions validées sur les sources dans [`docs/PHASE_1_1_ACQUISITION_CONSERVATION.md`](docs/PHASE_1_1_ACQUISITION_CONSERVATION.md) et la conception validée des fondations dans [`docs/PHASE_2_SPECIFICATIONS_DETAILLEES.md`](docs/PHASE_2_SPECIFICATIONS_DETAILLEES.md). Le contrat de 2.3.4 et son rapport d’implémentation se trouvent dans [`docs/PHASE_2_3_4_SPECIFICATIONS_DETAILLEES.md`](docs/PHASE_2_3_4_SPECIFICATIONS_DETAILLEES.md) et [`docs/PHASE_2_3_4_RAPPORT_IMPLEMENTATION.md`](docs/PHASE_2_3_4_RAPPORT_IMPLEMENTATION.md).
 
 ## Fonctionnalités disponibles
 
@@ -29,8 +29,9 @@ Ce fichier réunit le guide utilisateur et la documentation technique du socle a
 - liste sans téléphone ni site Web ;
 - résultats temporaires conservés uniquement dans l’état mémoire React ;
 - attribution visible `Google Maps`, non traduisible et conforme au style textuel officiel dans le conteneur des résultats ;
-- carte Google statique protégée par un jeton serveur court et à usage unique ;
-- identification temporaire du demandeur et verrou par adresse professionnelle ;
+- recherche et carte accessibles uniquement avec une session, une organisation active et les capacités `google:search` et `google:map` ;
+- carte Google statique protégée par un jeton serveur court, lié au compte et à l’organisation, à usage unique ;
+- verrou de concurrence par compte et organisation, sans identité déclarative fournie par le navigateur ;
 - export des résultats Google indisponible : bouton visible mais désactivé et route historique absente ;
 - pages de conditions d’utilisation et de confidentialité.
 
@@ -60,9 +61,10 @@ Un lien expiré, révoqué, déjà utilisé ou inconnu produit volontairement le
 2. Indiquez le centre géographique et un rayon de 1 à 50 km.
 3. Choisissez si les entreprises de zone de service doivent être incluses.
 4. Cliquez sur **Rechercher des établissements**.
-5. Renseignez le prénom, la raison sociale et l’adresse professionnelle du demandeur, puis confirmez.
 
-Le serveur interroge Google une seule fois avec `pageSize: 20`. Il ne suit pas `nextPageToken`. Les résultats situés hors du rayon sont exclus ; les établissements sans coordonnées ne sont conservés que si l’option de zone de service est active.
+La recherche part directement. L’utilisateur et l’organisation sont déduits de la session ; aucun prénom, société ou identifiant locataire n’est redemandé. Le serveur interroge Google une seule fois avec `pageSize: 20`. Il ne suit pas `nextPageToken`. Les résultats situés hors du rayon sont exclus ; les établissements sans coordonnées ne sont conservés que si l’option de zone de service est active.
+
+Un compte sans organisation active ou sans la capacité requise voit un état d’accès refusé et ne peut déclencher aucun appel Google facturable. Un Administrateur de plateforme ne reçoit aucun accès Google implicite.
 
 ### Consulter les résultats
 
@@ -200,6 +202,8 @@ Variables d’identité principales :
 | `INVITATION_DELIVERY_BACKEND` | `mailpit` | Interception locale seulement ; refusée en staging et production. |
 | `INVITATION_SMTP_HOST` / `INVITATION_SMTP_PORT` | `127.0.0.1:1025` | Destination Mailpit locale, jamais dérivée d’une requête. |
 | `RATE_LIMIT_HMAC_KEY` | aucun secret par défaut | Secret local aléatoire d’au moins 32 octets pour pseudonymiser les dimensions Redis. |
+| `MAP_SNAPSHOT_GRANT_TTL_SECONDS` | `300` | Durée maximale de la concession de carte ; une valeur supérieure à cinq minutes est refusée en production. |
+| `MAP_SNAPSHOT_GRANT_MAX_ENTRIES` | `1000` | Capacité de l’adaptateur mémoire mono-instance. |
 
 ### Tester le provisioning local
 
@@ -236,6 +240,21 @@ Pour inviter un Gestionnaire :
 Le script accepte aussi `-MembershipId`, `-MembershipVersion`, `-NewRole`, `-NewStatus` et
 `-SwitchMembershipId`. Le mot de passe reste interactif ; aucun jeton d’invitation, cookie ou CSRF n’est affiché.
 
+### Tester la protection Google locale
+
+Cette commande exécute volontairement une vraie requête Places potentiellement facturable. La valeur de confirmation
+explicite empêche tout lancement accidentel :
+
+```powershell
+.\scripts\Test-GoogleProtectionLocal.ps1 `
+  -AdministratorEmail "membre@example.ca" `
+  -ConfirmGoogleCall RUN_ONE_GOOGLE_SEARCH
+```
+
+Ajoutez `-FetchMap` pour consommer aussi la concession avec exactement un appel Maps Static. Le script vérifie la
+session, l’organisation active, les capacités, la limite de vingt, l’absence de contacts et `no-store`. Il ne montre
+jamais le cookie, le CSRF, la concession ou une clé Google.
+
 ## Contrat API de la phase 1
 
 ### Authentification — incrément 2.2
@@ -258,16 +277,11 @@ Exemple :
   "radius_km": 15,
   "include_service_area_businesses": true,
   "language_code": "fr",
-  "region_code": "CA",
-  "requester": {
-    "first_name": "Alex",
-    "company_name": "Entreprise Exemple",
-    "business_address": "100 rue Principale, Québec, Canada"
-  }
+  "region_code": "CA"
 }
 ```
 
-La réponse contient `places`, `stats`, `searched_at`, les `search_parameters` réellement soumis et un `map_snapshot_token`. Le schéma des établissements n’expose ni téléphone ni site Web. La liste possède au maximum vingt éléments et la réponse porte `Cache-Control: no-store, max-age=0`.
+La route exige le cookie de session, une organisation active, `google:search`, une origine approuvée, `X-CSRF-Token` et `application/json`. `requester`, `organization_id` et tout champ inconnu sont refusés. La réponse contient `places`, `stats`, `searched_at`, les `search_parameters` réellement soumis et un `map_snapshot_token`. Le schéma des établissements n’expose ni téléphone ni site Web. La liste possède au maximum vingt éléments et la réponse porte `Cache-Control: no-store, max-age=0`.
 
 Les anciens chemins `POST /api/leads/search` et `POST /api/leads/export` ne sont plus montés et sont absents du schéma OpenAPI.
 
@@ -283,8 +297,8 @@ Le serveur conserve les coordonnées de la carte et refuse qu’elles soient fou
 
 - expire après cinq minutes par défaut ;
 - n’autorise qu’un appel simultané ;
-- est consommé après une réponse Google réussie ;
-- redevient disponible si l’appel Google échoue ;
+- est lié à l’utilisateur et à son organisation active ;
+- est consommé dès la première tentative Google, qu’elle réussisse ou échoue ;
 - protège l’unique génération de carte facturable associée à la recherche.
 
 La réponse de carte porte également `Cache-Control: no-store, max-age=0`.
@@ -364,8 +378,9 @@ Le port `PlacesGateway` expose une seule méthode `search`. Il ne connaît aucun
 - masque de champs Google minimal ;
 - aucune persistance ni cache navigateur des résultats ;
 - réponses Google et carte marquées `no-store` ;
-- verrou Unicode par adresse professionnelle ;
-- carte facturable derrière un jeton aléatoire et à usage unique ;
+- verrou par identifiants internes utilisateur/organisation ;
+- recherche et carte soumises à des capacités distinctes, sans privilège plateforme implicite ;
+- carte facturable derrière un jeton aléatoire de 256 bits, lié au propriétaire et terminal au premier essai ;
 - résultat limité dans le client Google, le cas d’usage et le schéma HTTP ;
 - attribution `Google Maps` visible sur la liste ;
 - route d’export historique absente.
@@ -393,18 +408,20 @@ npm test
 npm run build
 ```
 
-Le dernier passage valide 111 tests backend hors intégration et 21 tests d’intégration, dont les scénarios
-PostgreSQL/Redis/Mailpit exécutés sur une base temporaire vierge, soit 132 scénarios backend sans test ignoré, ainsi
-que 22 tests React répartis dans 9 fichiers. La suite protège
-les migrations 0001→0005, RLS, concurrence du dernier Administrateur, cycles d’invitation, rotation et purge de
-session, Mailpit, absence de stockage navigateur et toutes les garanties Google historiques.
+Le passage 2.3.4 valide 115 tests backend hors intégration et 17 tests d’API Google avec fournisseurs simulés, soit
+132 scénarios réussis. Les 17 scénarios exigeant PostgreSQL, Redis et Mailpit réels restent à rejouer lorsque Docker
+est disponible. Le frontend valide 28 tests React répartis dans 9 fichiers. Ruff, mypy, ESLint et le build Vite sont
+verts. La suite protège notamment les anciennes garanties Google, les capacités, le verrou locataire, le vol de
+concession, l’échec Maps terminal et l’absence de stockage navigateur.
 
 ## Suite de la migration CRM V1
 
-Les incréments 2.1, 2.2, 2.3.1 et 2.3.2 sont terminés localement. L’implémentation 2.3.3 est complète, sa matrice
-automatisée est verte et ses trois critiques ainsi que ses deux revues figurent dans
-[`docs/PHASE_2_3_3_RAPPORT_IMPLEMENTATION.md`](docs/PHASE_2_3_3_RAPPORT_IMPLEMENTATION.md). Il reste au responsable
-produit à exécuter le protocole local avant de déclarer 2.3.3 accepté et d’autoriser 2.3.4.
+Les incréments 2.1, 2.2, 2.3.1, 2.3.2, 2.3.3 et 2.3.4 sont terminés et validés localement. Les parcours Places et
+Places + Maps Static de 2.3.4 ont été confirmés par le responsable produit. Le rejeu des 17 tests
+PostgreSQL/Redis/Mailpit sans `skip` reste une barrière de déploiement, mais ne bloque pas la définition de 2.3.5. Le
+contrat et les preuves de 2.3.4 se trouvent dans
+[`docs/PHASE_2_3_4_SPECIFICATIONS_DETAILLEES.md`](docs/PHASE_2_3_4_SPECIFICATIONS_DETAILLEES.md) et
+[`docs/PHASE_2_3_4_RAPPORT_IMPLEMENTATION.md`](docs/PHASE_2_3_4_RAPPORT_IMPLEMENTATION.md).
 
 ## Références
 

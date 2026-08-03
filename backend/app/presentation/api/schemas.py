@@ -186,20 +186,6 @@ class AcceptInvitationRequest(StrictCommand):
     new_account: NewInvitationAccountRequest | None = None
 
 
-class RequesterInfo(BaseModel):
-    first_name: str = Field(min_length=1, max_length=80)
-    company_name: str = Field(min_length=2, max_length=160)
-    business_address: str = Field(min_length=5, max_length=240)
-
-    @field_validator("first_name", "company_name", "business_address")
-    @classmethod
-    def clean_identity_field(cls, value: str) -> str:
-        value = " ".join(value.split())
-        if not value:
-            raise ValueError("Ce champ est requis.")
-        return value
-
-
 class GooglePlaceSearchParameters(BaseModel):
     query: str = Field(min_length=2, max_length=120)
     center_latitude: float = Field(default=46.8139, ge=-90, le=90)
@@ -224,7 +210,7 @@ class GooglePlaceSearchParameters(BaseModel):
 
 
 class GooglePlaceSearchRequest(GooglePlaceSearchParameters):
-    requester: RequesterInfo
+    model_config = ConfigDict(extra="forbid")
 
 
 class GooglePlaceSummary(BaseModel):
@@ -304,5 +290,5 @@ class MapSnapshotRequest(BaseModel):
     points: list[MapPoint] = Field(default_factory=list, max_length=20)
 
 
-class MapSnapshotTokenRequest(BaseModel):
+class MapSnapshotTokenRequest(StrictCommand):
     token: str = Field(min_length=32, max_length=128)

@@ -114,16 +114,19 @@ CAPABILITIES_BY_ROLE: dict[MembershipRole, tuple[str, ...]] = {
         "invitations:manage",
         "audit:read",
         "google:search",
+        "google:map",
     ),
     MembershipRole.MANAGER: (
         "organization:read",
         "members:read",
         "audit:read",
         "google:search",
+        "google:map",
     ),
     MembershipRole.SALES: (
         "organization:read",
         "google:search",
+        "google:map",
     ),
 }
 

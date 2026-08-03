@@ -2,8 +2,11 @@ import { AlertTriangle, LoaderCircle, MapPin, Target } from '../../../icons'
 import { useMapSnapshot } from '../hooks/useMapSnapshot'
 
 
-export function CoverageMap({ places, form, loading, searchedAt, resultToken }) {
-  const { snapshotUrl, snapshotLoading, snapshotError } = useMapSnapshot(searchedAt, resultToken)
+export function CoverageMap({ places, form, loading, searchedAt, resultToken, mapEnabled }) {
+  const { snapshotUrl, snapshotLoading, snapshotError } = useMapSnapshot(
+    searchedAt,
+    mapEnabled ? resultToken : '',
+  )
 
   return <div className="coverage-card">
     <div className="map-top"><div><p className="eyebrow">Aperçu de couverture</p><h2>Rayon de {form.radius_km} km</h2></div><div className="zone-pill"><Target size={14} /> 1 zone</div></div>

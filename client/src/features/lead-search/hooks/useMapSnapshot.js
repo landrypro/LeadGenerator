@@ -10,7 +10,12 @@ export function useMapSnapshot(searchedAt, resultToken) {
   const [snapshotError, setSnapshotError] = useState('')
 
   useEffect(() => {
-    if (!searchedAt || !resultToken) return undefined
+    if (!searchedAt || !resultToken) {
+      setSnapshotUrl('')
+      setSnapshotLoading(false)
+      setSnapshotError('')
+      return undefined
+    }
     const controller = new AbortController()
     let objectUrl = ''
     setSnapshotLoading(true)

@@ -1,6 +1,7 @@
 import { useContext, useEffect, useState } from 'react'
 
 import { AuthContext } from '../features/auth/context'
+import { AccessDeniedPage } from '../features/auth/AccessDeniedPage'
 import { LoginPage } from '../features/auth/LoginPage'
 import { SessionLoadingPage } from '../features/auth/SessionLoadingPage'
 import { NoOrganizationPage } from '../features/auth/NoOrganizationPage'
@@ -28,11 +29,14 @@ export function AppRouter({ invitationToken = '' }) {
   }
   if (!auth || auth.status === 'loading') return <SessionLoadingPage />
   if (!auth.session) return <LoginPage onLogin={auth.login} />
-  if (!auth.session.active_organization && !auth.session.user.platform_role) {
+  if (!auth.session.active_organization) {
     return <NoOrganizationPage onLogout={auth.logout} />
   }
 
   const route = routes.find((candidate) => candidate.path === pathname) ?? routes[0]
+  if (route.requiredCapability && !auth.session.capabilities.includes(route.requiredCapability)) {
+    return <AccessDeniedPage onLogout={auth.logout} />
+  }
   const RouteComponent = route.Component
   return <RouteComponent session={auth.session} onLogout={auth.logout} />
 }

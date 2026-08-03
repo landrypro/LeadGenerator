@@ -13,11 +13,6 @@ def test_search_response_preserves_effective_parameters_without_requester() -> N
             "center_latitude": 45.5019,
             "center_longitude": -73.5674,
             "radius_km": 12,
-            "requester": {
-                "first_name": "Anne",
-                "company_name": "Exemple Inc.",
-                "business_address": "100 rue Principale, Montréal",
-            },
         }
     )
     outcome = SearchGooglePlacesOutcome(

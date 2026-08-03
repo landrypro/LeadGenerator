@@ -5,7 +5,7 @@ from datetime import UTC, datetime
 
 from ...domain.geo import haversine_km
 from ...domain.google_place import GooglePlaceSearchResult, GooglePlaceSearchStats, GooglePlaceSummary
-from ..models import GooglePlaceSearchCriteria, MapPoint, MapSnapshot
+from ..models import GoogleAccessContext, GooglePlaceSearchCriteria, MapPoint, MapSnapshot
 from ..ports.generation_guard import GenerationGuard
 from ..ports.map_grants import MapSnapshotGrantStore
 from ..ports.places import PlaceCandidate, PlacesGateway
@@ -35,9 +35,9 @@ class SearchGooglePlacesUseCase:
     async def execute(
         self,
         criteria: GooglePlaceSearchCriteria,
-        business_address: str,
+        access: GoogleAccessContext,
     ) -> SearchGooglePlacesOutcome:
-        async with self._generation_guard.hold(business_address):
+        async with self._generation_guard.hold(access.owner):
             candidates = await self._places.search(criteria)
             search = self._build_result(candidates, criteria)
             snapshot = MapSnapshot(
@@ -50,7 +50,7 @@ class SearchGooglePlacesUseCase:
                     if place.latitude is not None and place.longitude is not None
                 ],
             )
-            token = await self._map_grants.issue(snapshot)
+            token = await self._map_grants.issue(snapshot, access.owner)
             return SearchGooglePlacesOutcome(search=search, map_snapshot_token=token)
 
     @staticmethod

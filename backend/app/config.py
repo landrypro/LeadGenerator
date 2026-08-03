@@ -116,6 +116,8 @@ class Settings:
             raise ValueError("PostgreSQL et Redis sont obligatoires en production.")
         if not self.google_maps_api_key:
             raise ValueError("GOOGLE_MAPS_API_KEY est obligatoire en production.")
+        if self.map_grant_ttl_seconds > 300:
+            raise ValueError("MAP_SNAPSHOT_GRANT_TTL_SECONDS ne peut pas dépasser 300 en production.")
         if not self.session_cookie_secure or not self.session_cookie_name.startswith("__Host-"):
             raise ValueError("Le cookie de session de production doit être Secure et utiliser le préfixe __Host-.")
         if not _is_public_https_origin(self.public_app_url):

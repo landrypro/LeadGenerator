@@ -26,8 +26,8 @@ class StubProbe:
 
 
 class StubSearch:
-    async def execute(self, criteria: object, business_address: str) -> SearchGooglePlacesOutcome:
-        del criteria, business_address
+    async def execute(self, criteria: object, access: object) -> SearchGooglePlacesOutcome:
+        del criteria, access
         return SearchGooglePlacesOutcome(
             search=GooglePlaceSearchResult(
                 places=[],

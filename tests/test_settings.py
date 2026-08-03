@@ -148,6 +148,22 @@ def test_production_requires_secure_host_cookie_and_matching_public_origin() -> 
         )
 
 
+def test_production_caps_map_grant_lifetime_at_five_minutes() -> None:
+    with pytest.raises(ValueError, match="300"):
+        Settings(
+            app_env="production",
+            database_url="postgresql+asyncpg://app:secret@db/prospect",
+            redis_url="rediss://redis:6379/0",
+            google_maps_api_key="key",
+            public_app_url="https://crm.example",
+            session_cookie_name="__Host-prospect_session",
+            session_cookie_secure=True,
+            cors_allowed_origins=("https://crm.example",),
+            rate_limit_hmac_key="a-secret-rate-limit-key-with-at-least-32-bytes",
+            map_grant_ttl_seconds=301,
+        )
+
+
 def test_mailpit_is_local_only_and_requires_a_public_app_origin() -> None:
     with pytest.raises(ValueError, match="PUBLIC_APP_URL"):
         Settings(app_env="development", invitation_delivery_backend="mailpit")

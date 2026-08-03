@@ -6,7 +6,7 @@
 | Incrément | 2.3.3 — Membres, capacités et changement d’organisation |
 | Version | 1.0 |
 | Date | 2 août 2026 |
-| Statut | Implémenté et validé automatiquement ; validation locale produit attendue |
+| Statut | Implémenté, contrôlé automatiquement et validé localement par le responsable produit |
 | Validation produit | 2 août 2026 |
 | Prérequis | 2.3.2 implémenté, revu et validé localement de bout en bout |
 | Référence supérieure | `PHASE_2_3_SPECIFICATIONS_DETAILLEES.md` version 1.4 |

@@ -5,12 +5,14 @@ from urllib.parse import urlsplit
 
 from fastapi import Request
 
-from ...application.errors import CsrfValidationFailed
+from ...application.errors import CsrfValidationFailed, JsonContentTypeRequired
 
 
-def require_json_content_type(request: Request) -> None:
+def require_json_content_type(request: Request, *, strict_http_status: bool = False) -> None:
     content_type = request.headers.get("content-type", "").partition(";")[0].strip().lower()
     if content_type != "application/json":
+        if strict_http_status:
+            raise JsonContentTypeRequired
         raise CsrfValidationFailed
 
 

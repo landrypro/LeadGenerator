@@ -1,46 +1,63 @@
-from fastapi import APIRouter, HTTPException, Response
+from fastapi import APIRouter, Request, Response
+from fastapi.responses import JSONResponse
 
-from ....application.errors import AddressGenerationInProgress, PlacesProviderError
+from ....application.errors import (
+    GoogleSearchInProgress,
+    MapSnapshotGrantCapacityReached,
+    PlacesProviderError,
+)
 from ..dependencies import ContainerDependency
+from ..google_access import google_access_error, required_google_access
 from ..mappers import to_search_criteria, to_search_response
+from ..responses import NO_STORE_HEADERS, api_error
 from ..schemas import GooglePlaceSearchRequest, GooglePlaceSearchResponse
 
 router = APIRouter(prefix="/api/google/places", tags=["google-places"])
-NO_STORE_HEADERS = {"Cache-Control": "no-store, max-age=0"}
 
 
 @router.post("/search", response_model=GooglePlaceSearchResponse)
 async def search_google_places(
-    request: GooglePlaceSearchRequest,
-    response: Response,
+    payload: GooglePlaceSearchRequest,
+    request: Request,
     container: ContainerDependency,
-) -> GooglePlaceSearchResponse:
-    response.headers.update(NO_STORE_HEADERS)
-    if not container.settings.google_maps_api_key:
-        raise HTTPException(
-            status_code=503,
-            detail="GOOGLE_MAPS_API_KEY n’est pas configurée sur le serveur.",
-            headers=NO_STORE_HEADERS,
-        )
+) -> Response:
     try:
-        result = await container.search_google_places.execute(
-            to_search_criteria(request),
-            request.requester.business_address,
-        )
-        return to_search_response(result, request)
-    except AddressGenerationInProgress as exc:
-        raise HTTPException(
-            status_code=409,
-            detail=(
-                "Une recherche est déjà en cours pour cette adresse professionnelle. "
-                "Réessayez lorsqu’elle sera terminée."
-            ),
-            headers=NO_STORE_HEADERS,
-        ) from exc
-    except PlacesProviderError as exc:
-        status = 429 if exc.status_code == 429 else 502
-        raise HTTPException(
-            status_code=status,
-            detail=str(exc),
-            headers=NO_STORE_HEADERS,
-        ) from exc
+        access = await required_google_access(request, container, "google:search")
+        if not container.settings.google_maps_api_key:
+            return api_error(
+                request,
+                503,
+                "google_not_configured",
+                "La recherche Google n’est pas configurée.",
+            )
+        result = await container.search_google_places.execute(to_search_criteria(payload), access)
+    except Exception as error:
+        response = google_access_error(request, error)
+        if response is not None:
+            return response
+        if isinstance(error, GoogleSearchInProgress):
+            return api_error(
+                request,
+                409,
+                "google_search_in_progress",
+                "Une recherche Google est déjà en cours pour ce compte.",
+            )
+        if isinstance(error, MapSnapshotGrantCapacityReached):
+            return api_error(
+                request,
+                503,
+                "map_grant_unavailable",
+                "La carte est temporairement indisponible.",
+            )
+        if isinstance(error, PlacesProviderError):
+            if error.status_code == 429:
+                return api_error(request, 429, "google_rate_limited", "Google limite temporairement les recherches.")
+            return api_error(
+                request,
+                502,
+                "google_places_unavailable",
+                "Google Places est temporairement indisponible.",
+            )
+        raise
+    response_payload = to_search_response(result, payload)
+    return JSONResponse(response_payload.model_dump(mode="json"), headers=NO_STORE_HEADERS)

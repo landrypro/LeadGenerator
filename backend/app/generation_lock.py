@@ -1,8 +1,8 @@
-"""Façade de compatibilité de l’ancien verrou local."""
+"""Façade du verrou Google local mono-instance."""
 
-from .application.errors import AddressGenerationInProgress
+from .application.errors import GoogleSearchInProgress
 from .infrastructure.memory.generation_guard import InMemoryGenerationGuard
 
-AddressGenerationRegistry = InMemoryGenerationGuard
+GenerationRegistry = InMemoryGenerationGuard
 
-__all__ = ["AddressGenerationInProgress", "AddressGenerationRegistry"]
+__all__ = ["GenerationRegistry", "GoogleSearchInProgress"]

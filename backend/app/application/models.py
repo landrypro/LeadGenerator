@@ -1,6 +1,24 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
+from uuid import UUID
+
+
+@dataclass(frozen=True, slots=True)
+class GoogleAccessOwner:
+    user_id: UUID
+    organization_id: UUID
+
+
+@dataclass(frozen=True, slots=True)
+class GoogleAccessContext:
+    user_id: UUID
+    organization_id: UUID
+    membership_id: UUID
+
+    @property
+    def owner(self) -> GoogleAccessOwner:
+        return GoogleAccessOwner(self.user_id, self.organization_id)
 
 
 @dataclass(frozen=True, slots=True)
