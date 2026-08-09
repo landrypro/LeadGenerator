@@ -23,6 +23,8 @@ Ce fichier réunit le guide utilisateur et la documentation technique du socle a
 - compte authentifié sans organisation placé dans un état restreint sans capacité fonctionnelle ;
 - rôle PostgreSQL Web non propriétaire et tables locataires protégées par Row-Level Security ;
 - contexte d’organisation limité à chaque transaction, sans persistance dans le pool de connexions ;
+- audit transactionnel append-only des mutations couvertes, consultable séparément par organisation et plateforme ;
+- filtres d’audit bornés, pagination signée, détails minimisés et réponses sans courriel ni contenu Google ;
 - recherche explicite d’établissements autour d’un point et d’un rayon ;
 - exactement un appel Text Search par action, sans page suivante ni balayage multi-zone ;
 - réponse et affichage limités à vingt établissements ;
@@ -242,6 +244,25 @@ Pour inviter un Gestionnaire :
 Le script accepte aussi `-MembershipId`, `-MembershipVersion`, `-NewRole`, `-NewStatus` et
 `-SwitchMembershipId`. Le mot de passe reste interactif ; aucun jeton d’invitation, cookie ou CSRF n’est affiché.
 
+### Tester la consultation de l’audit
+
+Après avoir produit quelques mutations d’organisation, de membres ou d’invitations, ouvrez `/app/audit` avec un
+Administrateur ou un Gestionnaire. Un Commercial ne doit voir ni le lien ni les données. Un Administrateur de
+plateforme consulte sa portée distincte dans `/app/platform/audit` ; ce rôle ne reçoit aucun accès locataire implicite.
+
+Le script suivant appelle les mêmes routes HTTP, vérifie `Cache-Control: no-store` et l’absence de courriel, sans
+afficher le cookie, le jeton CSRF ou le curseur :
+
+```powershell
+.\scripts\Test-AuditLocal.ps1 `
+  -AccountEmail "admin-organisation@example.ca" `
+  -Scope tenant `
+  -Days 30
+```
+
+Utilisez `-Scope platform` avec l’Administrateur de plateforme, ou `-Scope all` uniquement si le compte possède les
+deux capacités. Les filtres restent en mémoire et la page **Charger la suite** utilise un curseur opaque signé.
+
 ### Tester la protection Google locale
 
 Cette commande exécute volontairement une vraie requête Places potentiellement facturable. La valeur de confirmation
@@ -417,9 +438,10 @@ Le passage complet et isolé se lance, après arrêt des serveurs Vite locaux, a
 powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\scripts\Test-QualityGateLocal.ps1
 ```
 
-Le passage hors infrastructure valide 136 tests backend et en ignore 17 qui exigent PostgreSQL, Redis et Mailpit
-réels. Le frontend valide 126 tests dans 29 fichiers, dont vingt états axe, sans test ignoré. Ruff, mypy, ESLint,
-l’audit npm, Vitest et le build Vite sont verts. Le responsable produit a prononcé le GO de clôture officiel de
+Le passage complet local de 2.4.3 valide **180 tests backend** avec PostgreSQL, Redis et Mailpit réels, sans test
+ignoré ; le contrôle JUnit `junit-no-skips` est conforme. Le frontend valide 132 tests dans 31 fichiers, dont vingt
+états axe, sans test ignoré. Ruff, mypy, ESLint, l’audit npm, Vitest et le build Vite sont verts.
+Le responsable produit a prononcé le GO de clôture officiel de
 2.3.5-E le 9 août 2026. Le script ci-dessus avec `REQUIRE_INFRASTRUCTURE_TESTS=true`, un passage Azure vert et la
 matrice manuelle restent des preuves obligatoires à annexer avant le déploiement. Le détail se trouve dans
 [`docs/PHASE_2_3_5_E_RAPPORT_IMPLEMENTATION.md`](docs/PHASE_2_3_5_E_RAPPORT_IMPLEMENTATION.md). Le protocole complet
@@ -441,6 +463,25 @@ de 2.4 est autorisée. Les références Docker/Azure et la matrice signée reste
 déploiement. Ses seize décisions et le rapport courant se trouvent dans
 [`docs/PHASE_2_3_5_E_SPECIFICATIONS_DETAILLEES.md`](docs/PHASE_2_3_5_E_SPECIFICATIONS_DETAILLEES.md) et
 [`docs/PHASE_2_3_5_E_RAPPORT_IMPLEMENTATION.md`](docs/PHASE_2_3_5_E_RAPPORT_IMPLEMENTATION.md).
+La proposition détaillée de 2.4 — audit transactionnel, consultation, suspension/réactivation et historique des
+invitations — se trouve dans
+[`docs/PHASE_2_4_SPECIFICATIONS_DETAILLEES.md`](docs/PHASE_2_4_SPECIFICATIONS_DETAILLEES.md). Ses seize décisions
+ont été validées par le responsable produit le 9 août 2026. Le code de 2.4.1 est implémenté sous la migration
+`20260809_0006` ; ses preuves PostgreSQL réelles seront incluses dans le verrou automatisé de l’implémentation 2.4.2.
+Le rapport se trouve dans
+[`docs/PHASE_2_4_1_RAPPORT_IMPLEMENTATION.md`](docs/PHASE_2_4_1_RAPPORT_IMPLEMENTATION.md).
+La recette manuelle de 2.4.1 est regroupée avec celle de 2.4.2 à la fin de 2.4.3. Les seize décisions de 2.4.2 ont été
+validées le 9 août 2026 et sont implémentées sous `20260809_0007`. Le contrat et les preuves se trouvent dans
+[`docs/PHASE_2_4_2_SPECIFICATIONS_DETAILLEES.md`](docs/PHASE_2_4_2_SPECIFICATIONS_DETAILLEES.md) et
+[`docs/PHASE_2_4_2_RAPPORT_IMPLEMENTATION.md`](docs/PHASE_2_4_2_RAPPORT_IMPLEMENTATION.md). Ce report ne supprime
+aucun test automatisé ni contrôle PostgreSQL propre à l’implémentation.
+
+La consultation 2.4.3 est validée et implémentée conformément à
+[`docs/PHASE_2_4_3_SPECIFICATIONS_DETAILLEES.md`](docs/PHASE_2_4_3_SPECIFICATIONS_DETAILLEES.md). Elle définit les
+API et écrans locataire/plateforme, les curseurs liés aux filtres et la recette utilisateur cumulée de 2.4.1 à 2.4.3.
+Son rapport est disponible dans
+[`docs/PHASE_2_4_3_RAPPORT_IMPLEMENTATION.md`](docs/PHASE_2_4_3_RAPPORT_IMPLEMENTATION.md). La recette utilisateur
+cumulée a été déclarée conforme le 9 août 2026. Le passage Azure reste requis avant le GO de 2.4.4.
 Le contrat et les preuves se trouvent dans
 [`docs/PHASE_2_3_5_SPECIFICATIONS_DETAILLEES.md`](docs/PHASE_2_3_5_SPECIFICATIONS_DETAILLEES.md) et
 les rapports

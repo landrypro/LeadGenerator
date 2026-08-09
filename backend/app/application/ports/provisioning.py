@@ -15,6 +15,7 @@ from ...domain.provisioning import (
     ValidatedProvisionOrganization,
 )
 from ..tenancy import ActorContext
+from .organization import DeliveryFinalizationGatewayResult
 
 
 class ProvisionResultCode(StrEnum):
@@ -60,6 +61,7 @@ class ResendGatewayResult:
     view: ProvisioningView | None = None
     delivery_attempt_id: UUID | None = None
     retry_after_seconds: int = 0
+    revoked_invitation_id: UUID | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -75,6 +77,16 @@ class AcceptanceGatewayResult:
 
 
 class PlatformProvisioningGateway(Protocol):
+    async def list_organizations(
+        self,
+        *,
+        context: ActorContext,
+        before_created_at: datetime | None,
+        before_id: UUID | None,
+        limit: int,
+        now: datetime,
+    ) -> tuple[ProvisioningView, ...]: ...
+
     async def provision(
         self,
         *,
@@ -87,16 +99,6 @@ class PlatformProvisioningGateway(Protocol):
         expires_at: datetime,
         now: datetime,
     ) -> ProvisionGatewayResult: ...
-
-    async def list_organizations(
-        self,
-        *,
-        context: ActorContext,
-        before_created_at: datetime | None,
-        before_id: UUID | None,
-        limit: int,
-        now: datetime,
-    ) -> tuple[ProvisioningView, ...]: ...
 
     async def prepare_resend(
         self,
@@ -115,11 +117,7 @@ class PlatformProvisioningGateway(Protocol):
     ) -> ResendGatewayResult: ...
 
     async def revoke_initial_invitation(
-        self,
-        *,
-        context: ActorContext,
-        organization_id: UUID,
-        now: datetime,
+        self, *, context: ActorContext, organization_id: UUID, now: datetime
     ) -> RevokeGatewayResult: ...
 
     async def finalize_delivery(
@@ -131,7 +129,53 @@ class PlatformProvisioningGateway(Protocol):
         sent: bool,
         failure_code: str | None,
         now: datetime,
-    ) -> None: ...
+    ) -> DeliveryFinalizationGatewayResult | None: ...
+
+
+class PlatformProvisioningMutationGateway(Protocol):
+    async def provision(
+        self,
+        *,
+        command: ValidatedProvisionOrganization,
+        token: InvitationToken,
+        organization_id: UUID,
+        invitation_id: UUID,
+        delivery_attempt_id: UUID,
+        expires_at: datetime,
+        now: datetime,
+    ) -> ProvisionGatewayResult: ...
+
+    async def prepare_resend(
+        self,
+        *,
+        organization_id: UUID,
+        request_id: UUID,
+        token: InvitationToken,
+        invitation_id: UUID,
+        delivery_attempt_id: UUID,
+        expires_at: datetime,
+        now: datetime,
+        cooldown_seconds: int,
+        window_seconds: int,
+        max_per_window: int,
+    ) -> ResendGatewayResult: ...
+
+    async def revoke_initial_invitation(
+        self,
+        *,
+        organization_id: UUID,
+        now: datetime,
+    ) -> RevokeGatewayResult: ...
+
+    async def finalize_delivery(
+        self,
+        *,
+        invitation_id: UUID,
+        delivery_attempt_id: UUID,
+        sent: bool,
+        failure_code: str | None,
+        now: datetime,
+    ) -> DeliveryFinalizationGatewayResult: ...
 
 
 class InvitationAcceptanceGateway(Protocol):
@@ -149,9 +193,25 @@ class InvitationAcceptanceGateway(Protocol):
     ) -> AcceptanceGatewayResult: ...
 
     async def accept_existing_account(
+        self, *, context: ActorContext, token_hash: str, membership_id: UUID, now: datetime
+    ) -> AcceptanceGatewayResult: ...
+
+
+class InvitationAcceptanceMutationGateway(Protocol):
+    async def accept_new_account(
         self,
         *,
-        context: ActorContext,
+        token_hash: str,
+        user_id: UUID,
+        membership_id: UUID,
+        display_name: str,
+        password_hash: str,
+        now: datetime,
+    ) -> AcceptanceGatewayResult: ...
+
+    async def accept_existing_account(
+        self,
+        *,
         token_hash: str,
         membership_id: UUID,
         now: datetime,

@@ -82,6 +82,7 @@ async def accept_invitation(
                     password=payload.new_account.password,
                 ),
                 client_address=client_address,
+                request_id=getattr(request.state, "request_id", "unknown"),
             )
         else:
             if authentication is None:

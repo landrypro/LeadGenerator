@@ -6,7 +6,7 @@ import {
 
 
 describe('routes CRM', () => {
-  it('déclare les sept routes canoniques de 2.3.5', () => {
+  it('déclare les routes canoniques jusqu’à 2.4.3', () => {
     expect(CRM_PATHS).toEqual({
       home: '/',
       login: '/login',
@@ -16,18 +16,24 @@ describe('routes CRM', () => {
       organization: '/app/admin/organization',
       users: '/app/admin/users',
       platformOrganizations: '/app/platform/organizations',
+      audit: '/app/audit',
+      platformAudit: '/app/platform/audit',
     })
   })
 
-  it('active les pages terminées jusqu’au lot D', () => {
+  it('active les pages terminées jusqu’à la consultation d’audit', () => {
     expect(routes.map((route) => route.path)).toEqual([
       '/app/search',
       '/app/admin/organization',
       '/app/admin/users',
+      '/app/audit',
       '/app/platform/organizations',
+      '/app/platform/audit',
       '/app/account',
     ])
     expect(findRoute('/app/platform/organizations')?.requiredCapability).toBe('platform:organizations:read')
+    expect(findRoute('/app/audit')?.requiredCapability).toBe('audit:read')
+    expect(findRoute('/app/platform/audit')?.requiredCapability).toBe('platform:audit:read')
   })
 
   it('filtre les routes selon l’organisation active et les capacités', () => {
@@ -45,6 +51,16 @@ describe('routes CRM', () => {
       'account',
     ])
     expect(canAccessRoute(findRoute('/app/search'), tenant)).toBe(true)
+
+    const auditor = session({
+      activeOrganization: { id: 'org-1', name: 'Entreprise' },
+      capabilities: ['audit:read', 'platform:audit:read'],
+    })
+    expect(navigationRoutes(auditor).map((route) => route.id)).toEqual([
+      'tenant-audit',
+      'platform-audit',
+      'account',
+    ])
   })
 
   it('choisit une destination sûre selon le contexte courant', () => {

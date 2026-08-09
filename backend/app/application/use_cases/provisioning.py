@@ -6,6 +6,7 @@ from dataclasses import dataclass, replace
 from datetime import datetime, timedelta
 from uuid import UUID, uuid4
 
+from ...domain.audit import AuditAction
 from ...domain.provisioning import (
     InvitationDeliveryStatus,
     InvitationMessage,
@@ -13,6 +14,7 @@ from ...domain.provisioning import (
     ProvisionOrganizationCommand,
     validate_provision_organization,
 )
+from ..audit_events import platform_audit_event
 from ..errors import (
     IdempotencyKeyReused,
     InsufficientCapability,
@@ -33,6 +35,7 @@ from ..ports import (
     ResendResultCode,
     RevokeResultCode,
 )
+from ..ports.audit import PlatformAuditedUnitOfWorkFactory
 from ..tenancy import ActorContext
 
 
@@ -52,6 +55,7 @@ class CreateOrganizationUseCase:
         *,
         public_app_url: str,
         invitation_ttl_seconds: int,
+        audited_unit_of_work_factory: PlatformAuditedUnitOfWorkFactory | None = None,
     ) -> None:
         self._gateway = gateway
         self._token_generator = token_generator
@@ -59,6 +63,7 @@ class CreateOrganizationUseCase:
         self._clock = clock
         self._public_app_url = public_app_url.rstrip("/")
         self._invitation_ttl_seconds = invitation_ttl_seconds
+        self._audited_unit_of_work_factory = audited_unit_of_work_factory
 
     async def execute(
         self,
@@ -73,16 +78,58 @@ class CreateOrganizationUseCase:
         validated = validate_provision_organization(command)
         now = self._clock.now()
         token = self._token_generator.generate()
-        result = await self._gateway.provision(
-            context=context,
-            command=validated,
-            token=token,
-            organization_id=uuid4(),
-            invitation_id=uuid4(),
-            delivery_attempt_id=uuid4(),
-            expires_at=now + timedelta(seconds=self._invitation_ttl_seconds),
-            now=now,
-        )
+        organization_id = uuid4()
+        invitation_id = uuid4()
+        delivery_attempt_id = uuid4()
+        if self._audited_unit_of_work_factory is None:
+            result = await self._gateway.provision(
+                context=context,
+                command=validated,
+                token=token,
+                organization_id=organization_id,
+                invitation_id=invitation_id,
+                delivery_attempt_id=delivery_attempt_id,
+                expires_at=now + timedelta(seconds=self._invitation_ttl_seconds),
+                now=now,
+            )
+        else:
+            async with self._audited_unit_of_work_factory(context) as unit_of_work:
+                result = await unit_of_work.mutations.provision(
+                    command=validated,
+                    token=token,
+                    organization_id=organization_id,
+                    invitation_id=invitation_id,
+                    delivery_attempt_id=delivery_attempt_id,
+                    expires_at=now + timedelta(seconds=self._invitation_ttl_seconds),
+                    now=now,
+                )
+                if result.code is ProvisionResultCode.CREATED and result.view is None:
+                    raise ProvisioningServiceUnavailable("Le provisioning n’a retourné aucune ressource.")
+                if result.code is ProvisionResultCode.CREATED and result.delivery_attempt_id is None:
+                    raise ProvisioningOutcomeUnknown
+                if result.code is ProvisionResultCode.CREATED and result.view is not None:
+                    await unit_of_work.audit.record(
+                        platform_audit_event(
+                            context,
+                            AuditAction.ORGANIZATION_PROVISIONED,
+                            result.view.organization.id,
+                            organization_id=result.view.organization.id,
+                        )
+                    )
+                    await unit_of_work.audit.record(
+                        platform_audit_event(
+                            context,
+                            AuditAction.INITIAL_INVITATION_CREATED,
+                            result.view.first_invitation.id,
+                            {
+                                "role": result.view.first_invitation.role.value,
+                                "invitation_kind": "initial_administrator",
+                                "delivery_status": "pending",
+                            },
+                            organization_id=result.view.organization.id,
+                        )
+                    )
+                await unit_of_work.commit()
         if result.code is ProvisionResultCode.IDEMPOTENCY_CONFLICT:
             raise IdempotencyKeyReused
         if result.view is None:
@@ -100,6 +147,7 @@ class CreateOrganizationUseCase:
             view=result.view,
             delivery_attempt_id=result.delivery_attempt_id,
             raw_token=token.raw,
+            audited_unit_of_work_factory=self._audited_unit_of_work_factory,
         )
 
 
@@ -148,6 +196,7 @@ class ResendInitialInvitationUseCase:
         cooldown_seconds: int,
         window_seconds: int,
         max_per_window: int,
+        audited_unit_of_work_factory: PlatformAuditedUnitOfWorkFactory | None = None,
     ) -> None:
         self._gateway = gateway
         self._token_generator = token_generator
@@ -158,6 +207,7 @@ class ResendInitialInvitationUseCase:
         self._cooldown_seconds = cooldown_seconds
         self._window_seconds = window_seconds
         self._max_per_window = max_per_window
+        self._audited_unit_of_work_factory = audited_unit_of_work_factory
 
     async def execute(
         self,
@@ -172,19 +222,60 @@ class ResendInitialInvitationUseCase:
             raise InvitationDeliveryUnavailable
         now = self._clock.now()
         token = self._token_generator.generate()
-        result = await self._gateway.prepare_resend(
-            context=context,
-            organization_id=organization_id,
-            request_id=resend_request_id,
-            token=token,
-            invitation_id=uuid4(),
-            delivery_attempt_id=uuid4(),
-            expires_at=now + timedelta(seconds=self._invitation_ttl_seconds),
-            now=now,
-            cooldown_seconds=self._cooldown_seconds,
-            window_seconds=self._window_seconds,
-            max_per_window=self._max_per_window,
-        )
+        invitation_id = uuid4()
+        delivery_attempt_id = uuid4()
+        if self._audited_unit_of_work_factory is None:
+            result = await self._gateway.prepare_resend(
+                context=context,
+                organization_id=organization_id,
+                request_id=resend_request_id,
+                token=token,
+                invitation_id=invitation_id,
+                delivery_attempt_id=delivery_attempt_id,
+                expires_at=now + timedelta(seconds=self._invitation_ttl_seconds),
+                now=now,
+                cooldown_seconds=self._cooldown_seconds,
+                window_seconds=self._window_seconds,
+                max_per_window=self._max_per_window,
+            )
+        else:
+            async with self._audited_unit_of_work_factory(context) as unit_of_work:
+                result = await unit_of_work.mutations.prepare_resend(
+                    organization_id=organization_id,
+                    request_id=resend_request_id,
+                    token=token,
+                    invitation_id=invitation_id,
+                    delivery_attempt_id=delivery_attempt_id,
+                    expires_at=now + timedelta(seconds=self._invitation_ttl_seconds),
+                    now=now,
+                    cooldown_seconds=self._cooldown_seconds,
+                    window_seconds=self._window_seconds,
+                    max_per_window=self._max_per_window,
+                )
+                if result.code is ResendResultCode.CREATED and result.view is None:
+                    raise ProvisioningServiceUnavailable("Le renvoi n’a retourné aucune invitation.")
+                if result.code is ResendResultCode.CREATED and result.delivery_attempt_id is None:
+                    raise ProvisioningOutcomeUnknown
+                if result.code is ResendResultCode.CREATED and result.view is not None:
+                    if result.revoked_invitation_id is not None:
+                        await unit_of_work.audit.record(
+                            platform_audit_event(
+                                context,
+                                AuditAction.INITIAL_INVITATION_REVOKED,
+                                result.revoked_invitation_id,
+                                organization_id=organization_id,
+                            )
+                        )
+                    await unit_of_work.audit.record(
+                        platform_audit_event(
+                            context,
+                            AuditAction.INITIAL_INVITATION_RESEND_REQUESTED,
+                            result.view.first_invitation.id,
+                            {"delivery_attempt_id": delivery_attempt_id},
+                            organization_id=organization_id,
+                        )
+                    )
+                await unit_of_work.commit()
         if result.code is ResendResultCode.IDEMPOTENCY_CONFLICT:
             raise IdempotencyKeyReused
         if result.code is ResendResultCode.NOT_FOUND:
@@ -208,13 +299,20 @@ class ResendInitialInvitationUseCase:
             view=result.view,
             delivery_attempt_id=result.delivery_attempt_id,
             raw_token=token.raw,
+            audited_unit_of_work_factory=self._audited_unit_of_work_factory,
         )
 
 
 class RevokeInitialInvitationUseCase:
-    def __init__(self, gateway: PlatformProvisioningGateway, clock: Clock) -> None:
+    def __init__(
+        self,
+        gateway: PlatformProvisioningGateway,
+        clock: Clock,
+        audited_unit_of_work_factory: PlatformAuditedUnitOfWorkFactory | None = None,
+    ) -> None:
         self._gateway = gateway
         self._clock = clock
+        self._audited_unit_of_work_factory = audited_unit_of_work_factory
 
     async def execute(
         self,
@@ -224,11 +322,27 @@ class RevokeInitialInvitationUseCase:
         has_platform_capability: bool,
     ) -> ProvisioningView:
         _require_platform(has_platform_capability)
-        result = await self._gateway.revoke_initial_invitation(
-            context=context,
-            organization_id=organization_id,
-            now=self._clock.now(),
-        )
+        if self._audited_unit_of_work_factory is None:
+            result = await self._gateway.revoke_initial_invitation(
+                context=context, organization_id=organization_id, now=self._clock.now()
+            )
+        else:
+            async with self._audited_unit_of_work_factory(context) as unit_of_work:
+                result = await unit_of_work.mutations.revoke_initial_invitation(
+                    organization_id=organization_id, now=self._clock.now()
+                )
+                if result.code is RevokeResultCode.REVOKED and result.view is not None:
+                    await unit_of_work.audit.record(
+                        platform_audit_event(
+                            context,
+                            AuditAction.INITIAL_INVITATION_REVOKED,
+                            result.view.first_invitation.id,
+                            organization_id=organization_id,
+                        )
+                    )
+                elif result.code is RevokeResultCode.REVOKED:
+                    raise ProvisioningServiceUnavailable("La révocation n’a retourné aucune invitation.")
+                await unit_of_work.commit()
         if result.code is RevokeResultCode.NOT_FOUND:
             raise ProvisioningResourceNotFound
         if result.code is RevokeResultCode.ALREADY_ACCEPTED:
@@ -253,6 +367,7 @@ async def _deliver_invitation(
     view: ProvisioningView,
     delivery_attempt_id: UUID,
     raw_token: str,
+    audited_unit_of_work_factory: PlatformAuditedUnitOfWorkFactory | None = None,
 ) -> ProvisioningView:
     invitation = view.first_invitation
     sent = True
@@ -271,14 +386,39 @@ async def _deliver_invitation(
         sent = False
         failure_code = "delivery_failed"
     try:
-        await gateway.finalize_delivery(
-            context=context,
-            invitation_id=invitation.id,
-            delivery_attempt_id=delivery_attempt_id,
-            sent=sent,
-            failure_code=failure_code,
-            now=clock.now(),
-        )
+        if audited_unit_of_work_factory is None:
+            await gateway.finalize_delivery(
+                context=context,
+                invitation_id=invitation.id,
+                delivery_attempt_id=delivery_attempt_id,
+                sent=sent,
+                failure_code=failure_code,
+                now=clock.now(),
+            )
+        else:
+            async with audited_unit_of_work_factory(context) as unit_of_work:
+                finalized = await unit_of_work.mutations.finalize_delivery(
+                    invitation_id=invitation.id,
+                    delivery_attempt_id=delivery_attempt_id,
+                    sent=sent,
+                    failure_code=failure_code,
+                    now=clock.now(),
+                )
+                if finalized.transitioned:
+                    await unit_of_work.audit.record(
+                        platform_audit_event(
+                            context,
+                            AuditAction.INITIAL_INVITATION_DELIVERY_COMPLETED,
+                            invitation.id,
+                            {
+                                "delivery_status": finalized.delivery_status.value,
+                                "delivery_kind": finalized.delivery_kind,
+                                "delivery_attempt_id": delivery_attempt_id,
+                            },
+                            organization_id=view.organization.id,
+                        )
+                    )
+                await unit_of_work.commit()
     except ProvisioningServiceUnavailable as error:
         raise ProvisioningOutcomeUnknown from error
     delivery_status = InvitationDeliveryStatus.SENT if sent else InvitationDeliveryStatus.FAILED

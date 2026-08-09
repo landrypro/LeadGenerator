@@ -101,6 +101,9 @@ class AcceptedInvitation:
     user_id: UUID
     user_version: int
     organization_id: UUID
+    invitation_id: UUID
+    invitation_kind: InvitationKind
+    organization_activated: bool
 
 
 @dataclass(frozen=True, slots=True)

@@ -22,7 +22,9 @@ from .application.use_cases import (
     GetOrganizationUseCase,
     ListMemberInvitationsUseCase,
     ListMembersUseCase,
+    ListPlatformAuditEventsUseCase,
     ListPlatformOrganizationsUseCase,
+    ListTenantAuditEventsUseCase,
     LoginUseCase,
     LogoutUseCase,
     PreviewInvitationUseCase,
@@ -37,6 +39,7 @@ from .application.use_cases import (
 )
 from .config import Settings
 from .container import AppContainer
+from .infrastructure.audit_pagination import HmacAuditCursorCodec
 from .infrastructure.clock import SystemClock
 from .infrastructure.google.places import (
     GooglePlacesClient,
@@ -61,6 +64,7 @@ from .infrastructure.redis import RedisInvitationRateLimiter, RedisLoginRateLimi
 from .infrastructure.security import Argon2PasswordHasher
 from .presentation.api.responses import api_error
 from .presentation.api.routers import (
+    audit_router,
     auth_router,
     google_places_router,
     health_router,
@@ -130,6 +134,8 @@ def build_container(settings: Settings) -> AppContainer:
     logout: LogoutUseCase | None = None
     create_organization: CreateOrganizationUseCase | None = None
     list_platform_organizations: ListPlatformOrganizationsUseCase | None = None
+    list_tenant_audit_events: ListTenantAuditEventsUseCase | None = None
+    list_platform_audit_events: ListPlatformAuditEventsUseCase | None = None
     resend_initial_invitation: ResendInitialInvitationUseCase | None = None
     revoke_initial_invitation: RevokeInitialInvitationUseCase | None = None
     preview_invitation: PreviewInvitationUseCase | None = None
@@ -147,6 +153,7 @@ def build_container(settings: Settings) -> AppContainer:
         clock = SystemClock()
         rate_limit_key = settings.rate_limit_hmac_key.encode("utf-8") or DEVELOPMENT_RATE_LIMIT_KEY
         cursor_codec = HmacCursorCodec(rate_limit_key)
+        audit_cursor_codec = HmacAuditCursorCodec(rate_limit_key)
         session_store = RedisSessionStore(
             redis.client,
             environment=settings.app_env,
@@ -198,6 +205,7 @@ def build_container(settings: Settings) -> AppContainer:
             clock,
             public_app_url=settings.public_app_url,
             invitation_ttl_seconds=settings.invitation_ttl_seconds,
+            audited_unit_of_work_factory=database.platform_audited_unit_of_work,
         )
         list_platform_organizations = ListPlatformOrganizationsUseCase(provisioning_gateway, clock)
         resend_initial_invitation = ResendInitialInvitationUseCase(
@@ -210,8 +218,11 @@ def build_container(settings: Settings) -> AppContainer:
             cooldown_seconds=settings.invitation_resend_cooldown_seconds,
             window_seconds=settings.invitation_resend_window_seconds,
             max_per_window=settings.invitation_resend_max_per_window,
+            audited_unit_of_work_factory=database.platform_audited_unit_of_work,
         )
-        revoke_initial_invitation = RevokeInitialInvitationUseCase(provisioning_gateway, clock)
+        revoke_initial_invitation = RevokeInitialInvitationUseCase(
+            provisioning_gateway, clock, database.platform_audited_unit_of_work
+        )
         preview_invitation = PreviewInvitationUseCase(provisioning_gateway, invitation_rate_limiter, clock)
         accept_invitation = AcceptInvitationUseCase(
             provisioning_gateway,
@@ -220,11 +231,16 @@ def build_container(settings: Settings) -> AppContainer:
             session_store,
             invitation_rate_limiter,
             clock,
+            database.invitation_acceptance_unit_of_work,
         )
         get_organization = GetOrganizationUseCase(organization_gateway)
-        update_organization = UpdateOrganizationUseCase(organization_gateway, clock)
+        update_organization = UpdateOrganizationUseCase(
+            organization_gateway, clock, database.tenant_audited_unit_of_work
+        )
         list_members = ListMembersUseCase(organization_gateway, cursor_codec)
-        update_membership = UpdateMembershipUseCase(organization_gateway, session_store, clock)
+        update_membership = UpdateMembershipUseCase(
+            organization_gateway, session_store, clock, database.tenant_audited_unit_of_work
+        )
         list_member_invitations = ListMemberInvitationsUseCase(organization_gateway, clock, cursor_codec)
         create_member_invitation = CreateMemberInvitationUseCase(
             organization_gateway,
@@ -233,6 +249,7 @@ def build_container(settings: Settings) -> AppContainer:
             clock,
             public_app_url=settings.public_app_url,
             invitation_ttl_seconds=settings.invitation_ttl_seconds,
+            audited_unit_of_work_factory=database.tenant_audited_unit_of_work,
         )
         resend_member_invitation = ResendMemberInvitationUseCase(
             organization_gateway,
@@ -244,12 +261,26 @@ def build_container(settings: Settings) -> AppContainer:
             cooldown_seconds=settings.invitation_resend_cooldown_seconds,
             window_seconds=settings.invitation_resend_window_seconds,
             max_per_window=settings.invitation_resend_max_per_window,
+            audited_unit_of_work_factory=database.tenant_audited_unit_of_work,
         )
-        revoke_member_invitation = RevokeMemberInvitationUseCase(organization_gateway, clock)
+        revoke_member_invitation = RevokeMemberInvitationUseCase(
+            organization_gateway, clock, database.tenant_audited_unit_of_work
+        )
         switch_organization = SwitchOrganizationUseCase(
             organization_gateway,
             database.identity_unit_of_work,
             session_store,
+            clock,
+            database.actor_audited_unit_of_work,
+        )
+        list_tenant_audit_events = ListTenantAuditEventsUseCase(
+            database.tenant_audit_read_unit_of_work,
+            audit_cursor_codec,
+            clock,
+        )
+        list_platform_audit_events = ListPlatformAuditEventsUseCase(
+            database.platform_audit_read_unit_of_work,
+            audit_cursor_codec,
             clock,
         )
 
@@ -267,6 +298,8 @@ def build_container(settings: Settings) -> AppContainer:
         logout=logout,
         create_organization=create_organization,
         list_platform_organizations=list_platform_organizations,
+        list_tenant_audit_events=list_tenant_audit_events,
+        list_platform_audit_events=list_platform_audit_events,
         resend_initial_invitation=resend_initial_invitation,
         revoke_initial_invitation=revoke_initial_invitation,
         preview_invitation=preview_invitation,
@@ -319,7 +352,9 @@ def create_app(
 
     @app.exception_handler(RequestValidationError)
     async def sanitized_api_validation_error(request: Request, error: RequestValidationError) -> Response:
-        protected_payload = request.url.path.startswith(("/api/auth/", "/api/google/", "/api/map/"))
+        protected_payload = request.url.path.startswith(
+            ("/api/auth/", "/api/google/", "/api/map/", "/api/audit-events", "/api/platform/audit-events")
+        )
         if not protected_payload:
             return await request_validation_exception_handler(request, error)
         if request.url.path.startswith(("/api/google/", "/api/map/")):
@@ -346,11 +381,12 @@ def create_app(
                 headers={"Cache-Control": "no-store, max-age=0"},
             )
         fields = {str(item["loc"][-1]): "Valeur invalide." for item in error.errors() if item.get("loc")}
-        message = (
-            "La commande Google est invalide."
-            if request.url.path.startswith(("/api/google/", "/api/map/"))
-            else "La requête d’authentification est invalide."
-        )
+        if request.url.path.startswith(("/api/audit-events", "/api/platform/audit-events")):
+            message = "Les filtres d’audit sont invalides."
+        elif request.url.path.startswith(("/api/google/", "/api/map/")):
+            message = "La commande Google est invalide."
+        else:
+            message = "La requête d’authentification est invalide."
         return api_error(
             request,
             422,
@@ -361,6 +397,7 @@ def create_app(
 
     app.include_router(health_router)
     app.include_router(auth_router)
+    app.include_router(audit_router)
     app.include_router(invitations_router)
     app.include_router(platform_router)
     app.include_router(organization_router)

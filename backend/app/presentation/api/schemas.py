@@ -165,6 +165,33 @@ class PlatformOrganizationPageResponse(BaseModel):
     next_cursor: str | None
 
 
+class AuditActorResponse(BaseModel):
+    kind: str
+    id: UUID | None
+    display_name: str | None
+
+
+class AuditEventResponse(BaseModel):
+    id: UUID
+    occurred_at: datetime
+    action: str
+    entity_type: str
+    entity_id: UUID | None
+    actor: AuditActorResponse
+    request_id: str
+    correlation_id: str
+    source: str
+    metadata: dict[str, Any]
+    schema_version: int
+
+
+class AuditEventPageResponse(BaseModel):
+    items: list[AuditEventResponse]
+    next_cursor: str | None
+    occurred_from: datetime
+    occurred_to: datetime
+
+
 class InvitationPreviewRequest(StrictCommand):
     token: str = Field(min_length=1, max_length=128)
 

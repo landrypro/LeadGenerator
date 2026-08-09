@@ -4,8 +4,8 @@
 | --- | --- |
 | Produit | Marketteo CRM |
 | Ancienne désignation | Prospect CRM ; `LeadGenerator` reste un identifiant technique transitoire |
-| Version du document | 1.3 |
-| Statut | Périmètre V1 enrichi et ordre d’intégration validé |
+| Version du document | 1.4 |
+| Statut | Périmètre V1 enrichi, acquisition multicanale et ordre d’intégration validés |
 | Date | 9 août 2026 |
 | Marché initial | Canada |
 | Langues V1 | Français canadien (`fr-CA`) et anglais canadien (`en-CA`) |
@@ -36,6 +36,7 @@ Ce document ne constitue pas un avis juridique. La conformité finale dépendra 
 13. Le pipeline représente des états commerciaux ; appels, courriels, rendez-vous et relances sont des activités ou prochaines actions distinctes.
 14. L’interface, les courriels et les messages applicatifs sont disponibles en français canadien et en anglais canadien.
 15. Marketteo prévoit des plans Freemium, Starter, Business et Sur mesure sous la forme d’abonnements SaaS et de droits d’usage ; il ne devient pas un logiciel de comptabilité.
+16. Marketteo accepte des établissements et contacts provenant de sources autorisées — saisie manuelle, fichiers du client, acquisition entrante, Meta Lead Ads, partenaires, fournisseurs B2B et API publiques licenciées — sans scraping et avec provenance par donnée.
 
 ## 3. Objectifs et exclusions
 
@@ -47,18 +48,22 @@ Ce document ne constitue pas un avis juridique. La conformité finale dépendra 
 - transformer un résultat temporaire en prospect CRM par son `place_id` ;
 - qualifier, attribuer et suivre les prospects dans un pipeline ;
 - centraliser appels, notes, tâches, rappels et opportunités ;
+- distinguer les établissements prospects des personnes de contact qui leur sont rattachées ;
 - conserver la provenance et les préférences de contact ;
 - fournir des indicateurs reposant sur l’activité CRM interne ;
 - importer et exporter uniquement des données dont l’organisation dispose des droits nécessaires ;
 - assurer l’isolation des données entre organisations ;
 - proposer une expérience bilingue français/anglais ;
-- préparer une commercialisation par plans et quotas contrôlés côté serveur.
+- préparer une commercialisation par plans et quotas contrôlés côté serveur ;
+- acquérir des établissements et contacts depuis des fichiers ou connecteurs explicitement autorisés.
 
 ### 3.2 Hors périmètre V1
 
 - export de noms, adresses, téléphones, sites ou autres contenus Google ;
 - extraction massive, recherche multi-zone ou pagination automatique Google ;
 - constitution d’un annuaire d’entreprises ;
+- scraping, crawling ou extraction automatisée de profils, pages, groupes ou résultats de réseaux sociaux ;
+- connecteur générique capable d’aspirer une URL ou une API non approuvée ;
 - comptabilité générale, paie, inventaire ou gestion de stock ;
 - campagnes automatisées d’appels, de SMS ou de courriels ;
 - synchronisation Gmail, Outlook ou calendrier ;
@@ -66,11 +71,11 @@ Ce document ne constitue pas un avis juridique. La conformité finale dépendra 
 - facturation des clients finaux ou gestion comptable des ventes de l’organisation ;
 - application mobile native ;
 - intelligence artificielle de qualification ou de scoring ;
-- fournisseur de données B2B supplémentaire.
+- fournisseur de données B2B sans contrat autorisant les champs et usages concernés.
 
 Ces capacités pourront être évaluées après stabilisation et audit de la V1.
 
-## 4. Principes de conformité Google
+## 4. Conformité Google et acquisition multicanale
 
 ### 4.1 Séparation des données
 
@@ -149,6 +154,54 @@ Principes structurants :
 - l’import conforme est avancé après le socle des prospects internes pour accélérer la croissance du portefeuille ;
 - la création groupée depuis Google accepte au maximum vingt `place_id` explicitement sélectionnés et aucun champ descriptif Google.
 
+### 4.6 Acquisition multicanale
+
+Marketteo distingue obligatoirement :
+
+- le **prospect établissement**, entreprise ou compte commercial suivi dans le pipeline ;
+- le **contact**, personne physique éventuellement rattachée à cet établissement ;
+- le **canal de contact**, par exemple courriel ou téléphone, avec sa provenance et son autorisation propres.
+
+Une source techniquement accessible n’est pas automatiquement autorisée pour le stockage, l’export ou la
+prospection. Toute source externe passe par une liste blanche et un registre contractuel indiquant au minimum le
+propriétaire, la licence, les territoires, les champs permis, les usages, l’attribution, les durées, l’export, la
+date de révision et les obligations de suppression.
+
+#### Fichiers appartenant à l’organisation
+
+- le CSV constitue le premier format d’acquisition multicanale de la V1 ;
+- l’organisation déclare la provenance, la finalité et son droit d’utiliser les données avant l’aperçu ;
+- le serveur produit un aperçu, une correspondance des colonnes et un rapport de validation avant toute écriture ;
+- chaque ligne distingue établissement, personne et canaux ;
+- les lignes invalides ou de source inconnue sont rejetées ou mises en quarantaine ;
+- aucune correspondance approximative n’est fusionnée automatiquement ;
+- sans preuve recevable, la permission initiale de chaque canal vaut `unknown` ;
+- le fichier brut est supprimé selon la politique temporaire après succès ou échec.
+
+#### Meta, LinkedIn et réseaux sociaux
+
+- Meta est autorisé uniquement pour les prospects soumis à l’organisation par ses formulaires Lead Ads au moyen
+  d’une intégration officielle, authentifiée et auditée ;
+- les profils, abonnés, groupes, pages et résultats Facebook ou Instagram ne sont jamais aspirés ;
+- LinkedIn reste désactivé tant que Marketteo ne dispose pas d’un programme partenaire et d’un contrat autorisant
+  explicitement les données, leur conservation et leur usage CRM ;
+- aucune donnée LinkedIn obtenue par scraping, extension de navigateur ou fournisseur indirect non autorisé n’est
+  acceptée ;
+- une saisie manuelle déclarée ne permet pas de contourner ces interdictions ni de requalifier une extraction.
+
+#### API publiques et fournisseurs B2B
+
+- seules les sources approuvées dans le registre peuvent être activées ;
+- « API ouverte » ne signifie pas « usage commercial et prospection autorisés » ;
+- les connecteurs sont isolés derrière un port `AcquisitionSourceGateway` ;
+- les appels sont bornés, observables, idempotents et sans secret dans les journaux ;
+- toute expiration de contrat ou de licence bloque les nouvelles acquisitions sans supprimer silencieusement les
+  données déjà soumises à une politique de conservation ou à une opposition.
+
+L’importation et la conservation d’une coordonnée ne constituent jamais, à elles seules, une autorisation de
+contacter la personne. Les règles canadiennes et provinciales applicables, notamment celles relatives aux messages
+électroniques commerciaux, restent évaluées séparément et doivent être validées avant la production.
+
 ## 5. Utilisateurs et autorisations
 
 ### 5.1 Rôles
@@ -164,6 +217,7 @@ Principes structurants :
 | Réattribuer un prospect | Oui | Oui | Non |
 | Consulter les tableaux de bord d’équipe | Oui | Oui | Non |
 | Importer ou exporter les données internes | Oui | Oui | Non |
+| Configurer un connecteur d’acquisition approuvé | Oui | Non | Non |
 | Consulter le journal d’audit | Oui | Oui | Non |
 
 ### 5.2 Règles d’accès
@@ -198,14 +252,17 @@ Principes structurants :
 - la dernière organisation administratrice ne peut pas perdre son dernier administrateur actif ;
 - la préférence utilisateur prévaut sur la langue de l’organisation, avec `fr-CA` comme repli.
 
-### Module 2 — Fiche prospect
+### Module 2 — Établissements prospects et contacts
 
 #### Fonctions
 
 - création manuelle d’un prospect ;
 - création depuis un résultat Google en conservant uniquement le `place_id` ;
+- création depuis un import ou un connecteur approuvé avec un dossier d’acquisition ;
 - alias interne facultatif ;
 - origine : référence Google, manuel, import client, entrant, partenaire, fournisseur autorisé ou source publique autorisée ;
+- rattachement de zéro à plusieurs personnes de contact à un établissement ;
+- canaux professionnels propres à l’établissement ou à une personne, avec provenance et permission distinctes ;
 - responsable, étape, priorité, étiquettes et prochaine action ;
 - archivage et restauration ;
 - détection des doublons de `place_id` dans une même organisation ;
@@ -215,6 +272,9 @@ Principes structurants :
 
 - deux prospects actifs d’une même organisation ne peuvent partager le même `place_id` ;
 - la création depuis Google n’enregistre ni nom, ni adresse, ni téléphone, ni site Google ;
+- une personne de contact n’est jamais confondue avec l’établissement auquel elle est rattachée ;
+- chaque canal persistant possède une provenance et un statut de permission, initialisé à `unknown` sans preuve ;
+- l’import répété d’une même acquisition est idempotent et les rapprochements approximatifs exigent une décision humaine ;
 - la fiche reste utilisable si Google est temporairement indisponible ;
 - les données Google sont identifiées comme temporaires et portent l’attribution requise ;
 - l’archivage conserve l’historique et exclut le prospect des vues actives.
@@ -354,12 +414,24 @@ Principes structurants :
 
 #### Import
 
-- fichiers CSV ou XLSX fournis par l’organisation ;
+- fichiers CSV fournis par l’organisation en première livraison ; XLSX reste un format ultérieur contrôlé ;
+- import séparé des établissements, personnes de contact et canaux ;
 - aperçu et correspondance des colonnes avant validation ;
-- origine et déclaration de provenance obligatoires ;
+- origine, déclaration de provenance, finalité et attestation de droits obligatoires ;
+- statut de permission explicite par canal, avec `unknown` par défaut ;
 - détection des doublons internes ;
+- mise en quarantaine des lignes invalides, ambiguës ou liées à une source non approuvée ;
+- clé d’idempotence pour éviter le rejeu involontaire d’un même import ;
 - rapport des lignes acceptées et rejetées ;
 - suppression du fichier source temporaire après traitement.
+
+#### Connecteurs
+
+- Meta Lead Ads officiel pour les formulaires appartenant à l’organisation, après revue de l’application ;
+- API publiques ou fournisseurs B2B exclusivement depuis une liste blanche et un contrat actif ;
+- webhooks signés, secrets chiffrés, rotation des jetons et révocation immédiate ;
+- synchronisation incrémentale idempotente avec reprise contrôlée ;
+- LinkedIn et tout connecteur social général désactivés sans autorisation partenaire explicite.
 
 #### Export
 
@@ -376,6 +448,9 @@ Principes structurants :
 - le schéma d’export utilise une liste blanche explicite de colonnes ;
 - le `place_id` n’est pas inclus dans les exports destinés aux utilisateurs en V1 ;
 - seules les personnes autorisées peuvent lancer un import ou un export ;
+- seules les personnes autorisées peuvent configurer ou révoquer un connecteur ;
+- aucun contact provenant d’un réseau social n’entre par scraping ou par fournisseur indirect non autorisé ;
+- une licence expirée bloque les nouvelles synchronisations ;
 - les fichiers temporaires sont supprimés après succès ou échec ;
 - les valeurs susceptibles d’être interprétées comme des formules sont enregistrées comme texte.
 
@@ -434,6 +509,20 @@ Principes obligatoires :
 5. Il enregistre le résultat, la note et la prochaine action.
 6. Le pipeline et les statistiques internes sont mis à jour.
 
+### 7.4 Importer des établissements et contacts
+
+1. Un Administrateur ou un Gestionnaire choisit Import CSV.
+2. Il déclare la source, la finalité, le droit d’utilisation et les éventuelles restrictions.
+3. Le fichier est téléversé dans un stockage temporaire isolé et contrôlé.
+4. L’interface affiche un aperçu et permet d’associer les colonnes aux établissements, contacts et canaux.
+5. Le serveur normalise les valeurs, détecte les doublons exacts et met les ambiguïtés en quarantaine.
+6. L’utilisateur corrige ou exclut les lignes problématiques puis confirme le lot.
+7. Le serveur écrit les acquisitions valides de manière idempotente et initialise les permissions manquantes à
+   `unknown`.
+8. Un rapport présente les créations, rattachements, doublons, quarantaines et rejets sans exposer de secret.
+9. L’événement métier et le résumé de l’import sont audités dans les mêmes transactions que les écritures concernées.
+10. Le fichier brut est supprimé conformément à la politique temporaire.
+
 ## 8. Modèle de données cible
 
 ### 8.1 Entités principales
@@ -445,19 +534,21 @@ Principes obligatoires :
 | `memberships` | `organization_id`, `user_id`, `role`, `created_at` |
 | `pipeline_stages` | `id`, `organization_id`, `system_category`, `label`, `color`, `position`, `is_active` |
 | `prospects` | `id`, `organization_id`, `google_place_id`, `internal_alias`, `origin`, `source_label`, `acquired_at`, `acquisition_record_id`, `owner_id`, `stage_id`, `priority`, `next_action_at`, `retention_review_at`, `version`, `created_at`, `updated_at`, `archived_at` |
-| `acquisition_records` | déclaration ou événement d’acquisition, finalité, droits attestés, restrictions et références de preuve |
-| `prospect_contacts` | `id`, `prospect_id`, `type`, `value`, `provenance`, `source_label`, `purpose`, `obtained_at`, `verified_at`, `created_by`, `archived_at` |
+| `acquisition_records` | déclaration ou événement d’acquisition, fournisseur, référence externe idempotente, finalité, droits attestés, restrictions et références de preuve |
+| `contacts` | `id`, `organization_id`, `prospect_id`, `display_name`, `job_title`, `acquisition_record_id`, `version`, `created_at`, `updated_at`, `archived_at` |
+| `contact_channels` | `id`, `organization_id`, `prospect_id` ou `contact_id`, `type`, `value`, `value_normalized`, `provenance`, `source_label`, `purpose`, `obtained_at`, `verified_at`, `created_by`, `archived_at` |
 | `tags` / `prospect_tags` | étiquettes propres à l’organisation et association aux prospects |
-| `activities` | `id`, `prospect_id`, `type`, `outcome`, `content`, `occurred_at`, `created_by`, `updated_at`, `deleted_at` |
-| `tasks` | `id`, `prospect_id`, `assignee_id`, `title`, `due_at`, `priority`, `status`, `completed_at` |
+| `activities` | `id`, `prospect_id`, `contact_id` facultatif, `type`, `outcome`, `content`, `occurred_at`, `created_by`, `updated_at`, `deleted_at` |
+| `tasks` | `id`, `prospect_id`, `contact_id` facultatif, `assignee_id`, `title`, `due_at`, `priority`, `status`, `completed_at` |
 | `opportunities` | `id`, `prospect_id`, `owner_id`, `name`, `amount`, `currency`, `probability`, `stage`, `expected_close_at`, `lost_reason`, `version` |
-| `contact_permissions` | `prospect_id`, `channel`, `status`, `basis`, `evidence_reference`, `effective_at`, `expires_at`, `reason`, `updated_by` |
+| `contact_permissions` | `contact_channel_id`, `status`, `basis`, `evidence_reference`, `effective_at`, `expires_at`, `reason`, `updated_by` |
 | `consent_evidence` | référence minimale vers la preuve, la finalité et la version d’avis applicable |
-| `data_providers` / `provider_contract_rules` | fournisseur, territoires, champs, usages, restrictions et échéances contractuelles |
+| `data_providers` / `provider_contract_rules` | fournisseur, licence, territoires, champs, usages, export, attribution, restrictions et échéances contractuelles |
+| `source_connectors` | organisation, fournisseur approuvé, type, état, configuration chiffrée, dernière synchronisation et version |
 | `retention_policies` / `retention_holds` | politique configurable par catégorie et suspension motivée d’une purge |
 | `audit_events` | `id`, `organization_id`, `actor_id`, `action`, `entity_type`, `entity_id`, `metadata`, `occurred_at` |
 | `usage_counters` | `organization_id`, `user_id`, `service`, `period`, `count` |
-| `import_jobs` / `export_jobs` | auteur, statut, statistiques, erreurs, dates et emplacement temporaire |
+| `import_jobs` / `import_rows` / `export_jobs` | auteur, clé d’idempotence, déclaration, statut, correspondance, quarantaine, statistiques, erreurs, dates et emplacement temporaire |
 | `plan_catalog` / `plan_entitlements` | code stable du plan, droits, limites, version et période de validité |
 | `subscriptions` | organisation, plan, fournisseur, référence externe opaque, état, sièges, période et version |
 | `billing_events` | identifiant fournisseur idempotent, type, résultat technique et dates, sans donnée bancaire brute |
@@ -468,12 +559,16 @@ Principes obligatoires :
 - dates enregistrées en UTC ;
 - contrainte unique partielle sur `(organization_id, google_place_id)` pour les prospects actifs ;
 - origine obligatoire et référence de provenance pour toute coordonnée persistante ;
+- séparation référentielle entre établissement, personne de contact et canal ;
+- un canal appartient soit à un établissement, soit à une personne, jamais aux deux simultanément ;
+- valeur normalisée unique selon les règles de déduplication de l’organisation, sans fusion approximative automatique ;
 - aucune fusion automatique sur une correspondance approximative ;
 - montant d’opportunité en `NUMERIC`, devise ISO 4217 ;
 - verrouillage optimiste avec `version` pour prospects et opportunités ;
 - suppression logique pour les données métier ;
 - suppression physique des fichiers d’import/export temporaires ;
 - aucune colonne destinée aux noms, adresses, téléphones, sites ou catégories Google ;
+- secrets et jetons des connecteurs chiffrés hors des tables métier et exclus des audits ;
 - index sur organisation, responsable, étape, prochaine action et échéances ;
 - métadonnées d’audit limitées aux données internes et identifiants techniques.
 
@@ -487,8 +582,10 @@ flowchart LR
     API --> GP["Google Places API"]
     API --> GM["Google Maps Static API"]
     API --> W["Worker asynchrone"]
+    API --> SRC["Connecteurs approuvés"]
     W --> DB
     W --> R
+    W --> SRC
 ```
 
 ### 9.1 Composants
@@ -498,6 +595,8 @@ flowchart LR
 - **PostgreSQL** : données CRM multi-organisations ;
 - **Redis** : sessions ou révocation, limitations de débit, verrous, jetons courts et données éphémères ;
 - **Worker** : imports, exports internes, rappels et maintenance des Place IDs ;
+- **Registre des sources** : licences, contrats, champs, territoires, usages et échéances ;
+- **Connecteurs approuvés** : Meta Lead Ads, API publiques licenciées et fournisseurs B2B contractuels ;
 - **Google Places** : recherche limitée et détails à la demande ;
 - **Maps Static** : aperçu cartographique Google lorsque nécessaire ;
 - **Résolveur de lieux** : ville, région et pays derrière un port fournisseur dédié ;
@@ -513,10 +612,13 @@ flowchart LR
 - tâches asynchrones avec une file compatible Redis ;
 - liste blanche stricte des champs exportables ;
 - adaptateur Google isolé derrière une interface de fournisseur de lieux ;
+- adaptateurs d’acquisition isolés derrière `AcquisitionSourceGateway`, sans connecteur arbitraire ;
+- secrets de connecteurs chiffrés, webhooks signés et synchronisations idempotentes ;
 - catalogues de traduction versionnés pour `fr-CA` et `en-CA`, sans libellés métier persistés dans les contrats API ;
 - adaptateur de facturation isolé derrière un port applicatif et webhooks idempotents.
 
-L’interface de fournisseur permettra ultérieurement d’ajouter une source B2B disposant de droits explicites de stockage et d’export sans mélanger ses données avec le contenu Google.
+L’interface de fournisseur permet d’ajouter uniquement une source dont les droits explicites de collecte, stockage,
+usage, export et suppression ont été enregistrés, sans mélanger ses données avec le contenu Google.
 
 ## 10. API cible
 
@@ -551,6 +653,11 @@ confirmer une ville non ambiguë sans autoriser une recherche multi-zone.
 - `PATCH /api/prospects/{prospect_id}`
 - `POST /api/prospects/{prospect_id}/archive`
 - `POST /api/prospects/{prospect_id}/restore`
+- `GET/POST /api/prospects/{prospect_id}/contacts`
+- `GET/PATCH /api/contacts/{contact_id}`
+- `POST /api/contacts/{contact_id}/archive`
+- `GET/POST /api/contacts/{contact_id}/channels`
+- `PATCH /api/contact-channels/{channel_id}`
 - `GET /api/pipeline/stages`
 - `PATCH /api/pipeline/stages`
 
@@ -564,16 +671,31 @@ La création depuis Google accepte un `google_place_id` mais aucun champ descrip
 - `PATCH /api/tasks/{task_id}`
 - `GET/POST /api/prospects/{prospect_id}/opportunities`
 - `PATCH /api/opportunities/{opportunity_id}`
-- `GET/PATCH /api/prospects/{prospect_id}/contact-permissions`
+- `GET /api/prospects/{prospect_id}/contact-permissions`
+- `GET/PATCH /api/contact-channels/{channel_id}/permission`
 
 ### Pilotage et échanges
 
 - `GET /api/dashboard`
 - `POST /api/imports`
+- `POST /api/imports/{job_id}/preview`
+- `POST /api/imports/{job_id}/confirm`
 - `GET /api/imports/{job_id}`
+- `GET /api/imports/{job_id}/report`
 - `POST /api/exports`
 - `GET /api/exports/{job_id}`
 - `GET /api/audit-events`
+
+### Sources et connecteurs d’acquisition
+
+- `GET /api/acquisition/sources`
+- `GET/POST /api/acquisition/connectors`
+- `POST /api/acquisition/connectors/{connector_id}/revoke`
+- `POST /api/acquisition/webhooks/meta/lead-ads`
+
+La plateforme expose uniquement les types de connecteurs approuvés. Les webhooks vérifient leur signature avant
+toute lecture métier, refusent les événements rejoués et ne placent ni jeton fournisseur ni donnée personnelle dans
+les journaux techniques. Aucun endpoint LinkedIn n’est monté sans autorisation partenaire formelle.
 
 ### Préférences et abonnement
 
@@ -607,10 +729,10 @@ transaction lorsque cela est applicable.
 3. Recherche Google limitée
 4. Pipeline Kanban
 5. Liste des prospects
-6. Fiche prospect avec onglets Résumé, Activités, Tâches, Opportunités et Conformité
+6. Fiche établissement avec onglets Résumé, Contacts, Activités, Tâches, Opportunités et Conformité
 7. Centre de tâches et rappels
-8. Imports et exports
-9. Administration : utilisateurs, pipeline, quotas et organisation
+8. Imports, quarantaine, rapports et exports
+9. Administration : utilisateurs, pipeline, sources, connecteurs, quotas et organisation
 10. Compte : langue personnelle, plan courant, utilisation, sièges et accès au portail de facturation
 
 La navigation principale est centrée sur le pipeline et les tâches, pas sur la recherche Google.
@@ -642,6 +764,9 @@ en préproduction après mesure des coûts et des usages réels.
 - limitation de débit par utilisateur, organisation et adresse IP ;
 - mots de passe Argon2id et politique de longueur minimale ;
 - validation des URL et neutralisation des contenus actifs ;
+- fichiers d’import limités en taille et en volume, type et encodage contrôlés, contenu actif jamais exécuté ;
+- jetons de connecteurs chiffrés, à portée minimale, révocables et jamais retournés après enregistrement ;
+- signatures, horodatages et protection anti-rejeu obligatoires pour les webhooks externes ;
 - sauvegardes chiffrées ;
 - dépendances analysées dans la CI ;
 - aucun secret, mot de passe, cookie ou contenu Google dans les journaux.
@@ -681,7 +806,9 @@ en préproduction après mesure des coûts et des usages réels.
 
 - journaux structurés avec `request_id`, organisation, utilisateur et type d’opération ;
 - métriques de latence, erreurs, quotas et coûts Google ;
+- métriques d’import et de connecteurs limitées aux volumes, états, fournisseurs et codes d’erreur ;
 - traces excluant les contenus et secrets Google ;
+- traces excluant fichiers bruts, coordonnées, contenus sociaux et secrets de connecteurs ;
 - alertes sur erreurs Google, saturation des quotas, échecs de tâches et sauvegardes ;
 - journal d’audit distinct des journaux techniques.
 
@@ -721,13 +848,33 @@ La conception détaillée, le découpage testable et les dix décisions techniqu
 Ordre détaillé restant validé après la clôture de 2.3.5-E :
 
 1. **2.4 — Audit transactionnel** avant toute nouvelle écriture CRM ou d’abonnement ;
-2. **2.5 — Socle de conformité et de conservation**, prospects et ajout explicite des références Google ;
+2. **2.5 — Socle de conformité et de conservation**, établissements, contacts, canaux, registre des sources et ajout
+   explicite des références Google ;
 3. **2.6 — Redis partagé, quotas et durcissement**, en préparant les droits liés aux plans.
+
+La proposition détaillée de 2.4 est disponible dans
+[`PHASE_2_4_SPECIFICATIONS_DETAILLEES.md`](PHASE_2_4_SPECIFICATIONS_DETAILLEES.md). Ses seize décisions ont été
+validées le 9 août 2026. Le code de 2.4.1 est implémenté sous `20260809_0006` ; ses preuves PostgreSQL réelles sont
+intégrées au verrou automatisé de l’implémentation 2.4.2.
+
+La recette manuelle des lots 2.4.1 et 2.4.2 est regroupée à la fin de 2.4.3 afin de tester également la consultation.
+Les seize décisions de 2.4.2 ont été validées le 9 août 2026 et sont implémentées sous `20260809_0007`. Le contrat et
+les preuves sont disponibles dans
+[`PHASE_2_4_2_SPECIFICATIONS_DETAILLEES.md`](PHASE_2_4_2_SPECIFICATIONS_DETAILLEES.md) et
+[`PHASE_2_4_2_RAPPORT_IMPLEMENTATION.md`](PHASE_2_4_2_RAPPORT_IMPLEMENTATION.md). Les tests automatisés et
+PostgreSQL restent exécutés à chaque implémentation et ne sont pas reportés.
+
+Les spécifications détaillées de la consultation 2.4.3 sont validées et implémentées dans
+[`PHASE_2_4_3_SPECIFICATIONS_DETAILLEES.md`](PHASE_2_4_3_SPECIFICATIONS_DETAILLEES.md). Elles fixent les deux
+périmètres de lecture, les curseurs et filtres, les écrans accessibles, la correction prospective de la cible
+organisation des événements plateforme et la recette fonctionnelle cumulée. Leurs seize décisions ont été validées
+le 9 août 2026. La recette utilisateur cumulée 2.4.1–2.4.3 a été déclarée conforme le même jour. Le passage Azure
+reste requis avant le GO de 2.4.4.
 
 ### Phase 3 — Cœur CRM
 
-- prospects et provenance ;
-- création manuelle et import client conforme ;
+- établissements prospects, personnes de contact, canaux et provenance par donnée ;
+- création manuelle puis import CSV conforme immédiatement après le socle prospect ;
 - pipeline ;
 - activités, tâches et rappels ;
 - opportunités ;
@@ -735,6 +882,7 @@ Ordre détaillé restant validé après la clôture de 2.3.5-E :
 - recherche Google limitée et hydratation en direct ;
 - résolution contrôlée Ville + région éventuelle + Pays ;
 - ajout individuel ou groupé des références sélectionnées ;
+- quarantaine, déduplication humaine et rapports d’import ;
 - fondation bilingue et écrans `fr-CA` / `en-CA`.
 
 ### Phase 4 — Pilotage et échanges
@@ -743,6 +891,7 @@ Ordre détaillé restant validé après la clôture de 2.3.5-E :
 - exports internes et administration des imports ;
 - quotas et rapports d’usage ;
 - worker asynchrone ;
+- registre des fournisseurs et premiers connecteurs approuvés, Meta Lead Ads en priorité après revue ;
 - tests de bout en bout.
 
 ### Phase 5 — Préproduction et déploiement
@@ -765,6 +914,9 @@ Ordre détaillé restant validé après la clôture de 2.3.5-E :
 - règles d’autorisation ;
 - transitions du pipeline ;
 - provenance et opposition au contact ;
+- séparation établissement, personne, canal et permission ;
+- règles du registre de sources et expiration contractuelle ;
+- déduplication exacte, quarantaine et interdiction de fusion approximative automatique ;
 - calculs d’opportunité et tableau de bord ;
 - listes blanches d’import/export ;
 - quotas et limitations ;
@@ -780,6 +932,9 @@ Ordre détaillé restant validé après la clôture de 2.3.5-E :
 - résolveur de lieux simulé, ambiguïtés Ville/Pays et absence d’appel à chaque frappe ;
 - webhooks de facturation signés, idempotents et rejouables ;
 - imports et exports temporaires ;
+- import CSV réel avec aperçu, confirmation, rejet, quarantaine, idempotence et suppression du fichier ;
+- webhooks Meta simulés avec signature valide, invalide et événement rejoué ;
+- connecteur refusé lorsque la source ou le contrat n’est pas actif ;
 - isolation entre deux organisations ;
 - indisponibilité de Google sans perte de données CRM.
 
@@ -794,6 +949,8 @@ Ordre détaillé restant validé après la clôture de 2.3.5-E :
 - opportunité gagnée/perdue ;
 - opposition au contact ;
 - import et export conformes ;
+- import d’un établissement avec plusieurs contacts et permissions initiales `unknown` ;
+- révocation d’un connecteur sans perte silencieuse des données CRM autorisées ;
 - changement français/anglais sur interface, erreurs et courriels ;
 - consultation du plan, passage au portail hébergé et restrictions de droits ;
 - navigation clavier des parcours essentiels.
@@ -806,10 +963,13 @@ Ordre détaillé restant validé après la clôture de 2.3.5-E :
 - vérification que les exports n’acceptent que les colonnes autorisées ;
 - test visuel de l’attribution Google Maps ;
 - test d’absence de stockage navigateur des résultats ;
-- test de suppression des fichiers temporaires.
+- test de suppression des fichiers temporaires ;
 - test garantissant que la résolution d’un lieu ne déclenche ni maillage ni Text Search supplémentaire ;
 - test d’absence de données bancaires dans la base, les journaux et les réponses ;
-- test automatisé interdisant les nouvelles chaînes fonctionnelles non cataloguées pour `fr-CA` et `en-CA`.
+- test automatisé interdisant les nouvelles chaînes fonctionnelles non cataloguées pour `fr-CA` et `en-CA` ;
+- test interdisant tout endpoint ou adaptateur de scraping social ;
+- test garantissant qu’un import ou une API publique ne transforme jamais une provenance en autorisation de contact ;
+- inspection des journaux et audits pour exclure fichiers bruts, jetons, contenus sociaux et coordonnées non prévues.
 
 ## 16. Critères de sortie V1
 
@@ -822,6 +982,9 @@ La V1 est prête pour la production lorsque :
 - l’isolation multi-organisation est couverte par des tests d’intégration ;
 - les sauvegardes et la restauration ont été testées ;
 - les quotas Google et alertes budgétaires sont actifs ;
+- l’import CSV, la quarantaine, l’idempotence et la suppression des fichiers ont été validés ;
+- chaque connecteur actif possède une source approuvée, un contrat ou une licence à jour et une procédure de révocation ;
+- aucun scraping de réseau social ou connecteur LinkedIn non approuvé n’est présent ;
 - les conditions d’utilisation et de confidentialité sont complètes ;
 - la marque Marketteo et les domaines publics ont reçu la validation juridique/commerciale nécessaire ;
 - les parcours critiques, courriels et pages légales sont validés en français et en anglais ;
@@ -861,7 +1024,24 @@ Ces huit décisions ont été validées le 22 juillet 2026. Le détail normatif 
 | Facturation | Abonnement SaaS uniquement ; comptabilité et facturation des clients de l’organisation exclues |
 | Ordre | 2.4 audit, 2.5 prospects/conformité, Kanban et acquisition, i18n, 2.6 quotas, puis abonnement avant déploiement |
 
-### 17.3 Points restant ouverts avant la production
+### 17.3 Acquisition multicanale validée le 9 août 2026
+
+| Décision | Choix validé |
+| --- | --- |
+| Modèle métier | Établissement prospect, personne de contact et canal sont trois concepts distincts |
+| Première source externe | CSV appartenant à l’organisation, avec aperçu, déclaration, correspondance et confirmation |
+| Provenance | Obligatoire pour chaque acquisition et chaque canal persistant |
+| Permission | `unknown` par défaut sans preuve ; l’import ne vaut jamais autorisation de prospection |
+| Meta | Lead Ads officiels de l’organisation uniquement, après revue et via webhooks authentifiés |
+| LinkedIn | Aucun connecteur avant partenariat et contrat explicites ; tout scraping est interdit |
+| API publiques | Liste blanche après examen de la licence, des champs, usages, territoires, export et conservation |
+| Fournisseurs B2B | Contrat actif obligatoire et règles machine lisibles par fournisseur |
+| Déduplication | Exacte et idempotente ; toute fusion approximative exige une décision humaine |
+| Fichiers | Stockage temporaire isolé et suppression documentée après succès ou échec |
+| Audit | Configuration, import, confirmation, rejet, quarantaine, synchronisation et révocation audités |
+| Ordre | 2.4 audit d’abord, modèle multicanal en 2.5, import CSV puis connecteurs approuvés |
+
+### 17.4 Points restant ouverts avant la production
 
 | Décision | Orientation actuelle |
 | --- | --- |
@@ -873,11 +1053,16 @@ Ces huit décisions ont été validées le 22 juillet 2026. Le détail normatif 
 | Résolveur de lieux | Fournisseur et droits de conservation à sélectionner |
 | Prix et limites des plans | À fixer après mesure des coûts Google, infrastructure, soutien et fraude |
 | Fournisseur de paiement | À sélectionner après analyse des taxes, devises, webhooks, portail et résidence des données |
+| Revue Meta | Application, permissions Lead Ads, suppression des données et conditions développeur à valider |
+| LinkedIn | Aucun développement prévu sans acceptation dans un programme partenaire adapté |
+| API et fournisseurs initiaux | Liste blanche, licences, contrats, territoires et champs à sélectionner |
+| Politique d’import | Taille, volume, encodages, durée temporaire et procédure de quarantaine à chiffrer |
 | Hébergement | À choisir pendant la conception de déploiement |
 | Durée chiffrée de conservation des audits | À valider juridiquement et opérationnellement |
 | Durée chiffrée de conservation des fichiers d’export | À valider juridiquement et opérationnellement |
 
-Ces points n’empêchent pas de commencer la phase 2, à condition de conserver les durées configurables et de ne pas figer prématurément les choix d’infrastructure.
+Ces points n’empêchent pas de commencer 2.4. Ils bloquent en revanche l’activation en production du connecteur ou
+du traitement auquel ils se rapportent.
 
 ## 18. Références
 
@@ -886,4 +1071,11 @@ Ces points n’empêchent pas de commencer la phase 2, à condition de conserver
 - Places API Policies and Attributions : https://developers.google.com/maps/documentation/places/web-service/policies
 - Place IDs : https://developers.google.com/maps/documentation/places/web-service/place-id
 - Place Details (New) : https://developers.google.com/maps/documentation/places/web-service/place-details
+- Meta Lead Ads et intégration CRM : https://www.facebook.com/business/ads/ad-objectives/lead-generation/lead-ads-with-messaging
+- LinkedIn — accès aux API : https://learn.microsoft.com/en-us/linkedin/shared/authentication/getting-access
+- LinkedIn Contacts API : https://learn.microsoft.com/en-us/linkedin/shared/integrations/people/contacts-api
+- LinkedIn API Terms of Use : https://www.linkedin.com/legal/l/api-terms-of-use
+- CRTC — consentement implicite sous la LCAP/CASL : https://crtc.gc.ca/eng/com500/guide.htm
+- CRTC — loi, règlements et exigences principales : https://crtc.gc.ca/eng/internet/anti/reg.htm
+- Commissariat à la protection de la vie privée du Canada — exigences LPRPDE : https://www.priv.gc.ca/en/privacy-topics/privacy-laws-in-canada/the-personal-information-protection-and-electronic-documents-act-pipeda/pipeda_brief
 - Documentation actuelle du projet : `README.md`

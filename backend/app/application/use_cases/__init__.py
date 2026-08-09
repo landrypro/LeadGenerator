@@ -1,3 +1,4 @@
+from .audit import AuditEventPage, ListPlatformAuditEventsUseCase, ListTenantAuditEventsUseCase
 from .authentication import GetCurrentSessionUseCase, LoginOutcome, LoginUseCase, LogoutUseCase
 from .bootstrap_platform_admin import BootstrapPlatformAdministratorUseCase
 from .check_readiness import CheckReadinessUseCase, ReadinessReport
@@ -30,6 +31,7 @@ from .search_google_places import SearchGooglePlacesOutcome, SearchGooglePlacesU
 
 __all__ = [
     "AcceptInvitationUseCase",
+    "AuditEventPage",
     "BootstrapPlatformAdministratorUseCase",
     "CheckReadinessUseCase",
     "CreateMemberInvitationUseCase",
@@ -40,7 +42,9 @@ __all__ = [
     "GetOrganizationUseCase",
     "ListMemberInvitationsUseCase",
     "ListMembersUseCase",
+    "ListPlatformAuditEventsUseCase",
     "ListPlatformOrganizationsUseCase",
+    "ListTenantAuditEventsUseCase",
     "LoginOutcome",
     "LoginUseCase",
     "LogoutUseCase",
