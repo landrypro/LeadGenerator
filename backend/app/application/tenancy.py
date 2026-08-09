@@ -16,6 +16,17 @@ class ActorContext:
 
 
 @dataclass(frozen=True, slots=True)
+class InvitationAcceptanceContext:
+    """Contexte serveur d’une acceptation, avant établissement éventuel du locataire."""
+
+    request_id: str
+    actor_id: UUID | None = None
+
+    def __post_init__(self) -> None:
+        _validate_request_id(self.request_id)
+
+
+@dataclass(frozen=True, slots=True)
 class TenantContext:
     """Contexte locataire créé côté serveur pour une transaction PostgreSQL."""
 

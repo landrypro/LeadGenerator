@@ -11,7 +11,9 @@ from .application.use_cases import (
     GetOrganizationUseCase,
     ListMemberInvitationsUseCase,
     ListMembersUseCase,
+    ListPlatformAuditEventsUseCase,
     ListPlatformOrganizationsUseCase,
+    ListTenantAuditEventsUseCase,
     LoginUseCase,
     LogoutUseCase,
     PreviewInvitationUseCase,
@@ -38,6 +40,8 @@ class AppContainer:
     logout: LogoutUseCase | None = None
     create_organization: CreateOrganizationUseCase | None = None
     list_platform_organizations: ListPlatformOrganizationsUseCase | None = None
+    list_tenant_audit_events: ListTenantAuditEventsUseCase | None = None
+    list_platform_audit_events: ListPlatformAuditEventsUseCase | None = None
     resend_initial_invitation: ResendInitialInvitationUseCase | None = None
     revoke_initial_invitation: RevokeInitialInvitationUseCase | None = None
     preview_invitation: PreviewInvitationUseCase | None = None

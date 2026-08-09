@@ -5,8 +5,10 @@ import logging
 from dataclasses import dataclass
 from uuid import UUID, uuid4
 
+from ...domain.audit import AuditAction
 from ...domain.identity import AuthenticatedIdentity, MembershipIdentity, UserIdentity, validate_new_password
 from ...domain.provisioning import AcceptedInvitation, InvitationPreview, hash_invitation_token
+from ..audit_events import tenant_audit_event
 from ..errors import (
     AuthenticationServiceUnavailable,
     InvitationAccountMismatch,
@@ -24,8 +26,9 @@ from ..ports import (
     PasswordHasher,
     SessionStore,
 )
+from ..ports.audit import InvitationAcceptanceUnitOfWork, InvitationAcceptanceUnitOfWorkFactory
 from ..ports.provisioning import AcceptanceGatewayResult, AcceptanceResultCode
-from ..tenancy import ActorContext
+from ..tenancy import ActorContext, InvitationAcceptanceContext, TenantContext
 from .authentication import LoginOutcome
 
 LOGGER = logging.getLogger(__name__)
@@ -68,6 +71,7 @@ class AcceptInvitationUseCase:
         sessions: SessionStore,
         rate_limiter: InvitationRateLimiter,
         clock: Clock,
+        audited_unit_of_work_factory: InvitationAcceptanceUnitOfWorkFactory | None = None,
     ) -> None:
         self._gateway = gateway
         self._identity_unit_of_work_factory = identity_unit_of_work_factory
@@ -75,6 +79,7 @@ class AcceptInvitationUseCase:
         self._sessions = sessions
         self._rate_limiter = rate_limiter
         self._clock = clock
+        self._audited_unit_of_work_factory = audited_unit_of_work_factory
 
     async def execute_new_account(
         self,
@@ -82,6 +87,7 @@ class AcceptInvitationUseCase:
         token: str,
         command: NewAccountInvitationCommand,
         client_address: str,
+        request_id: str,
     ) -> LoginOutcome:
         token_hash = await self._validated_limited_hash(token, client_address)
         display_name = " ".join(command.display_name.split())
@@ -89,14 +95,30 @@ class AcceptInvitationUseCase:
             raise ValueError("Le nom affiché doit contenir entre 1 et 120 caractères.")
         validate_new_password(command.password)
         password_hash = await self._password_hasher.hash(command.password)
-        result = await self._gateway.accept_new_account(
-            token_hash=token_hash,
-            user_id=uuid4(),
-            membership_id=uuid4(),
-            display_name=display_name,
-            password_hash=password_hash,
-            now=self._clock.now(),
-        )
+        if self._audited_unit_of_work_factory is None:
+            result = await self._gateway.accept_new_account(
+                token_hash=token_hash,
+                user_id=uuid4(),
+                membership_id=uuid4(),
+                display_name=display_name,
+                password_hash=password_hash,
+                now=self._clock.now(),
+            )
+        else:
+            async with self._audited_unit_of_work_factory(
+                InvitationAcceptanceContext(request_id=request_id)
+            ) as unit_of_work:
+                result = await unit_of_work.mutations.accept_new_account(
+                    token_hash=token_hash,
+                    user_id=uuid4(),
+                    membership_id=uuid4(),
+                    display_name=display_name,
+                    password_hash=password_hash,
+                    now=self._clock.now(),
+                )
+                accepted_for_audit = _accepted_or_raise(result)
+                await _record_acceptance(unit_of_work, accepted_for_audit, request_id)
+                await unit_of_work.commit()
         accepted = _accepted_or_raise(result)
         identity = await self._load_identity(accepted.user_id)
         try:
@@ -125,12 +147,25 @@ class AcceptInvitationUseCase:
         client_address: str,
     ) -> LoginOutcome:
         token_hash = await self._validated_limited_hash(token, client_address)
-        result = await self._gateway.accept_existing_account(
-            context=ActorContext(identity.user.id, request_id),
-            token_hash=token_hash,
-            membership_id=uuid4(),
-            now=self._clock.now(),
-        )
+        if self._audited_unit_of_work_factory is None:
+            result = await self._gateway.accept_existing_account(
+                context=ActorContext(identity.user.id, request_id),
+                token_hash=token_hash,
+                membership_id=uuid4(),
+                now=self._clock.now(),
+            )
+        else:
+            async with self._audited_unit_of_work_factory(
+                InvitationAcceptanceContext(request_id=request_id, actor_id=identity.user.id)
+            ) as unit_of_work:
+                result = await unit_of_work.mutations.accept_existing_account(
+                    token_hash=token_hash,
+                    membership_id=uuid4(),
+                    now=self._clock.now(),
+                )
+                accepted_for_audit = _accepted_or_raise(result)
+                await _record_acceptance(unit_of_work, accepted_for_audit, request_id)
+                await unit_of_work.commit()
         accepted = _accepted_or_raise(result)
         refreshed = await self._load_identity(accepted.user_id)
         try:
@@ -211,3 +246,20 @@ def _active_membership(identity: UserIdentity, organization_id: UUID) -> Members
         if membership.organization_id == organization_id and membership.is_active:
             return membership
     raise SessionCreationFailedAfterAcceptance
+
+
+async def _record_acceptance(
+    unit_of_work: InvitationAcceptanceUnitOfWork,
+    accepted: AcceptedInvitation,
+    request_id: str,
+) -> None:
+    # Le protocole reste au bord de cette fonction afin de ne pas exposer AsyncSession.
+    tenant_context = TenantContext(accepted.user_id, accepted.organization_id, request_id)
+    await unit_of_work.bind_tenant(tenant_context)
+    await unit_of_work.audit.record(
+        tenant_audit_event(tenant_context, AuditAction.INVITATION_ACCEPTED, accepted.invitation_id)
+    )
+    if accepted.organization_activated:
+        await unit_of_work.audit.record(
+            tenant_audit_event(tenant_context, AuditAction.ORGANIZATION_ACTIVATED, accepted.organization_id)
+        )

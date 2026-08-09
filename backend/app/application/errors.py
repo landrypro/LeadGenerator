@@ -174,3 +174,11 @@ class OrganizationSwitchForbidden(RuntimeError):
 
 class SessionRotationFailed(RuntimeError):
     """La session courante n’a pas pu être renouvelée sans ambiguïté."""
+
+
+class AuditUnavailable(RuntimeError):
+    """Le journal d’audit ne peut pas être consulté actuellement."""
+
+
+class InvalidAuditCursor(ValueError):
+    """Le curseur d’audit ne correspond pas à la requête courante."""

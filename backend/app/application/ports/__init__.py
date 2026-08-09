@@ -1,3 +1,15 @@
+from .audit import (
+    ActorAuditedUnitOfWorkFactory,
+    AuditCursorCodec,
+    AuditEventReader,
+    AuditReadUnitOfWork,
+    AuditRecorder,
+    InvitationAcceptanceUnitOfWorkFactory,
+    PlatformAuditedUnitOfWorkFactory,
+    PlatformAuditReadUnitOfWorkFactory,
+    TenantAuditedUnitOfWorkFactory,
+    TenantAuditReadUnitOfWorkFactory,
+)
 from .clock import Clock
 from .exporter import LeadExporter
 from .generation_guard import GenerationGuard
@@ -45,8 +57,13 @@ from .unit_of_work import ActorUnitOfWorkFactory, TenantUnitOfWorkFactory, UnitO
 __all__ = [
     "AcceptanceGatewayResult",
     "AcceptanceResultCode",
+    "ActorAuditedUnitOfWorkFactory",
     "ActorUnitOfWorkFactory",
     "AsyncResource",
+    "AuditCursorCodec",
+    "AuditEventReader",
+    "AuditReadUnitOfWork",
+    "AuditRecorder",
     "Clock",
     "CreateMemberInvitationGatewayResult",
     "CreateMemberInvitationResultCode",
@@ -58,6 +75,7 @@ __all__ = [
     "IdentityUnitOfWork",
     "IdentityUnitOfWorkFactory",
     "InvitationAcceptanceGateway",
+    "InvitationAcceptanceUnitOfWorkFactory",
     "InvitationDelivery",
     "InvitationLimitStatus",
     "InvitationRateLimiter",
@@ -73,6 +91,8 @@ __all__ = [
     "PasswordHasher",
     "PlaceCandidate",
     "PlacesGateway",
+    "PlatformAuditReadUnitOfWorkFactory",
+    "PlatformAuditedUnitOfWorkFactory",
     "PlatformProvisioningGateway",
     "ProvisionGatewayResult",
     "ProvisionResultCode",
@@ -84,6 +104,8 @@ __all__ = [
     "StaticMapGateway",
     "SwitchOrganizationGatewayResult",
     "SwitchOrganizationResultCode",
+    "TenantAuditReadUnitOfWorkFactory",
+    "TenantAuditedUnitOfWorkFactory",
     "TenantUnitOfWorkFactory",
     "UnitOfWork",
     "UnitOfWorkFactory",

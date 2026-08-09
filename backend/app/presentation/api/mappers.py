@@ -1,9 +1,12 @@
 from ...application.models import GooglePlaceSearchCriteria
 from ...application.use_cases.search_google_places import SearchGooglePlacesOutcome
+from ...domain.audit import AuditEventView
 from ...domain.identity import AuthenticatedIdentity, capabilities_for
 from ...domain.organization import MemberInvitationView, MemberView, OrganizationView
 from ...domain.provisioning import ProvisioningView
 from .schemas import (
+    AuditActorResponse,
+    AuditEventResponse,
     AuthenticatedUserResponse,
     AuthenticationResponse,
     GooglePlaceSearchParameters,
@@ -21,6 +24,26 @@ from .schemas import (
     PlatformOrganizationResponse,
     ProvisioningResponse,
 )
+
+
+def to_audit_event_response(view: AuditEventView) -> AuditEventResponse:
+    return AuditEventResponse(
+        id=view.id,
+        occurred_at=view.occurred_at,
+        action=view.action,
+        entity_type=view.entity_type,
+        entity_id=view.entity_id,
+        actor=AuditActorResponse(
+            kind=view.actor.kind.value,
+            id=view.actor.id,
+            display_name=view.actor.display_name,
+        ),
+        request_id=view.request_id,
+        correlation_id=view.correlation_id,
+        source=view.source.value,
+        metadata=dict(view.metadata),
+        schema_version=view.schema_version,
+    )
 
 
 def to_organization_response(view: OrganizationView) -> OrganizationResponse:

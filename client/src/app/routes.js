@@ -1,4 +1,6 @@
 import { AccountPage } from '../features/account/AccountPage'
+import { PlatformAuditPage } from '../features/audit/PlatformAuditPage'
+import { TenantAuditPage } from '../features/audit/TenantAuditPage'
 import { PlaceSearchPage } from '../features/lead-search/LeadGeneratorPage'
 import { OrganizationPage } from '../features/organizations/OrganizationPage'
 import { MembersPage } from '../features/organizations/MembersPage'
@@ -14,6 +16,8 @@ export const CRM_PATHS = Object.freeze({
   organization: '/app/admin/organization',
   users: '/app/admin/users',
   platformOrganizations: '/app/platform/organizations',
+  audit: '/app/audit',
+  platformAudit: '/app/platform/audit',
 })
 
 // Seules les pages terminées sont enregistrées. Les chemins réservés ne sont
@@ -47,6 +51,15 @@ export const routes = Object.freeze([
     Component: MembersPage,
   }),
   Object.freeze({
+    id: 'tenant-audit',
+    path: CRM_PATHS.audit,
+    label: 'Journal d’activité',
+    title: 'Journal d’activité',
+    requiredCapability: 'audit:read',
+    requiresActiveOrganization: true,
+    Component: TenantAuditPage,
+  }),
+  Object.freeze({
     id: 'platform-organizations',
     path: CRM_PATHS.platformOrganizations,
     label: 'Plateforme',
@@ -54,6 +67,15 @@ export const routes = Object.freeze([
     requiredCapability: 'platform:organizations:read',
     requiresActiveOrganization: false,
     Component: PlatformOrganizationsPage,
+  }),
+  Object.freeze({
+    id: 'platform-audit',
+    path: CRM_PATHS.platformAudit,
+    label: 'Audit plateforme',
+    title: 'Audit plateforme',
+    requiredCapability: 'platform:audit:read',
+    requiresActiveOrganization: false,
+    Component: PlatformAuditPage,
   }),
   Object.freeze({
     id: 'account',

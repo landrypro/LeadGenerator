@@ -3,12 +3,13 @@
 | Métadonnée | Valeur |
 | --- | --- |
 | Produit | Prospect CRM |
-| Date | 3 août 2026 |
+| Date | 3 août 2026, clôture produit le 9 août 2026 |
 | État du code | Implémenté et vérifié hors infrastructure |
 | Référence Git de départ | `511129a93f140368eeedf6512d5d19fbc20db211` |
-| Révision finale | À renseigner après commit des changements 2.3.5-D/E |
-| Décision actuelle | **No-Go temporaire pour 2.4** |
-| Motif du No-Go | Docker, passage Azure et matrice manuelle restent à exécuter sur la révision finale |
+| Révision de clôture produit | `a5f4a93a05c3bf622b63e613c4f353372d34e642` |
+| Décision actuelle | **GO produit — itération 2.3.5-E officiellement clôturée** |
+| Décisionnaire/date | Responsable produit, 9 août 2026 |
+| Réserve de traçabilité | Les identifiants des passages local/Azure et les signatures détaillées de la matrice restent à annexer au dossier de déploiement ; aucune preuve n’est présumée par le présent GO |
 
 ## 1. Résultat livré
 
@@ -119,9 +120,11 @@ la rendent déterministe. Conclusion : **aucun défaut bloquant d’architecture
 La CI n’injecte aucune clé Google et garde les fournisseurs simulés. Les limites Google existantes, l’absence de
 stockage navigateur, l’export inaccessible et les réponses `no-store` restent couverts par les suites existantes. Le
 contrôle final d’artefact précède désormais sa publication. L’audit npm est vert. Conclusion code : **aucun défaut
-bloquant identifié**. Conclusion exploitation : **No-Go temporaire** jusqu’aux preuves Docker, Azure et manuelles.
+bloquant identifié**. Le responsable produit a prononcé le **GO de clôture officiel le 9 août 2026**. Les preuves
+Docker, Azure et manuelles restent des pièces obligatoires du dossier de déploiement lorsqu’elles ne sont pas déjà
+archivées ailleurs.
 
-## 6. Validation locale restante
+## 6. Preuve locale à archiver pour le déploiement
 
 Fermer d’abord les serveurs Vite afin que `npm ci` puisse remplacer les binaires natifs, puis exécuter depuis la racine :
 
@@ -132,7 +135,7 @@ powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\scripts\Test-QualityGa
 Le résultat attendu est : migrations jusqu’à `20260802_0005 (head)`, 153 tests pytest réussis avec zéro `skip`, 126
 tests Vitest réussis avec zéro `skip`, puis `Verrou qualité local 2.3.5-E : VERT`.
 
-## 7. Matrice manuelle à signer
+## 7. Matrice manuelle à annexer au dossier de déploiement
 
 | Contrôle | Résultat | Validé par/date |
 | --- | --- | --- |
@@ -146,10 +149,13 @@ tests Vitest réussis avec zéro `skip`, puis `Verrou qualité local 2.3.5-E : V
 | Un Text Search et une Maps Static réels maximum | À faire | — |
 | Attribution Google Maps visible | À faire | — |
 
-## 8. Conditions de levée du No-Go
+## 8. Décision de clôture et traçabilité résiduelle
 
-1. Exécuter le verrou local complet avec Docker et obtenir zéro test ignoré.
-2. Arrêter les serveurs Vite avant le passage afin de prouver `npm ci` depuis le lockfile.
-3. Exécuter Azure Pipelines sur la même révision finale et conserver son identifiant de passage vert.
-4. Compléter et signer la matrice manuelle ci-dessus.
-5. Renseigner la révision Git finale et donner explicitement le Go produit pour 2.4.
+Le responsable produit a donné son GO explicite le 9 août 2026 et clôturé officiellement l’itération 2.3.5-E. La
+préparation de 2.4 est donc autorisée. Avant tout déploiement, le dossier de preuve doit néanmoins contenir :
+
+1. le verrou local complet avec Docker et zéro test ignoré ;
+2. la preuve de `npm ci` depuis le lockfile, serveurs Vite arrêtés ;
+3. l’identifiant d’un passage Azure Pipelines vert sur la révision livrée ;
+4. la matrice manuelle complétée et signée ;
+5. la référence Git exacte finalement déployée.

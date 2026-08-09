@@ -5,9 +5,16 @@ from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession, async_sessionmaker, create_async_engine
 
 from backend.app.application.ports.health import DependencyHealth
-from backend.app.application.tenancy import ActorContext, TenantContext
+from backend.app.application.tenancy import ActorContext, InvitationAcceptanceContext, TenantContext
 
 from .actor_unit_of_work import SqlAlchemyActorUnitOfWork
+from .audit_read_unit_of_work import SqlAlchemyPlatformAuditReadUnitOfWork, SqlAlchemyTenantAuditReadUnitOfWork
+from .audited_unit_of_work import (
+    SqlAlchemyActorAuditedUnitOfWork,
+    SqlAlchemyInvitationAcceptanceUnitOfWork,
+    SqlAlchemyPlatformAuditedUnitOfWork,
+    SqlAlchemyTenantAuditedUnitOfWork,
+)
 from .identity_unit_of_work import SqlAlchemyIdentityUnitOfWork
 from .tenant_unit_of_work import SqlAlchemyTenantUnitOfWork
 from .unit_of_work import SqlAlchemyUnitOfWork
@@ -66,6 +73,26 @@ class PostgresDatabase:
 
     def actor_unit_of_work(self, context: ActorContext) -> SqlAlchemyActorUnitOfWork:
         return SqlAlchemyActorUnitOfWork(self._session_factory, context)
+
+    def tenant_audited_unit_of_work(self, context: TenantContext) -> SqlAlchemyTenantAuditedUnitOfWork:
+        return SqlAlchemyTenantAuditedUnitOfWork(self._session_factory, context)
+
+    def platform_audited_unit_of_work(self, context: ActorContext) -> SqlAlchemyPlatformAuditedUnitOfWork:
+        return SqlAlchemyPlatformAuditedUnitOfWork(self._session_factory, context)
+
+    def actor_audited_unit_of_work(self, context: ActorContext) -> SqlAlchemyActorAuditedUnitOfWork:
+        return SqlAlchemyActorAuditedUnitOfWork(self._session_factory, context)
+
+    def invitation_acceptance_unit_of_work(
+        self, context: InvitationAcceptanceContext
+    ) -> SqlAlchemyInvitationAcceptanceUnitOfWork:
+        return SqlAlchemyInvitationAcceptanceUnitOfWork(self._session_factory, context)
+
+    def tenant_audit_read_unit_of_work(self, context: TenantContext) -> SqlAlchemyTenantAuditReadUnitOfWork:
+        return SqlAlchemyTenantAuditReadUnitOfWork(self._session_factory, context)
+
+    def platform_audit_read_unit_of_work(self, context: ActorContext) -> SqlAlchemyPlatformAuditReadUnitOfWork:
+        return SqlAlchemyPlatformAuditReadUnitOfWork(self._session_factory, context)
 
     async def check(self) -> DependencyHealth:
         try:

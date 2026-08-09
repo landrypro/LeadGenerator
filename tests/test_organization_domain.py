@@ -85,6 +85,7 @@ def test_platform_role_does_not_grant_implicit_tenant_capabilities() -> None:
     assert capabilities_for(user(platform=True), None) == (
         "platform:organizations:read",
         "platform:organizations:create",
+        "platform:audit:read",
     )
 
 

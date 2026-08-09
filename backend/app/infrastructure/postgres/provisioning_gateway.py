@@ -25,6 +25,7 @@ from ...domain.identity import MembershipRole
 from ...domain.provisioning import (
     AcceptedInvitation,
     InvitationDeliveryStatus,
+    InvitationKind,
     InvitationPreview,
     InvitationProvisioningView,
     InvitationState,
@@ -251,7 +252,7 @@ class SqlAlchemyProvisioningGateway:
     ) -> AcceptanceGatewayResult:
         payload = await self._json_function(
             """
-            SELECT app_private.accept_invitation_new_account(
+            SELECT app_private.accept_invitation_new_account_audited(
                 :token_hash, :user_id, :membership_id, :display_name, :password_hash, :now
             )
             """,
@@ -277,7 +278,7 @@ class SqlAlchemyProvisioningGateway:
         payload = await self._actor_json_function(
             context,
             """
-            SELECT app_private.accept_invitation_existing_account(
+            SELECT app_private.accept_invitation_existing_account_audited(
                 :token_hash, :membership_id, :now
             )
             """,
@@ -318,6 +319,9 @@ def _acceptance_result(payload: Mapping[str, Any]) -> AcceptanceGatewayResult:
                 user_id=UUID(str(payload["user_id"])),
                 user_version=int(payload["user_version"]),
                 organization_id=UUID(str(payload["organization_id"])),
+                invitation_id=UUID(str(payload["invitation_id"])),
+                invitation_kind=InvitationKind(str(payload["invitation_kind"])),
+                organization_activated=bool(payload["organization_activated"]),
             )
         return AcceptanceGatewayResult(code=code, accepted=accepted)
     except (KeyError, TypeError, ValueError, OverflowError) as error:
