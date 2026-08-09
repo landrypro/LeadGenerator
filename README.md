@@ -419,8 +419,9 @@ powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\scripts\Test-QualityGa
 
 Le passage hors infrastructure valide 136 tests backend et en ignore 17 qui exigent PostgreSQL, Redis et Mailpit
 réels. Le frontend valide 126 tests dans 29 fichiers, dont vingt états axe, sans test ignoré. Ruff, mypy, ESLint,
-l’audit npm, Vitest et le build Vite sont verts. Le Go final exige encore le script ci-dessus avec
-`REQUIRE_INFRASTRUCTURE_TESTS=true`, un passage Azure vert et la matrice manuelle. Le détail se trouve dans
+l’audit npm, Vitest et le build Vite sont verts. Le responsable produit a prononcé le GO de clôture officiel de
+2.3.5-E le 9 août 2026. Le script ci-dessus avec `REQUIRE_INFRASTRUCTURE_TESTS=true`, un passage Azure vert et la
+matrice manuelle restent des preuves obligatoires à annexer avant le déploiement. Le détail se trouve dans
 [`docs/PHASE_2_3_5_E_RAPPORT_IMPLEMENTATION.md`](docs/PHASE_2_3_5_E_RAPPORT_IMPLEMENTATION.md). Le protocole complet
 destiné à un testeur fonctionnel QA est disponible dans
 [`docs/CAHIER_RECETTE_FONCTIONNELLE_QA.md`](docs/CAHIER_RECETTE_FONCTIONNELLE_QA.md).
@@ -435,8 +436,9 @@ contrat et les preuves de 2.3.4 se trouvent dans
 [`docs/PHASE_2_3_4_RAPPORT_IMPLEMENTATION.md`](docs/PHASE_2_3_4_RAPPORT_IMPLEMENTATION.md).
 Les seize décisions de 2.3.5 ont été validées le 2 août 2026. Les lots 2.3.5-A — Routage et shell et
 2.3.5-B — Organisation active, 2.3.5-C — Membres et invitations et 2.3.5-D — Plateforme ont été validés localement
-le 3 août 2026. Le verrou qualité transversal 2.3.5-E est implémenté ; sa validation finale Docker, Azure et manuelle
-reste obligatoire avant 2.4. Ses seize décisions et le rapport courant se trouvent dans
+le 3 août 2026. Le verrou qualité transversal 2.3.5-E a reçu son GO de clôture officiel le 9 août 2026 ; la définition
+de 2.4 est autorisée. Les références Docker/Azure et la matrice signée restent obligatoires dans le dossier de
+déploiement. Ses seize décisions et le rapport courant se trouvent dans
 [`docs/PHASE_2_3_5_E_SPECIFICATIONS_DETAILLEES.md`](docs/PHASE_2_3_5_E_SPECIFICATIONS_DETAILLEES.md) et
 [`docs/PHASE_2_3_5_E_RAPPORT_IMPLEMENTATION.md`](docs/PHASE_2_3_5_E_RAPPORT_IMPLEMENTATION.md).
 Le contrat et les preuves se trouvent dans
