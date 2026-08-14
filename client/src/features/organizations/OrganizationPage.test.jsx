@@ -76,8 +76,8 @@ describe('OrganizationPage', () => {
     fireEvent.click(submit)
     fireEvent.click(submit)
 
-    expect(organizationApi.update).toHaveBeenCalledTimes(1)
-    expect(screen.getByRole('button', { name: 'Enregistrement…' })).toBeDisabled()
+    await waitFor(() => expect(organizationApi.update).toHaveBeenCalledTimes(1))
+    expect(await screen.findByRole('button', { name: 'Enregistrement…' })).toBeDisabled()
   })
 
   it('conserve la saisie sur conflit puis recharge explicitement la version actuelle', async () => {

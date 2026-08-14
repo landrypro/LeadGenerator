@@ -1,0 +1,16 @@
+.git
+.mypy_cache
+.pytest_cache
+.ruff_cache
+.venv
+artifacts
+backups
+client/.npm-cache
+client/dist
+client/node_modules
+test-results
+.env
+.env.*
+*.log
+__pycache__
+*.pyc

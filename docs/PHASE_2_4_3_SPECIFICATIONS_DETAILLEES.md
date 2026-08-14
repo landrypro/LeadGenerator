@@ -4,7 +4,7 @@
 | --- | --- |
 | Version | 1.0 |
 | Date | 9 août 2026 |
-| Statut | Implémentation et recette utilisateur conformes — passage Azure à confirmer |
+| Statut | Validé localement — passage Azure reporté au verrou final de la phase 2.4 |
 | Pré-requis | 2.4.1 sous `20260809_0006` et 2.4.2 sous `20260809_0007` |
 | Portée | API et interfaces de consultation locataire et plateforme |
 | Recette produit | Cumul 2.4.1, 2.4.2 et 2.4.3 validé le 9 août 2026 |

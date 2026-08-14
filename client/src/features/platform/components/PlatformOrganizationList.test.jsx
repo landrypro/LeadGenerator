@@ -6,7 +6,14 @@ import { platformApi } from '../api/platformApi'
 import { PlatformOrganizationList } from './PlatformOrganizationList'
 
 
-vi.mock('../api/platformApi', () => ({ platformApi: { resendInitialInvitation: vi.fn(), revokeInitialInvitation: vi.fn() } }))
+vi.mock('../api/platformApi', () => ({
+  platformApi: {
+    reactivateOrganization: vi.fn(),
+    resendInitialInvitation: vi.fn(),
+    revokeInitialInvitation: vi.fn(),
+    suspendOrganization: vi.fn(),
+  },
+}))
 
 
 describe('PlatformOrganizationList', () => {
@@ -18,6 +25,25 @@ describe('PlatformOrganizationList', () => {
     expect(screen.getAllByRole('button', { name: 'Révoquer' })).toHaveLength(2)
     expect(within(screen.getByText('org-4@example.ca').closest('li')).queryByRole('button')).not.toBeInTheDocument()
     expect(within(screen.getByText('org-5@example.ca').closest('li')).queryByRole('button')).not.toBeInTheDocument()
+  })
+
+  it('confirme la suspension et la réactivation avec une intention idempotente', async () => {
+    platformApi.suspendOrganization.mockResolvedValue(view('accepted', 'org-active', 'suspended'))
+    platformApi.reactivateOrganization.mockResolvedValue(view('accepted', 'org-suspended', 'active'))
+    const onReconciled = vi.fn()
+    renderList([view('accepted', 'org-active', 'active'), view('accepted', 'org-suspended', 'suspended')], {
+      canManageStatus: true,
+      onReconciled,
+    })
+    fireEvent.click(screen.getByRole('button', { name: 'Suspendre' }))
+    fireEvent.click(within(screen.getByRole('alertdialog')).getByRole('button', { name: 'Suspendre' }))
+    await waitFor(() => expect(platformApi.suspendOrganization).toHaveBeenCalledTimes(1))
+    expect(platformApi.suspendOrganization.mock.calls[0][1]).toMatchObject({ operation_id: 'request-id', version: 1, reason_code: 'administrative' })
+
+    fireEvent.click(screen.getByRole('button', { name: 'Réactiver' }))
+    fireEvent.click(within(screen.getByRole('alertdialog')).getByRole('button', { name: 'Réactiver' }))
+    await waitFor(() => expect(platformApi.reactivateOrganization).toHaveBeenCalledTimes(1))
+    expect(onReconciled).toHaveBeenCalledTimes(2)
   })
 
   it('conserve l’identifiant d’un renvoi ambigu puis réconcilie la ligne', async () => {

@@ -40,6 +40,15 @@ class RevokeResultCode(StrEnum):
     ALREADY_ACCEPTED = "already_accepted"
 
 
+class OrganizationStatusResultCode(StrEnum):
+    UPDATED = "updated"
+    REPLAYED = "replayed"
+    IDEMPOTENCY_CONFLICT = "idempotency_conflict"
+    NOT_FOUND = "not_found"
+    VERSION_CONFLICT = "version_conflict"
+    INVALID_TRANSITION = "invalid_transition"
+
+
 class AcceptanceResultCode(StrEnum):
     ACCEPTED = "accepted"
     INVALID = "invalid"
@@ -68,6 +77,13 @@ class ResendGatewayResult:
 class RevokeGatewayResult:
     code: RevokeResultCode
     view: ProvisioningView | None = None
+
+
+@dataclass(frozen=True, slots=True)
+class OrganizationStatusGatewayResult:
+    code: OrganizationStatusResultCode
+    view: ProvisioningView | None = None
+    current_version: int | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -131,6 +147,20 @@ class PlatformProvisioningGateway(Protocol):
         now: datetime,
     ) -> DeliveryFinalizationGatewayResult | None: ...
 
+    async def change_organization_status(
+        self,
+        *,
+        context: ActorContext,
+        organization_id: UUID,
+        operation: str,
+        operation_id: UUID,
+        fingerprint: str,
+        version: int,
+        reason_code: str,
+        external_reference: str | None,
+        now: datetime,
+    ) -> OrganizationStatusGatewayResult: ...
+
 
 class PlatformProvisioningMutationGateway(Protocol):
     async def provision(
@@ -176,6 +206,19 @@ class PlatformProvisioningMutationGateway(Protocol):
         failure_code: str | None,
         now: datetime,
     ) -> DeliveryFinalizationGatewayResult: ...
+
+    async def change_organization_status(
+        self,
+        *,
+        organization_id: UUID,
+        operation: str,
+        operation_id: UUID,
+        fingerprint: str,
+        version: int,
+        reason_code: str,
+        external_reference: str | None,
+        now: datetime,
+    ) -> OrganizationStatusGatewayResult: ...
 
 
 class InvitationAcceptanceGateway(Protocol):

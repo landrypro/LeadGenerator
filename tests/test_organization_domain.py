@@ -15,9 +15,12 @@ from backend.app.domain.identity import (
     select_active_organization,
 )
 from backend.app.domain.organization import (
+    ChangeOrganizationStatusCommand,
     CreateMemberInvitationCommand,
+    OrganizationStatusReasonCode,
     UpdateMembershipCommand,
     UpdateOrganizationCommand,
+    validate_change_organization_status,
     validate_create_member_invitation,
     validate_update_membership,
     validate_update_organization,
@@ -85,6 +88,7 @@ def test_platform_role_does_not_grant_implicit_tenant_capabilities() -> None:
     assert capabilities_for(user(platform=True), None) == (
         "platform:organizations:read",
         "platform:organizations:create",
+        "platform:organizations:manage",
         "platform:audit:read",
     )
 
@@ -152,3 +156,39 @@ def test_membership_and_invitation_commands_are_strict_domain_values() -> None:
     )
     assert validated.email.normalized == "équipe@xn--exmple-cua.ca"
     assert len(validated.fingerprint) == 64
+
+
+def test_organization_status_command_is_canonical_and_rejects_free_text_reference() -> None:
+    operation_id = uuid4()
+    validated = validate_change_organization_status(
+        ChangeOrganizationStatusCommand(
+            operation_id=operation_id,
+            version=3,
+            reason_code=OrganizationStatusReasonCode.ADMINISTRATIVE,
+            external_reference=" TICKET-123 ",
+        ),
+        operation="suspend",
+    )
+    assert validated.operation_id == operation_id
+    assert validated.external_reference == "TICKET-123"
+    assert len(validated.fingerprint) == 64
+
+    with pytest.raises(ValueError):
+        validate_change_organization_status(
+            ChangeOrganizationStatusCommand(
+                operation_id=operation_id,
+                version=0,
+                reason_code=OrganizationStatusReasonCode.ADMINISTRATIVE,
+            ),
+            operation="suspend",
+        )
+    with pytest.raises(ValueError):
+        validate_change_organization_status(
+            ChangeOrganizationStatusCommand(
+                operation_id=operation_id,
+                version=1,
+                reason_code=OrganizationStatusReasonCode.ADMINISTRATIVE,
+                external_reference="contient un espace",
+            ),
+            operation="reactivate",
+        )

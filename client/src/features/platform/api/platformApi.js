@@ -20,6 +20,14 @@ export const platformApi = {
   revokeInitialInvitation(organizationId, signal) {
     return post(`/api/platform/organizations/${encodeURIComponent(organizationId)}/first-invitation/revoke`, {}, signal, 'Impossible de révoquer l’invitation initiale.')
   },
+
+  suspendOrganization(organizationId, payload, signal) {
+    return post(`/api/platform/organizations/${encodeURIComponent(organizationId)}/suspend`, payload, signal, 'Impossible de suspendre l’organisation.')
+  },
+
+  reactivateOrganization(organizationId, payload, signal) {
+    return post(`/api/platform/organizations/${encodeURIComponent(organizationId)}/reactivate`, payload, signal, 'Impossible de réactiver l’organisation.')
+  },
 }
 
 

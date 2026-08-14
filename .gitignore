@@ -8,6 +8,8 @@ client/.npm-cache/
 client/dist/
 test-results/
 artifacts/
+backups/
+.env.qa
 .idea/
 .vs/
 .vscode/

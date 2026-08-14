@@ -3,6 +3,7 @@ from pathlib import Path
 import pytest
 
 from scripts.quality_gate import (
+    assert_alembic_current_revision,
     assert_artifact_is_safe,
     assert_browser_sources_are_safe,
     assert_junit_has_no_skips,
@@ -16,6 +17,15 @@ def test_junit_gate_accepts_zero_skip_and_rejects_one(tmp_path: Path) -> None:
     report.write_text('<testsuite tests="2" skipped="1" />', encoding="utf-8")
     with pytest.raises(ValueError, match="1 test"):
         assert_junit_has_no_skips(report)
+
+
+def test_alembic_current_gate_requires_expected_head(tmp_path: Path) -> None:
+    report = tmp_path / "alembic-current.txt"
+    report.write_text("20260813_0008 (head)\n", encoding="utf-8")
+    assert_alembic_current_revision(report, "20260813_0008")
+    report.write_text("20260809_0007\n", encoding="utf-8")
+    with pytest.raises(ValueError, match="20260813_0008"):
+        assert_alembic_current_revision(report, "20260813_0008")
 
 
 def test_browser_gate_rejects_storage_console_and_focused_tests(tmp_path: Path) -> None:

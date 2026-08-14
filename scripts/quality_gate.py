@@ -1,4 +1,4 @@
-"""Contrôles déterministes du verrou qualité 2.3.5-E."""
+"""Contrôles déterministes des verrous qualité."""
 
 from __future__ import annotations
 
@@ -37,6 +37,15 @@ def assert_junit_has_no_skips(report_path: Path) -> None:
     skipped = sum(int(suite.attrib.get("skipped", "0")) for suite in _test_suites(root))
     if skipped:
         raise ValueError(f"Le rapport {report_path} contient {skipped} test(s) ignoré(s).")
+
+
+def assert_alembic_current_revision(report_path: Path, expected_revision: str) -> None:
+    content = report_path.read_text(encoding="utf-8")
+    if expected_revision not in content or "(head)" not in content:
+        raise ValueError(
+            f"La révision Alembic courante doit être {expected_revision} (head), "
+            f"rapport reçu : {content.strip() or '<vide>'}"
+        )
 
 
 def assert_browser_sources_are_safe(source_root: Path) -> None:
@@ -86,6 +95,9 @@ def main(argv: list[str] | None = None) -> int:
     subparsers = parser.add_subparsers(dest="command", required=True)
     junit = subparsers.add_parser("junit-no-skips")
     junit.add_argument("report", type=Path)
+    current = subparsers.add_parser("alembic-current")
+    current.add_argument("report", type=Path)
+    current.add_argument("expected_revision")
     browser = subparsers.add_parser("browser-sources")
     browser.add_argument("source", type=Path)
     artifact = subparsers.add_parser("artifact")
@@ -94,6 +106,8 @@ def main(argv: list[str] | None = None) -> int:
     try:
         if arguments.command == "junit-no-skips":
             assert_junit_has_no_skips(arguments.report)
+        elif arguments.command == "alembic-current":
+            assert_alembic_current_revision(arguments.report, arguments.expected_revision)
         elif arguments.command == "browser-sources":
             assert_browser_sources_are_safe(arguments.source)
         else:

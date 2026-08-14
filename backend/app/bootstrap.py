@@ -14,6 +14,7 @@ from fastapi.staticfiles import StaticFiles
 from .application.ports import AsyncResource, DependencyProbe, TenantUnitOfWorkFactory, UnitOfWorkFactory
 from .application.use_cases import (
     AcceptInvitationUseCase,
+    ChangeOrganizationStatusUseCase,
     CheckReadinessUseCase,
     CreateMemberInvitationUseCase,
     CreateOrganizationUseCase,
@@ -134,6 +135,8 @@ def build_container(settings: Settings) -> AppContainer:
     logout: LogoutUseCase | None = None
     create_organization: CreateOrganizationUseCase | None = None
     list_platform_organizations: ListPlatformOrganizationsUseCase | None = None
+    suspend_organization: ChangeOrganizationStatusUseCase | None = None
+    reactivate_organization: ChangeOrganizationStatusUseCase | None = None
     list_tenant_audit_events: ListTenantAuditEventsUseCase | None = None
     list_platform_audit_events: ListPlatformAuditEventsUseCase | None = None
     resend_initial_invitation: ResendInitialInvitationUseCase | None = None
@@ -208,6 +211,18 @@ def build_container(settings: Settings) -> AppContainer:
             audited_unit_of_work_factory=database.platform_audited_unit_of_work,
         )
         list_platform_organizations = ListPlatformOrganizationsUseCase(provisioning_gateway, clock)
+        suspend_organization = ChangeOrganizationStatusUseCase(
+            provisioning_gateway,
+            clock,
+            operation="suspend",
+            audited_unit_of_work_factory=database.platform_audited_unit_of_work,
+        )
+        reactivate_organization = ChangeOrganizationStatusUseCase(
+            provisioning_gateway,
+            clock,
+            operation="reactivate",
+            audited_unit_of_work_factory=database.platform_audited_unit_of_work,
+        )
         resend_initial_invitation = ResendInitialInvitationUseCase(
             provisioning_gateway,
             token_generator,
@@ -298,6 +313,8 @@ def build_container(settings: Settings) -> AppContainer:
         logout=logout,
         create_organization=create_organization,
         list_platform_organizations=list_platform_organizations,
+        suspend_organization=suspend_organization,
+        reactivate_organization=reactivate_organization,
         list_tenant_audit_events=list_tenant_audit_events,
         list_platform_audit_events=list_platform_audit_events,
         resend_initial_invitation=resend_initial_invitation,

@@ -20,17 +20,20 @@ export function ConfirmationDialog({ busy = false, children, confirmLabel, onCan
   function handleKeyDown(event) {
     if (event.key === 'Escape' && !busy) onCancel()
     if (event.key !== 'Tab') return
+    const focusable = Array.from(dialogRef.current?.querySelectorAll('button:not(:disabled), input:not(:disabled), select:not(:disabled), textarea:not(:disabled), [href], [tabindex]:not([tabindex="-1"])') ?? [])
     if (busy) {
       event.preventDefault()
       dialogRef.current?.focus()
       return
     }
-    if (event.shiftKey && document.activeElement === cancelRef.current) {
+    const first = focusable[0] ?? confirmRef.current
+    const last = focusable.at(-1) ?? cancelRef.current
+    if (event.shiftKey && document.activeElement === first) {
       event.preventDefault()
-      confirmRef.current?.focus()
-    } else if (!event.shiftKey && document.activeElement === confirmRef.current) {
+      last?.focus()
+    } else if (!event.shiftKey && document.activeElement === last) {
       event.preventDefault()
-      cancelRef.current?.focus()
+      first?.focus()
     }
   }
 

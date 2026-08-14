@@ -14,6 +14,7 @@ from ...application.errors import OrganizationAdministrationUnavailable
 from ...application.ports.organization import (
     CreateMemberInvitationGatewayResult,
     CreateMemberInvitationResultCode,
+    InvitationListState,
     MemberInvitationMutationGatewayResult,
     MemberInvitationMutationResultCode,
     SwitchOrganizationGatewayResult,
@@ -225,6 +226,7 @@ class SqlAlchemyOrganizationAdministrationGateway:
         self,
         *,
         context: TenantContext,
+        state: InvitationListState,
         after_created_at: datetime | None,
         after_id: UUID | None,
         limit: int,
@@ -238,14 +240,26 @@ class SqlAlchemyOrganizationAdministrationGateway:
                             """
                             SELECT id AS invitation_id, email AS recipient_email,
                                    role AS invitation_role,
-                                   CASE WHEN expires_at <= :now THEN 'expired' ELSE 'active' END AS invitation_state,
+                                   CASE
+                                       WHEN accepted_at IS NOT NULL THEN 'accepted'
+                                       WHEN revoked_at IS NOT NULL THEN 'revoked'
+                                       WHEN expires_at <= :now THEN 'expired'
+                                       ELSE 'active'
+                                   END AS invitation_state,
                                    delivery_status AS invitation_delivery_status,
                                    expires_at AS invitation_expires_at,
                                    created_at AS invitation_created_at
                             FROM public.user_invitations
                             WHERE organization_id = :organization_id
                               AND invitation_kind = 'member'
-                              AND accepted_at IS NULL AND revoked_at IS NULL
+                              AND (
+                                  :state = 'all'
+                                  OR (:state = 'open' AND accepted_at IS NULL AND revoked_at IS NULL)
+                                  OR (:state = 'active' AND accepted_at IS NULL AND revoked_at IS NULL AND expires_at > :now)
+                                  OR (:state = 'expired' AND accepted_at IS NULL AND revoked_at IS NULL AND expires_at <= :now)
+                                  OR (:state = 'accepted' AND accepted_at IS NOT NULL)
+                                  OR (:state = 'revoked' AND revoked_at IS NOT NULL)
+                              )
                               AND (
                                   CAST(:after_created_at AS timestamp with time zone) IS NULL
                                   OR (created_at, id) >
@@ -257,6 +271,7 @@ class SqlAlchemyOrganizationAdministrationGateway:
                         ),
                         {
                             "organization_id": context.organization_id,
+                            "state": state.value,
                             "after_created_at": after_created_at,
                             "after_id": after_id,
                             "limit": limit,

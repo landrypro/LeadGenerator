@@ -98,6 +98,16 @@ class ProvisioningResourceNotFound(RuntimeError):
     """La ressource de provisioning n’existe pas ou n’est plus modifiable."""
 
 
+class PlatformOrganizationVersionConflict(RuntimeError):
+    def __init__(self, current_version: int | None = None) -> None:
+        super().__init__("L’organisation plateforme a été modifiée depuis sa lecture.")
+        self.current_version = current_version
+
+
+class PlatformOrganizationInvalidTransition(RuntimeError):
+    """Le statut courant de l’organisation ne permet pas cette transition."""
+
+
 class InvitationInvalid(RuntimeError):
     """Le jeton ne correspond pas à une invitation utilisable."""
 

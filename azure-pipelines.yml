@@ -15,6 +15,7 @@ variables:
   testRedisUrl: 'redis://127.0.0.1:56379/0'
   testMailpitApiUrl: 'http://127.0.0.1:58025'
   testMailpitSmtpPort: '51025'
+  expectedAlembicRevision: '20260813_0008'
 
 steps:
   - task: UsePythonVersion@0
@@ -56,6 +57,14 @@ steps:
 
   - script: python -m alembic -c backend/alembic.ini check
     displayName: Vérifier la synchronisation des modèles et migrations
+    env:
+      MIGRATION_DATABASE_URL: $(testMigrationDatabaseUrl)
+
+  - script: |
+      mkdir -p test-results
+      python -m alembic -c backend/alembic.ini current > test-results/alembic-current.txt
+      python scripts/quality_gate.py alembic-current test-results/alembic-current.txt $(expectedAlembicRevision)
+    displayName: Vérifier la révision Alembic courante
     env:
       MIGRATION_DATABASE_URL: $(testMigrationDatabaseUrl)
 
@@ -145,14 +154,14 @@ steps:
         !**/.ruff_cache/**
         !**/node_modules/**
         !**/test-results/**
-      TargetFolder: $(Build.ArtifactStagingDirectory)/GoogleMapsLeadGenerator
+      TargetFolder: $(Build.ArtifactStagingDirectory)/MarketteoCRM
     displayName: Préparer l’artefact Web
 
-  - script: python scripts/quality_gate.py artifact "$(Build.ArtifactStagingDirectory)/GoogleMapsLeadGenerator"
+  - script: python scripts/quality_gate.py artifact "$(Build.ArtifactStagingDirectory)/MarketteoCRM"
     displayName: Vérifier l’artefact Web final
 
   - task: PublishPipelineArtifact@1
     inputs:
-      targetPath: $(Build.ArtifactStagingDirectory)/GoogleMapsLeadGenerator
-      artifact: GoogleMapsLeadGenerator
+      targetPath: $(Build.ArtifactStagingDirectory)/MarketteoCRM
+      artifact: MarketteoCRM
     displayName: Publier l’application

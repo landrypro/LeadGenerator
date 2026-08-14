@@ -11,6 +11,7 @@ from sqlalchemy import text
 
 from backend.app.application.ports.organization import (
     CreateMemberInvitationResultCode,
+    InvitationListState,
     MemberInvitationMutationResultCode,
     SwitchOrganizationResultCode,
     UpdateMembershipResultCode,
@@ -557,6 +558,7 @@ async def test_versions_conflicts_member_invitation_lifecycle_and_cross_scope_ar
         assert (
             await gateway.list_invitations(
                 context=context,
+                state=InvitationListState.OPEN,
                 after_created_at=None,
                 after_id=None,
                 limit=25,

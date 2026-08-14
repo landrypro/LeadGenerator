@@ -13,6 +13,8 @@ from ...application.errors import ProvisioningServiceUnavailable
 from ...application.ports.provisioning import (
     AcceptanceGatewayResult,
     AcceptanceResultCode,
+    OrganizationStatusGatewayResult,
+    OrganizationStatusResultCode,
     ProvisionGatewayResult,
     ProvisionResultCode,
     ResendGatewayResult,
@@ -216,6 +218,45 @@ class SqlAlchemyProvisioningGateway:
         except SQLAlchemyError as error:
             raise ProvisioningServiceUnavailable from error
 
+    async def change_organization_status(
+        self,
+        *,
+        context: ActorContext,
+        organization_id: UUID,
+        operation: str,
+        operation_id: UUID,
+        fingerprint: str,
+        version: int,
+        reason_code: str,
+        external_reference: str | None,
+        now: datetime,
+    ) -> OrganizationStatusGatewayResult:
+        payload = await self._actor_json_function(
+            context,
+            """
+            SELECT app_private.platform_change_organization_status(
+                :organization_id, :operation, :operation_id, :fingerprint, :version,
+                :reason_code, :external_reference, :now
+            )
+            """,
+            {
+                "organization_id": organization_id,
+                "operation": operation,
+                "operation_id": operation_id,
+                "fingerprint": fingerprint,
+                "version": version,
+                "reason_code": reason_code,
+                "external_reference": external_reference,
+                "now": now,
+            },
+        )
+        code = _result_code(OrganizationStatusResultCode, payload)
+        return OrganizationStatusGatewayResult(
+            code=code,
+            view=_view_from_json(payload.get("view"), replayed=code is OrganizationStatusResultCode.REPLAYED),
+            current_version=_optional_int(payload.get("current_version")),
+        )
+
     async def preview(self, *, token_hash: str, now: datetime) -> InvitationPreview | None:
         try:
             async with self._database.unit_of_work() as unit_of_work:
@@ -379,7 +420,7 @@ def _view_from_row(row: Mapping[str, object], *, replayed: bool) -> Provisioning
         raise ProvisioningServiceUnavailable("La vue de provisioning PostgreSQL est invalide.") from error
 
 
-def _result_code[ResultCode: (ProvisionResultCode, ResendResultCode, RevokeResultCode)](
+def _result_code[ResultCode: (ProvisionResultCode, ResendResultCode, RevokeResultCode, OrganizationStatusResultCode)](
     enum_type: type[ResultCode], payload: Mapping[str, Any]
 ) -> ResultCode:
     try:
@@ -400,3 +441,7 @@ def _optional_datetime(value: object) -> datetime | None:
 
 def _optional_uuid(value: object) -> UUID | None:
     return None if value is None else UUID(str(value))
+
+
+def _optional_int(value: object) -> int | None:
+    return None if value is None else int(str(value))

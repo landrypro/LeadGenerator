@@ -130,6 +130,13 @@ class ResendInitialInvitationRequest(StrictCommand):
     resend_request_id: UUID
 
 
+class ChangeOrganizationStatusRequest(StrictCommand):
+    operation_id: UUID
+    version: int = Field(ge=1)
+    reason_code: Literal["customer_request", "billing", "security", "compliance", "administrative", "other"]
+    external_reference: str | None = Field(default=None, max_length=64)
+
+
 class EmptyCommand(StrictCommand):
     pass
 

@@ -11,13 +11,23 @@ from backend.app.application.ports.organization import (
     UpdateMembershipGatewayResult,
     UpdateMembershipResultCode,
 )
-from backend.app.application.ports.provisioning import ProvisionGatewayResult, ProvisionResultCode
+from backend.app.application.ports.provisioning import (
+    OrganizationStatusGatewayResult,
+    OrganizationStatusResultCode,
+    ProvisionGatewayResult,
+    ProvisionResultCode,
+)
 from backend.app.application.tenancy import ActorContext, TenantContext
 from backend.app.application.use_cases.organization import UpdateMembershipUseCase
-from backend.app.application.use_cases.provisioning import CreateOrganizationUseCase
+from backend.app.application.use_cases.provisioning import ChangeOrganizationStatusUseCase, CreateOrganizationUseCase
 from backend.app.domain.audit import AuditAction, AuditEventDraft
 from backend.app.domain.identity import MembershipRole, MembershipStatus
-from backend.app.domain.organization import MemberView, UpdateMembershipCommand
+from backend.app.domain.organization import (
+    ChangeOrganizationStatusCommand,
+    MemberView,
+    OrganizationStatusReasonCode,
+    UpdateMembershipCommand,
+)
 from backend.app.domain.provisioning import (
     InvitationDeliveryStatus,
     InvitationProvisioningView,
@@ -84,6 +94,10 @@ class AuditedUnitOfWork:
         return self.result
 
     async def provision(self, **kwargs: object) -> object:
+        del kwargs
+        return self.result
+
+    async def change_organization_status(self, **kwargs: object) -> object:
         del kwargs
         return self.result
 
@@ -261,3 +275,55 @@ async def test_provisioning_and_delivery_use_two_explicit_audited_transactions()
     assert {event.organization_id for event in creation.audit.events} == {view.organization.id}
     assert {event.organization_id for event in finalization.audit.events} == {view.organization.id}
     assert creation.committed and finalization.committed
+
+
+async def test_platform_status_change_records_single_platform_event() -> None:
+    view = _provisioning_view()
+    unit = AuditedUnitOfWork(OrganizationStatusGatewayResult(OrganizationStatusResultCode.UPDATED, view=view))
+    use_case = ChangeOrganizationStatusUseCase(
+        object(),
+        Clock(),
+        operation="suspend",
+        audited_unit_of_work_factory=UnitOfWorkFactory(unit),  # type: ignore[arg-type]
+    )
+    operation_id = uuid4()
+
+    await use_case.execute(
+        context=ActorContext(uuid4(), "request-suspend"),
+        organization_id=view.organization.id,
+        command=ChangeOrganizationStatusCommand(
+            operation_id=operation_id,
+            version=2,
+            reason_code=OrganizationStatusReasonCode.ADMINISTRATIVE,
+        ),
+        has_platform_capability=True,
+    )
+
+    assert unit.committed is True
+    assert [event.action for event in unit.audit.events] == [AuditAction.ORGANIZATION_SUSPENDED]
+    assert unit.audit.events[0].metadata["operation_id"] == str(operation_id)
+
+
+async def test_platform_status_replay_commits_without_second_audit_event() -> None:
+    view = _provisioning_view()
+    unit = AuditedUnitOfWork(OrganizationStatusGatewayResult(OrganizationStatusResultCode.REPLAYED, view=view))
+    use_case = ChangeOrganizationStatusUseCase(
+        object(),
+        Clock(),
+        operation="reactivate",
+        audited_unit_of_work_factory=UnitOfWorkFactory(unit),  # type: ignore[arg-type]
+    )
+
+    await use_case.execute(
+        context=ActorContext(uuid4(), "request-reactivate-replay"),
+        organization_id=view.organization.id,
+        command=ChangeOrganizationStatusCommand(
+            operation_id=uuid4(),
+            version=3,
+            reason_code=OrganizationStatusReasonCode.CUSTOMER_REQUEST,
+        ),
+        has_platform_capability=True,
+    )
+
+    assert unit.committed is True
+    assert unit.audit.events == []

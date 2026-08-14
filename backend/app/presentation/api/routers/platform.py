@@ -14,17 +14,21 @@ from ....application.errors import (
     InvitationAlreadyAccepted,
     InvitationDeliveryUnavailable,
     InvitationRateLimited,
+    PlatformOrganizationInvalidTransition,
+    PlatformOrganizationVersionConflict,
     ProvisioningOutcomeUnknown,
     ProvisioningResourceNotFound,
     ProvisioningServiceUnavailable,
 )
 from ....application.tenancy import ActorContext
 from ....domain.identity import capabilities_for
+from ....domain.organization import ChangeOrganizationStatusCommand, OrganizationStatusReasonCode
 from ....domain.provisioning import ProvisionOrganizationCommand
 from ..dependencies import ContainerDependency, RequestAuthentication, required_authentication
 from ..mappers import to_provisioning_response
 from ..responses import NO_STORE_HEADERS, api_error
 from ..schemas import (
+    ChangeOrganizationStatusRequest,
     CreateOrganizationRequest,
     EmptyCommand,
     PlatformOrganizationPageResponse,
@@ -98,6 +102,38 @@ async def create_organization(
     )
 
 
+@router.post("/organizations/{organization_id}/suspend", response_model=ProvisioningResponse)
+async def suspend_organization(
+    organization_id: UUID,
+    payload: ChangeOrganizationStatusRequest,
+    request: Request,
+    container: ContainerDependency,
+) -> Response:
+    return await _change_organization_status(
+        organization_id=organization_id,
+        payload=payload,
+        request=request,
+        container=container,
+        use_case_name="suspend_organization",
+    )
+
+
+@router.post("/organizations/{organization_id}/reactivate", response_model=ProvisioningResponse)
+async def reactivate_organization(
+    organization_id: UUID,
+    payload: ChangeOrganizationStatusRequest,
+    request: Request,
+    container: ContainerDependency,
+) -> Response:
+    return await _change_organization_status(
+        organization_id=organization_id,
+        payload=payload,
+        request=request,
+        container=container,
+        use_case_name="reactivate_organization",
+    )
+
+
 @router.post("/organizations/{organization_id}/first-invitation/resend", response_model=ProvisioningResponse)
 async def resend_initial_invitation(
     organization_id: UUID,
@@ -113,7 +149,7 @@ async def resend_initial_invitation(
             context=_actor_context(request, authentication.identity.user.id),
             organization_id=organization_id,
             resend_request_id=payload.resend_request_id,
-            has_platform_capability="platform:organizations:create"
+            has_platform_capability="platform:organizations:manage"
             in capabilities_for(authentication.identity.user, authentication.identity.active_membership),
         )
     except Exception as error:
@@ -150,6 +186,39 @@ async def revoke_initial_invitation(
     return JSONResponse(to_provisioning_response(view).model_dump(mode="json"), headers=NO_STORE_HEADERS)
 
 
+async def _change_organization_status(
+    *,
+    organization_id: UUID,
+    payload: ChangeOrganizationStatusRequest,
+    request: Request,
+    container: ContainerDependency,
+    use_case_name: str,
+) -> Response:
+    try:
+        authentication = await _authenticated_mutation(request, container)
+        use_case = getattr(container, use_case_name)
+        if use_case is None:
+            raise ProvisioningServiceUnavailable
+        view = await use_case.execute(
+            context=_actor_context(request, authentication.identity.user.id),
+            organization_id=organization_id,
+            command=ChangeOrganizationStatusCommand(
+                operation_id=payload.operation_id,
+                version=payload.version,
+                reason_code=OrganizationStatusReasonCode(payload.reason_code),
+                external_reference=payload.external_reference,
+            ),
+            has_platform_capability="platform:organizations:create"
+            in capabilities_for(authentication.identity.user, authentication.identity.active_membership),
+        )
+    except Exception as error:
+        response = _platform_error(request, error)
+        if response is not None:
+            return response
+        raise
+    return JSONResponse(to_provisioning_response(view).model_dump(mode="json"), headers=NO_STORE_HEADERS)
+
+
 async def _authenticated_mutation(
     request: Request,
     container: ContainerDependency,
@@ -174,6 +243,21 @@ def _platform_error(request: Request, error: Exception) -> Response | None:
         return api_error(request, 403, "insufficient_capability", "Autorisation plateforme insuffisante.")
     if isinstance(error, ProvisioningResourceNotFound):
         return api_error(request, 404, "provisioning_not_found", "Ressource de provisioning introuvable.")
+    if isinstance(error, PlatformOrganizationVersionConflict):
+        return api_error(
+            request,
+            409,
+            "organization_version_conflict",
+            "L’organisation a été modifiée.",
+            fields={"version": str(error.current_version)} if error.current_version is not None else {},
+        )
+    if isinstance(error, PlatformOrganizationInvalidTransition):
+        return api_error(
+            request,
+            409,
+            "invalid_organization_transition",
+            "Le statut courant de l’organisation ne permet pas cette transition.",
+        )
     if isinstance(error, IdempotencyKeyReused):
         return api_error(request, 409, "idempotency_key_reused", "La clé de requête a déjà été utilisée.")
     if isinstance(error, InvitationAlreadyAccepted):
