@@ -1,0 +1,49 @@
+from __future__ import annotations
+
+from types import TracebackType
+
+from sqlalchemy.exc import SQLAlchemyError
+from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
+
+from ...application.errors import OrganizationAdministrationUnavailable
+from ...application.tenancy import TenantContext
+from .audit_recorder import SqlAlchemyAuditRecorder
+from .prospect_repository import (
+    SqlAlchemyContactChannelRepository,
+    SqlAlchemyContactRepository,
+    SqlAlchemyProspectRepository,
+    SqlAlchemyProvenanceRepository,
+)
+from .tenant_unit_of_work import SqlAlchemyTenantUnitOfWork
+
+
+class SqlAlchemyProspectUnitOfWork(SqlAlchemyTenantUnitOfWork):
+    def __init__(self, session_factory: async_sessionmaker[AsyncSession], context: TenantContext) -> None:
+        super().__init__(session_factory, context)
+        self.prospects: SqlAlchemyProspectRepository
+        self.contacts: SqlAlchemyContactRepository
+        self.contact_channels: SqlAlchemyContactChannelRepository
+        self.provenance: SqlAlchemyProvenanceRepository
+        self.audit: SqlAlchemyAuditRecorder
+
+    async def __aenter__(self) -> SqlAlchemyProspectUnitOfWork:
+        try:
+            await super().__aenter__()
+        except SQLAlchemyError as error:
+            raise OrganizationAdministrationUnavailable from error
+        self.prospects = SqlAlchemyProspectRepository(self.session)
+        self.contacts = SqlAlchemyContactRepository(self.session)
+        self.contact_channels = SqlAlchemyContactChannelRepository(self.session)
+        self.provenance = SqlAlchemyProvenanceRepository(self.session)
+        self.audit = SqlAlchemyAuditRecorder(self.session)
+        return self
+
+    async def __aexit__(
+        self,
+        exc_type: type[BaseException] | None,
+        exc_value: BaseException | None,
+        traceback: TracebackType | None,
+    ) -> None:
+        await super().__aexit__(exc_type, exc_value, traceback)
+        if exc_type is not None and issubclass(exc_type, SQLAlchemyError):
+            raise OrganizationAdministrationUnavailable from exc_value

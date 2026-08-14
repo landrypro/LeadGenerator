@@ -279,7 +279,46 @@ class GooglePlaceSearchResponse(BaseModel):
     stats: GooglePlaceSearchStats
     searched_at: datetime
     map_snapshot_token: str
+    selection_token: str
     search_parameters: GooglePlaceSearchParameters
+
+
+class CreateProspectRequest(StrictCommand):
+    internal_alias: str = Field(min_length=1, max_length=160)
+
+
+class ProspectFromGoogleRequest(StrictCommand):
+    selection_token: str = Field(min_length=32, max_length=128)
+    place_ids: list[str] = Field(min_length=1, max_length=20)
+
+
+class ProspectResponse(BaseModel):
+    id: UUID
+    internal_alias: str
+    origin: str
+    source_label: str
+    google_place_id: str | None
+    stage_code: str
+    priority: int
+    version: int
+    created_at: datetime
+    updated_at: datetime
+    archived_at: datetime | None
+
+
+class ProspectPageResponse(BaseModel):
+    items: list[ProspectResponse]
+    next_cursor: str | None
+
+
+class ProspectFromGoogleItemResponse(BaseModel):
+    place_id: str
+    disposition: Literal["created", "existing"]
+    prospect: ProspectResponse
+
+
+class ProspectFromGoogleResponse(BaseModel):
+    items: list[ProspectFromGoogleItemResponse]
 
 
 # Contrat Python historique conservé uniquement pour tester la neutralisation Excel.

@@ -10,6 +10,7 @@ import { TopBar } from './components/TopBar'
 import { initialForm } from './config'
 import { useApiHealth } from './hooks/useApiHealth'
 import { useLeadSearch } from './hooks/useLeadSearch'
+import { useProspectAdds } from './hooks/useProspectAdds'
 
 
 export function PlaceSearchPage({ session = null }) {
@@ -17,6 +18,11 @@ export function PlaceSearchPage({ session = null }) {
   const [mobilePanelOpen, setMobilePanelOpen] = useState(false)
   const { error, clearError, reportError } = useErrorNotice()
   const { result, loading, runSearch } = useLeadSearch({ clearError, reportError })
+  const prospectAdds = useProspectAdds({
+    selectionToken: result?.selection_token ?? '',
+    clearError,
+    reportError,
+  })
   const keyReady = useApiHealth()
 
   useBodyScrollLock(mobilePanelOpen)
@@ -59,6 +65,8 @@ export function PlaceSearchPage({ session = null }) {
         places={places}
         result={result}
         loading={loading}
+        canCreateProspects={session?.capabilities?.includes('prospects:create') ?? false}
+        prospectAdds={prospectAdds}
       />
       <footer><span>Données temporaires — Google Maps</span><span>•</span><a href="/conditions.html">Conditions d’utilisation</a><span>•</span><a href="/confidentialite.html">Politique de confidentialité</a></footer>
     </main>

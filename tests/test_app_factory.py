@@ -34,6 +34,7 @@ class StubSearchGooglePlaces:
                 searched_at=datetime.now(UTC),
             ),
             map_snapshot_token="injected-token",
+            selection_token="selection-token",
         )
 
 
@@ -107,6 +108,7 @@ async def test_routes_receive_injected_use_cases() -> None:
 
     assert response.status_code == 200
     assert response.json()["map_snapshot_token"] == "injected-token"
+    assert response.json()["selection_token"] == "selection-token"
     assert response.json()["search_parameters"]["radius_km"] == 12
     assert search_google_places.access.user_id == identity.user.id
     assert search_google_places.access.organization_id == identity.active_membership.organization_id

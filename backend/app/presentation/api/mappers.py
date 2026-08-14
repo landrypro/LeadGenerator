@@ -3,6 +3,7 @@ from ...application.use_cases.search_google_places import SearchGooglePlacesOutc
 from ...domain.audit import AuditEventView
 from ...domain.identity import AuthenticatedIdentity, capabilities_for
 from ...domain.organization import MemberInvitationView, MemberView, OrganizationView
+from ...domain.prospect import ProspectView
 from ...domain.provisioning import ProvisioningView
 from .schemas import (
     AuditActorResponse,
@@ -22,6 +23,7 @@ from .schemas import (
     OrganizationSummaryResponse,
     PlatformInvitationResponse,
     PlatformOrganizationResponse,
+    ProspectResponse,
     ProvisioningResponse,
 )
 
@@ -157,5 +159,22 @@ def to_search_response(
         stats=GooglePlaceSearchStats.model_validate(result.search.stats),
         searched_at=result.search.searched_at,
         map_snapshot_token=result.map_snapshot_token,
+        selection_token=result.selection_token,
         search_parameters=GooglePlaceSearchParameters.model_validate(request.model_dump()),
+    )
+
+
+def to_prospect_response(view: ProspectView) -> ProspectResponse:
+    return ProspectResponse(
+        id=view.id,
+        internal_alias=view.internal_alias,
+        origin=view.origin.value,
+        source_label=view.source_label,
+        google_place_id=view.google_place_id,
+        stage_code=view.stage_code.value,
+        priority=view.priority,
+        version=view.version,
+        created_at=view.created_at,
+        updated_at=view.updated_at,
+        archived_at=view.archived_at,
     )

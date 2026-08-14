@@ -24,7 +24,11 @@ from backend.app.domain.identity import (
     UserIdentity,
     UserStatus,
 )
-from backend.app.infrastructure.memory import InMemoryGenerationGuard, InMemoryMapSnapshotGrantStore
+from backend.app.infrastructure.memory import (
+    InMemoryGenerationGuard,
+    InMemoryGoogleSelectionGrantStore,
+    InMemoryMapSnapshotGrantStore,
+)
 
 CSRF_TOKEN = "csrf-integration"
 SESSION_TOKEN = "integration-session"
@@ -126,12 +130,14 @@ def integration_app(
     places = places_gateway or FakePlacesGateway()
     maps = map_gateway or FakeStaticMapGateway()
     grants = InMemoryMapSnapshotGrantStore()
+    selection_grants = InMemoryGoogleSelectionGrantStore()
     container = AppContainer(
         settings=settings,
         search_google_places=SearchGooglePlacesUseCase(
             places,
             InMemoryGenerationGuard(),
             grants,
+            selection_grants,
         ),
         get_map_snapshot=GetMapSnapshotUseCase(grants, maps),
         get_current_session=CurrentSession(identities or {SESSION_TOKEN: authenticated_identity()}),  # type: ignore[arg-type]

@@ -16,6 +16,7 @@ from .audited_unit_of_work import (
     SqlAlchemyTenantAuditedUnitOfWork,
 )
 from .identity_unit_of_work import SqlAlchemyIdentityUnitOfWork
+from .prospect_unit_of_work import SqlAlchemyProspectUnitOfWork
 from .tenant_unit_of_work import SqlAlchemyTenantUnitOfWork
 from .unit_of_work import SqlAlchemyUnitOfWork
 
@@ -90,6 +91,9 @@ class PostgresDatabase:
 
     def tenant_audit_read_unit_of_work(self, context: TenantContext) -> SqlAlchemyTenantAuditReadUnitOfWork:
         return SqlAlchemyTenantAuditReadUnitOfWork(self._session_factory, context)
+
+    def tenant_prospect_unit_of_work(self, context: TenantContext) -> SqlAlchemyProspectUnitOfWork:
+        return SqlAlchemyProspectUnitOfWork(self._session_factory, context)
 
     def platform_audit_read_unit_of_work(self, context: ActorContext) -> SqlAlchemyPlatformAuditReadUnitOfWork:
         return SqlAlchemyPlatformAuditReadUnitOfWork(self._session_factory, context)

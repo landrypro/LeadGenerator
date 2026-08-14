@@ -9,7 +9,11 @@ from backend.app.application.use_cases.search_google_places import (
     MAX_GOOGLE_RESULTS,
     SearchGooglePlacesUseCase,
 )
-from backend.app.infrastructure.memory import InMemoryGenerationGuard, InMemoryMapSnapshotGrantStore
+from backend.app.infrastructure.memory import (
+    InMemoryGenerationGuard,
+    InMemoryGoogleSelectionGrantStore,
+    InMemoryMapSnapshotGrantStore,
+)
 
 
 class FakePlacesGateway:
@@ -39,6 +43,7 @@ def use_case(gateway: FakePlacesGateway) -> SearchGooglePlacesUseCase:
         gateway,
         InMemoryGenerationGuard(),
         InMemoryMapSnapshotGrantStore(),
+        InMemoryGoogleSelectionGrantStore(),
     )
 
 
@@ -59,6 +64,7 @@ async def test_use_case_calls_gateway_once_and_limits_results_to_twenty() -> Non
     assert len(outcome.search.places) == MAX_GOOGLE_RESULTS == 20
     assert outcome.search.stats.api_calls == 1
     assert outcome.search.stats.raw_results == 25
+    assert outcome.selection_token
 
 
 @pytest.mark.asyncio

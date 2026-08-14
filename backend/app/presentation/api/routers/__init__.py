@@ -6,6 +6,7 @@ from .invitations import router as invitations_router
 from .maps import router as maps_router
 from .organization import router as organization_router
 from .platform import router as platform_router
+from .prospects import router as prospects_router
 
 __all__ = [
     "audit_router",
@@ -16,4 +17,5 @@ __all__ = [
     "maps_router",
     "organization_router",
     "platform_router",
+    "prospects_router",
 ]

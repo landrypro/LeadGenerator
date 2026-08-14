@@ -6,6 +6,10 @@ class InvalidMapSnapshotGrant(RuntimeError):
     """Le jeton de carte est absent, expiré ou déjà consommé."""
 
 
+class InvalidGoogleSelectionGrant(RuntimeError):
+    """Le jeton de sélection Google est absent, expiré ou ne couvre pas les établissements demandés."""
+
+
 class MapSnapshotGrantInProgress(RuntimeError):
     """Le même jeton de carte est déjà en cours de consommation."""
 
@@ -144,6 +148,14 @@ class SessionCreationFailedAfterAcceptance(RuntimeError):
 
 class OrganizationAdministrationUnavailable(RuntimeError):
     """Le stockage d’administration locataire est temporairement indisponible."""
+
+
+class ProspectServiceUnavailable(RuntimeError):
+    """Le stockage des prospects est temporairement indisponible."""
+
+
+class ProspectResourceNotFound(RuntimeError):
+    """Le prospect demandé n’existe pas dans l’organisation active."""
 
 
 class OrganizationResourceNotFound(RuntimeError):

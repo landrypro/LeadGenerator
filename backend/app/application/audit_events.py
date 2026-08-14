@@ -88,4 +88,16 @@ def _entity_type(action: AuditAction) -> str:
         return "membership"
     if action is AuditAction.ACCOUNT_ORGANIZATION_PREFERENCE_CHANGED:
         return "user"
+    if action in {
+        AuditAction.PROSPECT_CREATED,
+        AuditAction.PROSPECT_UPDATED,
+        AuditAction.PROSPECT_ARCHIVED,
+    }:
+        return "prospect"
+    if action is AuditAction.CONTACT_CREATED:
+        return "contact"
+    if action is AuditAction.CHANNEL_CREATED:
+        return "contact_channel"
+    if action is AuditAction.PROVENANCE_RECORDED:
+        return "provenance"
     return "invitation"

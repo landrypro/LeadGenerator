@@ -11,12 +11,23 @@ param(
 
 $ErrorActionPreference = 'Stop'
 $workspace = Split-Path -Parent $PSScriptRoot
+# Vite et Vitest utilisent les chemins comme identifiants de modules. Sous Windows,
+# une casse différente (par exemple "onedrive" au lieu de "OneDrive") peut donc
+# charger deux instances de Vitest et désolidariser les matchers jest-dom de expect.
+# realpathSync.native restitue la casse réellement enregistrée par le système de fichiers.
+$nodeCommand = Get-Command node.exe -ErrorAction SilentlyContinue
+if ($nodeCommand) {
+    $canonicalWorkspace = & $nodeCommand.Source -e "console.log(require('fs').realpathSync.native(process.argv[1]))" $workspace
+    if ($LASTEXITCODE -eq 0 -and $canonicalWorkspace) {
+        $workspace = $canonicalWorkspace.Trim()
+    }
+}
 $composeFile = Join-Path $workspace 'compose.test.yaml'
 $python = Join-Path $workspace '.venv\Scripts\python.exe'
 $client = Join-Path $workspace 'client'
 $testResults = Join-Path $workspace 'test-results'
 $projectName = 'prospect-crm-quality'
-$expectedAlembicRevision = '20260813_0008'
+$expectedAlembicRevision = '20260814_0009'
 $script:resolvedDockerMode = $null
 $script:wslWorkspace = $null
 $script:wslDistribution = $null
@@ -184,7 +195,7 @@ try {
     Invoke-QualityStep 'Sources navigateur' { & $python (Join-Path $workspace 'scripts\quality_gate.py') browser-sources (Join-Path $client 'src') }
     Invoke-QualityStep 'Artefact Vite' { & $python (Join-Path $workspace 'scripts\quality_gate.py') artifact (Join-Path $client 'dist') }
     Invoke-QualityStep 'Diff Git' { Push-Location $workspace; try { git diff --check } finally { Pop-Location } }
-    Write-Host "`nVerrou qualité local 2.4.5 : VERT" -ForegroundColor Green
+    Write-Host "`nVerrou qualité local 2.5.2 : VERT" -ForegroundColor Green
 }
 finally {
     if ($script:resolvedDockerMode) {
