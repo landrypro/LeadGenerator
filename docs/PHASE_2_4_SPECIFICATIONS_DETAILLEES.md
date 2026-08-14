@@ -553,7 +553,8 @@ obligatoires.
 contrat et les preuves sont disponibles dans
 [`PHASE_2_4_3_SPECIFICATIONS_DETAILLEES.md`](PHASE_2_4_3_SPECIFICATIONS_DETAILLEES.md) et
 [`PHASE_2_4_3_RAPPORT_IMPLEMENTATION.md`](PHASE_2_4_3_RAPPORT_IMPLEMENTATION.md). La recette utilisateur cumulée de
-2.4.1 à 2.4.3 a été validée le 9 août 2026. Le passage Azure reste obligatoire avant le GO de 2.4.4.
+2.4.1 à 2.4.3 a été validée le 9 août 2026. Par décision produit, le passage Azure est reporté au verrou final de la
+phase 2.4 et ne bloque pas le GO de 2.4.4.
 
 ### 2.4.4 — Suspension, réactivation et historique
 
@@ -562,12 +563,22 @@ contrat et les preuves sont disponibles dans
 - historique complet des invitations ;
 - interface et tests de concurrence/résultat ambigu.
 
+État au 13 août 2026 : les spécifications détaillées ont été validées puis implémentées. Le contrat et les preuves sont
+disponibles dans
+[`PHASE_2_4_4_SPECIFICATIONS_DETAILLEES.md`](PHASE_2_4_4_SPECIFICATIONS_DETAILLEES.md) et
+[`PHASE_2_4_4_RAPPORT_IMPLEMENTATION.md`](PHASE_2_4_4_RAPPORT_IMPLEMENTATION.md).
+
 ### 2.4.5 — Verrou qualité et documentation
 
 - régression complète locale et Azure ;
 - revue du schéma et des privilèges réels ;
 - documentation technique, utilisateur et exploitation ;
 - trois critiques, deux revues et Go/No-Go avant 2.5.
+
+Les décisions détaillées et les critères de preuve sont définis dans
+[`PHASE_2_4_5_SPECIFICATIONS_DETAILLEES.md`](PHASE_2_4_5_SPECIFICATIONS_DETAILLEES.md). Les seize décisions ont été
+validées par le responsable produit le 13 août 2026. L'implémentation du verrou et son Go/No-Go conditionnel sont
+documentés dans [`PHASE_2_4_5_RAPPORT_IMPLEMENTATION.md`](PHASE_2_4_5_RAPPORT_IMPLEMENTATION.md).
 
 ## 23. Critique experte préalable
 
@@ -642,6 +653,10 @@ normatif de l’incrément 2.4 ; toute dérogation doit être documentée et val
 - [`PHASE_2_3_5_E_SPECIFICATIONS_DETAILLEES.md`](PHASE_2_3_5_E_SPECIFICATIONS_DETAILLEES.md)
 - [`PHASE_2_3_5_E_RAPPORT_IMPLEMENTATION.md`](PHASE_2_3_5_E_RAPPORT_IMPLEMENTATION.md)
 - [`PHASE_2_3_3_SPECIFICATIONS_DETAILLEES.md`](PHASE_2_3_3_SPECIFICATIONS_DETAILLEES.md)
+- [`PHASE_2_4_4_SPECIFICATIONS_DETAILLEES.md`](PHASE_2_4_4_SPECIFICATIONS_DETAILLEES.md)
+- [`PHASE_2_4_4_RAPPORT_IMPLEMENTATION.md`](PHASE_2_4_4_RAPPORT_IMPLEMENTATION.md)
+- [`PHASE_2_4_QA_SPECIFICATIONS_DETAILLEES.md`](PHASE_2_4_QA_SPECIFICATIONS_DETAILLEES.md)
+- [`PHASE_2_4_QA_DEPLOIEMENT_ORACLE.md`](PHASE_2_4_QA_DEPLOIEMENT_ORACLE.md)
 
 ## 27. Références techniques
 

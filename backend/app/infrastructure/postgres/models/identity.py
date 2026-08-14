@@ -58,6 +58,34 @@ class OrganizationModel(Base):
     version: Mapped[int] = mapped_column(Integer, server_default=text("1"))
 
 
+class OrganizationStatusOperationModel(Base):
+    __tablename__ = "organization_status_operations"
+    __table_args__ = (
+        CheckConstraint("operation IN ('suspend', 'reactivate')", name="operation_allowed"),
+        CheckConstraint("char_length(fingerprint) = 64", name="fingerprint_length"),
+        CheckConstraint(
+            "reason_code IN ('customer_request', 'billing', 'security', 'compliance', 'administrative', 'other')",
+            name="reason_code_allowed",
+        ),
+        CheckConstraint(
+            "external_reference IS NULL OR char_length(external_reference) BETWEEN 1 AND 64",
+            name="external_reference_length",
+        ),
+        CheckConstraint("result_version > 0", name="result_version_positive"),
+        Index("ix_organization_status_operations_organization_created", "organization_id", "created_at"),
+    )
+
+    operation_id: Mapped[UUID] = mapped_column(primary_key=True)
+    organization_id: Mapped[UUID] = mapped_column(ForeignKey("organizations.id", ondelete="RESTRICT"))
+    operation: Mapped[str] = mapped_column(String(16))
+    fingerprint: Mapped[str] = mapped_column(String(64))
+    reason_code: Mapped[str] = mapped_column(String(32))
+    external_reference: Mapped[str | None] = mapped_column(String(64))
+    requested_by: Mapped[UUID] = mapped_column(ForeignKey("users.id", ondelete="RESTRICT"))
+    result_version: Mapped[int] = mapped_column(Integer)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=text("CURRENT_TIMESTAMP"))
+
+
 class UserModel(Base):
     __tablename__ = "users"
     __table_args__ = (

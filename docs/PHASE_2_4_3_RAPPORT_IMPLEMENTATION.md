@@ -71,7 +71,8 @@ reproductibles. La suite complète a donc été rejouée en quatre groupes déte
 Le verrou local complet a ensuite été exécuté par le responsable produit avec l’infrastructure Docker pilotée depuis
 WSL et les tests lancés sous PowerShell. PostgreSQL, RLS, Redis, Mailpit et les workflows transactionnels sont verts.
 Le rapport JUnit contient 180 succès et le contrôle automatique confirme l’absence de test ignoré. La recette produit
-est également conforme. Un passage Azure vert reste obligatoire avant 2.4.4 et avant tout déploiement.
+est également conforme. Par décision produit, le passage Azure est reporté à la clôture globale de la phase 2.4 ;
+il ne bloque pas le démarrage de 2.4.4 mais reste obligatoire avant tout déploiement.
 
 ## Preuve de recette fonctionnelle
 
@@ -122,7 +123,8 @@ n’a été identifié.
 Le curseur est signé, canonique et non interchangeable ; l’ordre est total ; `limit + 1` évite le total exact ; les
 dates sont normalisées en UTC ; les appels obsolètes React sont annulés ou ignorés ; aucune donnée n’est conservée
 dans le navigateur. La correction de cible plateforme reste dans la transaction auditée. La preuve PostgreSQL locale
-est clôturée et la recette fonctionnelle est signée ; le seul point non clôturé est le passage Azure.
+est clôturée et la recette fonctionnelle est signée. Le passage Azure est volontairement suivi comme verrou final
+transversal de la phase 2.4.
 
 ## Recette locale
 
@@ -138,5 +140,5 @@ est clôturée et la recette fonctionnelle est signée ; le seul point non clôt
 ## Conclusion
 
 Le code de 2.4.3 est cohérent avec les seize décisions validées et ne nécessite aucune migration supplémentaire. Il
-a franchi la recette utilisateur cumulée 2.4.1–2.4.3. La clôture de l’incrément et le GO de 2.4.4 peuvent être
-prononcés après un passage Azure vert.
+a franchi la recette utilisateur cumulée 2.4.1–2.4.3 et est validé localement. Le GO de 2.4.4 est autorisé ; le
+passage Azure reste obligatoire au verrou final de la phase 2.4.

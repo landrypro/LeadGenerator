@@ -868,8 +868,8 @@ Les spécifications détaillées de la consultation 2.4.3 sont validées et impl
 [`PHASE_2_4_3_SPECIFICATIONS_DETAILLEES.md`](PHASE_2_4_3_SPECIFICATIONS_DETAILLEES.md). Elles fixent les deux
 périmètres de lecture, les curseurs et filtres, les écrans accessibles, la correction prospective de la cible
 organisation des événements plateforme et la recette fonctionnelle cumulée. Leurs seize décisions ont été validées
-le 9 août 2026. La recette utilisateur cumulée 2.4.1–2.4.3 a été déclarée conforme le même jour. Le passage Azure
-reste requis avant le GO de 2.4.4.
+le 9 août 2026. La recette utilisateur cumulée 2.4.1–2.4.3 a été déclarée conforme le même jour. Par décision
+produit, le passage Azure est reporté à la clôture globale de la phase 2.4 et le GO de 2.4.4 est autorisé.
 
 ### Phase 3 — Cœur CRM
 
@@ -1057,7 +1057,7 @@ Ces huit décisions ont été validées le 22 juillet 2026. Le détail normatif 
 | LinkedIn | Aucun développement prévu sans acceptation dans un programme partenaire adapté |
 | API et fournisseurs initiaux | Liste blanche, licences, contrats, territoires et champs à sélectionner |
 | Politique d’import | Taille, volume, encodages, durée temporaire et procédure de quarantaine à chiffrer |
-| Hébergement | À choisir pendant la conception de déploiement |
+| Hébergement | Recette temporaire Oracle Always Free validée pour QA ; hébergement production à choisir séparément |
 | Durée chiffrée de conservation des audits | À valider juridiquement et opérationnellement |
 | Durée chiffrée de conservation des fichiers d’export | À valider juridiquement et opérationnellement |
 
@@ -1079,3 +1079,4 @@ du traitement auquel ils se rapportent.
 - CRTC — loi, règlements et exigences principales : https://crtc.gc.ca/eng/internet/anti/reg.htm
 - Commissariat à la protection de la vie privée du Canada — exigences LPRPDE : https://www.priv.gc.ca/en/privacy-topics/privacy-laws-in-canada/the-personal-information-protection-and-electronic-documents-act-pipeda/pipeda_brief
 - Documentation actuelle du projet : `README.md`
+- Recette QA Oracle Always Free : `PHASE_2_4_QA_SPECIFICATIONS_DETAILLEES.md`

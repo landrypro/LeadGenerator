@@ -25,6 +25,7 @@ from ....application.errors import (
     OrganizationVersionConflict,
     ProvisioningOutcomeUnknown,
 )
+from ....application.ports import InvitationListState
 from ....application.tenancy import TenantContext
 from ....domain.identity import MembershipRole, MembershipStatus, capabilities_for
 from ....domain.organization import (
@@ -50,6 +51,7 @@ from ..schemas import (
 from ..security import require_csrf_token, require_json_content_type, require_trusted_origin
 
 router = APIRouter(prefix="/api/organization", tags=["organization"])
+INVITATION_STATE_QUERY = Query(default=InvitationListState.OPEN)
 
 
 @router.get("", response_model=OrganizationResponse)
@@ -160,6 +162,7 @@ async def list_invitations(
     container: ContainerDependency,
     cursor: str | None = Query(default=None, max_length=512),
     limit: int = Query(default=25, ge=1, le=100),
+    state: InvitationListState = INVITATION_STATE_QUERY,
 ) -> Response:
     try:
         authentication = await required_authentication(request, container)
@@ -170,6 +173,7 @@ async def list_invitations(
             has_capability=_has_capability(authentication, "invitations:read"),
             cursor=cursor,
             limit=limit,
+            state=state,
         )
     except Exception as error:
         response = _organization_error(request, error)

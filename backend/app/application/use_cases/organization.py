@@ -47,6 +47,7 @@ from ..ports import (
     CursorCodec,
     IdentityUnitOfWorkFactory,
     InvitationDelivery,
+    InvitationListState,
     InvitationTokenGenerator,
     MemberInvitationMutationResultCode,
     OrganizationAdministrationGateway,
@@ -271,12 +272,14 @@ class ListMemberInvitationsUseCase:
         has_capability: bool,
         cursor: str | None,
         limit: int,
+        state: InvitationListState = InvitationListState.OPEN,
     ) -> MemberInvitationPage:
         _require_capability(has_capability)
         _validate_limit(limit)
         after_created_at, after_id = self._cursor_codec.decode(cursor)
         rows = await self._gateway.list_invitations(
             context=context,
+            state=state,
             after_created_at=after_created_at,
             after_id=after_id,
             limit=limit + 1,

@@ -1,0 +1,117 @@
+name: prospect-crm-qa
+
+services:
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: prospect-crm-qa-app:latest
+    env_file:
+      - .env.qa
+    depends_on:
+      postgresql:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
+    expose:
+      - "8000"
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "python",
+          "-c",
+          "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/api/health/live', timeout=2)",
+        ]
+      interval: 10s
+      timeout: 3s
+      retries: 12
+      start_period: 20s
+
+  migrations:
+    image: prospect-crm-qa-app:latest
+    profiles: ["tools"]
+    env_file:
+      - .env.qa
+    depends_on:
+      postgresql:
+        condition: service_healthy
+    command: ["python", "-m", "alembic", "-c", "backend/alembic.ini", "upgrade", "head"]
+
+  postgresql:
+    image: postgres:17.10-alpine
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-prospect}
+      POSTGRES_USER: ${POSTGRES_USER:-prospect}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required}
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+    restart: unless-stopped
+    volumes:
+      - prospect-qa-postgresql-data:/var/lib/postgresql/data
+
+  database-role-provisioner:
+    image: postgres:17.10-alpine
+    profiles: ["tools"]
+    depends_on:
+      postgresql:
+        condition: service_healthy
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-prospect}
+      POSTGRES_USER: ${POSTGRES_USER:-prospect}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required}
+      POSTGRES_APP_USER: prospect_app
+      POSTGRES_APP_PASSWORD: ${POSTGRES_APP_PASSWORD:?POSTGRES_APP_PASSWORD is required}
+    volumes:
+      - ./backend/database/provision-postgres-roles.sh:/provision-postgres-roles.sh:ro
+    command: ["sh", "/provision-postgres-roles.sh"]
+
+  redis:
+    image: redis:7.4.9-alpine
+    command: ["redis-server", "--appendonly", "yes"]
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+    restart: unless-stopped
+    volumes:
+      - prospect-qa-redis-data:/data
+
+  mailpit:
+    image: axllent/mailpit:v1.30.5
+    environment:
+      MP_MAX_MESSAGES: ${MAILPIT_MAX_MESSAGES:-500}
+      MP_DATABASE: /data/mailpit.db
+    ports:
+      - "127.0.0.1:${MAILPIT_UI_PORT:-8025}:8025"
+    restart: unless-stopped
+    volumes:
+      - prospect-qa-mailpit-data:/data
+
+  caddy:
+    image: caddy:2-alpine
+    depends_on:
+      app:
+        condition: service_healthy
+    environment:
+      QA_DOMAIN: ${QA_DOMAIN:?QA_DOMAIN is required}
+    ports:
+      - "80:80"
+      - "443:443"
+    restart: unless-stopped
+    volumes:
+      - ./deploy/qa/Caddyfile:/etc/caddy/Caddyfile:ro
+      - prospect-qa-caddy-data:/data
+      - prospect-qa-caddy-config:/config
+
+volumes:
+  prospect-qa-postgresql-data:
+  prospect-qa-redis-data:
+  prospect-qa-mailpit-data:
+  prospect-qa-caddy-data:
+  prospect-qa-caddy-config:

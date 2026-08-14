@@ -36,8 +36,8 @@ export const organizationApi = {
     })
   },
 
-  listInvitations(cursor = '', limit = 25, signal) {
-    return request(pagePath('/api/organization/invitations', cursor, limit), {
+  listInvitations(cursor = '', limit = 25, signal, state = 'open') {
+    return request(pagePath('/api/organization/invitations', cursor, limit, { state }), {
       signal,
       fallbackMessage: 'Impossible de charger les invitations.',
     })
@@ -75,8 +75,9 @@ export const organizationApi = {
 }
 
 
-function pagePath(basePath, cursor, limit) {
+function pagePath(basePath, cursor, limit, extra = {}) {
   const parameters = new URLSearchParams({ limit: String(limit) })
+  Object.entries(extra).forEach(([key, value]) => { if (value) parameters.set(key, value) })
   if (cursor) parameters.set('cursor', cursor)
   return `${basePath}?${parameters}`
 }

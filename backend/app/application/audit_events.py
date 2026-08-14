@@ -80,6 +80,8 @@ def _entity_type(action: AuditAction) -> str:
         AuditAction.ORGANIZATION_UPDATED,
         AuditAction.ORGANIZATION_ACTIVATED,
         AuditAction.ORGANIZATION_PROVISIONED,
+        AuditAction.ORGANIZATION_SUSPENDED,
+        AuditAction.ORGANIZATION_REACTIVATED,
     }:
         return "organization"
     if action in {AuditAction.MEMBERSHIP_ROLE_CHANGED, AuditAction.MEMBERSHIP_STATUS_CHANGED}:

@@ -20,6 +20,7 @@ from .organization import (
     UpdateOrganizationUseCase,
 )
 from .provisioning import (
+    ChangeOrganizationStatusUseCase,
     CreateOrganizationUseCase,
     ListPlatformOrganizationsUseCase,
     PlatformOrganizationPage,
@@ -33,6 +34,7 @@ __all__ = [
     "AcceptInvitationUseCase",
     "AuditEventPage",
     "BootstrapPlatformAdministratorUseCase",
+    "ChangeOrganizationStatusUseCase",
     "CheckReadinessUseCase",
     "CreateMemberInvitationUseCase",
     "CreateOrganizationUseCase",

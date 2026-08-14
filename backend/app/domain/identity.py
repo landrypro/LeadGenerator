@@ -176,7 +176,14 @@ def select_active_organization(user: UserIdentity) -> UUID | None:
 def capabilities_for(identity: UserIdentity, active_membership: MembershipIdentity | None) -> tuple[str, ...]:
     capabilities: list[str] = []
     if identity.platform_role is PlatformRole.PLATFORM_ADMIN:
-        capabilities.extend(("platform:organizations:read", "platform:organizations:create", "platform:audit:read"))
+        capabilities.extend(
+            (
+                "platform:organizations:read",
+                "platform:organizations:create",
+                "platform:organizations:manage",
+                "platform:audit:read",
+            )
+        )
     if active_membership is not None and active_membership.is_active:
         capabilities.extend(CAPABILITIES_BY_ROLE[active_membership.role])
     return tuple(capabilities)

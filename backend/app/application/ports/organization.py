@@ -61,6 +61,15 @@ class SwitchOrganizationResultCode(StrEnum):
     FORBIDDEN = "forbidden"
 
 
+class InvitationListState(StrEnum):
+    OPEN = "open"
+    ACTIVE = "active"
+    EXPIRED = "expired"
+    ACCEPTED = "accepted"
+    REVOKED = "revoked"
+    ALL = "all"
+
+
 @dataclass(frozen=True, slots=True)
 class UpdateOrganizationGatewayResult:
     code: UpdateOrganizationResultCode
@@ -129,6 +138,7 @@ class OrganizationAdministrationGateway(Protocol):
         self,
         *,
         context: TenantContext,
+        state: InvitationListState,
         after_created_at: datetime | None,
         after_id: UUID | None,
         limit: int,

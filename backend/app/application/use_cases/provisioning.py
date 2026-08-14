@@ -7,6 +7,7 @@ from datetime import datetime, timedelta
 from uuid import UUID, uuid4
 
 from ...domain.audit import AuditAction
+from ...domain.organization import ChangeOrganizationStatusCommand, validate_change_organization_status
 from ...domain.provisioning import (
     InvitationDeliveryStatus,
     InvitationMessage,
@@ -22,6 +23,8 @@ from ..errors import (
     InvitationDeliveryFailed,
     InvitationDeliveryUnavailable,
     InvitationRateLimited,
+    PlatformOrganizationInvalidTransition,
+    PlatformOrganizationVersionConflict,
     ProvisioningOutcomeUnknown,
     ProvisioningResourceNotFound,
     ProvisioningServiceUnavailable,
@@ -30,6 +33,7 @@ from ..ports import (
     Clock,
     InvitationDelivery,
     InvitationTokenGenerator,
+    OrganizationStatusResultCode,
     PlatformProvisioningGateway,
     ProvisionResultCode,
     ResendResultCode,
@@ -181,6 +185,91 @@ class ListPlatformOrganizationsUseCase:
             last = items[-1].organization
             next_cursor = _encode_cursor(last.created_at, last.id)
         return PlatformOrganizationPage(items=items, next_cursor=next_cursor)
+
+
+class ChangeOrganizationStatusUseCase:
+    def __init__(
+        self,
+        gateway: PlatformProvisioningGateway,
+        clock: Clock,
+        *,
+        operation: str,
+        audited_unit_of_work_factory: PlatformAuditedUnitOfWorkFactory | None = None,
+    ) -> None:
+        if operation not in {"suspend", "reactivate"}:
+            raise ValueError("L’opération de statut d’organisation est inconnue.")
+        self._gateway = gateway
+        self._clock = clock
+        self._operation = operation
+        self._audited_unit_of_work_factory = audited_unit_of_work_factory
+
+    async def execute(
+        self,
+        *,
+        context: ActorContext,
+        organization_id: UUID,
+        command: ChangeOrganizationStatusCommand,
+        has_platform_capability: bool,
+    ) -> ProvisioningView:
+        _require_platform(has_platform_capability)
+        validated = validate_change_organization_status(command, operation=self._operation)
+        now = self._clock.now()
+        if self._audited_unit_of_work_factory is None:
+            result = await self._gateway.change_organization_status(
+                context=context,
+                organization_id=organization_id,
+                operation=self._operation,
+                operation_id=validated.operation_id,
+                fingerprint=validated.fingerprint,
+                version=validated.version,
+                reason_code=validated.reason_code.value,
+                external_reference=validated.external_reference,
+                now=now,
+            )
+        else:
+            async with self._audited_unit_of_work_factory(context) as unit_of_work:
+                result = await unit_of_work.mutations.change_organization_status(
+                    organization_id=organization_id,
+                    operation=self._operation,
+                    operation_id=validated.operation_id,
+                    fingerprint=validated.fingerprint,
+                    version=validated.version,
+                    reason_code=validated.reason_code.value,
+                    external_reference=validated.external_reference,
+                    now=now,
+                )
+                if result.code is OrganizationStatusResultCode.UPDATED and result.view is not None:
+                    await unit_of_work.audit.record(
+                        platform_audit_event(
+                            context,
+                            AuditAction.ORGANIZATION_SUSPENDED
+                            if self._operation == "suspend"
+                            else AuditAction.ORGANIZATION_REACTIVATED,
+                            organization_id,
+                            {
+                                "reason_code": validated.reason_code.value,
+                                "operation_id": validated.operation_id,
+                                **(
+                                    {"external_reference": validated.external_reference}
+                                    if validated.external_reference and self._operation == "suspend"
+                                    else {}
+                                ),
+                            },
+                            organization_id=organization_id,
+                        )
+                    )
+                await unit_of_work.commit()
+        if result.code is OrganizationStatusResultCode.IDEMPOTENCY_CONFLICT:
+            raise IdempotencyKeyReused
+        if result.code is OrganizationStatusResultCode.NOT_FOUND:
+            raise ProvisioningResourceNotFound
+        if result.code is OrganizationStatusResultCode.VERSION_CONFLICT:
+            raise PlatformOrganizationVersionConflict(result.current_version)
+        if result.code is OrganizationStatusResultCode.INVALID_TRANSITION:
+            raise PlatformOrganizationInvalidTransition
+        if result.view is None:
+            raise ProvisioningServiceUnavailable("Le changement de statut n’a retourné aucune organisation.")
+        return result.view
 
 
 class ResendInitialInvitationUseCase:

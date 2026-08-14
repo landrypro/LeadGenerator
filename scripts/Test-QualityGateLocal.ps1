@@ -8,6 +8,7 @@ $python = Join-Path $workspace '.venv\Scripts\python.exe'
 $client = Join-Path $workspace 'client'
 $testResults = Join-Path $workspace 'test-results'
 $projectName = 'prospect-crm-quality'
+$expectedAlembicRevision = '20260813_0008'
 
 function Invoke-QualityStep {
     param([string]$Name, [scriptblock]$Action)
@@ -42,7 +43,12 @@ try {
         if ($LASTEXITCODE -ne 0) { throw 'Le downgrade Alembic de test a échoué.' }
         & $python -m alembic -c (Join-Path $workspace 'backend\alembic.ini') upgrade head
     }
-    Invoke-QualityStep 'Alembic current' { & $python -m alembic -c (Join-Path $workspace 'backend\alembic.ini') current }
+    Invoke-QualityStep 'Alembic current' {
+        $currentReport = Join-Path $testResults 'alembic-current.txt'
+        & $python -m alembic -c (Join-Path $workspace 'backend\alembic.ini') current | Tee-Object -FilePath $currentReport
+        if ($LASTEXITCODE -ne 0) { throw 'La lecture de la révision Alembic courante a échoué.' }
+        & $python (Join-Path $workspace 'scripts\quality_gate.py') alembic-current $currentReport $expectedAlembicRevision
+    }
     Invoke-QualityStep 'Alembic check' { & $python -m alembic -c (Join-Path $workspace 'backend\alembic.ini') check }
     Invoke-QualityStep 'Ruff' { & $python -m ruff check (Join-Path $workspace 'backend\app') (Join-Path $workspace 'tests') (Join-Path $workspace 'scripts\quality_gate.py') }
     Invoke-QualityStep 'Format Ruff' { & $python -m ruff format --check (Join-Path $workspace 'backend\app') (Join-Path $workspace 'tests') (Join-Path $workspace 'scripts\quality_gate.py') }
@@ -58,7 +64,7 @@ try {
     Invoke-QualityStep 'Sources navigateur' { & $python (Join-Path $workspace 'scripts\quality_gate.py') browser-sources (Join-Path $client 'src') }
     Invoke-QualityStep 'Artefact Vite' { & $python (Join-Path $workspace 'scripts\quality_gate.py') artifact (Join-Path $client 'dist') }
     Invoke-QualityStep 'Diff Git' { Push-Location $workspace; try { git diff --check } finally { Pop-Location } }
-    Write-Host "`nVerrou qualité local 2.3.5-E : VERT" -ForegroundColor Green
+    Write-Host "`nVerrou qualité local 2.4.5 : VERT" -ForegroundColor Green
 }
 finally {
     docker compose -p $projectName -f $composeFile down --volumes --remove-orphans

@@ -301,14 +301,14 @@ powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\scripts\Test-QualityGa
 
 Attendus obligatoires :
 
-- Alembic à `20260802_0005 (head)`, downgrade contrôlé puis reconstruction et `alembic check` vert ;
-- **153 tests pytest réussis, zéro échec, zéro skip** avec PostgreSQL, Redis et Mailpit réels ;
+- Alembic à `20260813_0008 (head)`, downgrade contrôlé puis reconstruction et `alembic check` vert ;
+- **185 tests pytest collectés, zéro échec, zéro skip** avec PostgreSQL, Redis et Mailpit réels ;
 - Ruff, format Ruff et mypy verts ;
 - `npm ci` et audit npm verts ;
-- **126 tests Vitest réussis, zéro échec, zéro skip**, dont vingt états axe ;
+- **133 tests Vitest réussis, zéro échec, zéro skip**, dont les états axe ;
 - ESLint et build Vite verts ;
 - contrôles sources navigateur, artefact et `git diff --check` verts ;
-- message final `Verrou qualité local 2.3.5-E : VERT`.
+- message final `Verrou qualité local 2.4.5 : VERT`.
 
 ### QUAL-02 — Azure Pipelines
 

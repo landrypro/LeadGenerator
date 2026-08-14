@@ -171,8 +171,12 @@ function InvitationList({ busyInvitationIds, canManage, invitations, onResend, o
   if (invitations.loading) return <div className="administration-loading">Chargement des invitations…</div>
   return <section className="administration-card resource-list-card" aria-labelledby="invitation-list-title">
     <div className="resource-list-heading">
-      <div><h2 id="invitation-list-title">Invitations actionnables</h2><p>Cette liste ne constitue pas un historique complet.</p></div>
+      <div><h2 id="invitation-list-title">Invitations</h2><p>{invitations.state === 'all' ? 'Historique complet des invitations membre.' : 'Invitations en cours et expirées.'}</p></div>
       <button className="text-button" type="button" onClick={invitations.refresh} disabled={invitations.refreshing}>Actualiser</button>
+    </div>
+    <div className="invitation-history-filter" role="group" aria-label="Filtrer les invitations">
+      <button type="button" className={invitations.state === 'open' ? 'selected' : ''} onClick={() => invitations.setState('open')} disabled={invitations.refreshing}>En cours</button>
+      <button type="button" className={invitations.state === 'all' ? 'selected' : ''} onClick={() => invitations.setState('all')} disabled={invitations.refreshing}>Tout l’historique</button>
     </div>
     {invitations.error && <ErrorBanner compact><span>{invitations.error}</span></ErrorBanner>}
     {!invitations.items.length ? <p className="administration-empty">Aucune invitation en attente ou expirée.</p> : <ul className="invitation-list">
@@ -186,18 +190,24 @@ function InvitationList({ busyInvitationIds, canManage, invitations, onResend, o
           <span className={`delivery-status ${invitation.delivery_status}`}>{DELIVERY_LABELS[invitation.delivery_status] ?? invitation.delivery_status}</span>
           <small>Expire le <time dateTime={invitation.expires_at}>{formatDate(invitation.expires_at)}</time></small>
         </div>
-        {canManage && <div className="resource-actions">
+        {canManage && isActionable(invitation) && <div className="resource-actions">
           <button className="secondary-button" type="button" onClick={() => onResend(invitation)} disabled={busyInvitationIds.has(invitation.id)}>
             {busyInvitationIds.has(invitation.id) ? 'Traitement…' : 'Renvoyer'}
           </button>
           <button className="danger-link" type="button" onClick={() => onRevoke(invitation)} disabled={busyInvitationIds.has(invitation.id)}>Révoquer</button>
         </div>}
+        {canManage && !isActionable(invitation) && <div className="resource-actions terminal-action"><small>Aucune action disponible</small></div>}
       </li>)}
     </ul>}
     {invitations.nextCursor && <button className="secondary-button load-more-button" type="button" onClick={invitations.loadMore} disabled={invitations.loadingMore}>
       {invitations.loadingMore ? 'Chargement…' : 'Charger la suite'}
     </button>}
   </section>
+}
+
+
+function isActionable(invitation) {
+  return ['active', 'expired'].includes(invitation.state)
 }
 
 

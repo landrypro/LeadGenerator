@@ -2,7 +2,7 @@
 
 Prospect est une application React et FastAPI en migration vers un CRM de gestion commerciale. La phase 1 fournit une recherche Google Places ponctuelle et conforme : une seule requête Text Search par action, vingt établissements au maximum, aucun contact dans la liste et aucune persistance des résultats Google.
 
-Ce fichier réunit le guide utilisateur et la documentation technique du socle actuel. La spécification complète se trouve dans [`docs/SPECIFICATION_CRM_V1.md`](docs/SPECIFICATION_CRM_V1.md), les décisions validées sur les sources dans [`docs/PHASE_1_1_ACQUISITION_CONSERVATION.md`](docs/PHASE_1_1_ACQUISITION_CONSERVATION.md) et la conception validée des fondations dans [`docs/PHASE_2_SPECIFICATIONS_DETAILLEES.md`](docs/PHASE_2_SPECIFICATIONS_DETAILLEES.md). Le contrat de 2.3.4 et son rapport d’implémentation se trouvent dans [`docs/PHASE_2_3_4_SPECIFICATIONS_DETAILLEES.md`](docs/PHASE_2_3_4_SPECIFICATIONS_DETAILLEES.md) et [`docs/PHASE_2_3_4_RAPPORT_IMPLEMENTATION.md`](docs/PHASE_2_3_4_RAPPORT_IMPLEMENTATION.md).
+Ce fichier réunit le guide utilisateur et la documentation technique du socle actuel. La spécification complète se trouve dans [`docs/SPECIFICATION_CRM_V1.md`](docs/SPECIFICATION_CRM_V1.md), les décisions validées sur les sources dans [`docs/PHASE_1_1_ACQUISITION_CONSERVATION.md`](docs/PHASE_1_1_ACQUISITION_CONSERVATION.md) et la conception validée des fondations dans [`docs/PHASE_2_SPECIFICATIONS_DETAILLEES.md`](docs/PHASE_2_SPECIFICATIONS_DETAILLEES.md). Le contrat de 2.3.4 et son rapport d’implémentation se trouvent dans [`docs/PHASE_2_3_4_SPECIFICATIONS_DETAILLEES.md`](docs/PHASE_2_3_4_SPECIFICATIONS_DETAILLEES.md) et [`docs/PHASE_2_3_4_RAPPORT_IMPLEMENTATION.md`](docs/PHASE_2_3_4_RAPPORT_IMPLEMENTATION.md). La recette hébergée temporaire est cadrée par [`docs/PHASE_2_4_QA_SPECIFICATIONS_DETAILLEES.md`](docs/PHASE_2_4_QA_SPECIFICATIONS_DETAILLEES.md) et [`docs/PHASE_2_4_QA_DEPLOIEMENT_ORACLE.md`](docs/PHASE_2_4_QA_DEPLOIEMENT_ORACLE.md).
 
 ## Fonctionnalités disponibles
 
@@ -438,15 +438,35 @@ Le passage complet et isolé se lance, après arrêt des serveurs Vite locaux, a
 powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\scripts\Test-QualityGateLocal.ps1
 ```
 
-Le passage complet local de 2.4.3 valide **180 tests backend** avec PostgreSQL, Redis et Mailpit réels, sans test
-ignoré ; le contrôle JUnit `junit-no-skips` est conforme. Le frontend valide 132 tests dans 31 fichiers, dont vingt
-états axe, sans test ignoré. Ruff, mypy, ESLint, l’audit npm, Vitest et le build Vite sont verts.
-Le responsable produit a prononcé le GO de clôture officiel de
-2.3.5-E le 9 août 2026. Le script ci-dessus avec `REQUIRE_INFRASTRUCTURE_TESTS=true`, un passage Azure vert et la
-matrice manuelle restent des preuves obligatoires à annexer avant le déploiement. Le détail se trouve dans
-[`docs/PHASE_2_3_5_E_RAPPORT_IMPLEMENTATION.md`](docs/PHASE_2_3_5_E_RAPPORT_IMPLEMENTATION.md). Le protocole complet
+Le verrou final 2.4.5 attend **185 tests backend** avec PostgreSQL, Redis et Mailpit réels, sans test ignoré ; le
+contrôle JUnit `junit-no-skips` doit être conforme. Le frontend valide 133 tests dans 31 fichiers, dont les états axe,
+sans test ignoré. Ruff, mypy, ESLint, l’audit npm, Vitest et le build Vite doivent rester verts.
+Le verrou final de la phase 2.4 exige désormais Alembic à `20260813_0008 (head)`, les tests d'infrastructure réels
+avec zéro `skip`, un passage Azure vert et la matrice manuelle signée avant l'ouverture de 2.5. Le détail se trouve
+dans [`docs/PHASE_2_4_5_RAPPORT_IMPLEMENTATION.md`](docs/PHASE_2_4_5_RAPPORT_IMPLEMENTATION.md). Le protocole complet
 destiné à un testeur fonctionnel QA est disponible dans
 [`docs/CAHIER_RECETTE_FONCTIONNELLE_QA.md`](docs/CAHIER_RECETTE_FONCTIONNELLE_QA.md).
+
+## Recette QA hébergée
+
+L’incrément `2.4-QA` ajoute une conteneurisation de recette pour Oracle Always Free, sans changement fonctionnel. Il
+produit une image Docker multi-stage, un `compose.qa.yaml`, Caddy en reverse proxy HTTPS, Mailpit privé via tunnel SSH,
+un exemple `.env.qa.example` et des scripts Linux de déploiement, statut, sauvegarde et bootstrap. Cette recette sert
+à faire tester la solution par un QA externe avant 2.4.4 ; elle ne remplace pas Azure Pipelines et ne constitue pas un
+déploiement de production.
+
+Procédure courte sur la VM :
+
+```bash
+cp .env.qa.example .env.qa
+nano .env.qa
+bash scripts/qa-deploy.sh
+bash scripts/qa-status.sh
+```
+
+La procédure complète se trouve dans
+[`docs/PHASE_2_4_QA_DEPLOIEMENT_ORACLE.md`](docs/PHASE_2_4_QA_DEPLOIEMENT_ORACLE.md), avec le rapport dans
+[`docs/PHASE_2_4_QA_RAPPORT_IMPLEMENTATION.md`](docs/PHASE_2_4_QA_RAPPORT_IMPLEMENTATION.md).
 
 ## Suite de la migration CRM V1
 
@@ -481,7 +501,17 @@ La consultation 2.4.3 est validée et implémentée conformément à
 API et écrans locataire/plateforme, les curseurs liés aux filtres et la recette utilisateur cumulée de 2.4.1 à 2.4.3.
 Son rapport est disponible dans
 [`docs/PHASE_2_4_3_RAPPORT_IMPLEMENTATION.md`](docs/PHASE_2_4_3_RAPPORT_IMPLEMENTATION.md). La recette utilisateur
-cumulée a été déclarée conforme le 9 août 2026. Le passage Azure reste requis avant le GO de 2.4.4.
+cumulée a été déclarée conforme le 9 août 2026. Par décision produit, le passage Azure est reporté au verrou final de
+la phase 2.4. L’incrément temporaire 2.4-QA prépare une instance Oracle Always Free pour recette externe avant 2.4.4.
+Son contrat, son guide et son rapport sont disponibles dans
+[`docs/PHASE_2_4_QA_SPECIFICATIONS_DETAILLEES.md`](docs/PHASE_2_4_QA_SPECIFICATIONS_DETAILLEES.md),
+[`docs/PHASE_2_4_QA_DEPLOIEMENT_ORACLE.md`](docs/PHASE_2_4_QA_DEPLOIEMENT_ORACLE.md) et
+[`docs/PHASE_2_4_QA_RAPPORT_IMPLEMENTATION.md`](docs/PHASE_2_4_QA_RAPPORT_IMPLEMENTATION.md).
+La suspension/réactivation et l'historique d'invitations de 2.4.4 sont implémentés sous `20260813_0008`. Le verrou
+2.4.5 est prêt pour validation avec contrôle explicite de cette tête Alembic, rapport local, Azure et recette QA avant
+GO 2.5. Ses documents sont
+[`docs/PHASE_2_4_5_SPECIFICATIONS_DETAILLEES.md`](docs/PHASE_2_4_5_SPECIFICATIONS_DETAILLEES.md) et
+[`docs/PHASE_2_4_5_RAPPORT_IMPLEMENTATION.md`](docs/PHASE_2_4_5_RAPPORT_IMPLEMENTATION.md).
 Le contrat et les preuves se trouvent dans
 [`docs/PHASE_2_3_5_SPECIFICATIONS_DETAILLEES.md`](docs/PHASE_2_3_5_SPECIFICATIONS_DETAILLEES.md) et
 les rapports

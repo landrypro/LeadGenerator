@@ -3,6 +3,7 @@ from dataclasses import dataclass, field
 from .application.ports import AsyncResource, TenantUnitOfWorkFactory, UnitOfWorkFactory
 from .application.use_cases import (
     AcceptInvitationUseCase,
+    ChangeOrganizationStatusUseCase,
     CheckReadinessUseCase,
     CreateMemberInvitationUseCase,
     CreateOrganizationUseCase,
@@ -40,6 +41,8 @@ class AppContainer:
     logout: LogoutUseCase | None = None
     create_organization: CreateOrganizationUseCase | None = None
     list_platform_organizations: ListPlatformOrganizationsUseCase | None = None
+    suspend_organization: ChangeOrganizationStatusUseCase | None = None
+    reactivate_organization: ChangeOrganizationStatusUseCase | None = None
     list_tenant_audit_events: ListTenantAuditEventsUseCase | None = None
     list_platform_audit_events: ListPlatformAuditEventsUseCase | None = None
     resend_initial_invitation: ResendInitialInvitationUseCase | None = None
