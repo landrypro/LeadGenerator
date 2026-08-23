@@ -9,6 +9,7 @@ from ..models import GoogleAccessContext, GooglePlaceSearchCriteria, MapPoint, M
 from ..ports.generation_guard import GenerationGuard
 from ..ports.map_grants import MapSnapshotGrantStore
 from ..ports.places import PlaceCandidate, PlacesGateway
+from ..ports.prospect import GoogleSelectionGrantStore
 
 MAX_GOOGLE_RESULTS = 20
 
@@ -17,6 +18,7 @@ MAX_GOOGLE_RESULTS = 20
 class SearchGooglePlacesOutcome:
     search: GooglePlaceSearchResult
     map_snapshot_token: str
+    selection_token: str
 
 
 class SearchGooglePlacesUseCase:
@@ -27,10 +29,12 @@ class SearchGooglePlacesUseCase:
         places: PlacesGateway,
         generation_guard: GenerationGuard,
         map_grants: MapSnapshotGrantStore,
+        selection_grants: GoogleSelectionGrantStore,
     ) -> None:
         self._places = places
         self._generation_guard = generation_guard
         self._map_grants = map_grants
+        self._selection_grants = selection_grants
 
     async def execute(
         self,
@@ -51,7 +55,16 @@ class SearchGooglePlacesUseCase:
                 ],
             )
             token = await self._map_grants.issue(snapshot, access.owner)
-            return SearchGooglePlacesOutcome(search=search, map_snapshot_token=token)
+            selection_token = await self._selection_grants.issue(
+                tuple(place.place_id for place in search.places),
+                access.owner,
+                now=search.searched_at,
+            )
+            return SearchGooglePlacesOutcome(
+                search=search,
+                map_snapshot_token=token,
+                selection_token=selection_token,
+            )
 
     @staticmethod
     def _build_result(

@@ -19,6 +19,14 @@ from .organization import (
     UpdateMembershipUseCase,
     UpdateOrganizationUseCase,
 )
+from .prospects import (
+    AddGoogleProspectsUseCase,
+    CreateManualProspectUseCase,
+    GetProspectUseCase,
+    GoogleProspectAddOutcome,
+    ListProspectsUseCase,
+    ProspectPage,
+)
 from .provisioning import (
     ChangeOrganizationStatusUseCase,
     CreateOrganizationUseCase,
@@ -32,20 +40,25 @@ from .search_google_places import SearchGooglePlacesOutcome, SearchGooglePlacesU
 
 __all__ = [
     "AcceptInvitationUseCase",
+    "AddGoogleProspectsUseCase",
     "AuditEventPage",
     "BootstrapPlatformAdministratorUseCase",
     "ChangeOrganizationStatusUseCase",
     "CheckReadinessUseCase",
+    "CreateManualProspectUseCase",
     "CreateMemberInvitationUseCase",
     "CreateOrganizationUseCase",
     "ExportLeadsUseCase",
     "GetCurrentSessionUseCase",
     "GetMapSnapshotUseCase",
     "GetOrganizationUseCase",
+    "GetProspectUseCase",
+    "GoogleProspectAddOutcome",
     "ListMemberInvitationsUseCase",
     "ListMembersUseCase",
     "ListPlatformAuditEventsUseCase",
     "ListPlatformOrganizationsUseCase",
+    "ListProspectsUseCase",
     "ListTenantAuditEventsUseCase",
     "LoginOutcome",
     "LoginUseCase",
@@ -55,6 +68,7 @@ __all__ = [
     "NewAccountInvitationCommand",
     "PlatformOrganizationPage",
     "PreviewInvitationUseCase",
+    "ProspectPage",
     "ReadinessReport",
     "ResendInitialInvitationUseCase",
     "ResendMemberInvitationUseCase",

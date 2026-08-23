@@ -70,13 +70,26 @@ def user(*memberships: MembershipIdentity, platform: bool = False) -> UserIdenti
                 "audit:read",
                 "google:search",
                 "google:map",
+                "prospects:read",
+                "prospects:create",
             ),
         ),
         (
             MembershipRole.MANAGER,
-            ("organization:read", "members:read", "audit:read", "google:search", "google:map"),
+            (
+                "organization:read",
+                "members:read",
+                "audit:read",
+                "google:search",
+                "google:map",
+                "prospects:read",
+                "prospects:create",
+            ),
         ),
-        (MembershipRole.SALES, ("organization:read", "google:search", "google:map")),
+        (
+            MembershipRole.SALES,
+            ("organization:read", "google:search", "google:map", "prospects:read", "prospects:create"),
+        ),
     ],
 )
 def test_tenant_capability_matrix_is_exact(role: MembershipRole, expected: tuple[str, ...]) -> None:

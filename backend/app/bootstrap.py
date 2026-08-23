@@ -14,17 +14,21 @@ from fastapi.staticfiles import StaticFiles
 from .application.ports import AsyncResource, DependencyProbe, TenantUnitOfWorkFactory, UnitOfWorkFactory
 from .application.use_cases import (
     AcceptInvitationUseCase,
+    AddGoogleProspectsUseCase,
     ChangeOrganizationStatusUseCase,
     CheckReadinessUseCase,
+    CreateManualProspectUseCase,
     CreateMemberInvitationUseCase,
     CreateOrganizationUseCase,
     GetCurrentSessionUseCase,
     GetMapSnapshotUseCase,
     GetOrganizationUseCase,
+    GetProspectUseCase,
     ListMemberInvitationsUseCase,
     ListMembersUseCase,
     ListPlatformAuditEventsUseCase,
     ListPlatformOrganizationsUseCase,
+    ListProspectsUseCase,
     ListTenantAuditEventsUseCase,
     LoginUseCase,
     LogoutUseCase,
@@ -54,7 +58,11 @@ from .infrastructure.invitations import (
     MailpitInvitationDelivery,
     SecureInvitationTokenGenerator,
 )
-from .infrastructure.memory import InMemoryGenerationGuard, InMemoryMapSnapshotGrantStore
+from .infrastructure.memory import (
+    InMemoryGenerationGuard,
+    InMemoryGoogleSelectionGrantStore,
+    InMemoryMapSnapshotGrantStore,
+)
 from .infrastructure.pagination import HmacCursorCodec
 from .infrastructure.postgres import (
     PostgresDatabase,
@@ -73,6 +81,7 @@ from .presentation.api.routers import (
     maps_router,
     organization_router,
     platform_router,
+    prospects_router,
 )
 
 DEVELOPMENT_RATE_LIMIT_KEY = b"prospect-development-only-rate-limit-key"
@@ -125,6 +134,10 @@ def build_container(settings: Settings) -> AppContainer:
         ttl_seconds=settings.map_grant_ttl_seconds,
         max_grants=settings.map_grant_max_entries,
     )
+    selection_grants = InMemoryGoogleSelectionGrantStore(
+        ttl_seconds=settings.google_selection_grant_ttl_seconds,
+        max_grants=settings.google_selection_grant_max_entries,
+    )
     static_maps = GoogleStaticMapGateway(
         api_key=settings.static_maps_api_key,
         timeout_seconds=settings.static_maps_timeout_seconds,
@@ -139,6 +152,10 @@ def build_container(settings: Settings) -> AppContainer:
     reactivate_organization: ChangeOrganizationStatusUseCase | None = None
     list_tenant_audit_events: ListTenantAuditEventsUseCase | None = None
     list_platform_audit_events: ListPlatformAuditEventsUseCase | None = None
+    create_manual_prospect: CreateManualProspectUseCase | None = None
+    add_google_prospects: AddGoogleProspectsUseCase | None = None
+    list_prospects: ListProspectsUseCase | None = None
+    get_prospect: GetProspectUseCase | None = None
     resend_initial_invitation: ResendInitialInvitationUseCase | None = None
     revoke_initial_invitation: RevokeInitialInvitationUseCase | None = None
     preview_invitation: PreviewInvitationUseCase | None = None
@@ -157,6 +174,7 @@ def build_container(settings: Settings) -> AppContainer:
         rate_limit_key = settings.rate_limit_hmac_key.encode("utf-8") or DEVELOPMENT_RATE_LIMIT_KEY
         cursor_codec = HmacCursorCodec(rate_limit_key)
         audit_cursor_codec = HmacAuditCursorCodec(rate_limit_key)
+        prospect_cursor_codec = HmacCursorCodec(rate_limit_key)
         session_store = RedisSessionStore(
             redis.client,
             environment=settings.app_env,
@@ -298,6 +316,15 @@ def build_container(settings: Settings) -> AppContainer:
             audit_cursor_codec,
             clock,
         )
+        create_manual_prospect = CreateManualProspectUseCase(database.tenant_prospect_unit_of_work, clock)
+        add_google_prospects = AddGoogleProspectsUseCase(
+            database.tenant_prospect_unit_of_work,
+            selection_grants,
+            clock,
+            alias_hmac_key=rate_limit_key,
+        )
+        list_prospects = ListProspectsUseCase(database.tenant_prospect_unit_of_work, prospect_cursor_codec)
+        get_prospect = GetProspectUseCase(database.tenant_prospect_unit_of_work)
 
     return AppContainer(
         settings=settings,
@@ -305,6 +332,7 @@ def build_container(settings: Settings) -> AppContainer:
             places_gateway,
             generation_guard,
             map_grants,
+            selection_grants,
         ),
         get_map_snapshot=GetMapSnapshotUseCase(map_grants, static_maps),
         readiness=CheckReadinessUseCase(probes),
@@ -317,6 +345,10 @@ def build_container(settings: Settings) -> AppContainer:
         reactivate_organization=reactivate_organization,
         list_tenant_audit_events=list_tenant_audit_events,
         list_platform_audit_events=list_platform_audit_events,
+        create_manual_prospect=create_manual_prospect,
+        add_google_prospects=add_google_prospects,
+        list_prospects=list_prospects,
+        get_prospect=get_prospect,
         resend_initial_invitation=resend_initial_invitation,
         revoke_initial_invitation=revoke_initial_invitation,
         preview_invitation=preview_invitation,
@@ -370,11 +402,18 @@ def create_app(
     @app.exception_handler(RequestValidationError)
     async def sanitized_api_validation_error(request: Request, error: RequestValidationError) -> Response:
         protected_payload = request.url.path.startswith(
-            ("/api/auth/", "/api/google/", "/api/map/", "/api/audit-events", "/api/platform/audit-events")
+            (
+                "/api/auth/",
+                "/api/google/",
+                "/api/map/",
+                "/api/audit-events",
+                "/api/platform/audit-events",
+                "/api/prospects",
+            )
         )
         if not protected_payload:
             return await request_validation_exception_handler(request, error)
-        if request.url.path.startswith(("/api/google/", "/api/map/")):
+        if request.url.path.startswith(("/api/google/", "/api/map/", "/api/prospects")):
             content_type = request.headers.get("content-type", "").partition(";")[0].strip().lower()
             if content_type != "application/json":
                 return api_error(
@@ -402,6 +441,8 @@ def create_app(
             message = "Les filtres d’audit sont invalides."
         elif request.url.path.startswith(("/api/google/", "/api/map/")):
             message = "La commande Google est invalide."
+        elif request.url.path.startswith("/api/prospects"):
+            message = "La commande prospect est invalide."
         else:
             message = "La requête d’authentification est invalide."
         return api_error(
@@ -419,6 +460,7 @@ def create_app(
     app.include_router(platform_router)
     app.include_router(organization_router)
     app.include_router(google_places_router)
+    app.include_router(prospects_router)
     app.include_router(maps_router)
 
     frontend_dist = Path(__file__).resolve().parents[2] / "client" / "dist"

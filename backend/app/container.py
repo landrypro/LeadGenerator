@@ -3,17 +3,21 @@ from dataclasses import dataclass, field
 from .application.ports import AsyncResource, TenantUnitOfWorkFactory, UnitOfWorkFactory
 from .application.use_cases import (
     AcceptInvitationUseCase,
+    AddGoogleProspectsUseCase,
     ChangeOrganizationStatusUseCase,
     CheckReadinessUseCase,
+    CreateManualProspectUseCase,
     CreateMemberInvitationUseCase,
     CreateOrganizationUseCase,
     GetCurrentSessionUseCase,
     GetMapSnapshotUseCase,
     GetOrganizationUseCase,
+    GetProspectUseCase,
     ListMemberInvitationsUseCase,
     ListMembersUseCase,
     ListPlatformAuditEventsUseCase,
     ListPlatformOrganizationsUseCase,
+    ListProspectsUseCase,
     ListTenantAuditEventsUseCase,
     LoginUseCase,
     LogoutUseCase,
@@ -45,6 +49,10 @@ class AppContainer:
     reactivate_organization: ChangeOrganizationStatusUseCase | None = None
     list_tenant_audit_events: ListTenantAuditEventsUseCase | None = None
     list_platform_audit_events: ListPlatformAuditEventsUseCase | None = None
+    create_manual_prospect: CreateManualProspectUseCase | None = None
+    add_google_prospects: AddGoogleProspectsUseCase | None = None
+    list_prospects: ListProspectsUseCase | None = None
+    get_prospect: GetProspectUseCase | None = None
     resend_initial_invitation: ResendInitialInvitationUseCase | None = None
     revoke_initial_invitation: RevokeInitialInvitationUseCase | None = None
     preview_invitation: PreviewInvitationUseCase | None = None

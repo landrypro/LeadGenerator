@@ -5,7 +5,7 @@ import { numberFormatter } from '../config'
 import { EmptyState, LoadingRows, PlaceTable } from './LeadTable'
 
 
-export function ResultsCard({ places, result, loading }) {
+export function ResultsCard({ places, result, loading, canCreateProspects = false, prospectAdds = null }) {
   const [filter, setFilter] = useState('')
   const visiblePlaces = useMemo(() => {
     const needle = filter.trim().toLowerCase()
@@ -15,7 +15,15 @@ export function ResultsCard({ places, result, loading }) {
   return <section className="results-card" aria-label="Résultats Google Maps">
     <div className="results-header">
       <div><p className="eyebrow">Résultats temporaires</p><h2>Établissements trouvés <span>{numberFormatter.format(places.length)}</span></h2></div>
-      <button className="export-button" type="button" disabled aria-disabled="true" title="L’export des données Google Maps est désactivé"><Download size={17} /> Exporter Excel</button>
+      <div className="results-actions">
+        {canCreateProspects && result?.selection_token && <button
+          className="crm-add-selected"
+          type="button"
+          disabled={!prospectAdds?.selectedCount || prospectAdds?.adding}
+          onClick={prospectAdds?.addSelected}
+        >Ajouter la sélection {prospectAdds?.selectedCount ? `(${prospectAdds.selectedCount})` : ''}</button>}
+        <button className="export-button" type="button" disabled aria-disabled="true" title="L’export des données Google Maps est désactivé"><Download size={17} /> Exporter Excel</button>
+      </div>
     </div>
 
     <div className="table-tools">
@@ -23,7 +31,11 @@ export function ResultsCard({ places, result, loading }) {
       <span className="visible-count">{visiblePlaces.length} affiché{visiblePlaces.length > 1 ? 's' : ''}</span>
     </div>
 
-    {loading ? <LoadingRows /> : visiblePlaces.length ? <PlaceTable places={visiblePlaces} /> : <EmptyState hasSearch={!!result} />}
+    {loading ? <LoadingRows /> : visiblePlaces.length ? <PlaceTable
+      places={visiblePlaces}
+      canCreateProspects={canCreateProspects && !!result?.selection_token}
+      prospectAdds={prospectAdds}
+    /> : <EmptyState hasSearch={!!result} />}
     <div className="google-attribution" aria-label="Attribution Google Maps" translate="no">Google Maps</div>
   </section>
 }

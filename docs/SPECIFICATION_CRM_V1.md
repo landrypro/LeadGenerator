@@ -852,6 +852,12 @@ Ordre détaillé restant validé après la clôture de 2.3.5-E :
    explicite des références Google ;
 3. **2.6 — Redis partagé, quotas et durcissement**, en préparant les droits liés aux plans.
 
+Le développement de 2.5 est découpé en cinq sous-incréments validés séparément : **2.5.1** modèle de données et
+migrations, **2.5.2** socle prospect et ajout Google, **2.5.3** provenance/permissions/fournisseurs, **2.5.4**
+conservation et déclarations d’import, puis **2.5.5** interface et verrou qualité final. Aucun lot suivant ne commence
+avant la recette et le rapport du précédent ; l’import CSV effectif, les connecteurs, le Kanban et la facturation restent
+hors de 2.5.
+
 La proposition détaillée de 2.4 est disponible dans
 [`PHASE_2_4_SPECIFICATIONS_DETAILLEES.md`](PHASE_2_4_SPECIFICATIONS_DETAILLEES.md). Ses seize décisions ont été
 validées le 9 août 2026. Le code de 2.4.1 est implémenté sous `20260809_0006` ; ses preuves PostgreSQL réelles sont

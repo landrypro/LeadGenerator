@@ -52,6 +52,12 @@ class AuditAction(StrEnum):
     INITIAL_INVITATION_REVOKED = "organization.initial_invitation.revoked"
     ORGANIZATION_SUSPENDED = "organization.suspended"
     ORGANIZATION_REACTIVATED = "organization.reactivated"
+    PROSPECT_CREATED = "prospect.created"
+    PROSPECT_UPDATED = "prospect.updated"
+    PROSPECT_ARCHIVED = "prospect.archived"
+    CONTACT_CREATED = "contact.created"
+    CHANNEL_CREATED = "channel.created"
+    PROVENANCE_RECORDED = "provenance.recorded"
 
 
 _ENTITY_TYPE_PATTERN = re.compile(r"^[a-z][a-z0-9_]{0,63}$", re.ASCII)
@@ -63,6 +69,11 @@ _INVITATION_KINDS = frozenset({"initial_administrator", "member"})
 _DELIVERY_STATUSES = frozenset({"pending", "sent", "failed"})
 _DELIVERY_KINDS = frozenset({"initial", "resend"})
 _STATUS_REASON_CODES = frozenset({"administrative", "billing", "compliance", "customer_request", "other", "security"})
+_PROSPECT_ORIGINS = frozenset({"connector", "google_place", "import", "manual", "open_data"})
+_CONTACT_CHANNEL_TYPES = frozenset({"email", "facebook", "linkedin", "other", "phone"})
+_PROVENANCE_SOURCE_KINDS = frozenset(
+    {"api", "csv", "facebook", "google_maps", "linkedin", "manual", "open_data", "other"}
+)
 _TENANT_ACTIONS = frozenset(
     {
         AuditAction.ORGANIZATION_UPDATED,
@@ -75,6 +86,12 @@ _TENANT_ACTIONS = frozenset(
         AuditAction.INVITATION_REVOKED,
         AuditAction.INVITATION_ACCEPTED,
         AuditAction.ORGANIZATION_ACTIVATED,
+        AuditAction.PROSPECT_CREATED,
+        AuditAction.PROSPECT_UPDATED,
+        AuditAction.PROSPECT_ARCHIVED,
+        AuditAction.CONTACT_CREATED,
+        AuditAction.CHANNEL_CREATED,
+        AuditAction.PROVENANCE_RECORDED,
     }
 )
 _PLATFORM_ACTIONS = frozenset(set(AuditAction) - _TENANT_ACTIONS)
@@ -96,6 +113,12 @@ _ACTION_ENTITY_TYPES = {
     AuditAction.INITIAL_INVITATION_REVOKED: "invitation",
     AuditAction.ORGANIZATION_SUSPENDED: "organization",
     AuditAction.ORGANIZATION_REACTIVATED: "organization",
+    AuditAction.PROSPECT_CREATED: "prospect",
+    AuditAction.PROSPECT_UPDATED: "prospect",
+    AuditAction.PROSPECT_ARCHIVED: "prospect",
+    AuditAction.CONTACT_CREATED: "contact",
+    AuditAction.CHANNEL_CREATED: "contact_channel",
+    AuditAction.PROVENANCE_RECORDED: "provenance",
 }
 
 
@@ -203,6 +226,51 @@ class AuditMetadataPolicy:
         if action is AuditAction.ORGANIZATION_REACTIVATED:
             cls._require_keys(values, {"reason_code", "operation_id"})
             return cls._status_operation(values)
+
+        if action is AuditAction.PROSPECT_CREATED:
+            cls._require_keys(values, {"origin"})
+            return {"origin": cls._choice(values["origin"], _PROSPECT_ORIGINS, "origin")}
+
+        if action is AuditAction.PROSPECT_UPDATED:
+            cls._require_keys(values, {"changed_fields"})
+            changed_fields = values["changed_fields"]
+            allowed_fields = frozenset({"internal_alias", "owner_id", "priority", "retention_review_at", "stage_code"})
+            if (
+                isinstance(changed_fields, (str, bytes))
+                or not isinstance(changed_fields, Sequence)
+                or not changed_fields
+                or any(
+                    not isinstance(field_name, str) or field_name not in allowed_fields for field_name in changed_fields
+                )
+                or len(set(changed_fields)) != len(changed_fields)
+            ):
+                raise InvalidAuditMetadata("changed_fields contient une valeur prospect interdite ou dupliquee.")
+            return {"changed_fields": tuple(sorted(changed_fields))}
+
+        if action is AuditAction.PROSPECT_ARCHIVED:
+            cls._require_keys(values, {"previous_version"})
+            previous_version = values["previous_version"]
+            if not isinstance(previous_version, int) or previous_version <= 0:
+                raise InvalidAuditMetadata("previous_version doit etre strictement positif.")
+            return {"previous_version": previous_version}
+
+        if action is AuditAction.CONTACT_CREATED:
+            cls._require_keys(values, {"prospect_id"})
+            return {"prospect_id": cls._uuid(values["prospect_id"], "prospect_id")}
+
+        if action is AuditAction.CHANNEL_CREATED:
+            cls._require_keys(values, {"channel_type", "target_type"})
+            target_type = cls._choice(values["target_type"], frozenset({"contact", "prospect"}), "target_type")
+            return {
+                "channel_type": cls._choice(values["channel_type"], _CONTACT_CHANNEL_TYPES, "channel_type"),
+                "target_type": target_type,
+            }
+
+        if action is AuditAction.PROVENANCE_RECORDED:
+            cls._require_keys(values, {"source_kind"})
+            return {
+                "source_kind": cls._choice(values["source_kind"], _PROVENANCE_SOURCE_KINDS, "source_kind"),
+            }
 
         cls._require_keys(values, set())
         return {}

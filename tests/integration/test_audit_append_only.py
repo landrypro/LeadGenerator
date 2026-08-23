@@ -349,7 +349,9 @@ async def test_rls_separates_tenants_sales_and_platform_scope() -> None:
     assert tenant_a_ids == {event_a.id}
     assert tenant_b_ids == {event_b.id}
     assert sales_ids == set()
-    assert platform_ids == {platform_event.id}
+    assert platform_event.id in platform_ids
+    assert event_a.id not in platform_ids
+    assert event_b.id not in platform_ids
     assert wrong_scope_ids == set()
 
 

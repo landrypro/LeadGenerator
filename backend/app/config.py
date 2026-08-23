@@ -54,6 +54,8 @@ class Settings:
     static_maps_timeout_seconds: float = 20.0
     map_grant_ttl_seconds: float = 300.0
     map_grant_max_entries: int = 1_000
+    google_selection_grant_ttl_seconds: int = 600
+    google_selection_grant_max_entries: int = 1_000
     app_title: str = "Prospect CRM"
     app_version: str = "1.5.0"
 
@@ -108,6 +110,8 @@ class Settings:
             raise ValueError("Les délais d’attente HTTP doivent être positifs.")
         if self.map_grant_ttl_seconds <= 0 or self.map_grant_max_entries <= 0:
             raise ValueError("La configuration des jetons de carte doit être positive.")
+        if self.google_selection_grant_ttl_seconds <= 0 or self.google_selection_grant_max_entries <= 0:
+            raise ValueError("La configuration des jetons de sélection Google doit être positive.")
         if self.app_env == "production":
             self._validate_production_settings()
 
@@ -184,6 +188,8 @@ class Settings:
             static_maps_timeout_seconds=float(values.get("GOOGLE_STATIC_MAPS_TIMEOUT_SECONDS", "20")),
             map_grant_ttl_seconds=float(values.get("MAP_SNAPSHOT_GRANT_TTL_SECONDS", "300")),
             map_grant_max_entries=int(values.get("MAP_SNAPSHOT_GRANT_MAX_ENTRIES", "1000")),
+            google_selection_grant_ttl_seconds=int(values.get("GOOGLE_SELECTION_GRANT_TTL_SECONDS", "600")),
+            google_selection_grant_max_entries=int(values.get("GOOGLE_SELECTION_GRANT_MAX_ENTRIES", "1000")),
         )
 
 

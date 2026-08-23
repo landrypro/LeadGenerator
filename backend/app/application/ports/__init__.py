@@ -35,6 +35,7 @@ from .organization import (
 from .pagination import CursorCodec
 from .passwords import PasswordHasher
 from .places import PlaceCandidate, PlacesGateway
+from .prospect import GoogleSelectionGrantStore, ProspectUnitOfWork, ProspectUnitOfWorkFactory
 from .provisioning import (
     AcceptanceGatewayResult,
     AcceptanceResultCode,
@@ -74,6 +75,7 @@ __all__ = [
     "DependencyHealth",
     "DependencyProbe",
     "GenerationGuard",
+    "GoogleSelectionGrantStore",
     "IdentityRepository",
     "IdentityUnitOfWork",
     "IdentityUnitOfWorkFactory",
@@ -100,6 +102,8 @@ __all__ = [
     "PlatformAuditReadUnitOfWorkFactory",
     "PlatformAuditedUnitOfWorkFactory",
     "PlatformProvisioningGateway",
+    "ProspectUnitOfWork",
+    "ProspectUnitOfWorkFactory",
     "ProvisionGatewayResult",
     "ProvisionResultCode",
     "ResendGatewayResult",
