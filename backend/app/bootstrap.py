@@ -391,7 +391,6 @@ def build_container(settings: Settings) -> AppContainer:
             database.tenant_prospect_unit_of_work,
             selection_grants,
             clock,
-            alias_hmac_key=rate_limit_key,
         )
         list_prospects = ListProspectsUseCase(database.tenant_prospect_unit_of_work, prospect_cursor_codec)
         get_prospect = GetProspectUseCase(database.tenant_prospect_unit_of_work)

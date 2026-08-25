@@ -199,6 +199,11 @@ Validation avant de poursuivre :
 
 ### 2.6 — Redis partagé, durcissement et régression
 
+La proposition détaillée, son découpage en trois sous-incréments et les seize décisions soumises à validation sont
+consignés dans [`PHASE_2_6_SPECIFICATIONS_DETAILLEES.md`](PHASE_2_6_SPECIFICATIONS_DETAILLEES.md). Elle étend le
+périmètre au jeton de sélection Google introduit en 2.5, condition nécessaire au fonctionnement derrière plusieurs
+instances API.
+
 Livrables :
 
 - implémentations Redis des verrous de recherche et jetons de carte ;
@@ -660,9 +665,10 @@ Préfixes recommandés, incluant l’environnement :
 
 - `prospect:{env}:session:{token_hash}` ;
 - `prospect:{env}:login-limit:{dimension}` ;
-- `prospect:{env}:google-quota:{organization}:{period}` ;
-- `prospect:{env}:search-lock:{user}` ;
-- `prospect:{env}:map-grant:{token_hash}`.
+- `prospect:{env}:v1:google:{organization}:quota:{period}:{scope}` ;
+- `prospect:{env}:v1:google:{organization}:search-lock:{user}` ;
+- `prospect:{env}:v1:map-grant:{token_hash}` ;
+- `prospect:{env}:v1:selection-grant:{token_hash}`.
 
 Aucune clé ne contient un courriel, une adresse ou un nom en clair.
 
@@ -679,8 +685,8 @@ Aucune clé ne contient un courriel, une adresse ou un nom en clair.
 - contenu minimal chiffré ou opaque côté serveur ;
 - expiration identique à la phase 1, cinq minutes par défaut ;
 - réservation atomique lors de l’appel ;
-- consommation après succès Google ;
-- remise à disposition après échec externe contrôlé ;
+- consommation terminale après la première tentative Maps, succès ou échec externe, afin d’empêcher un nouvel appel
+  facturable avec le même jeton ;
 - un seul appel simultané autorisé.
 
 ### 12.4 Quotas

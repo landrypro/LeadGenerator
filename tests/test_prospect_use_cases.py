@@ -7,13 +7,18 @@ from uuid import UUID, uuid4
 
 import pytest
 
-from backend.app.application.errors import InsufficientCapability, InvalidGoogleSelectionGrant
+from backend.app.application.errors import (
+    InsufficientCapability,
+    InvalidGoogleProspectCommand,
+    InvalidGoogleSelectionGrant,
+)
 from backend.app.application.models import GoogleAccessOwner
 from backend.app.application.ports import CursorCodec
 from backend.app.application.tenancy import TenantContext
 from backend.app.application.use_cases.prospects import (
     AddGoogleProspectsUseCase,
     CreateManualProspectUseCase,
+    GoogleProspectInput,
     ListProspectsUseCase,
 )
 from backend.app.domain.prospect import ProspectDraft, ProspectOrigin, ProspectView
@@ -166,7 +171,6 @@ async def test_add_google_prospects_uses_grant_and_does_not_duplicate(context: T
         lambda _: unit_of_work,  # type: ignore[arg-type]
         MemorySelectionGrants(("place-1", "place-2")),
         FixedClock(),
-        alias_hmac_key=b"x" * 32,
     )
     owner = GoogleAccessOwner(user_id=context.actor_id, organization_id=context.organization_id)
 
@@ -174,20 +178,21 @@ async def test_add_google_prospects_uses_grant_and_does_not_duplicate(context: T
         context=context,
         owner=owner,
         selection_token="valid-token",
-        place_ids=("place-1", "place-1"),
+        items=(GoogleProspectInput(place_id="place-1", internal_alias="Plomberie Nord"),),
         has_capability=True,
     )
     second = await use_case.execute(
         context=context,
         owner=owner,
         selection_token="valid-token",
-        place_ids=("place-1",),
+        items=(GoogleProspectInput(place_id="place-1", internal_alias="Alias ignoré au rejeu"),),
         has_capability=True,
     )
 
     assert first.items[0].disposition == "created"
-    assert first.items[0].prospect.internal_alias.startswith("Prospect Google ")
-    assert first.items[0].prospect.internal_alias != "place-1"
+    assert first.items[0].prospect.internal_alias == "Plomberie Nord"
+    assert first.items[0].prospect.google_place_id == "place-1"
+    assert second.items[0].prospect.internal_alias == "Plomberie Nord"
     assert second.items[0].disposition == "existing"
     assert len(repository.items) == 1
     assert len(audit.events) == 1
@@ -199,7 +204,6 @@ async def test_add_google_prospects_rejects_place_outside_grant(context: TenantC
         lambda _: MemoryProspectUnitOfWork(MemoryProspectRepository(), MemoryAuditRecorder()),  # type: ignore[arg-type]
         MemorySelectionGrants(("place-1",)),
         FixedClock(),
-        alias_hmac_key=b"x" * 32,
     )
 
     with pytest.raises(InvalidGoogleSelectionGrant):
@@ -207,7 +211,28 @@ async def test_add_google_prospects_rejects_place_outside_grant(context: TenantC
             context=context,
             owner=GoogleAccessOwner(user_id=context.actor_id, organization_id=context.organization_id),
             selection_token="valid-token",
-            place_ids=("place-2",),
+            items=(GoogleProspectInput(place_id="place-2", internal_alias="Entreprise hors sélection"),),
+            has_capability=True,
+        )
+
+
+@pytest.mark.asyncio
+async def test_add_google_prospects_rejects_duplicate_place_ids(context: TenantContext) -> None:
+    use_case = AddGoogleProspectsUseCase(
+        lambda _: MemoryProspectUnitOfWork(MemoryProspectRepository(), MemoryAuditRecorder()),  # type: ignore[arg-type]
+        MemorySelectionGrants(("place-1",)),
+        FixedClock(),
+    )
+
+    with pytest.raises(InvalidGoogleProspectCommand):
+        await use_case.execute(
+            context=context,
+            owner=GoogleAccessOwner(user_id=context.actor_id, organization_id=context.organization_id),
+            selection_token="valid-token",
+            items=(
+                GoogleProspectInput(place_id="place-1", internal_alias="Premier nom"),
+                GoogleProspectInput(place_id="place-1", internal_alias="Second nom"),
+            ),
             has_capability=True,
         )
 

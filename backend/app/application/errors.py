@@ -10,6 +10,10 @@ class InvalidGoogleSelectionGrant(RuntimeError):
     """Le jeton de sélection Google est absent, expiré ou ne couvre pas les établissements demandés."""
 
 
+class InvalidGoogleProspectCommand(ValueError):
+    """La commande d'ajout Google contient des établissements ou noms internes invalides."""
+
+
 class MapSnapshotGrantInProgress(RuntimeError):
     """Le même jeton de carte est déjà en cours de consommation."""
 

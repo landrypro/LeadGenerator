@@ -1,7 +1,5 @@
 from __future__ import annotations
 
-import hashlib
-import hmac
 from dataclasses import dataclass
 from datetime import UTC
 from uuid import UUID
@@ -18,6 +16,7 @@ from ...domain.prospect import (
 from ..audit_events import tenant_audit_event
 from ..errors import (
     InsufficientCapability,
+    InvalidGoogleProspectCommand,
     InvalidGoogleSelectionGrant,
     ProspectResourceNotFound,
     ProspectVersionConflict,
@@ -36,6 +35,12 @@ MAX_GOOGLE_PROSPECTS_PER_COMMAND = 20
 class ProspectPage:
     items: tuple[ProspectView, ...]
     next_cursor: str | None
+
+
+@dataclass(frozen=True, slots=True)
+class GoogleProspectInput:
+    place_id: str
+    internal_alias: str
 
 
 @dataclass(frozen=True, slots=True)
@@ -79,13 +84,10 @@ class AddGoogleProspectsUseCase:
         unit_of_work_factory: ProspectUnitOfWorkFactory,
         selection_grants: GoogleSelectionGrantStore,
         clock: Clock,
-        *,
-        alias_hmac_key: bytes,
     ) -> None:
         self._unit_of_work_factory = unit_of_work_factory
         self._selection_grants = selection_grants
         self._clock = clock
-        self._alias_hmac_key = alias_hmac_key
 
     async def execute(
         self,
@@ -93,30 +95,32 @@ class AddGoogleProspectsUseCase:
         context: TenantContext,
         owner: GoogleAccessOwner,
         selection_token: str,
-        place_ids: tuple[str, ...],
+        items: tuple[GoogleProspectInput, ...],
         has_capability: bool,
     ) -> GoogleProspectAddOutcome:
         _require_capability(has_capability)
-        requested = _distinct_place_ids(place_ids)
+        requested = _distinct_google_inputs(items)
         allowed = set(await self._selection_grants.resolve(selection_token, owner, now=self._clock.now()))
-        if not requested or any(place_id not in allowed for place_id in requested):
+        if any(item.place_id not in allowed for item in requested):
             raise InvalidGoogleSelectionGrant
 
         now = self._clock.now()
-        items: list[GoogleProspectAddItem] = []
+        outcome_items: list[GoogleProspectAddItem] = []
         async with self._unit_of_work_factory(context) as unit_of_work:
-            for place_id in requested:
-                existing = await unit_of_work.prospects.get_by_google_place_id(place_id)
+            for item in requested:
+                existing = await unit_of_work.prospects.get_by_google_place_id(item.place_id)
                 if existing is not None:
-                    items.append(GoogleProspectAddItem(place_id=place_id, disposition="existing", prospect=existing))
+                    outcome_items.append(
+                        GoogleProspectAddItem(place_id=item.place_id, disposition="existing", prospect=existing)
+                    )
                     continue
                 prospect = await unit_of_work.prospects.add(
                     ProspectDraft(
                         organization_id=context.organization_id,
-                        internal_alias=_google_alias(context.organization_id, place_id, self._alias_hmac_key),
+                        internal_alias=item.internal_alias,
                         origin=ProspectOrigin.GOOGLE_PLACE,
                         source_label=GOOGLE_SOURCE_LABEL,
-                        google_place_id=place_id,
+                        google_place_id=item.place_id,
                     ),
                     now=now,
                 )
@@ -128,9 +132,11 @@ class AddGoogleProspectsUseCase:
                         {"origin": "google_place"},
                     )
                 )
-                items.append(GoogleProspectAddItem(place_id=place_id, disposition="created", prospect=prospect))
+                outcome_items.append(
+                    GoogleProspectAddItem(place_id=item.place_id, disposition="created", prospect=prospect)
+                )
             await unit_of_work.commit()
-        return GoogleProspectAddOutcome(items=tuple(items))
+        return GoogleProspectAddOutcome(items=tuple(outcome_items))
 
 
 class ListProspectsUseCase:
@@ -250,24 +256,19 @@ def _require_capability(has_capability: bool) -> None:
         raise InsufficientCapability
 
 
-def _distinct_place_ids(place_ids: tuple[str, ...]) -> tuple[str, ...]:
-    distinct = tuple(dict.fromkeys(place_id.strip() for place_id in place_ids if place_id.strip()))
-    if not 1 <= len(distinct) <= MAX_GOOGLE_PROSPECTS_PER_COMMAND:
-        raise InvalidGoogleSelectionGrant
-    return distinct
-
-
-def _google_alias(organization_id: UUID, place_id: str, alias_hmac_key: bytes) -> str:
-    digest = (
-        hmac.new(
-            alias_hmac_key,
-            f"{organization_id}:{place_id}".encode(),
-            hashlib.sha256,
-        )
-        .hexdigest()[:10]
-        .upper()
-    )
-    return f"Prospect Google {digest}"
+def _distinct_google_inputs(items: tuple[GoogleProspectInput, ...]) -> tuple[GoogleProspectInput, ...]:
+    normalized: list[GoogleProspectInput] = []
+    place_ids: set[str] = set()
+    for item in items:
+        place_id = item.place_id.strip()
+        internal_alias = item.internal_alias.strip()
+        if not place_id or not internal_alias or place_id in place_ids:
+            raise InvalidGoogleProspectCommand
+        place_ids.add(place_id)
+        normalized.append(GoogleProspectInput(place_id=place_id, internal_alias=internal_alias))
+    if not 1 <= len(normalized) <= MAX_GOOGLE_PROSPECTS_PER_COMMAND:
+        raise InvalidGoogleProspectCommand
+    return tuple(normalized)
 
 
 def _validate_limit(limit: int) -> None:

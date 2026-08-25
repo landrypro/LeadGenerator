@@ -6,7 +6,7 @@
 | Incrément | 2.5 — Socle prospects, conformité et conservation |
 | Version | 1.0 |
 | Prérequis | Phase 2.4.5 clôturée avec Go, migrations à `20260813_0008 (head)` |
-| Statut | Validé par le responsable produit |
+| Statut | Clôturée avec GO produit le 25 août 2026 |
 | Validation produit | 14 août 2026 — validation des seize décisions de la section 10 |
 | Résultat attendu | Un modèle CRM persistant, traçable et prêt pour le pipeline commercial |
 
@@ -21,11 +21,11 @@ politiques de conformité et l’interface.
 
 | Sous-incrément | Objet principal | Dépendances | Sortie attendue |
 | --- | --- | --- | --- |
-| **2.5.1** | Modèle de données et migrations | 2.4.5 | Tables, contraintes, RLS, ports et audit prêts |
-| **2.5.2** | Socle prospect et ajout Google | 2.5.1 | Validé avec réserves ; preuves des étapes 9 et 10 à consigner |
-| **2.5.3** | Provenance, permissions et fournisseurs | 2.5.1 | Implémentation réalisée ; recette locale PostgreSQL à finaliser |
-| **2.5.4** | Conservation et déclarations d’import | 2.5.1, 2.5.3 | Implémentation réalisée ; recette locale PostgreSQL groupée avec 2.5.5 |
-| **2.5.5** | Interface et verrou qualité | 2.5.2, 2.5.3, 2.5.4 | 2.5.5-A à 2.5.5-E implémentés ; validation QA et Azure en attente |
+| **2.5.1** | Modèle de données et migrations | 2.4.5 | Validé et clôturé |
+| **2.5.2** | Socle prospect et ajout Google | 2.5.1 | Validé avec réserves acceptées |
+| **2.5.3** | Provenance, permissions et fournisseurs | 2.5.1 | Validé et clôturé |
+| **2.5.4** | Conservation et déclarations d’import | 2.5.1, 2.5.3 | Validé et clôturé |
+| **2.5.5** | Interface et verrou qualité | 2.5.2, 2.5.3, 2.5.4 | Validé et clôturé ; Azure reporté à la préproduction |
 
 ### 0.1 Critères de passage entre sous-incréments
 

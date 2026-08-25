@@ -58,7 +58,7 @@ describe('PlaceSearchPage', () => {
         disposition: 'created',
         prospect: {
           id: 'prospect-1',
-          internal_alias: 'Prospect Google ABC123',
+          internal_alias: 'Plomberie Nord',
           origin: 'google_place',
           source_label: 'google_places:text_search',
           google_place_id: 'place-1',
@@ -192,12 +192,13 @@ describe('PlaceSearchPage', () => {
 
     submitSearch()
     await screen.findByText('Plomberie Boréale')
+    fireEvent.change(screen.getByLabelText('Nom interne CRM pour Plomberie Boréale'), { target: { value: 'Plomberie Nord' } })
     fireEvent.click(screen.getByRole('button', { name: /^Ajouter$/i }))
 
     await waitFor(() => expect(leadSearchApi.addGoogleProspects).toHaveBeenCalledTimes(1))
     expect(leadSearchApi.addGoogleProspects.mock.calls[0][0]).toEqual({
       selection_token: 'selection-token-long-enough-for-the-server',
-      place_ids: ['place-1'],
+      items: [{ place_id: 'place-1', internal_alias: 'Plomberie Nord' }],
     })
     expect(await screen.findByRole('button', { name: /Ajouté/i })).toBeDisabled()
   })
@@ -209,11 +210,24 @@ describe('PlaceSearchPage', () => {
 
     submitSearch()
     await screen.findByText('Plomberie Boréale')
+    fireEvent.change(screen.getByLabelText('Nom interne CRM pour Plomberie Boréale'), { target: { value: 'Plomberie Nord' } })
     fireEvent.click(screen.getByRole('checkbox', { name: /Sélectionner Plomberie Boréale/i }))
     fireEvent.click(screen.getByRole('button', { name: /Ajouter la sélection/i }))
 
     await waitFor(() => expect(leadSearchApi.addGoogleProspects).toHaveBeenCalledTimes(1))
     expect(storageWrite).not.toHaveBeenCalled()
     storageWrite.mockRestore()
+  })
+
+  it('affiche le Place ID séparément et exige un nom interne CRM', async () => {
+    leadSearchApi.search.mockResolvedValue(successfulResult())
+    render(<PlaceSearchPage session={{ capabilities: ['google:search', 'prospects:create'] }} />)
+
+    submitSearch()
+
+    expect(await screen.findByText('place-1')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /^Ajouter$/i })).toBeDisabled()
+    fireEvent.change(screen.getByLabelText('Nom interne CRM pour Plomberie Boréale'), { target: { value: 'Compte Québec' } })
+    expect(screen.getByRole('button', { name: /^Ajouter$/i })).toBeEnabled()
   })
 })

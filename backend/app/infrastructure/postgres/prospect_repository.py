@@ -1924,6 +1924,7 @@ def _active_prospect_query(cursor_clause: str) -> str:
           AND (
               CAST(:search_text AS text) IS NULL
               OR internal_alias ILIKE CAST(:search_text AS text)
+              OR google_place_id ILIKE CAST(:search_text AS text)
               OR industry_label ILIKE CAST(:search_text AS text)
               OR city ILIKE CAST(:search_text AS text)
           )

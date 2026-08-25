@@ -4,11 +4,11 @@
 
 | Champ | Valeur |
 |---|---|
-| Date | 15/08/2026 |
+| Date | 25/08/2026 |
 | Testeur | Guy Landry  |
 | Version / commit | __________ |
 | Organisation A / B | __________ / __________ |
-| Verdict | GO / NO-GO |
+| Verdict | GO avec réserves — phase 2.5 officiellement clôturée |
 
 Utiliser uniquement des données fictives. Ne jamais inscrire de mot de passe, clé Google, jeton d’invitation ou donnée
 personnelle réelle dans cette feuille.
@@ -17,7 +17,7 @@ personnelle réelle dans cette feuille.
 
 1. Depuis WSL Ubuntu-24.04, démarrer PostgreSQL, Redis et Mailpit avec `docker compose up -d --wait`.
 2. Depuis PowerShell, configurer les URL PostgreSQL/Redis, appliquer `alembic upgrade head`, puis vérifier que `current`
-   retourne `20260814_0012 (head)`.
+   retourne `20260815_0013 (head)`.
 3. Vérifier `/api/health/ready` : PostgreSQL et Redis doivent être `ok`.
 4. Démarrer backend avec `--env-file .env`, puis frontend avec `npm run dev`.
 
@@ -26,8 +26,8 @@ personnelle réelle dans cette feuille.
 | ID | Étapes | Résultat attendu | Statut |
 |---|---|---|---|
 | CRM-01 | Créer un prospect manuellement puis ouvrir sa fiche. | Fiche routable, provenance manuelle, aucune donnée Google copiée. | OK |
-| CRM-02 | Ajouter depuis Google, puis répéter le même ajout. | Seul `place_id` persiste ; doublon signalé sans deuxième prospect. | OK |
-| CRM-03 | Modifier alias, secteur, ville, priorité et étiquettes. | Version incrémentée ; conflit 409 si une ancienne version est réutilisée. | OK |
+| CRM-02 | Rechercher dans Google, vérifier la colonne `place_id`, saisir un nom interne CRM, ajouter, puis répéter le même ajout. | Le nom Google reste temporaire ; seuls le `place_id` et le nom interne explicitement saisi persistent ; doublon signalé sans deuxième prospect. | À rejouer après amélioration pré-2.6 |
+| CRM-03 | Dans la liste, vérifier la séparation du nom interne et du `place_id`, puis modifier alias, secteur, ville, priorité et étiquettes. | `place_id` visible et non modifiable ; alias modifiable ; version incrémentée ; conflit 409 si une ancienne version est réutilisée. | À rejouer après amélioration pré-2.6 |
 | CRM-04 | Ajouter un contact puis des canaux établissement/contact. | Canaux séparés, permission initiale « non déterminée ». | OK |
 | CRM-05 | Autoriser un canal avec provenance, puis enregistrer une opposition. | Base/provenance requise ; l’opposition est prioritaire. | OK |
 | ISO-01 | Créer le même jeu dans deux organisations puis changer d’organisation. | Aucun prospect, contact, fournisseur ou audit de l’autre organisation n’est visible. | OK |
@@ -43,16 +43,21 @@ personnelle réelle dans cette feuille.
 | GOO-01 | Exécuter une recherche Google. | Un Text Search, 20 résultats max, aucun contact, aucune pagination suivie. |  OK(reserve) |
 | NAV-01 | Recharger chaque URL, tester clavier, Échap, zoom 200 % et largeur 320 px. | Routes stables, focus visible, dialogues accessibles, aucun blocage horizontal critique. |  OK(reserve) |
 
+### Contrôle de marque pré-2.6
+
+Vérifier sur la connexion, l'invitation, l'en-tête authentifié, les erreurs de navigation et les pages légales que le nom visible est **Marketteo CRM**. Les identifiants techniques historiques (`prospect_session`, noms de paquets, schéma PostgreSQL et projet Compose) ne sont pas un échec de recette.
+
 ## Verrou automatisé
 
 Exécuter depuis PowerShell :
 
 ```powershell
-.\scripts\Test-QualityGateLocal.ps1 -DockerMode wsl -WslDistribution "Ubuntu-24.04"
+.\scripts\Test-QualityGateLocal.ps1 -DockerMode wsl -WslDistribution "Ubuntu-24.04" -TestPostgresPort 55433
 ```
 
-Joindre `test-results/quality-summary.md`, `pytest-quality.xml`, `vitest.xml` et `alembic-current.txt`, puis joindre le
-lien du passage Azure Pipelines sur le même commit.
+Le verrou local du 25 août 2026 est vert : Alembic `20260815_0013`, 227 tests backend, 144 tests frontend, zéro skip,
+Ruff, mypy, ESLint, audit npm, build et contrôles d’artefact conformes. Conserver `quality-summary.md`,
+`pytest-quality.xml`, `vitest.xml` et `alembic-current.txt`. Le passage Azure est reporté au verrou de préproduction.
 
 ## Signature
 

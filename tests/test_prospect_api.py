@@ -4,7 +4,12 @@ from uuid import uuid4
 from httpx import ASGITransport, AsyncClient
 
 from backend.app.application.models import GoogleAccessOwner
-from backend.app.application.use_cases.prospects import GoogleProspectAddItem, GoogleProspectAddOutcome, ProspectPage
+from backend.app.application.use_cases.prospects import (
+    GoogleProspectAddItem,
+    GoogleProspectAddOutcome,
+    GoogleProspectInput,
+    ProspectPage,
+)
 from backend.app.bootstrap import create_app
 from backend.app.config import Settings
 from backend.app.container import AppContainer
@@ -23,12 +28,14 @@ CSRF_TOKEN = "csrf-prospect-api"
 SESSION_TOKEN = "prospect-api-session"
 
 
-def prospect_view(*, google_place_id: str | None = "place-1") -> ProspectView:
+def prospect_view(
+    *, google_place_id: str | None = "place-1", internal_alias: str = "Prospect Google ABC123"
+) -> ProspectView:
     now = datetime(2026, 8, 14, 12, tzinfo=UTC)
     return ProspectView(
         id=uuid4(),
         organization_id=uuid4(),
-        internal_alias="Prospect Google ABC123",
+        internal_alias=internal_alias,
         origin=ProspectOrigin.GOOGLE_PLACE if google_place_id else ProspectOrigin.MANUAL,
         source_label="google_places:text_search" if google_place_id else "manual:user_entry",
         google_place_id=google_place_id,
@@ -84,7 +91,7 @@ class AddGoogleProspectsStub:
         context: object,
         owner: GoogleAccessOwner,
         selection_token: str,
-        place_ids: tuple[str, ...],
+        items: tuple[GoogleProspectInput, ...],
         has_capability: bool,
     ) -> GoogleProspectAddOutcome:
         self.calls.append(
@@ -92,16 +99,19 @@ class AddGoogleProspectsStub:
                 "context": context,
                 "owner": owner,
                 "selection_token": selection_token,
-                "place_ids": place_ids,
+                "items": items,
                 "has_capability": has_capability,
             }
         )
         return GoogleProspectAddOutcome(
             items=(
                 GoogleProspectAddItem(
-                    place_id=place_ids[0],
+                    place_id=items[0].place_id,
                     disposition="created",
-                    prospect=prospect_view(google_place_id=place_ids[0]),
+                    prospect=prospect_view(
+                        google_place_id=items[0].place_id,
+                        internal_alias=items[0].internal_alias,
+                    ),
                 ),
             )
         )
@@ -149,16 +159,37 @@ async def test_from_google_uses_selection_token_and_returns_no_store() -> None:
         response = await client.post(
             "/api/prospects/from-google",
             headers={"Origin": "http://test", "X-CSRF-Token": CSRF_TOKEN},
-            json={"selection_token": "selection-token-long-enough-for-contract", "place_ids": ["place-1"]},
+            json={
+                "selection_token": "selection-token-long-enough-for-contract",
+                "items": [{"place_id": "place-1", "internal_alias": "Plomberie Nord"}],
+            },
         )
 
     assert response.status_code == 200
     assert response.headers["cache-control"] == "no-store, max-age=0"
     assert response.json()["items"][0]["disposition"] == "created"
     assert add_google.calls[0]["selection_token"] == "selection-token-long-enough-for-contract"
-    assert add_google.calls[0]["place_ids"] == ("place-1",)
+    assert add_google.calls[0]["items"] == (GoogleProspectInput(place_id="place-1", internal_alias="Plomberie Nord"),)
     assert add_google.calls[0]["owner"].user_id == authenticated.user.id
     assert add_google.calls[0]["owner"].organization_id == authenticated.active_membership.organization_id
+
+
+async def test_from_google_rejects_missing_internal_alias_before_use_case() -> None:
+    app, add_google, _update_profile, _authenticated = app_with_prospects()
+
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+        client.cookies.set("prospect_session", SESSION_TOKEN)
+        response = await client.post(
+            "/api/prospects/from-google",
+            headers={"Origin": "http://test", "X-CSRF-Token": CSRF_TOKEN},
+            json={
+                "selection_token": "selection-token-long-enough-for-contract",
+                "items": [{"place_id": "place-1", "internal_alias": ""}],
+            },
+        )
+
+    assert response.status_code == 422
+    assert add_google.calls == []
 
 
 async def test_prospect_list_returns_no_store() -> None:

@@ -1,13 +1,16 @@
-# Prospect CRM
+# Marketteo CRM
 
-Prospect est une application React et FastAPI en migration vers un CRM de gestion commerciale. La phase 1 fournit une recherche Google Places ponctuelle et conforme : une seule requête Text Search par action, vingt établissements au maximum, aucun contact dans la liste et aucune persistance des résultats Google.
+Marketteo est une application React et FastAPI en migration vers un CRM de gestion commerciale. La phase 1 fournit une recherche Google Places ponctuelle et conforme : une seule requête Text Search par action, vingt établissements au maximum, aucun contact dans la liste et aucune persistance des résultats Google.
 
 Ce fichier réunit le guide utilisateur et la documentation technique du socle actuel. La spécification complète se trouve dans [`docs/SPECIFICATION_CRM_V1.md`](docs/SPECIFICATION_CRM_V1.md), les décisions validées sur les sources dans [`docs/PHASE_1_1_ACQUISITION_CONSERVATION.md`](docs/PHASE_1_1_ACQUISITION_CONSERVATION.md) et la conception validée des fondations dans [`docs/PHASE_2_SPECIFICATIONS_DETAILLEES.md`](docs/PHASE_2_SPECIFICATIONS_DETAILLEES.md). Le contrat de 2.3.4 et son rapport d’implémentation se trouvent dans [`docs/PHASE_2_3_4_SPECIFICATIONS_DETAILLEES.md`](docs/PHASE_2_3_4_SPECIFICATIONS_DETAILLEES.md) et [`docs/PHASE_2_3_4_RAPPORT_IMPLEMENTATION.md`](docs/PHASE_2_3_4_RAPPORT_IMPLEMENTATION.md). La recette hébergée temporaire est cadrée par [`docs/PHASE_2_4_QA_SPECIFICATIONS_DETAILLEES.md`](docs/PHASE_2_4_QA_SPECIFICATIONS_DETAILLEES.md) et [`docs/PHASE_2_4_QA_DEPLOIEMENT_ORACLE.md`](docs/PHASE_2_4_QA_DEPLOIEMENT_ORACLE.md).
 
 La phase 2.5 livre le portefeuille Prospects, les contacts et permissions, les fournisseurs/acquisitions, la
 conservation et les déclarations d’import sans fichier. Sa recette regroupée se trouve dans
-[`docs/PHASE_2_5_RECETTE_REGROUPEE_QA.md`](docs/PHASE_2_5_RECETTE_REGROUPEE_QA.md). Le GO final reste conditionné à
-la signature QA, au verrou PostgreSQL réel et au passage Azure sur le même commit.
+[`docs/PHASE_2_5_RECETTE_REGROUPEE_QA.md`](docs/PHASE_2_5_RECETTE_REGROUPEE_QA.md). La phase 2.5 a reçu son GO de
+clôture officiel le 25 août 2026, avec quatre réserves fonctionnelles acceptées. Le passage Azure est reporté au verrou
+de préproduction. La spécification proposée de la phase suivante est disponible dans
+[`docs/PHASE_2_6_SPECIFICATIONS_DETAILLEES.md`](docs/PHASE_2_6_SPECIFICATIONS_DETAILLEES.md). Aucun comportement
+d’exécution 2.6 n’est activé tant que ses seize décisions ne sont pas validées.
 
 ## Fonctionnalités disponibles
 

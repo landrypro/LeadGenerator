@@ -42,7 +42,7 @@ export function AppRouter({ invitationToken = '' }) {
       : pathname === CRM_PATHS.acceptInvitation
         ? 'Invitation'
         : routeTitle ?? (pathname === CRM_PATHS.home ? 'Accueil' : 'Page introuvable')
-    document.title = `${pageTitle} — Prospect CRM`
+    document.title = `${pageTitle} — Marketteo CRM`
   }, [pathname])
 
   if (pathname === CRM_PATHS.acceptInvitation) {

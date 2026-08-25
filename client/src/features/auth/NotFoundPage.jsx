@@ -8,7 +8,7 @@ export function NotFoundPage({ homePath }) {
       <div className="administration-card-icon" aria-hidden="true"><Building2 size={22} /></div>
       <p className="eyebrow">Erreur 404</p>
       <h1 id="not-found-title">Page introuvable</h1>
-      <p>Cette adresse ne correspond à aucune page actuellement disponible dans Prospect CRM.</p>
+      <p>Cette adresse ne correspond à aucune page actuellement disponible dans Marketteo CRM.</p>
       <a className="secondary-button route-status-action" href={homePath} onClick={(event) => followInternalLink(event, homePath)}>
         Revenir à l’accueil
       </a>

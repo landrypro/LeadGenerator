@@ -81,7 +81,7 @@ export function ProspectsPage({ session }) {
         <form onSubmit={submitSearch} className="prospect-search-form">
           <label className="sr-only" htmlFor="prospect-search">Rechercher dans les prospects</label>
           <Search size={18} />
-          <input id="prospect-search" value={searchText} onChange={(event) => setSearchText(event.target.value)} maxLength="160" placeholder="Rechercher un nom, secteur ou une ville" />
+          <input id="prospect-search" value={searchText} onChange={(event) => setSearchText(event.target.value)} maxLength="255" placeholder="Rechercher un nom, Place ID, secteur ou une ville" />
           <button className="secondary-button" type="submit">Rechercher</button>
         </form>
         <label className="prospect-archive-filter"><input type="checkbox" checked={includeArchived} onChange={changeArchiveVisibility} /> Inclure les archivés</label>
@@ -93,7 +93,7 @@ export function ProspectsPage({ session }) {
       {loading ? <div className="administration-loading" role="status"><LoaderCircle className="spin" size={20} /> Chargement des prospects…</div> : page.items.length === 0 ? <div className="prospect-empty-state"><Building2 size={28} /><h3>Aucun prospect à afficher</h3><p>{submittedSearch ? 'Modifiez vos filtres ou effectuez une nouvelle recherche.' : 'Ajoutez un établissement depuis Google ou créez un prospect manuellement.'}</p></div> : <div className="prospect-list" role="list">
         {page.items.map((prospect) => <a className={`prospect-row ${prospect.archived_at ? 'archived' : ''}`} href={`/app/prospects/${encodeURIComponent(prospect.id)}`} onClick={(event) => followInternalLink(event, `/app/prospects/${encodeURIComponent(prospect.id)}`)} key={prospect.id} role="listitem">
           <div className="prospect-row-icon" aria-hidden="true"><Building2 size={19} /></div>
-          <div className="prospect-row-main"><h3>{prospect.internal_alias}</h3><div><OriginBadge origin={prospect.origin} /> {prospect.industry_label && <span>{prospect.industry_label}</span>} {prospect.city && <span>{prospect.city}</span>}</div></div>
+          <div className="prospect-row-main"><h3>{prospect.internal_alias}</h3><div><OriginBadge origin={prospect.origin} /> {prospect.google_place_id && <span className="prospect-place-id">Place ID&nbsp;: <code>{prospect.google_place_id}</code></span>} {prospect.industry_label && <span>{prospect.industry_label}</span>} {prospect.city && <span>{prospect.city}</span>}</div></div>
           <div className="prospect-row-meta"><span>Priorité {prospect.priority}/5</span><time dateTime={prospect.updated_at}>Mis à jour le {formatDate(prospect.updated_at)}</time>{prospect.archived_at && <strong>Archivé</strong>}</div>
         </a>)}
       </div>}

@@ -1,4 +1,4 @@
-# Prospect CRM — Cahier de recette fonctionnelle utilisateur
+# Marketteo CRM — Cahier de recette fonctionnelle utilisateur
 
 | Métadonnée | Valeur à renseigner |
 | --- | --- |
@@ -17,7 +17,7 @@
 ## 1. Objet
 
 Ce document permet à un testeur QA de vérifier, étape par étape, l’ensemble des fonctions actuellement livrées dans
-Prospect CRM : authentification, invitations, organisations, rôles, membres, changement d’organisation,
+Marketteo CRM : authentification, invitations, organisations, rôles, membres, changement d’organisation,
 administration plateforme, recherche Google limitée, carte, sécurité visible, accessibilité, responsive et qualité
 d’exploitation.
 

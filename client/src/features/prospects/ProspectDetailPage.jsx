@@ -132,7 +132,9 @@ export function ProspectDetailPage({ routeParams, session }) {
     <header className="administration-page-heading"><p className="eyebrow">Portefeuille CRM</p><h1 id="prospect-detail-title">{prospect.internal_alias}</h1><p>Profil CRM, contacts et permissions. Aucune donnée descriptive Google n’est copiée dans cette fiche.</p></header>
     {error && <ErrorBanner><span>{error}</span></ErrorBanner>}{success && <div className="success-banner" role="status"><Check size={18} />{success}</div>}
     <div className="prospect-detail-grid">
-      <section className="administration-card"><div className="administration-card-icon"><Building2 size={21} /></div><h2>Profil CRM</h2>{canUpdate ? <form className="organization-form" onSubmit={saveProfile}>
+      <section className="administration-card"><div className="administration-card-icon"><Building2 size={21} /></div><h2>Profil CRM</h2>
+        {prospect.google_place_id && <div className="readonly-profile-field"><span>Place ID Google</span><code>{prospect.google_place_id}</code><small>Référence technique provenant de Google, non modifiable.</small></div>}
+        {canUpdate ? <form className="organization-form" onSubmit={saveProfile}>
         <label htmlFor="profile-alias">Nom interne</label><input id="profile-alias" name="internal_alias" defaultValue={prospect.internal_alias} required maxLength="160" />
         <label htmlFor="profile-industry">Secteur</label><input id="profile-industry" name="industry_label" defaultValue={prospect.industry_label || ''} maxLength="120" />
         <label htmlFor="profile-city">Ville CRM</label><input id="profile-city" name="city" defaultValue={prospect.city || ''} maxLength="120" />

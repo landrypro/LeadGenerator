@@ -130,6 +130,10 @@ h1 { margin: 0; font-size: clamp(24px, 2.5vw, 34px); letter-spacing: -1.2px; lin
 .crm-add-button.created, .crm-add-button.existing { border-color: #c8e2aa; background: #f2fbdf; color: #567416; }
 .crm-add-button.error { border-color: #efb9a7; background: #fff4ef; color: #9b3c1c; }
 .place-select { width: 16px; height: 16px; accent-color: #1f8a52; }
+.place-id-cell code, .prospect-place-id code, .readonly-profile-field code { font: 600 10px ui-monospace, SFMono-Regular, Consolas, monospace; color: #48636f; overflow-wrap: anywhere; }
+.place-id-cell { max-width: 180px; }
+.crm-alias-action { display: grid; grid-template-columns: minmax(130px, 1fr) auto; align-items: center; gap: 6px; min-width: 245px; }
+.crm-alias-input { min-width: 0; padding: 6px 8px; border-radius: 7px; font-size: 10px; }
 .table-tools { padding: 10px 20px; border-top: 1px solid #e7ebe7; border-bottom: 1px solid #e7ebe7; display: flex; align-items: center; gap: 8px; background: #f9faf8; }
 .table-search { position: relative; max-width: 300px; flex: 1; }
 .table-search > svg { position: absolute; left: 9px; top: 50%; transform: translateY(-50%); color: #8d9892; }
@@ -425,14 +429,16 @@ tbody tr:hover { background: linear-gradient(90deg, rgba(232,248,253,.48), rgba(
   tbody tr { position: relative; display: grid; grid-template-columns: 1fr auto; gap: 7px 10px; padding: 14px; background: rgba(255,255,255,.9); border: 1px solid #dce9ed; border-radius: 14px; box-shadow: 0 8px 24px rgba(31,77,94,.055); }
   tbody tr:hover { background: white; }
   td { display: block; padding: 0; border: 0; }
-  td:nth-child(1), td:nth-child(2) { grid-column: 1 / -1; }
-  td:nth-child(3) { grid-column: 1; }
-  td:nth-child(4) { grid-column: 2; text-align: right; }
-  td:nth-child(5) { position: absolute; top: 14px; right: 14px; }
+  .place-selection-cell, .place-company-cell, .place-id-cell, .place-address-cell, .place-crm-cell { grid-column: 1 / -1; }
+  .place-distance-cell { grid-column: 1; }
+  .place-status-cell { grid-column: 2; text-align: right; }
+  .place-external-cell { position: absolute; top: 14px; right: 14px; }
   .company-cell { padding-right: 36px; }
   .company-cell strong { max-width: calc(100vw - 140px); }
   .company-avatar { width: 36px; height: 36px; border-radius: 10px; }
   .address-cell { max-width: none; min-width: 0; padding: 8px 0; border-top: 1px solid #edf2f3; }
+  .place-id-cell { padding: 7px 0; border-top: 1px solid #edf2f3; }
+  .crm-alias-action { min-width: 0; }
   .visible-count { margin-left: auto; }
   footer { padding-bottom: 12px; }
 }
@@ -520,9 +526,13 @@ footer a:hover { color: #147da5; text-decoration: underline; }
 .prospect-row-icon { display: grid; width: 38px; height: 38px; place-items: center; border-radius: 10px; color: #137b9d; background: #e4f6fb; }
 .prospect-row-main h3 { margin: 0 0 5px; color: #12384a; font-size: 15px; }
 .prospect-row-main div { display: flex; flex-wrap: wrap; gap: 8px; color: #6a808a; font-size: 12px; }
+.prospect-place-id { display: inline-flex; align-items: baseline; gap: 3px; }
 .prospect-origin { color: #2e6a82; font-weight: 700; }
 .prospect-row-meta { display: grid; gap: 4px; color: #6a808a; font-size: 11px; text-align: right; }
 .prospect-row-meta strong { color: #9a6222; }
+.readonly-profile-field { display: grid; gap: 5px; padding: 11px 12px; border: 1px solid #dce9ed; border-radius: 9px; background: #f7fafb; }
+.readonly-profile-field > span { color: #425966; font-size: 12px; font-weight: 700; }
+.readonly-profile-field small { color: #6a808a; font-size: 10px; }
 .prospect-empty-state { padding: 48px 20px; text-align: center; color: #6b838c; }
 .prospect-empty-state svg { color: #1682a2; }.prospect-empty-state h3 { margin: 12px 0 6px; color: #173f4d; }.prospect-empty-state p { margin: 0; font-size: 13px; }
 .prospect-load-more { display: block; margin: 20px auto 0; }

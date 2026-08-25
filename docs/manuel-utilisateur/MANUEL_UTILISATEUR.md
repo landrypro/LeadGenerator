@@ -5,7 +5,7 @@
 **Date de référence :** 25 août 2026  
 **Public :** commerciaux, gestionnaires, administrateurs d'organisation et administrateurs de plateforme
 
-> Note de transition : le nom cible du produit est Marketteo CRM. Certains écrans du dépôt affichent encore « Prospect CRM ». Les procédures de ce manuel reprennent les libellés visibles lorsqu'ils sont nécessaires pour trouver une commande.
+> Les libellés visibles de l'application utilisent désormais la marque Marketteo CRM. Les identifiants techniques historiques peuvent encore contenir `prospect` ou `LeadGenerator` afin de préserver les installations existantes.
 
 ## 1. À propos de Marketteo CRM
 
@@ -106,7 +106,7 @@ Chaque recherche effectue un seul appel Google Text Search et affiche jusqu'à 2
 
 ### 3.2 Lire et filtrer les résultats
 
-Le tableau indique l'entreprise, la localisation, la distance, l'état et un lien d'ouverture dans Google Maps. « Non vérifiable » signifie que la distance ne peut pas être confirmée, notamment pour certaines entreprises de zone de service.
+Le tableau indique l'entreprise Google temporaire, son `place_id`, la localisation, la distance, l'état et un lien d'ouverture dans Google Maps. Le `place_id` est la référence technique Google qui permet d'éviter les doublons ; ce n'est pas le nom commercial du prospect dans Marketteo. « Non vérifiable » signifie que la distance ne peut pas être confirmée, notamment pour certaines entreprises de zone de service.
 
 Utilisez « Filtrer par nom, ville ou activité… » pour réduire localement la liste déjà affichée. Ce filtre ne déclenche pas une nouvelle recherche Google.
 
@@ -114,11 +114,12 @@ Utilisez « Filtrer par nom, ville ou activité… » pour réduire localement l
 
 Pour ajouter un établissement :
 
-1. sélectionnez « Ajouter » dans la ligne voulue ;
-2. attendez le résultat : « Ajouté » confirme la création et « Déjà au CRM » indique qu'un prospect correspondant existe déjà ;
-3. ouvrez ensuite « Prospects » pour compléter le profil CRM.
+1. saisissez un « Nom interne CRM » dans la ligne voulue ; ce nom est choisi par votre organisation et ne doit pas être une copie automatique du nom Google ;
+2. sélectionnez « Ajouter » dans la ligne ; le bouton reste inaccessible tant que le nom interne est vide ;
+3. attendez le résultat : « Ajouté » confirme la création et « Déjà au CRM » indique qu'un prospect portant ce `place_id` existe déjà ;
+4. ouvrez ensuite « Prospects » pour compléter le profil CRM.
 
-Pour ajouter plusieurs résultats, cochez les lignes puis sélectionnez « Ajouter la sélection ». Une nouvelle recherche efface la sélection courante.
+Pour ajouter plusieurs résultats, cochez les lignes, renseignez un nom interne pour chacune, puis sélectionnez « Ajouter la sélection ». Une nouvelle recherche efface la sélection courante.
 
 > Important : « Ajouter » ne copie pas les détails descriptifs Google dans la fiche. Les coordonnées de contact doivent provenir d'une source autorisée et être saisies séparément.
 
@@ -126,9 +127,9 @@ Pour ajouter plusieurs résultats, cochez les lignes puis sélectionnez « Ajout
 
 ### 4.1 Consulter le portefeuille
 
-Ouvrez « Prospects ». La liste montre le nom interne, l'origine, le secteur et la ville lorsqu'ils sont renseignés, la priorité, la dernière mise à jour et l'état archivé.
+Ouvrez « Prospects ». La liste montre le nom interne, l'origine, le secteur et la ville lorsqu'ils sont renseignés, la priorité, la dernière mise à jour et l'état archivé. Pour un prospect issu de Google, le `place_id` est affiché séparément et en lecture seule.
 
-- Recherchez par nom, secteur ou ville, puis sélectionnez « Rechercher ».
+- Recherchez par nom, secteur, ville ou `place_id`, puis sélectionnez « Rechercher ».
 - Cochez « Inclure les archivés » pour afficher les éléments archivés.
 - Sélectionnez « Afficher davantage » lorsqu'une page suivante est disponible.
 - Sélectionnez une ligne pour ouvrir la fiche.
@@ -152,6 +153,8 @@ Dans la fiche du prospect, la section « Profil CRM » contient :
 - des étiquettes séparées par des virgules.
 
 Modifiez les champs puis sélectionnez « Enregistrer le profil ». Si votre rôle est en lecture seule, le formulaire est remplacé par un message d'information.
+
+Pour un prospect Google, la fiche affiche aussi le `place_id`. Cette référence est non modifiable. Modifier le nom interne ne modifie ni le `place_id`, ni les données temporaires affichées par Google.
 
 ### 4.4 Ajouter une personne de contact
 
@@ -374,4 +377,3 @@ C'est l'état normal après sa création. Un gestionnaire ou administrateur doit
 | Version | Date | État | Résumé |
 |---|---|---|---|
 | 0.1 | 25 août 2026 | À valider | Structure initiale fondée sur les routes, composants, capacités et règles métier présentes dans le dépôt |
-

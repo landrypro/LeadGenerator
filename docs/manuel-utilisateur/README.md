@@ -76,9 +76,8 @@ Une édition est publiable lorsque :
 
 ## Décisions encore requises avant une édition 1.0
 
-- confirmer le remplacement de tous les libellés visibles « Prospect CRM » par « Marketteo CRM » ;
+- régénérer les captures et le DOCX après la migration des libellés visibles vers « Marketteo CRM » ;
 - fournir l'URL de production et le canal officiel de soutien ;
 - choisir un jeu de données de démonstration et produire les captures d'écran ;
 - faire valider les consignes de conformité par la personne responsable ;
 - confirmer si l'administration de plateforme doit rester dans le même manuel ou devenir un guide séparé.
-

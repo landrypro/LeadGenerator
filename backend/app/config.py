@@ -33,7 +33,7 @@ class Settings:
     session_absolute_seconds: int = 43_200
     invitation_ttl_seconds: int = 259_200
     invitation_delivery_backend: str = "disabled"
-    invitation_from_email: str = "no-reply@prospect.local"
+    invitation_from_email: str = "no-reply@marketteo.local"
     invitation_smtp_host: str = "127.0.0.1"
     invitation_smtp_port: int = 1025
     invitation_smtp_timeout_seconds: float = 5.0
@@ -56,7 +56,7 @@ class Settings:
     map_grant_max_entries: int = 1_000
     google_selection_grant_ttl_seconds: int = 600
     google_selection_grant_max_entries: int = 1_000
-    app_title: str = "Prospect CRM"
+    app_title: str = "Marketteo CRM"
     app_version: str = "1.5.0"
 
     def __post_init__(self) -> None:
@@ -167,7 +167,7 @@ class Settings:
             session_absolute_seconds=int(values.get("SESSION_ABSOLUTE_SECONDS", "43200")),
             invitation_ttl_seconds=int(values.get("INVITATION_TTL_SECONDS", "259200")),
             invitation_delivery_backend=values.get("INVITATION_DELIVERY_BACKEND", "disabled").strip().lower(),
-            invitation_from_email=values.get("INVITATION_FROM_EMAIL", "no-reply@prospect.local").strip(),
+            invitation_from_email=values.get("INVITATION_FROM_EMAIL", "no-reply@marketteo.local").strip(),
             invitation_smtp_host=values.get("INVITATION_SMTP_HOST", "127.0.0.1").strip(),
             invitation_smtp_port=int(values.get("INVITATION_SMTP_PORT", "1025")),
             invitation_smtp_timeout_seconds=float(values.get("INVITATION_SMTP_TIMEOUT_SECONDS", "5")),

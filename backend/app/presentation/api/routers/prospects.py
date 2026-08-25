@@ -17,6 +17,7 @@ from ....application.errors import (
 )
 from ....application.models import GoogleAccessOwner
 from ....application.tenancy import TenantContext
+from ....application.use_cases import GoogleProspectInput
 from ....domain.identity import capabilities_for
 from ....domain.prospect import ProspectOrigin, ProspectProfilePatch
 from ..dependencies import ContainerDependency, RequestAuthentication, required_authentication
@@ -118,7 +119,10 @@ async def create_prospects_from_google(
                 organization_id=context.organization_id,
             ),
             selection_token=payload.selection_token,
-            place_ids=tuple(payload.place_ids),
+            items=tuple(
+                GoogleProspectInput(place_id=item.place_id, internal_alias=item.internal_alias)
+                for item in payload.items
+            ),
             has_capability=_has_capability(authentication, "prospects:create"),
         )
     except Exception as error:

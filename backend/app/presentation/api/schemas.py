@@ -287,9 +287,14 @@ class CreateProspectRequest(StrictCommand):
     internal_alias: str = Field(min_length=1, max_length=160)
 
 
+class ProspectFromGoogleItemRequest(StrictCommand):
+    place_id: str = Field(min_length=1, max_length=255)
+    internal_alias: str = Field(min_length=1, max_length=160)
+
+
 class ProspectFromGoogleRequest(StrictCommand):
     selection_token: str = Field(min_length=32, max_length=128)
-    place_ids: list[str] = Field(min_length=1, max_length=20)
+    items: list[ProspectFromGoogleItemRequest] = Field(min_length=1, max_length=20)
 
 
 class ProspectResponse(BaseModel):

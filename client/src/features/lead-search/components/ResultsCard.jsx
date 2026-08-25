@@ -19,8 +19,9 @@ export function ResultsCard({ places, result, loading, canCreateProspects = fals
         {canCreateProspects && result?.selection_token && <button
           className="crm-add-selected"
           type="button"
-          disabled={!prospectAdds?.selectedCount || prospectAdds?.adding}
+          disabled={!prospectAdds?.selectedReady || prospectAdds?.adding}
           onClick={prospectAdds?.addSelected}
+          title={prospectAdds?.selectedCount && !prospectAdds?.selectedReady ? 'Saisissez un nom interne CRM pour chaque établissement sélectionné.' : undefined}
         >Ajouter la sélection {prospectAdds?.selectedCount ? `(${prospectAdds.selectedCount})` : ''}</button>}
         <button className="export-button" type="button" disabled aria-disabled="true" title="L’export des données Google Maps est désactivé"><Download size={17} /> Exporter Excel</button>
       </div>
