@@ -108,15 +108,27 @@ class AddGoogleProspectsStub:
 
 
 class ListProspectsStub:
-    async def execute(self, *, context: object, has_capability: bool, cursor: str | None, limit: int) -> ProspectPage:
-        del context, has_capability, cursor, limit
+    async def execute(
+        self, *, context: object, has_capability: bool, cursor: str | None, limit: int, **filters: object
+    ) -> ProspectPage:
+        del context, has_capability, cursor, limit, filters
         return ProspectPage(items=(prospect_view(),), next_cursor=None)
 
 
-def app_with_prospects() -> tuple[object, AddGoogleProspectsStub, AuthenticatedIdentity]:
+class UpdateProspectProfileStub:
+    def __init__(self) -> None:
+        self.calls = []
+
+    async def execute(self, **kwargs: object) -> ProspectView:
+        self.calls.append(kwargs)
+        return prospect_view(google_place_id=None)
+
+
+def app_with_prospects() -> tuple[object, AddGoogleProspectsStub, UpdateProspectProfileStub, AuthenticatedIdentity]:
     settings = Settings(cors_allowed_origins=("http://test",))
     authenticated = identity()
     add_google = AddGoogleProspectsStub()
+    update_profile = UpdateProspectProfileStub()
     container = AppContainer(
         settings=settings,
         search_google_places=object(),  # type: ignore[arg-type]
@@ -124,12 +136,13 @@ def app_with_prospects() -> tuple[object, AddGoogleProspectsStub, AuthenticatedI
         get_current_session=CurrentSession(authenticated),  # type: ignore[arg-type]
         add_google_prospects=add_google,  # type: ignore[arg-type]
         list_prospects=ListProspectsStub(),  # type: ignore[arg-type]
+        update_prospect_profile=update_profile,  # type: ignore[arg-type]
     )
-    return create_app(container=container), add_google, authenticated
+    return create_app(container=container), add_google, update_profile, authenticated
 
 
 async def test_from_google_uses_selection_token_and_returns_no_store() -> None:
-    app, add_google, authenticated = app_with_prospects()
+    app, add_google, _update_profile, authenticated = app_with_prospects()
 
     async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
         client.cookies.set("prospect_session", SESSION_TOKEN)
@@ -149,7 +162,7 @@ async def test_from_google_uses_selection_token_and_returns_no_store() -> None:
 
 
 async def test_prospect_list_returns_no_store() -> None:
-    app, _add_google, _authenticated = app_with_prospects()
+    app, _add_google, _update_profile, _authenticated = app_with_prospects()
 
     async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
         client.cookies.set("prospect_session", SESSION_TOKEN)
@@ -158,3 +171,27 @@ async def test_prospect_list_returns_no_store() -> None:
     assert response.status_code == 200
     assert response.headers["cache-control"] == "no-store, max-age=0"
     assert response.json()["items"][0]["google_place_id"] == "place-1"
+
+
+async def test_prospect_profile_update_requires_version_and_manual_provenance() -> None:
+    app, _add_google, update_profile, _authenticated = app_with_prospects()
+    prospect_id = uuid4()
+
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+        client.cookies.set("prospect_session", SESSION_TOKEN)
+        response = await client.patch(
+            f"/api/prospects/{prospect_id}",
+            headers={"Origin": "http://test", "X-CSRF-Token": CSRF_TOKEN},
+            json={
+                "version": 3,
+                "industry_label": "Services professionnels",
+                "tags": ["Prioritaire"],
+                "purpose": "commercial_follow_up",
+                "territory": "CA-QC",
+            },
+        )
+
+    assert response.status_code == 200
+    assert response.headers["cache-control"] == "no-store, max-age=0"
+    assert update_profile.calls[0]["expected_version"] == 3
+    assert update_profile.calls[0]["purpose"] == "commercial_follow_up"

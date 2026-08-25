@@ -300,6 +300,18 @@ class ProspectResponse(BaseModel):
     google_place_id: str | None
     stage_code: str
     priority: int
+    owner_id: UUID | None
+    profile_provenance_id: UUID | None
+    industry_label: str | None
+    segment_code: str
+    size_band: str
+    address_line_1: str | None
+    address_line_2: str | None
+    city: str | None
+    region: str | None
+    postal_code: str | None
+    country_code: str | None
+    tags: list[str]
     version: int
     created_at: datetime
     updated_at: datetime
@@ -311,6 +323,25 @@ class ProspectPageResponse(BaseModel):
     next_cursor: str | None
 
 
+class ProspectProfileUpdateRequest(StrictCommand):
+    version: int = Field(ge=1)
+    internal_alias: str | None = Field(default=None, min_length=1, max_length=160)
+    industry_label: str | None = Field(default=None, min_length=1, max_length=120)
+    segment_code: Literal["unspecified", "micro", "small", "medium", "enterprise"] | None = None
+    size_band: Literal["unknown", "solo", "2_10", "11_50", "51_200", "201_plus"] | None = None
+    address_line_1: str | None = Field(default=None, min_length=1, max_length=160)
+    address_line_2: str | None = Field(default=None, min_length=1, max_length=160)
+    city: str | None = Field(default=None, min_length=1, max_length=120)
+    region: str | None = Field(default=None, min_length=1, max_length=120)
+    postal_code: str | None = Field(default=None, min_length=1, max_length=32)
+    country_code: str | None = Field(default=None, min_length=2, max_length=2)
+    tags: list[str] | None = Field(default=None, max_length=20)
+    owner_id: UUID | None = None
+    priority: int | None = Field(default=None, ge=0, le=5)
+    purpose: Literal["commercial_follow_up", "customer_relationship", "supplier_relationship"]
+    territory: str = Field(min_length=2, max_length=16)
+
+
 class ProspectFromGoogleItemResponse(BaseModel):
     place_id: str
     disposition: Literal["created", "existing"]
@@ -319,6 +350,378 @@ class ProspectFromGoogleItemResponse(BaseModel):
 
 class ProspectFromGoogleResponse(BaseModel):
     items: list[ProspectFromGoogleItemResponse]
+
+
+class SourceProviderCreateRequest(StrictCommand):
+    source_kind: Literal["csv", "facebook", "linkedin", "open_data", "api", "other"]
+    label: str = Field(min_length=1, max_length=160)
+
+
+class SourceProviderUpdateRequest(StrictCommand):
+    version: int = Field(ge=1)
+    label: str | None = Field(default=None, min_length=1, max_length=160)
+    status: Literal["draft", "active", "suspended", "retired"] | None = None
+    terms_reference: str | None = Field(default=None, min_length=1, max_length=256)
+    terms_url: str | None = Field(default=None, min_length=8, max_length=256)
+    valid_from: datetime | None = None
+    valid_until: datetime | None = None
+    allowed_territories: list[str] | None = Field(default=None, min_length=1, max_length=50)
+    allowed_purposes: list[Literal["commercial_follow_up", "customer_relationship", "supplier_relationship"]] | None = (
+        Field(default=None, min_length=1, max_length=10)
+    )
+    allowed_data_categories: (
+        list[Literal["business_identity", "person_identity", "email", "phone", "social_profile"]] | None
+    ) = Field(default=None, min_length=1, max_length=10)
+    rights_attested: bool | None = None
+
+
+class SourceProviderResponse(BaseModel):
+    id: UUID
+    source_kind: str
+    label: str
+    status: str
+    terms_reference: str | None
+    terms_url: str | None
+    valid_from: datetime | None
+    valid_until: datetime | None
+    allowed_territories: list[str]
+    allowed_purposes: list[str]
+    allowed_data_categories: list[str]
+    rights_attested_at: datetime | None
+    rights_attested_by: UUID | None
+    version: int
+    created_at: datetime
+    updated_at: datetime
+
+
+class SourceProviderPageResponse(BaseModel):
+    items: list[SourceProviderResponse]
+    next_cursor: str | None = None
+
+
+class AcquisitionDeclareRequest(StrictCommand):
+    source_kind: Literal["csv", "facebook", "linkedin", "open_data", "api", "other"]
+    source_label: str = Field(min_length=1, max_length=160)
+    provider_id: UUID
+    purpose: Literal["commercial_follow_up", "customer_relationship", "supplier_relationship"]
+    territory: str = Field(min_length=2, max_length=16)
+    obtained_at: datetime
+    data_categories: list[Literal["business_identity", "person_identity", "email", "phone", "social_profile"]] = Field(
+        min_length=1,
+        max_length=10,
+    )
+    external_reference: str | None = Field(default=None, min_length=1, max_length=128)
+
+
+class AcquisitionDecisionRequest(StrictCommand):
+    version: int = Field(ge=1)
+    decision: Literal["approve", "reject"]
+    reason_code: str | None = Field(default=None, min_length=1, max_length=64)
+
+
+class AcquisitionRecordResponse(BaseModel):
+    id: UUID
+    source_kind: str
+    source_label: str
+    provider_id: UUID
+    purpose: str
+    territory: str
+    obtained_at: datetime
+    declared_by: UUID
+    data_categories: list[str]
+    status: str
+    decision_reason_code: str | None
+    external_reference: str | None
+    version: int
+    created_at: datetime
+    updated_at: datetime
+    decided_at: datetime | None
+    decided_by: UUID | None
+
+
+class AcquisitionRecordPageResponse(BaseModel):
+    items: list[AcquisitionRecordResponse]
+    next_cursor: str | None = None
+
+
+class ManualSourceRequest(StrictCommand):
+    kind: Literal["manual"]
+    purpose: Literal["commercial_follow_up", "customer_relationship", "supplier_relationship"]
+    territory: str = Field(min_length=2, max_length=16)
+
+
+class AcquisitionSourceRequest(StrictCommand):
+    kind: Literal["acquisition"]
+    acquisition_id: UUID
+
+
+class ContactCreateRequest(StrictCommand):
+    display_name: str = Field(min_length=1, max_length=160)
+    role_label: str | None = Field(default=None, min_length=1, max_length=120)
+    source: ManualSourceRequest | AcquisitionSourceRequest
+
+
+class ContactResponse(BaseModel):
+    id: UUID
+    prospect_id: UUID
+    display_name: str
+    role_label: str | None
+    provenance_id: UUID
+    version: int
+    created_at: datetime
+    updated_at: datetime
+    archived_at: datetime | None
+
+
+class ContactPageResponse(BaseModel):
+    items: list[ContactResponse]
+
+
+class ContactChannelCreateRequest(StrictCommand):
+    channel_type: Literal["email", "phone", "linkedin", "facebook", "other"]
+    value: str = Field(min_length=1, max_length=512)
+    prospect_id: UUID | None = None
+    contact_id: UUID | None = None
+    source: ManualSourceRequest | AcquisitionSourceRequest
+
+
+class ContactChannelResponse(BaseModel):
+    id: UUID
+    channel_type: str
+    value: str
+    value_normalized: str
+    provenance_id: UUID
+    prospect_id: UUID | None
+    contact_id: UUID | None
+    purpose: str
+    version: int
+    archived_at: datetime | None
+
+
+class ContactPermissionResponse(BaseModel):
+    id: UUID
+    channel_id: UUID
+    status: str
+    legal_basis_code: str | None
+    provenance_id: UUID | None
+    reason: str | None
+    decided_at: datetime | None
+    decided_by: UUID | None
+    valid_from: datetime | None
+    valid_until: datetime | None
+    version: int
+    created_at: datetime
+    updated_at: datetime
+
+
+class ContactPermissionUpdateRequest(StrictCommand):
+    version: int = Field(ge=1)
+    status: Literal["allowed", "do_not_contact", "opted_out"]
+    legal_basis_code: Literal["consent", "contract", "legitimate_interest", "customer_request", "other"] | None = None
+    provenance_id: UUID | None = None
+    reason: str | None = Field(default=None, min_length=1, max_length=160)
+    valid_from: datetime | None = None
+    valid_until: datetime | None = None
+
+
+class RetentionPolicyCreateRequest(StrictCommand):
+    resource_type: Literal[
+        "prospect",
+        "contact",
+        "contact_channel",
+        "acquisition_record",
+        "provenance_record",
+        "import_declaration",
+    ]
+    policy_code: str = Field(min_length=1, max_length=64)
+    label: str = Field(min_length=1, max_length=160)
+    review_after_days: int = Field(ge=1, le=36500)
+    archive_after_days: int | None = Field(default=None, ge=1, le=36500)
+    effective_from: datetime | None = None
+
+
+class RetentionPolicyUpdateRequest(StrictCommand):
+    version: int = Field(ge=1)
+    policy_code: str | None = Field(default=None, min_length=1, max_length=64)
+    label: str | None = Field(default=None, min_length=1, max_length=160)
+    review_after_days: int | None = Field(default=None, ge=1, le=36500)
+    archive_after_days: int | None = Field(default=None, ge=1, le=36500)
+    effective_from: datetime | None = None
+
+
+class VersionedCommand(StrictCommand):
+    version: int = Field(ge=1)
+
+
+class RetentionPolicyResponse(BaseModel):
+    id: UUID
+    resource_type: str
+    policy_code: str
+    label: str
+    status: str
+    review_after_days: int
+    archive_after_days: int | None
+    effective_from: datetime
+    effective_until: datetime | None
+    approved_at: datetime | None
+    approved_by: UUID | None
+    created_by: UUID | None
+    created_at: datetime
+    updated_at: datetime
+    version: int
+
+
+class RetentionPolicyPageResponse(BaseModel):
+    items: list[RetentionPolicyResponse]
+    next_cursor: str | None = None
+
+
+class RetentionReviewResponse(BaseModel):
+    resource_type: str
+    resource_id: UUID
+    reference_at: datetime
+    review_due_at: datetime | None
+    review_state: str
+    policy_id: UUID | None
+    policy_code: str | None
+    active_hold_count: int
+    archived_at: datetime | None
+
+
+class RetentionReviewPageResponse(BaseModel):
+    items: list[RetentionReviewResponse]
+    next_cursor: str | None = None
+
+
+class RetentionHoldCreateRequest(StrictCommand):
+    resource_type: Literal[
+        "prospect",
+        "contact",
+        "contact_channel",
+        "acquisition_record",
+        "provenance_record",
+        "import_declaration",
+    ]
+    resource_id: UUID
+    reason_code: Literal[
+        "legal_request",
+        "contractual_obligation",
+        "investigation",
+        "data_subject_request",
+        "quality_review",
+        "other",
+    ]
+    note: str | None = Field(default=None, min_length=1, max_length=500)
+
+
+class RetentionHoldReleaseRequest(StrictCommand):
+    version: int = Field(ge=1)
+    release_reason_code: Literal["resolved", "expired", "entered_in_error", "other"]
+
+
+class RetentionHoldResponse(BaseModel):
+    id: UUID
+    resource_type: str
+    resource_id: UUID
+    reason_code: str
+    note: str | None
+    placed_at: datetime
+    placed_by: UUID | None
+    released_at: datetime | None
+    released_by: UUID | None
+    release_reason_code: str | None
+    version: int
+    created_at: datetime
+    updated_at: datetime
+
+
+class RetentionHoldPageResponse(BaseModel):
+    items: list[RetentionHoldResponse]
+    next_cursor: str | None = None
+
+
+class ImportDeclarationCreateRequest(StrictCommand):
+    acquisition_record_id: UUID
+    declaration_label: str = Field(min_length=1, max_length=160)
+    format_code: Literal["csv"]
+    schema_code: Literal["prospect_contacts_v1"]
+    declared_field_codes: list[
+        Literal[
+            "business_name",
+            "business_identifier",
+            "business_address",
+            "contact_name",
+            "contact_role",
+            "email",
+            "phone",
+            "linkedin_profile",
+            "facebook_profile",
+            "notes",
+        ]
+    ] = Field(min_length=1, max_length=50)
+    declared_data_categories: list[
+        Literal["business_identity", "person_identity", "email", "phone", "social_profile"]
+    ] = Field(min_length=1, max_length=10)
+    estimated_row_count: int | None = Field(default=None, ge=1, le=10000000)
+    declared_content_sha256: str | None = Field(default=None, min_length=64, max_length=64)
+
+
+class ImportDeclarationResponse(BaseModel):
+    id: UUID
+    acquisition_record_id: UUID
+    declaration_label: str
+    format_code: str
+    schema_code: str
+    declared_field_codes: list[str]
+    declared_data_categories: list[str]
+    estimated_row_count: int | None
+    declared_content_sha256: str | None
+    status: str
+    decision_reason_codes: list[str]
+    declared_by: UUID | None
+    declared_at: datetime
+    cancelled_at: datetime | None
+    archived_at: datetime | None
+    archived_by: UUID | None
+    archive_reason_code: str | None
+    version: int
+    created_at: datetime
+    updated_at: datetime
+
+
+class ImportDeclarationPageResponse(BaseModel):
+    items: list[ImportDeclarationResponse]
+    next_cursor: str | None = None
+
+
+class ArchiveRequest(StrictCommand):
+    version: int = Field(ge=1)
+    archive_reason_code: Literal[
+        "duplicate",
+        "invalid_data",
+        "no_longer_relevant",
+        "relationship_ended",
+        "import_cancelled",
+        "other",
+    ]
+
+
+class ArchivedProspectResponse(BaseModel):
+    prospect_id: UUID
+    version: int
+    contacts_archived: int
+    channels_archived: int
+
+
+class ArchivedContactResponse(BaseModel):
+    contact_id: UUID
+    version: int
+    channels_archived: int
+
+
+class ArchivedChannelResponse(BaseModel):
+    channel_id: UUID
+    version: int
 
 
 # Contrat Python historique conservé uniquement pour tester la neutralisation Excel.

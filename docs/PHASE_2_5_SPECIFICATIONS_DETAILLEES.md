@@ -23,9 +23,9 @@ politiques de conformité et l’interface.
 | --- | --- | --- | --- |
 | **2.5.1** | Modèle de données et migrations | 2.4.5 | Tables, contraintes, RLS, ports et audit prêts |
 | **2.5.2** | Socle prospect et ajout Google | 2.5.1 | Validé avec réserves ; preuves des étapes 9 et 10 à consigner |
-| **2.5.3** | Provenance, permissions et fournisseurs | 2.5.1 | Canaux, permissions, contrats et quarantaine |
-| **2.5.4** | Conservation et déclarations d’import | 2.5.1, 2.5.3 | Politiques, holds, archivage logique, déclaration sans parsing |
-| **2.5.5** | Interface et verrou qualité | 2.5.2, 2.5.3, 2.5.4 | Écrans, documentation, tests complets et Go/No-Go |
+| **2.5.3** | Provenance, permissions et fournisseurs | 2.5.1 | Implémentation réalisée ; recette locale PostgreSQL à finaliser |
+| **2.5.4** | Conservation et déclarations d’import | 2.5.1, 2.5.3 | Implémentation réalisée ; recette locale PostgreSQL groupée avec 2.5.5 |
+| **2.5.5** | Interface et verrou qualité | 2.5.2, 2.5.3, 2.5.4 | 2.5.5-A à 2.5.5-E implémentés ; validation QA et Azure en attente |
 
 ### 0.1 Critères de passage entre sous-incréments
 
@@ -44,6 +44,25 @@ Les spécifications proposées de 2.5.2 sont consignées dans
 
 Le rapport d’implémentation 2.5.2 est consigné dans
 [`PHASE_2_5_2_RAPPORT_IMPLEMENTATION.md`](PHASE_2_5_2_RAPPORT_IMPLEMENTATION.md).
+
+Les spécifications validées de 2.5.3 sont consignées dans
+[`PHASE_2_5_3_SPECIFICATIONS_DETAILLEES.md`](PHASE_2_5_3_SPECIFICATIONS_DETAILLEES.md).
+
+Le rapport d’implémentation 2.5.3 est consigné dans
+[`PHASE_2_5_3_RAPPORT_IMPLEMENTATION.md`](PHASE_2_5_3_RAPPORT_IMPLEMENTATION.md).
+
+Les spécifications validées et le rapport d’implémentation de 2.5.4 sont consignés dans
+[`PHASE_2_5_4_SPECIFICATIONS_DETAILLEES.md`](PHASE_2_5_4_SPECIFICATIONS_DETAILLEES.md) et
+[`PHASE_2_5_4_RAPPORT_IMPLEMENTATION.md`](PHASE_2_5_4_RAPPORT_IMPLEMENTATION.md).
+
+Les spécifications proposées de 2.5.5 sont consignées dans
+[`PHASE_2_5_5_SPECIFICATIONS_DETAILLEES.md`](PHASE_2_5_5_SPECIFICATIONS_DETAILLEES.md). Elles complètent notamment
+le profil CRM éditable, les écrans prospects et conformité, ainsi que la recette et le verrou qualité finaux.
+
+Décision de planification du 14 août 2026 : la recette fonctionnelle locale et la validation PostgreSQL finale des
+sous-incréments 2.5.3, 2.5.4 et 2.5.5 sont regroupées à la fin de 2.5.5. Les tests automatisés ciblés, contrôles
+statiques et vérifications de migration restent obligatoires pendant chaque implémentation ; ce regroupement ne
+constitue donc pas une autorisation d’empiler des changements non vérifiés.
 
 Le Kanban, les activités, l’import CSV effectif, les connecteurs externes et la facturation restent hors de 2.5 et
 seront planifiés dans les incréments CRM V1 suivants.
@@ -68,7 +87,7 @@ seront planifiés dans les incréments CRM V1 suivants.
 - contacts, canaux courriel/téléphone et permissions ;
 - registre des acquisitions, fournisseurs et preuves de provenance ;
 - ajout explicite de références Google (`place_id` uniquement) ;
-- déclaration d’import et lignes en quarantaine, sans traitement de fichier dans cet incrément ;
+- déclaration d’import et quarantaine de ses seules métadonnées, sans traitement de fichier dans cet incrément ;
 - politiques de conservation, dates de revue et mises en attente ;
 - capacités, RLS, audit transactionnel et API REST ;
 - tests PostgreSQL réels, non-régression Google, frontend et documentation.
@@ -118,8 +137,12 @@ Les tables sont locataires et doivent être protégées par RLS :
 - `source_providers` : fournisseur autorisé, licence/conditions, territoires, champs autorisés, statut et expiration ;
 - `retention_policies` : organisation, type de donnée, durée ou date de revue, action, version et approbation ;
 - `retention_holds` : donnée ou acquisition concernée, motif, créé par, dates et état ;
-- `import_declarations` : déclaration de fichier/source, empreinte, colonnes annoncées, finalité, statut et suppression prévue ;
-- `import_quarantine_rows` : erreurs et données minimales nécessaires à la correction, sans exposition aux rôles non autorisés.
+- `import_declarations` : déclaration de source, empreinte déclarée, codes de champs attendus, statut et motifs de
+  quarantaine contrôlés, sans fichier ni donnée brute.
+
+Décision 2.5.4 validée le 14 août 2026 : en l’absence de téléversement et de parsing, aucune ligne ne peut
+matériellement être mise en quarantaine. `import_quarantine_rows` est reportée à l’incrément qui livrera l’import
+effectif et ses contrôles ligne par ligne.
 
 Contraintes obligatoires : unicité partielle `(organization_id, google_place_id)` sur prospects actifs, FK strictes,
 contrôle d’un seul propriétaire de canal, index sur organisation/source/revue et colonnes normalisées non nulles.

@@ -4,6 +4,11 @@ Prospect est une application React et FastAPI en migration vers un CRM de gestio
 
 Ce fichier réunit le guide utilisateur et la documentation technique du socle actuel. La spécification complète se trouve dans [`docs/SPECIFICATION_CRM_V1.md`](docs/SPECIFICATION_CRM_V1.md), les décisions validées sur les sources dans [`docs/PHASE_1_1_ACQUISITION_CONSERVATION.md`](docs/PHASE_1_1_ACQUISITION_CONSERVATION.md) et la conception validée des fondations dans [`docs/PHASE_2_SPECIFICATIONS_DETAILLEES.md`](docs/PHASE_2_SPECIFICATIONS_DETAILLEES.md). Le contrat de 2.3.4 et son rapport d’implémentation se trouvent dans [`docs/PHASE_2_3_4_SPECIFICATIONS_DETAILLEES.md`](docs/PHASE_2_3_4_SPECIFICATIONS_DETAILLEES.md) et [`docs/PHASE_2_3_4_RAPPORT_IMPLEMENTATION.md`](docs/PHASE_2_3_4_RAPPORT_IMPLEMENTATION.md). La recette hébergée temporaire est cadrée par [`docs/PHASE_2_4_QA_SPECIFICATIONS_DETAILLEES.md`](docs/PHASE_2_4_QA_SPECIFICATIONS_DETAILLEES.md) et [`docs/PHASE_2_4_QA_DEPLOIEMENT_ORACLE.md`](docs/PHASE_2_4_QA_DEPLOIEMENT_ORACLE.md).
 
+La phase 2.5 livre le portefeuille Prospects, les contacts et permissions, les fournisseurs/acquisitions, la
+conservation et les déclarations d’import sans fichier. Sa recette regroupée se trouve dans
+[`docs/PHASE_2_5_RECETTE_REGROUPEE_QA.md`](docs/PHASE_2_5_RECETTE_REGROUPEE_QA.md). Le GO final reste conditionné à
+la signature QA, au verrou PostgreSQL réel et au passage Azure sur le même commit.
+
 ## Fonctionnalités disponibles
 
 - connexion et déconnexion avec un compte créé par l’exploitant ;

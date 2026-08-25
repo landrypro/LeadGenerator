@@ -14,25 +14,56 @@ from fastapi.staticfiles import StaticFiles
 from .application.ports import AsyncResource, DependencyProbe, TenantUnitOfWorkFactory, UnitOfWorkFactory
 from .application.use_cases import (
     AcceptInvitationUseCase,
+    ActivateRetentionPolicyUseCase,
     AddGoogleProspectsUseCase,
+    ArchiveContactChannelUseCase,
+    ArchiveContactUseCase,
+    ArchiveImportDeclarationUseCase,
+    ArchiveProspectUseCase,
+    CancelImportDeclarationUseCase,
+    ChangeContactPermissionUseCase,
     ChangeOrganizationStatusUseCase,
     CheckReadinessUseCase,
+    CreateContactChannelUseCase,
+    CreateContactUseCase,
     CreateManualProspectUseCase,
     CreateMemberInvitationUseCase,
     CreateOrganizationUseCase,
+    CreateRetentionPolicyUseCase,
+    CreateSourceProviderUseCase,
+    DecideAcquisitionUseCase,
+    DeclareAcquisitionUseCase,
+    DeclareImportUseCase,
+    GetAcquisitionUseCase,
+    GetContactPermissionUseCase,
     GetCurrentSessionUseCase,
+    GetImportDeclarationUseCase,
     GetMapSnapshotUseCase,
     GetOrganizationUseCase,
     GetProspectUseCase,
+    GetRetentionHoldUseCase,
+    GetRetentionPolicyUseCase,
+    GetSourceProviderUseCase,
+    ListAcquisitionsUseCase,
+    ListContactChannelsUseCase,
+    ListContactsUseCase,
+    ListImportDeclarationsUseCase,
     ListMemberInvitationsUseCase,
     ListMembersUseCase,
     ListPlatformAuditEventsUseCase,
     ListPlatformOrganizationsUseCase,
+    ListProspectChannelsUseCase,
     ListProspectsUseCase,
+    ListRetentionHoldsUseCase,
+    ListRetentionPoliciesUseCase,
+    ListRetentionReviewsUseCase,
+    ListSourceProvidersUseCase,
     ListTenantAuditEventsUseCase,
     LoginUseCase,
     LogoutUseCase,
+    PlaceRetentionHoldUseCase,
     PreviewInvitationUseCase,
+    ReleaseRetentionHoldUseCase,
     ResendInitialInvitationUseCase,
     ResendMemberInvitationUseCase,
     RevokeInitialInvitationUseCase,
@@ -41,6 +72,9 @@ from .application.use_cases import (
     SwitchOrganizationUseCase,
     UpdateMembershipUseCase,
     UpdateOrganizationUseCase,
+    UpdateProspectProfileUseCase,
+    UpdateRetentionPolicyUseCase,
+    UpdateSourceProviderUseCase,
 )
 from .config import Settings
 from .container import AppContainer
@@ -81,7 +115,9 @@ from .presentation.api.routers import (
     maps_router,
     organization_router,
     platform_router,
+    prospect_compliance_router,
     prospects_router,
+    retention_router,
 )
 
 DEVELOPMENT_RATE_LIMIT_KEY = b"prospect-development-only-rate-limit-key"
@@ -156,6 +192,40 @@ def build_container(settings: Settings) -> AppContainer:
     add_google_prospects: AddGoogleProspectsUseCase | None = None
     list_prospects: ListProspectsUseCase | None = None
     get_prospect: GetProspectUseCase | None = None
+    update_prospect_profile: UpdateProspectProfileUseCase | None = None
+    create_source_provider: CreateSourceProviderUseCase | None = None
+    update_source_provider: UpdateSourceProviderUseCase | None = None
+    get_source_provider: GetSourceProviderUseCase | None = None
+    list_source_providers: ListSourceProvidersUseCase | None = None
+    declare_acquisition: DeclareAcquisitionUseCase | None = None
+    get_acquisition: GetAcquisitionUseCase | None = None
+    list_acquisitions: ListAcquisitionsUseCase | None = None
+    decide_acquisition: DecideAcquisitionUseCase | None = None
+    create_contact: CreateContactUseCase | None = None
+    list_contacts: ListContactsUseCase | None = None
+    list_contact_channels: ListContactChannelsUseCase | None = None
+    list_prospect_channels: ListProspectChannelsUseCase | None = None
+    create_contact_channel: CreateContactChannelUseCase | None = None
+    get_contact_permission: GetContactPermissionUseCase | None = None
+    change_contact_permission: ChangeContactPermissionUseCase | None = None
+    create_retention_policy: CreateRetentionPolicyUseCase | None = None
+    update_retention_policy: UpdateRetentionPolicyUseCase | None = None
+    activate_retention_policy: ActivateRetentionPolicyUseCase | None = None
+    list_retention_policies: ListRetentionPoliciesUseCase | None = None
+    get_retention_policy: GetRetentionPolicyUseCase | None = None
+    list_retention_reviews: ListRetentionReviewsUseCase | None = None
+    place_retention_hold: PlaceRetentionHoldUseCase | None = None
+    list_retention_holds: ListRetentionHoldsUseCase | None = None
+    get_retention_hold: GetRetentionHoldUseCase | None = None
+    release_retention_hold: ReleaseRetentionHoldUseCase | None = None
+    declare_import: DeclareImportUseCase | None = None
+    list_import_declarations: ListImportDeclarationsUseCase | None = None
+    get_import_declaration: GetImportDeclarationUseCase | None = None
+    cancel_import_declaration: CancelImportDeclarationUseCase | None = None
+    archive_import_declaration: ArchiveImportDeclarationUseCase | None = None
+    archive_prospect: ArchiveProspectUseCase | None = None
+    archive_contact: ArchiveContactUseCase | None = None
+    archive_contact_channel: ArchiveContactChannelUseCase | None = None
     resend_initial_invitation: ResendInitialInvitationUseCase | None = None
     revoke_initial_invitation: RevokeInitialInvitationUseCase | None = None
     preview_invitation: PreviewInvitationUseCase | None = None
@@ -325,6 +395,40 @@ def build_container(settings: Settings) -> AppContainer:
         )
         list_prospects = ListProspectsUseCase(database.tenant_prospect_unit_of_work, prospect_cursor_codec)
         get_prospect = GetProspectUseCase(database.tenant_prospect_unit_of_work)
+        update_prospect_profile = UpdateProspectProfileUseCase(database.tenant_prospect_unit_of_work, clock)
+        create_source_provider = CreateSourceProviderUseCase(database.tenant_prospect_unit_of_work, clock)
+        update_source_provider = UpdateSourceProviderUseCase(database.tenant_prospect_unit_of_work, clock)
+        get_source_provider = GetSourceProviderUseCase(database.tenant_prospect_unit_of_work)
+        list_source_providers = ListSourceProvidersUseCase(database.tenant_prospect_unit_of_work)
+        declare_acquisition = DeclareAcquisitionUseCase(database.tenant_prospect_unit_of_work, clock)
+        get_acquisition = GetAcquisitionUseCase(database.tenant_prospect_unit_of_work)
+        list_acquisitions = ListAcquisitionsUseCase(database.tenant_prospect_unit_of_work)
+        decide_acquisition = DecideAcquisitionUseCase(database.tenant_prospect_unit_of_work, clock)
+        create_contact = CreateContactUseCase(database.tenant_prospect_unit_of_work, clock)
+        list_contacts = ListContactsUseCase(database.tenant_prospect_unit_of_work)
+        list_contact_channels = ListContactChannelsUseCase(database.tenant_prospect_unit_of_work)
+        list_prospect_channels = ListProspectChannelsUseCase(database.tenant_prospect_unit_of_work)
+        create_contact_channel = CreateContactChannelUseCase(database.tenant_prospect_unit_of_work, clock)
+        get_contact_permission = GetContactPermissionUseCase(database.tenant_prospect_unit_of_work)
+        change_contact_permission = ChangeContactPermissionUseCase(database.tenant_prospect_unit_of_work, clock)
+        create_retention_policy = CreateRetentionPolicyUseCase(database.tenant_prospect_unit_of_work, clock)
+        update_retention_policy = UpdateRetentionPolicyUseCase(database.tenant_prospect_unit_of_work, clock)
+        activate_retention_policy = ActivateRetentionPolicyUseCase(database.tenant_prospect_unit_of_work, clock)
+        list_retention_policies = ListRetentionPoliciesUseCase(database.tenant_prospect_unit_of_work)
+        get_retention_policy = GetRetentionPolicyUseCase(database.tenant_prospect_unit_of_work)
+        list_retention_reviews = ListRetentionReviewsUseCase(database.tenant_prospect_unit_of_work)
+        place_retention_hold = PlaceRetentionHoldUseCase(database.tenant_prospect_unit_of_work, clock)
+        list_retention_holds = ListRetentionHoldsUseCase(database.tenant_prospect_unit_of_work)
+        get_retention_hold = GetRetentionHoldUseCase(database.tenant_prospect_unit_of_work)
+        release_retention_hold = ReleaseRetentionHoldUseCase(database.tenant_prospect_unit_of_work, clock)
+        declare_import = DeclareImportUseCase(database.tenant_prospect_unit_of_work, clock)
+        list_import_declarations = ListImportDeclarationsUseCase(database.tenant_prospect_unit_of_work)
+        get_import_declaration = GetImportDeclarationUseCase(database.tenant_prospect_unit_of_work)
+        cancel_import_declaration = CancelImportDeclarationUseCase(database.tenant_prospect_unit_of_work, clock)
+        archive_import_declaration = ArchiveImportDeclarationUseCase(database.tenant_prospect_unit_of_work, clock)
+        archive_prospect = ArchiveProspectUseCase(database.tenant_prospect_unit_of_work, clock)
+        archive_contact = ArchiveContactUseCase(database.tenant_prospect_unit_of_work, clock)
+        archive_contact_channel = ArchiveContactChannelUseCase(database.tenant_prospect_unit_of_work, clock)
 
     return AppContainer(
         settings=settings,
@@ -349,6 +453,40 @@ def build_container(settings: Settings) -> AppContainer:
         add_google_prospects=add_google_prospects,
         list_prospects=list_prospects,
         get_prospect=get_prospect,
+        update_prospect_profile=update_prospect_profile,
+        create_source_provider=create_source_provider,
+        update_source_provider=update_source_provider,
+        get_source_provider=get_source_provider,
+        list_source_providers=list_source_providers,
+        declare_acquisition=declare_acquisition,
+        get_acquisition=get_acquisition,
+        list_acquisitions=list_acquisitions,
+        decide_acquisition=decide_acquisition,
+        create_contact=create_contact,
+        list_contacts=list_contacts,
+        list_contact_channels=list_contact_channels,
+        list_prospect_channels=list_prospect_channels,
+        create_contact_channel=create_contact_channel,
+        get_contact_permission=get_contact_permission,
+        change_contact_permission=change_contact_permission,
+        create_retention_policy=create_retention_policy,
+        update_retention_policy=update_retention_policy,
+        activate_retention_policy=activate_retention_policy,
+        list_retention_policies=list_retention_policies,
+        get_retention_policy=get_retention_policy,
+        list_retention_reviews=list_retention_reviews,
+        place_retention_hold=place_retention_hold,
+        list_retention_holds=list_retention_holds,
+        get_retention_hold=get_retention_hold,
+        release_retention_hold=release_retention_hold,
+        declare_import=declare_import,
+        list_import_declarations=list_import_declarations,
+        get_import_declaration=get_import_declaration,
+        cancel_import_declaration=cancel_import_declaration,
+        archive_import_declaration=archive_import_declaration,
+        archive_prospect=archive_prospect,
+        archive_contact=archive_contact,
+        archive_contact_channel=archive_contact_channel,
         resend_initial_invitation=resend_initial_invitation,
         revoke_initial_invitation=revoke_initial_invitation,
         preview_invitation=preview_invitation,
@@ -409,11 +547,29 @@ def create_app(
                 "/api/audit-events",
                 "/api/platform/audit-events",
                 "/api/prospects",
+                "/api/source-providers",
+                "/api/acquisitions",
+                "/api/contact-channels",
+                "/api/retention",
+                "/api/import-declarations",
+                "/api/contacts",
             )
         )
         if not protected_payload:
             return await request_validation_exception_handler(request, error)
-        if request.url.path.startswith(("/api/google/", "/api/map/", "/api/prospects")):
+        if request.url.path.startswith(
+            (
+                "/api/google/",
+                "/api/map/",
+                "/api/prospects",
+                "/api/source-providers",
+                "/api/acquisitions",
+                "/api/contact-channels",
+                "/api/retention",
+                "/api/import-declarations",
+                "/api/contacts",
+            )
+        ):
             content_type = request.headers.get("content-type", "").partition(";")[0].strip().lower()
             if content_type != "application/json":
                 return api_error(
@@ -441,7 +597,17 @@ def create_app(
             message = "Les filtres d’audit sont invalides."
         elif request.url.path.startswith(("/api/google/", "/api/map/")):
             message = "La commande Google est invalide."
-        elif request.url.path.startswith("/api/prospects"):
+        elif request.url.path.startswith(
+            (
+                "/api/prospects",
+                "/api/source-providers",
+                "/api/acquisitions",
+                "/api/contact-channels",
+                "/api/retention",
+                "/api/import-declarations",
+                "/api/contacts",
+            )
+        ):
             message = "La commande prospect est invalide."
         else:
             message = "La requête d’authentification est invalide."
@@ -461,6 +627,8 @@ def create_app(
     app.include_router(organization_router)
     app.include_router(google_places_router)
     app.include_router(prospects_router)
+    app.include_router(prospect_compliance_router)
+    app.include_router(retention_router)
     app.include_router(maps_router)
 
     frontend_dist = Path(__file__).resolve().parents[2] / "client" / "dist"

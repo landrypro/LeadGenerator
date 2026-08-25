@@ -3,25 +3,56 @@ from dataclasses import dataclass, field
 from .application.ports import AsyncResource, TenantUnitOfWorkFactory, UnitOfWorkFactory
 from .application.use_cases import (
     AcceptInvitationUseCase,
+    ActivateRetentionPolicyUseCase,
     AddGoogleProspectsUseCase,
+    ArchiveContactChannelUseCase,
+    ArchiveContactUseCase,
+    ArchiveImportDeclarationUseCase,
+    ArchiveProspectUseCase,
+    CancelImportDeclarationUseCase,
+    ChangeContactPermissionUseCase,
     ChangeOrganizationStatusUseCase,
     CheckReadinessUseCase,
+    CreateContactChannelUseCase,
+    CreateContactUseCase,
     CreateManualProspectUseCase,
     CreateMemberInvitationUseCase,
     CreateOrganizationUseCase,
+    CreateRetentionPolicyUseCase,
+    CreateSourceProviderUseCase,
+    DecideAcquisitionUseCase,
+    DeclareAcquisitionUseCase,
+    DeclareImportUseCase,
+    GetAcquisitionUseCase,
+    GetContactPermissionUseCase,
     GetCurrentSessionUseCase,
+    GetImportDeclarationUseCase,
     GetMapSnapshotUseCase,
     GetOrganizationUseCase,
     GetProspectUseCase,
+    GetRetentionHoldUseCase,
+    GetRetentionPolicyUseCase,
+    GetSourceProviderUseCase,
+    ListAcquisitionsUseCase,
+    ListContactChannelsUseCase,
+    ListContactsUseCase,
+    ListImportDeclarationsUseCase,
     ListMemberInvitationsUseCase,
     ListMembersUseCase,
     ListPlatformAuditEventsUseCase,
     ListPlatformOrganizationsUseCase,
+    ListProspectChannelsUseCase,
     ListProspectsUseCase,
+    ListRetentionHoldsUseCase,
+    ListRetentionPoliciesUseCase,
+    ListRetentionReviewsUseCase,
+    ListSourceProvidersUseCase,
     ListTenantAuditEventsUseCase,
     LoginUseCase,
     LogoutUseCase,
+    PlaceRetentionHoldUseCase,
     PreviewInvitationUseCase,
+    ReleaseRetentionHoldUseCase,
     ResendInitialInvitationUseCase,
     ResendMemberInvitationUseCase,
     RevokeInitialInvitationUseCase,
@@ -30,6 +61,9 @@ from .application.use_cases import (
     SwitchOrganizationUseCase,
     UpdateMembershipUseCase,
     UpdateOrganizationUseCase,
+    UpdateProspectProfileUseCase,
+    UpdateRetentionPolicyUseCase,
+    UpdateSourceProviderUseCase,
 )
 from .config import Settings
 
@@ -53,6 +87,40 @@ class AppContainer:
     add_google_prospects: AddGoogleProspectsUseCase | None = None
     list_prospects: ListProspectsUseCase | None = None
     get_prospect: GetProspectUseCase | None = None
+    update_prospect_profile: UpdateProspectProfileUseCase | None = None
+    create_source_provider: CreateSourceProviderUseCase | None = None
+    update_source_provider: UpdateSourceProviderUseCase | None = None
+    get_source_provider: GetSourceProviderUseCase | None = None
+    list_source_providers: ListSourceProvidersUseCase | None = None
+    declare_acquisition: DeclareAcquisitionUseCase | None = None
+    get_acquisition: GetAcquisitionUseCase | None = None
+    list_acquisitions: ListAcquisitionsUseCase | None = None
+    decide_acquisition: DecideAcquisitionUseCase | None = None
+    create_contact: CreateContactUseCase | None = None
+    list_contacts: ListContactsUseCase | None = None
+    list_contact_channels: ListContactChannelsUseCase | None = None
+    list_prospect_channels: ListProspectChannelsUseCase | None = None
+    create_contact_channel: CreateContactChannelUseCase | None = None
+    get_contact_permission: GetContactPermissionUseCase | None = None
+    change_contact_permission: ChangeContactPermissionUseCase | None = None
+    create_retention_policy: CreateRetentionPolicyUseCase | None = None
+    update_retention_policy: UpdateRetentionPolicyUseCase | None = None
+    activate_retention_policy: ActivateRetentionPolicyUseCase | None = None
+    list_retention_policies: ListRetentionPoliciesUseCase | None = None
+    get_retention_policy: GetRetentionPolicyUseCase | None = None
+    list_retention_reviews: ListRetentionReviewsUseCase | None = None
+    place_retention_hold: PlaceRetentionHoldUseCase | None = None
+    list_retention_holds: ListRetentionHoldsUseCase | None = None
+    get_retention_hold: GetRetentionHoldUseCase | None = None
+    release_retention_hold: ReleaseRetentionHoldUseCase | None = None
+    declare_import: DeclareImportUseCase | None = None
+    list_import_declarations: ListImportDeclarationsUseCase | None = None
+    get_import_declaration: GetImportDeclarationUseCase | None = None
+    cancel_import_declaration: CancelImportDeclarationUseCase | None = None
+    archive_import_declaration: ArchiveImportDeclarationUseCase | None = None
+    archive_prospect: ArchiveProspectUseCase | None = None
+    archive_contact: ArchiveContactUseCase | None = None
+    archive_contact_channel: ArchiveContactChannelUseCase | None = None
     resend_initial_invitation: ResendInitialInvitationUseCase | None = None
     revoke_initial_invitation: RevokeInitialInvitationUseCase | None = None
     preview_invitation: PreviewInvitationUseCase | None = None

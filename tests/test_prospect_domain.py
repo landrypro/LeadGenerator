@@ -15,6 +15,7 @@ from backend.app.domain.prospect import (
     ContactChannelType,
     ProspectDraft,
     ProspectOrigin,
+    ProspectProfilePatch,
     ProspectValidationError,
     ProvenanceSourceKind,
     ensure_channel_provenance_is_allowed,
@@ -38,6 +39,11 @@ def test_prospect_draft_rejects_invalid_alias_and_priority() -> None:
             source_label="Saisie manuelle",
             priority=6,
         )
+
+
+def test_prospect_profile_rejects_unicode_tag_collisions() -> None:
+    with pytest.raises(ProspectValidationError):
+        ProspectProfilePatch(tags=("Café", "Cafe\u0301"))
 
 
 def test_contact_channel_requires_exactly_one_target() -> None:
@@ -126,3 +132,43 @@ def test_prospect_audit_accepts_creation_origin() -> None:
     )
 
     assert dict(event.metadata) == {"origin": "google_place"}
+
+
+def test_compliance_audit_metadata_uses_stable_codes_without_sensitive_values() -> None:
+    event = AuditEventDraft(
+        id=uuid4(),
+        scope=AuditScope.TENANT,
+        action=AuditAction.ACQUISITION_QUARANTINED,
+        entity_type="acquisition",
+        entity_id=uuid4(),
+        actor_kind=AuditActorKind.USER,
+        actor_id=uuid4(),
+        organization_id=uuid4(),
+        request_id="acquisition-quarantine",
+        correlation_id="acquisition-quarantine",
+        source=AuditSource.API,
+        metadata={"source_kind": "csv", "reason_code": "territory_not_allowed"},
+    )
+
+    assert dict(event.metadata) == {"source_kind": "csv", "reason_code": "territory_not_allowed"}
+
+    with pytest.raises(InvalidAuditMetadata):
+        AuditEventDraft(
+            id=uuid4(),
+            scope=AuditScope.TENANT,
+            action=AuditAction.CONTACT_PERMISSION_CHANGED,
+            entity_type="contact_permission",
+            entity_id=uuid4(),
+            actor_kind=AuditActorKind.USER,
+            actor_id=uuid4(),
+            organization_id=uuid4(),
+            request_id="permission-change",
+            correlation_id="permission-change",
+            source=AuditSource.API,
+            metadata={
+                "previous_status": "unknown",
+                "new_status": "do_not_contact",
+                "propagated_count": 1,
+                "value": "client@example.ca",
+            },
+        )

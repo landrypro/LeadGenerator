@@ -5,6 +5,8 @@ import { MembersPage } from '../features/organizations/MembersPage'
 import { OrganizationPage } from '../features/organizations/OrganizationPage'
 import { ConfirmationDialog } from '../features/organizations/components/ConfirmationDialog'
 import { PlatformOrganizationsPage } from '../features/platform/PlatformOrganizationsPage'
+import { ProvidersAcquisitionsPage } from '../features/compliance/ProvidersAcquisitionsPage'
+import { RetentionImportsPage } from '../features/retention/RetentionImportsPage'
 import { axeViolations, formatViolations } from './accessibility'
 
 
@@ -17,6 +19,8 @@ vi.mock('../features/organizations/hooks/useOrganization', () => ({
 vi.mock('../features/organizations/hooks/useMembers', () => ({ useMembers: () => resource([member()]) }))
 vi.mock('../features/organizations/hooks/useInvitations', () => ({ useInvitations: () => ({ ...resource([invitation()]), upsert: vi.fn(), remove: vi.fn() }) }))
 vi.mock('../features/platform/hooks/usePlatformOrganizations', () => ({ usePlatformOrganizations: () => ({ ...resource([provisioning()]), upsert: vi.fn() }) }))
+vi.mock('../features/compliance/api/complianceApi', () => ({ complianceApi: { listProviders: vi.fn().mockResolvedValue({ items: [] }), listAcquisitions: vi.fn().mockResolvedValue({ items: [] }) } }))
+vi.mock('../features/retention/api/retentionApi', () => ({ retentionApi: { listPolicies: vi.fn().mockResolvedValue({ items: [] }), listReviews: vi.fn().mockResolvedValue({ items: [] }), listHolds: vi.fn().mockResolvedValue({ items: [] }), listImports: vi.fn().mockResolvedValue({ items: [] }) } }))
 
 
 describe('accessibilité de l’administration', () => {
@@ -45,6 +49,18 @@ describe('accessibilité de l’administration', () => {
   })
 
   it('valide le dialogue de confirmation', async () => assertAccessible(<main><button type="button">Déclencheur</button><ConfirmationDialog title="Confirmer l’action" confirmLabel="Confirmer" onCancel={vi.fn()} onConfirm={vi.fn()}><p>Cette action est sensible.</p></ConfirmationDialog></main>))
+
+  it('valide Fournisseurs et acquisitions', async () => {
+    const { container } = render(<ProvidersAcquisitionsPage session={session(['providers:read', 'providers:manage', 'acquisitions:declare', 'acquisitions:review'])} />)
+    await screen.findByRole('heading', { name: 'Fournisseurs enregistrés' })
+    expect(formatViolations(await axeViolations(container))).toEqual([])
+  })
+
+  it('valide Conservation et déclarations d’import', async () => {
+    const { container } = render(<RetentionImportsPage session={session(['retention:read', 'retention:manage', 'retention:hold:create', 'retention:hold:release', 'imports:read', 'imports:declare', 'imports:archive'])} />)
+    await screen.findByRole('heading', { name: 'Politiques' })
+    expect(formatViolations(await axeViolations(container))).toEqual([])
+  })
 })
 
 

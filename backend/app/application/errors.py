@@ -158,6 +158,52 @@ class ProspectResourceNotFound(RuntimeError):
     """Le prospect demandé n’existe pas dans l’organisation active."""
 
 
+class ProviderNotUsable(RuntimeError):
+    """Le fournisseur ne peut pas justifier une acquisition exploitable."""
+
+
+class AcquisitionNotApproved(RuntimeError):
+    """L’acquisition ne peut pas alimenter une donnée métier."""
+
+
+class AcquisitionQuarantined(RuntimeError):
+    """L’acquisition est en quarantaine."""
+
+
+class ProspectComplianceResourceNotFound(RuntimeError):
+    """La ressource conformité n’existe pas dans l’organisation active."""
+
+
+class RetentionPolicyOverlap(RuntimeError):
+    """La politique de conservation chevauche une version active existante."""
+
+
+class RetentionHoldAlreadyReleased(RuntimeError):
+    """La mise en attente de conservation est déjà libérée."""
+
+
+class RetentionResourceOnHold(RuntimeError):
+    """La ressource est protégée par une mise en attente active."""
+
+
+class RawImportContentForbidden(RuntimeError):
+    """La déclaration d’import contient du contenu brut interdit."""
+
+
+class ChannelDuplicate(RuntimeError):
+    """Le canal existe déjà sur la même cible active."""
+
+
+class InvalidPermissionTransition(RuntimeError):
+    """Le changement de permission demandé n’est pas autorisé."""
+
+
+class ProspectVersionConflict(RuntimeError):
+    def __init__(self, current_version: int | None = None) -> None:
+        super().__init__("La ressource prospect a été modifiée depuis sa lecture.")
+        self.current_version = current_version
+
+
 class OrganizationResourceNotFound(RuntimeError):
     """La ressource n’existe pas dans l’organisation active."""
 

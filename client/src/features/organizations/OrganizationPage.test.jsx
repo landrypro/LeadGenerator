@@ -51,11 +51,12 @@ describe('OrganizationPage', () => {
       session={session(['organization:read', 'organization:update'])}
       onOrganizationUpdated={onOrganizationUpdated}
     />)
-    const nameInput = await screen.findByRole('textbox', { name: 'Nom' })
+    const nameInput = await hydratedNameInput()
     const submit = screen.getByRole('button', { name: 'Enregistrer les modifications' })
     expect(submit).toBeDisabled()
 
     fireEvent.change(nameInput, { target: { value: 'Entreprise Renommée' } })
+    await waitFor(() => expect(submit).toBeEnabled())
     fireEvent.click(submit)
 
     await waitFor(() => expect(organizationApi.update).toHaveBeenCalledWith(
@@ -69,9 +70,10 @@ describe('OrganizationPage', () => {
   it('neutralise une double soumission', async () => {
     organizationApi.update.mockReturnValue(new Promise(() => {}))
     render(<OrganizationPage session={session(['organization:read', 'organization:update'])} />)
-    const nameInput = await screen.findByRole('textbox', { name: 'Nom' })
+    const nameInput = await hydratedNameInput()
     fireEvent.change(nameInput, { target: { value: 'Nouveau nom' } })
     const submit = screen.getByRole('button', { name: 'Enregistrer les modifications' })
+    await waitFor(() => expect(submit).toBeEnabled())
 
     fireEvent.click(submit)
     fireEvent.click(submit)
@@ -91,9 +93,11 @@ describe('OrganizationPage', () => {
       { version: '4' },
     ))
     render(<OrganizationPage session={session(['organization:read', 'organization:update'])} />)
-    const nameInput = await screen.findByRole('textbox', { name: 'Nom' })
+    const nameInput = await hydratedNameInput()
     fireEvent.change(nameInput, { target: { value: 'Ma saisie conservée' } })
-    fireEvent.click(screen.getByRole('button', { name: 'Enregistrer les modifications' }))
+    const submit = screen.getByRole('button', { name: 'Enregistrer les modifications' })
+    await waitFor(() => expect(submit).toBeEnabled())
+    fireEvent.click(submit)
 
     expect(await screen.findByRole('heading', { name: 'Une version plus récente existe' })).toBeInTheDocument()
     expect(nameInput).toHaveValue('Ma saisie conservée')
@@ -127,4 +131,11 @@ function session(capabilities) {
     memberships: [],
     capabilities,
   }
+}
+
+
+async function hydratedNameInput() {
+  const input = await screen.findByRole('textbox', { name: 'Nom' })
+  await waitFor(() => expect(input).toHaveValue(organization.name))
+  return input
 }

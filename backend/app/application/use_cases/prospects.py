@@ -7,12 +7,20 @@ from datetime import UTC
 from uuid import UUID
 
 from ...domain.audit import AuditAction
-from ...domain.prospect import ProspectDraft, ProspectOrigin, ProspectView
+from ...domain.prospect import (
+    ProspectDraft,
+    ProspectOrigin,
+    ProspectProfilePatch,
+    ProspectView,
+    ProvenanceDraft,
+    ProvenanceSourceKind,
+)
 from ..audit_events import tenant_audit_event
 from ..errors import (
     InsufficientCapability,
     InvalidGoogleSelectionGrant,
     ProspectResourceNotFound,
+    ProspectVersionConflict,
 )
 from ..models import GoogleAccessOwner
 from ..ports import Clock, CursorCodec
@@ -137,6 +145,11 @@ class ListProspectsUseCase:
         has_capability: bool,
         cursor: str | None,
         limit: int,
+        include_archived: bool = False,
+        search_text: str | None = None,
+        origin: str | None = None,
+        owner_id: UUID | None = None,
+        priority: int | None = None,
     ) -> ProspectPage:
         _require_capability(has_capability)
         _validate_limit(limit)
@@ -146,6 +159,11 @@ class ListProspectsUseCase:
                 limit=limit + 1,
                 after_created_at=after_created_at,
                 after_id=after_id,
+                include_archived=include_archived,
+                search_text=search_text,
+                origin=origin,
+                owner_id=owner_id,
+                priority=priority,
             )
         items = rows[:limit]
         return ProspectPage(items=items, next_cursor=_next_cursor(rows, items, limit, self._cursor_codec))
@@ -162,6 +180,69 @@ class GetProspectUseCase:
         if prospect is None:
             raise ProspectResourceNotFound
         return prospect
+
+
+class UpdateProspectProfileUseCase:
+    def __init__(self, unit_of_work_factory: ProspectUnitOfWorkFactory, clock: Clock) -> None:
+        self._unit_of_work_factory = unit_of_work_factory
+        self._clock = clock
+
+    async def execute(
+        self,
+        *,
+        context: TenantContext,
+        prospect_id: UUID,
+        expected_version: int,
+        patch: ProspectProfilePatch,
+        purpose: str,
+        territory: str,
+        has_capability: bool,
+    ) -> ProspectView:
+        _require_capability(has_capability)
+        now = self._clock.now()
+        async with self._unit_of_work_factory(context) as unit_of_work:
+            current = await unit_of_work.prospects.get(prospect_id)
+            if current is None:
+                raise ProspectResourceNotFound
+            provenance = await unit_of_work.provenance.add(
+                ProvenanceDraft(
+                    organization_id=context.organization_id,
+                    source_kind=ProvenanceSourceKind.MANUAL,
+                    source_label=MANUAL_SOURCE_LABEL,
+                    purpose=purpose,
+                    territory=territory,
+                    obtained_at=now,
+                    attested_by=context.actor_id,
+                ),
+                now=now,
+            )
+            await unit_of_work.audit.record(
+                tenant_audit_event(
+                    context,
+                    AuditAction.PROVENANCE_RECORDED,
+                    provenance.id,
+                    {"source_kind": provenance.source_kind.value},
+                )
+            )
+            updated = await unit_of_work.prospects.update(
+                prospect_id,
+                expected_version=expected_version,
+                patch=patch,
+                profile_provenance_id=provenance.id,
+                now=now,
+            )
+            if updated is None:
+                raise ProspectVersionConflict(current.version)
+            await unit_of_work.audit.record(
+                tenant_audit_event(
+                    context,
+                    AuditAction.PROSPECT_UPDATED,
+                    prospect_id,
+                    {"changed_fields": patch.changed_fields()},
+                )
+            )
+            await unit_of_work.commit()
+            return updated
 
 
 def _require_capability(has_capability: bool) -> None:

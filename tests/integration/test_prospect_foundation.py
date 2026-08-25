@@ -295,6 +295,71 @@ async def test_prospect_repository_isolated_by_tenant_and_audited_atomically() -
     assert audit_count == 1
 
 
+async def test_prospect_list_accepts_omitted_optional_filters() -> None:
+    app_url, owner_url = database_urls()
+    app = create_database(app_url)
+    owner = create_database(owner_url)
+    fixture = await create_fixture(owner)
+    now = datetime.now(UTC).replace(microsecond=0)
+    context = tenant_context(fixture, request_id=f"prospect-list-default-filters-{uuid4()}")
+    try:
+        async with app.tenant_prospect_unit_of_work(context) as unit_of_work:
+            prospect = await unit_of_work.prospects.add(
+                ProspectDraft(
+                    organization_id=fixture.organization_a_id,
+                    internal_alias="Prospect liste QA",
+                    origin=ProspectOrigin.MANUAL,
+                    source_label="Saisie QA",
+                ),
+                now=now,
+            )
+            await unit_of_work.commit()
+
+        async with app.tenant_prospect_unit_of_work(context) as unit_of_work:
+            listed = await unit_of_work.prospects.list_active(limit=25)
+            channels = await unit_of_work.contact_channels.list_for_prospect(prospect.id)
+            duplicate = await unit_of_work.contact_channels.find_duplicate(
+                channel_type="phone",
+                value_normalized="+14185550100",
+                prospect_id=prospect.id,
+                contact_id=None,
+            )
+    finally:
+        await delete_fixture(owner, fixture)
+        await app.close()
+        await owner.close()
+
+    assert tuple(item.id for item in listed) == (prospect.id,)
+    assert channels == ()
+    assert duplicate is None
+
+
+async def test_retention_lists_accept_omitted_optional_filters() -> None:
+    app_url, owner_url = database_urls()
+    app = create_database(app_url)
+    owner = create_database(owner_url)
+    fixture = await create_fixture(owner)
+    context = tenant_context(fixture, request_id=f"retention-list-default-filters-{uuid4()}")
+    try:
+        async with app.tenant_prospect_unit_of_work(context) as unit_of_work:
+            policies = await unit_of_work.retention_policies.list(limit=25)
+            reviews = await unit_of_work.retention_reviews.list(
+                resource_type=None,
+                review_state=None,
+                due_before=None,
+                limit=25,
+            )
+            holds = await unit_of_work.retention_holds.list(limit=25)
+    finally:
+        await delete_fixture(owner, fixture)
+        await app.close()
+        await owner.close()
+
+    assert policies == ()
+    assert reviews == ()
+    assert holds == ()
+
+
 async def test_unique_active_google_place_and_archive_version() -> None:
     app_url, owner_url = database_urls()
     app = create_database(app_url)
@@ -410,6 +475,69 @@ async def test_contact_channel_requires_non_google_provenance_at_database_level(
         await delete_fixture(owner, fixture)
         await app.close()
         await owner.close()
+
+
+async def test_prospect_compliance_migration_adds_contract_and_permission_guards() -> None:
+    _app_url, owner_url = database_urls()
+    owner = create_database(owner_url)
+    try:
+        async with owner.engine.connect() as connection:
+            columns = set(
+                (
+                    await connection.scalars(
+                        text(
+                            """
+                            SELECT table_name || '.' || column_name
+                            FROM information_schema.columns
+                            WHERE table_schema = 'public'
+                              AND table_name IN (
+                                  'source_providers', 'acquisition_records',
+                                  'provenance_records', 'contact_permissions'
+                              )
+                              AND column_name IN (
+                                  'allowed_territories', 'rights_attested_at',
+                                  'data_categories', 'decision_reason_code',
+                                  'acquisition_record_id', 'legal_basis_code',
+                                  'valid_until', 'decided_by'
+                              )
+                            """
+                        )
+                    )
+                ).all()
+            )
+            permission_unique = await connection.scalar(
+                text(
+                    """
+                    SELECT count(*)
+                    FROM pg_constraint
+                    WHERE conname = 'uq_contact_permissions_organization_id_channel_id'
+                    """
+                )
+            )
+            trigger_count = await connection.scalar(
+                text(
+                    """
+                    SELECT count(*)
+                    FROM pg_trigger
+                    WHERE tgname = 'contact_channels_ensure_unknown_permission'
+                    """
+                )
+            )
+    finally:
+        await owner.close()
+
+    assert {
+        "source_providers.allowed_territories",
+        "source_providers.rights_attested_at",
+        "acquisition_records.data_categories",
+        "acquisition_records.decision_reason_code",
+        "provenance_records.acquisition_record_id",
+        "contact_permissions.legal_basis_code",
+        "contact_permissions.valid_until",
+        "contact_permissions.decided_by",
+    } <= columns
+    assert permission_unique == 1
+    assert trigger_count == 1
 
 
 async def test_rollback_removes_prospect_and_audit_event() -> None:
