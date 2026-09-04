@@ -1,8 +1,8 @@
 # Marketteo CRM - Manuel utilisateur
 
-**Version :** 0.1  
-**État :** première édition à valider  
-**Date de référence :** 25 août 2026  
+**Version :** 0.5
+**État :** édition illustrée à valider
+**Date de référence :** 26 août 2026
 **Public :** commerciaux, gestionnaires, administrateurs d'organisation et administrateurs de plateforme
 
 > Les libellés visibles de l'application utilisent désormais la marque Marketteo CRM. Les identifiants techniques historiques peuvent encore contenir `prospect` ou `LeadGenerator` afin de préserver les installations existantes.
@@ -28,9 +28,12 @@ Lorsqu'un résultat est ajouté au CRM, Marketteo conserve la référence Google
 ### 1.2 Fonctionnalités actuellement limitées
 
 - Une recherche Google retourne au maximum 20 résultats et ne lance pas de pagination automatique.
+- Une limite opérationnelle est appliquée par journée UTC : 20 recherches par utilisateur dans l'organisation active et 100 par organisation. Elle protège le budget technique Google ; ce n'est pas encore un forfait commercial ni une facture.
 - Le bouton « Exporter Excel » des résultats Google est désactivé.
 - Une déclaration d'import CSV enregistre l'intention et le schéma ; aucun fichier n'est encore téléversé ou traité.
 - Le pipeline commercial complet, les tâches, rappels, opportunités et la facturation ne font pas partie de cette édition.
+- Les métriques et journaux techniques sont réservés à l’exploitation : ils ne sont pas visibles dans le CRM et ne
+  changent ni les droits commerciaux ni les limites affichées.
 
 ## 2. Accéder à l'application
 
@@ -62,6 +65,9 @@ Si un autre compte est déjà connecté, utilisez « Utiliser un autre compte »
 4. sélectionnez « Se connecter ».
 
 L'accès est réservé aux comptes créés ou invités par un administrateur. En cas d'échec répété, vérifiez l'adresse utilisée et contactez l'administrateur de votre organisation.
+
+![Écran de connexion Marketteo CRM](images/connexion.png)
+*Figure 1 — Écran de connexion Marketteo CRM. Les champs restent volontairement vides dans toute capture diffusée.*
 
 ### 2.3 Choisir l'organisation active
 
@@ -104,6 +110,8 @@ Ouvrez « Recherche Google » dans la navigation.
 
 Chaque recherche effectue un seul appel Google Text Search et affiche jusqu'à 20 résultats. La carte de couverture apparaît si votre rôle permet l'accès à la carte et si le service est disponible.
 
+La limite quotidienne est calculée par le serveur et se remet à zéro à minuit UTC. Lorsqu'elle est atteinte, aucune recherche n'est transmise à Google. Attendez le délai affiché, ou contactez l'administrateur de votre organisation si l'activité prévue nécessite une révision de la configuration.
+
 ### 3.2 Lire et filtrer les résultats
 
 Le tableau indique l'entreprise Google temporaire, son `place_id`, la localisation, la distance, l'état et un lien d'ouverture dans Google Maps. Le `place_id` est la référence technique Google qui permet d'éviter les doublons ; ce n'est pas le nom commercial du prospect dans Marketteo. « Non vérifiable » signifie que la distance ne peut pas être confirmée, notamment pour certaines entreprises de zone de service.
@@ -123,6 +131,9 @@ Pour ajouter plusieurs résultats, cochez les lignes, renseignez un nom interne 
 
 > Important : « Ajouter » ne copie pas les détails descriptifs Google dans la fiche. Les coordonnées de contact doivent provenir d'une source autorisée et être saisies séparément.
 
+![Recherche ponctuelle et ajout au CRM](images/recherche-et-ajout.png)
+*Figure 2 — Recherche d'établissements et ajout au CRM. Le nom interne est saisi par l'utilisateur avant l'ajout.*
+
 ## 4. Gérer les prospects
 
 ### 4.1 Consulter le portefeuille
@@ -133,6 +144,9 @@ Ouvrez « Prospects ». La liste montre le nom interne, l'origine, le secteur et
 - Cochez « Inclure les archivés » pour afficher les éléments archivés.
 - Sélectionnez « Afficher davantage » lorsqu'une page suivante est disponible.
 - Sélectionnez une ligne pour ouvrir la fiche.
+
+![Portefeuille des prospects Marketteo CRM](images/portefeuille-prospects.png)
+*Figure 3 — Portefeuille des prospects avec les informations CRM utiles au suivi commercial.*
 
 ### 4.2 Créer un prospect manuellement
 
@@ -185,6 +199,9 @@ Les états possibles sont :
 | Opposition enregistrée | La personne s'est opposée au contact | Aucun contact ; conserver la trace |
 
 Les gestionnaires et administrateurs peuvent autoriser un canal lorsqu'une provenance compatible existe. Les commerciaux peuvent enregistrer une restriction ou une opposition, mais ne peuvent pas transformer seuls un état inconnu en « Contact autorisé ».
+
+![Fiche prospect et permissions de contact](images/fiche-prospect-permissions.png)
+*Figure 4 — Fiche prospect : profil CRM, contacts, canaux et état de permission. Les données affichées sont fictives.*
 
 ## 5. Documenter les sources et acquisitions
 
@@ -252,7 +269,20 @@ Un gestionnaire ou administrateur autorisé peut créer un hold. Seul un rôle d
 4. cochez les champs et catégories réellement présents ;
 5. sélectionnez « Déclarer sans téléverser ».
 
-La déclaration ne téléverse aucun fichier. Elle peut être annulée ou archivée selon votre rôle. Le traitement réel du CSV sera documenté lorsqu'il sera disponible.
+La déclaration ne téléverse aucun fichier. Elle peut être annulée ou archivée selon votre rôle.
+
+### 6.4 Importer un CSV déclaré
+
+Après avoir créé une déclaration CSV liée à une acquisition approuvée :
+
+1. ouvrez « Déclarations d’import » ;
+2. choisissez la déclaration et un fichier CSV UTF-8 de 10 Mio ou moins ;
+3. consultez l’aperçu temporaire, puis associez chaque colonne utile à un champ CRM ;
+4. sélectionnez « Enregistrer le mapping », puis « Valider le fichier » ;
+5. vérifiez les compteurs de créations, doublons exacts et lignes en quarantaine ;
+6. sélectionnez « Confirmer l’import ».
+
+Les lignes valides créent des données CRM avec leur provenance. Les canaux reçoivent toujours la permission « non déterminée » : un import n’autorise jamais à contacter une personne. Les doublons exacts sont ignorés. Le rapport n’affiche que les numéros de lignes, les codes de motifs et une référence opaque ; il ne restitue aucune valeur brute du fichier. Le fichier source reste privé et temporaire, puis est supprimé après confirmation ou au plus tard dans les 24 heures.
 
 ## 7. Administrer une organisation
 
@@ -338,6 +368,16 @@ Revenez à l'accueil proposé. Si l'accès est nécessaire à votre travail, dem
 
 Le service doit être configuré côté serveur avec la clé Google Maps. Signalez le message à l'équipe qui exploite Marketteo CRM ; aucun réglage utilisateur ne peut le corriger.
 
+### La limite quotidienne de recherches Google est atteinte
+
+Marketteo a bloqué la recherche avant l'appel Google afin de protéger le budget de l'organisation. Attendez la remise à zéro indiquée par l'application. Modifier le terme, le rayon ou actualiser la page ne contourne pas cette limite. Les limites actuelles sont opérationnelles et peuvent évoluer avant la commercialisation des forfaits.
+
+### La recherche ou la carte indique que la protection est temporairement indisponible
+
+Réessayez après quelques instants. Marketteo ne lance pas la recherche ou la carte tant que sa protection temporaire ne
+peut pas être garantie ; évitez donc de cliquer plusieurs fois. Si le message persiste, transmettez l'heure approximative
+de l'incident à l'équipe qui exploite l'application. Aucun réglage de navigateur n'est nécessaire.
+
 ### La carte n'est pas disponible
 
 Les résultats textuels peuvent rester utilisables. Réessayez, puis signalez l'erreur si elle persiste. N'interprétez pas une carte absente comme une absence de résultats.
@@ -376,4 +416,5 @@ C'est l'état normal après sa création. Un gestionnaire ou administrateur doit
 
 | Version | Date | État | Résumé |
 |---|---|---|---|
+| 0.5 | 26 août 2026 | À valider | Ajout de quatre captures d'écran avec données de démonstration ; procédures alignées sur le nom interne CRM et le `place_id` |
 | 0.1 | 25 août 2026 | À valider | Structure initiale fondée sur les routes, composants, capacités et règles métier présentes dans le dépôt |

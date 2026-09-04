@@ -10,6 +10,7 @@ from sqlalchemy import (
     ForeignKeyConstraint,
     Index,
     Integer,
+    PrimaryKeyConstraint,
     String,
     Text,
     UniqueConstraint,
@@ -42,7 +43,7 @@ class SourceProviderModel(Base):
             name="allowed_data_categories_array",
         ),
         CheckConstraint("version > 0", name="version_positive"),
-        UniqueConstraint("organization_id", "id"),
+        UniqueConstraint("organization_id", "id", name="uq_source_providers_organization_id_id"),
         Index("ix_source_providers_organization_source_kind", "organization_id", "source_kind"),
     )
 
@@ -84,7 +85,7 @@ class AcquisitionRecordModel(Base):
             ["source_providers.organization_id", "source_providers.id"],
             ondelete="RESTRICT",
         ),
-        UniqueConstraint("organization_id", "id"),
+        UniqueConstraint("organization_id", "id", name="uq_acquisition_records_organization_id_id"),
         Index("ix_acquisition_records_organization_source_obtained", "organization_id", "source_kind", "obtained_at"),
         Index(
             "uq_acquisition_records_declaration_idempotency",
@@ -536,3 +537,115 @@ class ImportDeclarationModel(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=text("CURRENT_TIMESTAMP"))
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=text("CURRENT_TIMESTAMP"))
     version: Mapped[int] = mapped_column(Integer, server_default=text("1"))
+
+
+class CsvImportSessionModel(Base):
+    __tablename__ = "csv_import_sessions"
+    __table_args__ = (
+        ForeignKeyConstraint(
+            ["organization_id", "declaration_id"],
+            ["import_declarations.organization_id", "import_declarations.id"],
+            ondelete="RESTRICT",
+        ),
+        UniqueConstraint("organization_id", "id", name="uq_csv_import_sessions_organization_id_id"),
+        Index("ix_csv_import_sessions_organization_declaration", "organization_id", "declaration_id"),
+        Index("ix_csv_import_sessions_expiry", "expires_at"),
+        CheckConstraint("content_sha256 ~ '^[a-f0-9]{64}$'", name="sha256"),
+        CheckConstraint("byte_size BETWEEN 1 AND 10485760", name="size"),
+        CheckConstraint(
+            "jsonb_typeof(headers) = 'array' AND jsonb_array_length(headers) BETWEEN 1 AND 50",
+            name="headers",
+        ),
+        CheckConstraint("jsonb_typeof(mapping) = 'object'", name="mapping"),
+        CheckConstraint(
+            "status IN ('uploaded', 'mapped', 'validated', 'confirmed', 'expired')",
+            name="status",
+        ),
+        CheckConstraint("version > 0", name="version"),
+    )
+
+    id: Mapped[UUID] = mapped_column(primary_key=True, default=uuid4)
+    organization_id: Mapped[UUID] = mapped_column(ForeignKey("organizations.id", ondelete="CASCADE"))
+    declaration_id: Mapped[UUID] = mapped_column()
+    file_ref: Mapped[str] = mapped_column(String(64))
+    content_sha256: Mapped[str] = mapped_column(String(64))
+    byte_size: Mapped[int] = mapped_column(Integer)
+    headers: Mapped[list[str]] = mapped_column(JSONB)
+    mapping: Mapped[dict[str, str]] = mapped_column(JSONB)
+    status: Mapped[str] = mapped_column(String(16))
+    row_count: Mapped[int | None] = mapped_column(Integer)
+    ready_count: Mapped[int] = mapped_column(Integer, server_default=text("0"))
+    duplicate_count: Mapped[int] = mapped_column(Integer, server_default=text("0"))
+    review_count: Mapped[int] = mapped_column(Integer, server_default=text("0"))
+    quarantined_count: Mapped[int] = mapped_column(Integer, server_default=text("0"))
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=text("CURRENT_TIMESTAMP"))
+    expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    confirmed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    version: Mapped[int] = mapped_column(Integer, server_default=text("1"))
+
+
+class CsvImportRunModel(Base):
+    __tablename__ = "csv_import_runs"
+    __table_args__ = (
+        ForeignKeyConstraint(
+            ["organization_id", "session_id"],
+            ["csv_import_sessions.organization_id", "csv_import_sessions.id"],
+            ondelete="RESTRICT",
+        ),
+        UniqueConstraint("organization_id", "id", name="uq_csv_import_runs_organization_id_id"),
+        UniqueConstraint("organization_id", "idempotency_key", name="uq_csv_import_runs_idempotency"),
+        Index("ix_csv_import_runs_organization_session", "organization_id", "session_id"),
+        CheckConstraint("command_fingerprint ~ '^[a-f0-9]{64}$'", name="fingerprint"),
+    )
+
+    id: Mapped[UUID] = mapped_column(primary_key=True, default=uuid4)
+    organization_id: Mapped[UUID] = mapped_column(ForeignKey("organizations.id", ondelete="CASCADE"))
+    session_id: Mapped[UUID] = mapped_column()
+    idempotency_key: Mapped[str] = mapped_column(String(128))
+    command_fingerprint: Mapped[str] = mapped_column(String(128))
+    created_count: Mapped[int] = mapped_column(Integer)
+    duplicate_count: Mapped[int] = mapped_column(Integer)
+    review_count: Mapped[int] = mapped_column(Integer)
+    quarantined_count: Mapped[int] = mapped_column(Integer)
+    completed_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+
+
+class CsvImportQuarantineModel(Base):
+    __tablename__ = "csv_import_quarantines"
+    __table_args__ = (
+        ForeignKeyConstraint(
+            ["organization_id", "run_id"],
+            ["csv_import_runs.organization_id", "csv_import_runs.id"],
+            ondelete="CASCADE",
+        ),
+        UniqueConstraint("organization_id", "run_id", "line_number", name="uq_csv_import_quarantines_line"),
+        CheckConstraint("line_number > 1", name="line"),
+        CheckConstraint("jsonb_typeof(reason_codes) = 'array'", name="reasons"),
+    )
+
+    id: Mapped[UUID] = mapped_column(primary_key=True, default=uuid4)
+    organization_id: Mapped[UUID] = mapped_column(ForeignKey("organizations.id", ondelete="CASCADE"))
+    run_id: Mapped[UUID] = mapped_column()
+    line_number: Mapped[int] = mapped_column(Integer)
+    reason_codes: Mapped[list[str]] = mapped_column(JSONB)
+    opaque_reference: Mapped[str] = mapped_column(String(64))
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+
+
+class CsvImportFingerprintModel(Base):
+    __tablename__ = "csv_import_fingerprints"
+    __table_args__ = (
+        ForeignKeyConstraint(
+            ["organization_id", "prospect_id"],
+            ["prospects.organization_id", "prospects.id"],
+            ondelete="CASCADE",
+        ),
+        PrimaryKeyConstraint("organization_id", "fingerprint"),
+        CheckConstraint("fingerprint ~ '^[a-f0-9]{64}$'", name="fingerprint"),
+    )
+
+    organization_id: Mapped[UUID] = mapped_column(ForeignKey("organizations.id", ondelete="CASCADE"))
+    fingerprint: Mapped[str] = mapped_column(String(64))
+    prospect_id: Mapped[UUID] = mapped_column()
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))

@@ -193,7 +193,9 @@ describe('PlaceSearchPage', () => {
     submitSearch()
     await screen.findByText('Plomberie Boréale')
     fireEvent.change(screen.getByLabelText('Nom interne CRM pour Plomberie Boréale'), { target: { value: 'Plomberie Nord' } })
-    fireEvent.click(screen.getByRole('button', { name: /^Ajouter$/i }))
+    const addButton = screen.getByRole('button', { name: /^Ajouter$/i })
+    await waitFor(() => expect(addButton).toBeEnabled())
+    fireEvent.click(addButton)
 
     await waitFor(() => expect(leadSearchApi.addGoogleProspects).toHaveBeenCalledTimes(1))
     expect(leadSearchApi.addGoogleProspects.mock.calls[0][0]).toEqual({
@@ -212,7 +214,9 @@ describe('PlaceSearchPage', () => {
     await screen.findByText('Plomberie Boréale')
     fireEvent.change(screen.getByLabelText('Nom interne CRM pour Plomberie Boréale'), { target: { value: 'Plomberie Nord' } })
     fireEvent.click(screen.getByRole('checkbox', { name: /Sélectionner Plomberie Boréale/i }))
-    fireEvent.click(screen.getByRole('button', { name: /Ajouter la sélection/i }))
+    const addSelectionButton = screen.getByRole('button', { name: /Ajouter la sélection/i })
+    await waitFor(() => expect(addSelectionButton).toBeEnabled())
+    fireEvent.click(addSelectionButton)
 
     await waitFor(() => expect(leadSearchApi.addGoogleProspects).toHaveBeenCalledTimes(1))
     expect(storageWrite).not.toHaveBeenCalled()

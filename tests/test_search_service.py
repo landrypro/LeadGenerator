@@ -1,9 +1,16 @@
 from dataclasses import fields
+from datetime import UTC, datetime
 from uuid import uuid4
 
 import pytest
 
-from backend.app.application.models import GoogleAccessContext, GooglePlaceSearchCriteria
+from backend.app.application.models import (
+    GoogleAccessContext,
+    GoogleAccessOwner,
+    GooglePlaceSearchCriteria,
+    GoogleQuotaReservation,
+    GoogleSearchQuotaPolicy,
+)
 from backend.app.application.ports.places import PlaceCandidate
 from backend.app.application.use_cases.search_google_places import (
     MAX_GOOGLE_RESULTS,
@@ -26,6 +33,40 @@ class FakePlacesGateway:
         return self.candidates
 
 
+class PermissiveGoogleSearchPolicy:
+    async def resolve(self, owner: GoogleAccessOwner) -> GoogleSearchQuotaPolicy:
+        del owner
+        return GoogleSearchQuotaPolicy(True, 20, 100, 80, "test_policy")
+
+
+class PermissiveGoogleSearchQuota:
+    async def reserve(
+        self,
+        owner: GoogleAccessOwner,
+        policy: GoogleSearchQuotaPolicy,
+        operation_id: object,
+        *,
+        now: datetime,
+    ) -> GoogleQuotaReservation:
+        del owner, operation_id
+        return GoogleQuotaReservation(
+            True,
+            None,
+            1,
+            policy.user_daily_limit - 1,
+            1,
+            policy.organization_daily_limit - 1,
+            now,
+            1,
+            policy.policy_code,
+        )
+
+
+class FixedClock:
+    def now(self) -> datetime:
+        return datetime(2026, 8, 25, 12, tzinfo=UTC)
+
+
 def candidate(index: int, **overrides: object) -> PlaceCandidate:
     values: dict[str, object] = {
         "place_id": f"place-{index}",
@@ -44,6 +85,9 @@ def use_case(gateway: FakePlacesGateway) -> SearchGooglePlacesUseCase:
         InMemoryGenerationGuard(),
         InMemoryMapSnapshotGrantStore(),
         InMemoryGoogleSelectionGrantStore(),
+        PermissiveGoogleSearchPolicy(),
+        PermissiveGoogleSearchQuota(),
+        FixedClock(),
     )
 
 

@@ -7,6 +7,7 @@ from dataclasses import dataclass, field
 from datetime import datetime
 from enum import StrEnum
 from types import MappingProxyType
+from typing import cast
 from uuid import UUID
 
 
@@ -75,6 +76,10 @@ class AuditAction(StrEnum):
     IMPORT_DECLARATION_QUARANTINED = "import_declaration.quarantined"
     IMPORT_DECLARATION_CANCELLED = "import_declaration.cancelled"
     IMPORT_DECLARATION_ARCHIVED = "import_declaration.archived"
+    IMPORT_FILE_UPLOADED = "import.file_uploaded"
+    IMPORT_MAPPING_SAVED = "import.mapping_saved"
+    IMPORT_VALIDATED = "import.validated"
+    IMPORT_CONFIRMED = "import.confirmed"
     CONTACT_ARCHIVED = "contact.archived"
     CONTACT_CHANNEL_ARCHIVED = "contact_channel.archived"
 
@@ -158,6 +163,10 @@ _TENANT_ACTIONS = frozenset(
         AuditAction.IMPORT_DECLARATION_QUARANTINED,
         AuditAction.IMPORT_DECLARATION_CANCELLED,
         AuditAction.IMPORT_DECLARATION_ARCHIVED,
+        AuditAction.IMPORT_FILE_UPLOADED,
+        AuditAction.IMPORT_MAPPING_SAVED,
+        AuditAction.IMPORT_VALIDATED,
+        AuditAction.IMPORT_CONFIRMED,
         AuditAction.CONTACT_ARCHIVED,
         AuditAction.CONTACT_CHANNEL_ARCHIVED,
     }
@@ -204,6 +213,10 @@ _ACTION_ENTITY_TYPES = {
     AuditAction.IMPORT_DECLARATION_QUARANTINED: "import_declaration",
     AuditAction.IMPORT_DECLARATION_CANCELLED: "import_declaration",
     AuditAction.IMPORT_DECLARATION_ARCHIVED: "import_declaration",
+    AuditAction.IMPORT_FILE_UPLOADED: "csv_import_session",
+    AuditAction.IMPORT_MAPPING_SAVED: "csv_import_session",
+    AuditAction.IMPORT_VALIDATED: "csv_import_session",
+    AuditAction.IMPORT_CONFIRMED: "csv_import_session",
     AuditAction.CONTACT_ARCHIVED: "contact",
     AuditAction.CONTACT_CHANNEL_ARCHIVED: "contact_channel",
 }
@@ -509,6 +522,30 @@ class AuditMetadataPolicy:
                     values["archive_reason_code"], _ARCHIVE_REASON_CODES, "archive_reason_code"
                 ),
             }
+
+        if action is AuditAction.IMPORT_FILE_UPLOADED:
+            cls._require_keys(values, {"byte_size", "header_count"})
+            if not all(
+                isinstance(values[key], int) and cast(int, values[key]) >= 0 for key in ("byte_size", "header_count")
+            ):
+                raise InvalidAuditMetadata("Les métadonnées du fichier importé sont invalides.")
+            return {"byte_size": values["byte_size"], "header_count": values["header_count"]}
+
+        if action is AuditAction.IMPORT_MAPPING_SAVED:
+            cls._require_keys(values, {"mapped_field_count"})
+            count = values["mapped_field_count"]
+            if not isinstance(count, int) or not 1 <= count <= 9:
+                raise InvalidAuditMetadata("mapped_field_count est invalide.")
+            return {"mapped_field_count": count}
+
+        if action in {AuditAction.IMPORT_VALIDATED, AuditAction.IMPORT_CONFIRMED}:
+            allowed = {"created_count", "duplicate_count", "ready_count", "review_count", "quarantined_count"}
+            cls._require_keys(values, set(values), None)
+            if not values or set(values) - allowed:
+                raise InvalidAuditMetadata("Les compteurs d’import sont invalides.")
+            if not all(isinstance(value, int) and value >= 0 for value in values.values()):
+                raise InvalidAuditMetadata("Les compteurs d’import sont invalides.")
+            return dict(values)
 
         if action in {AuditAction.CONTACT_ARCHIVED, AuditAction.CONTACT_CHANNEL_ARCHIVED}:
             cls._require_keys(values, {"previous_version", "archive_reason_code"}, {"channels_archived"})

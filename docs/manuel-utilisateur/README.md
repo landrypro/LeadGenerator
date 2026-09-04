@@ -44,12 +44,12 @@ Sont documentés :
 - création manuelle, recherche et consultation des prospects ;
 - profil CRM, contacts, canaux et permissions de contact ;
 - fournisseurs, acquisitions et provenance ;
-- politiques de conservation, holds et déclarations d'import ;
+- politiques de conservation, holds, déclarations et import CSV réel ;
 - organisation, membres, invitations et journal d'activité ;
 - administration des organisations et audit de plateforme ;
 - limites actuelles et dépannage de premier niveau.
 
-Ne sont pas décrits comme disponibles : téléversement et traitement réel d'un CSV, export des contenus Google, pipeline commercial complet, tâches/rappels, opportunités, facturation et automatisations futures.
+Ne sont pas décrits comme disponibles : export des contenus Google, pipeline commercial complet, tâches/rappels, opportunités, facturation et automatisations futures.
 
 ## Cycle de mise à jour
 

@@ -3,13 +3,13 @@ from uuid import uuid4
 
 import pytest
 
-from backend.app.application.models import GoogleAccessOwner, MapSnapshot
-from backend.app.map_snapshot_grants import (
+from backend.app.application.errors import (
     InvalidMapSnapshotGrant,
     MapSnapshotGrantCapacityReached,
     MapSnapshotGrantInProgress,
-    MapSnapshotGrantRegistry,
 )
+from backend.app.application.models import GoogleAccessOwner, MapSnapshot
+from backend.app.infrastructure.memory import InMemoryMapSnapshotGrantStore
 
 
 def snapshot_payload() -> MapSnapshot:
@@ -22,7 +22,7 @@ def owner(*, organization_id=None) -> GoogleAccessOwner:
 
 @pytest.mark.asyncio
 async def test_snapshot_grant_can_only_be_redeemed_once_by_owner() -> None:
-    registry = MapSnapshotGrantRegistry()
+    registry = InMemoryMapSnapshotGrantStore()
     grant_owner = owner()
     token = await registry.issue(snapshot_payload(), grant_owner)
 
@@ -36,7 +36,7 @@ async def test_snapshot_grant_can_only_be_redeemed_once_by_owner() -> None:
 
 @pytest.mark.asyncio
 async def test_snapshot_grant_contains_at_least_256_bits_of_randomness() -> None:
-    registry = MapSnapshotGrantRegistry()
+    registry = InMemoryMapSnapshotGrantStore()
     token = await registry.issue(snapshot_payload(), owner())
     padding = "=" * (-len(token) % 4)
 
@@ -45,7 +45,7 @@ async def test_snapshot_grant_contains_at_least_256_bits_of_randomness() -> None
 
 @pytest.mark.asyncio
 async def test_snapshot_grant_rejects_concurrent_redemption() -> None:
-    registry = MapSnapshotGrantRegistry()
+    registry = InMemoryMapSnapshotGrantStore()
     grant_owner = owner()
     token = await registry.issue(snapshot_payload(), grant_owner)
 
@@ -57,7 +57,7 @@ async def test_snapshot_grant_rejects_concurrent_redemption() -> None:
 
 @pytest.mark.asyncio
 async def test_snapshot_grant_is_terminal_after_failed_fetch() -> None:
-    registry = MapSnapshotGrantRegistry()
+    registry = InMemoryMapSnapshotGrantStore()
     grant_owner = owner()
     token = await registry.issue(snapshot_payload(), grant_owner)
 
@@ -72,7 +72,7 @@ async def test_snapshot_grant_is_terminal_after_failed_fetch() -> None:
 
 @pytest.mark.asyncio
 async def test_wrong_actor_cannot_consume_owner_grant() -> None:
-    registry = MapSnapshotGrantRegistry()
+    registry = InMemoryMapSnapshotGrantStore()
     organization_id = uuid4()
     grant_owner = owner(organization_id=organization_id)
     same_organization = owner(organization_id=organization_id)
@@ -90,7 +90,7 @@ async def test_wrong_actor_cannot_consume_owner_grant() -> None:
 
 @pytest.mark.asyncio
 async def test_in_progress_grant_is_never_evicted() -> None:
-    registry = MapSnapshotGrantRegistry(max_grants=1)
+    registry = InMemoryMapSnapshotGrantStore(max_grants=1)
     grant_owner = owner()
     token = await registry.issue(snapshot_payload(), grant_owner)
 
@@ -101,7 +101,7 @@ async def test_in_progress_grant_is_never_evicted() -> None:
 
 @pytest.mark.asyncio
 async def test_oldest_available_grant_is_evicted_at_capacity() -> None:
-    registry = MapSnapshotGrantRegistry(max_grants=1)
+    registry = InMemoryMapSnapshotGrantStore(max_grants=1)
     first_owner = owner()
     second_owner = owner()
     first = await registry.issue(snapshot_payload(), first_owner)
@@ -116,7 +116,7 @@ async def test_oldest_available_grant_is_evicted_at_capacity() -> None:
 
 @pytest.mark.asyncio
 async def test_expired_snapshot_grant_is_rejected() -> None:
-    registry = MapSnapshotGrantRegistry(ttl_seconds=0)
+    registry = InMemoryMapSnapshotGrantStore(ttl_seconds=0)
     grant_owner = owner()
     token = await registry.issue(snapshot_payload(), grant_owner)
 

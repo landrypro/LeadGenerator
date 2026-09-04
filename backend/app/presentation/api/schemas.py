@@ -699,6 +699,77 @@ class ImportDeclarationPageResponse(BaseModel):
     next_cursor: str | None = None
 
 
+class CsvImportMappingRequest(StrictCommand):
+    version: int = Field(ge=1)
+    mapping: dict[
+        str,
+        Literal[
+            "business_name",
+            "business_identifier",
+            "business_address",
+            "contact_name",
+            "contact_role",
+            "email",
+            "phone",
+            "linkedin_profile",
+            "facebook_profile",
+        ],
+    ] = Field(min_length=1, max_length=9)
+
+
+class CsvImportVersionRequest(StrictCommand):
+    version: int = Field(ge=1)
+
+
+class CsvImportSessionResponse(BaseModel):
+    id: UUID
+    declaration_id: UUID
+    content_sha256: str
+    byte_size: int
+    headers: list[str]
+    mapping: dict[str, str]
+    status: str
+    row_count: int | None
+    ready_count: int
+    duplicate_count: int
+    review_count: int
+    quarantined_count: int
+    created_at: datetime
+    expires_at: datetime
+    confirmed_at: datetime | None
+    version: int
+
+
+class CsvImportPreviewResponse(BaseModel):
+    session: CsvImportSessionResponse
+    rows: list[dict[str, str]]
+
+
+class CsvImportValidationResponse(BaseModel):
+    session: CsvImportSessionResponse
+    row_count: int
+    ready_count: int
+    duplicate_count: int
+    review_count: int
+    quarantined_count: int
+
+
+class CsvImportReportResponse(BaseModel):
+    id: UUID
+    session_id: UUID
+    created_count: int
+    duplicate_count: int
+    review_count: int
+    quarantined_count: int
+    completed_at: datetime
+
+
+class CsvImportQuarantineResponse(BaseModel):
+    line_number: int
+    reason_codes: list[str]
+    opaque_reference: str
+
+
 class ArchiveRequest(StrictCommand):
     version: int = Field(ge=1)
     archive_reason_code: Literal[

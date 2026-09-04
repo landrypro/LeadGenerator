@@ -4,9 +4,9 @@
 | --- | --- |
 | Produit | Marketteo CRM |
 | Incrément | 2.6 — Redis partagé, quotas et durcissement |
-| Version | 0.1 — proposition |
-| Prérequis | Phase 2.5 clôturée avec GO, migration `20260815_0013 (head)` |
-| Statut | Spécifications proposées — attente de validation produit |
+| Version | 1.0 — validée |
+| Prérequis | Phase 2.5 clôturée avec GO, amélioration d'identité prospect pré-2.6 validée, migration `20260815_0013 (head)` |
+| Statut | Spécifications validées — implémentation autorisée par sous-incrément |
 | Date | 25 août 2026 |
 | Résultat attendu | Une protection Google cohérente entre plusieurs instances API, bornée par quotas et observable |
 
@@ -33,8 +33,9 @@ L’audit du code au 25 août 2026 établit que :
 
 Le jeton de sélection Google ajouté en 2.5 ne figurait pas dans la formulation historique de 2.6. Il doit néanmoins
 être migré vers Redis : sans cette correction, une recherche reçue par A puis un ajout au CRM reçu par B échouerait
-derrière un répartiteur de charge. Cette extension reste éphémère et ne change pas la règle de conservation : seul le
-`place_id` explicitement sélectionné peut ensuite être écrit dans PostgreSQL.
+derrière un répartiteur de charge. Cette extension reste éphémère et ne change pas la règle de conservation : la
+commande d'ajout écrit le `place_id` explicitement sélectionné et le nom interne saisi séparément par l'utilisateur,
+jamais le nom Google temporaire.
 
 ## 1. Objectifs
 
@@ -85,6 +86,15 @@ au client.
 | **2.6.1 — État Google partagé** | Verrou Redis, jeton de carte, jeton de sélection, câblage par profil et stratégie de panne | Deux applications partagent le même verrou et les mêmes jetons ; aucune mémoire en production |
 | **2.6.2 — Quotas et droits préparatoires** | Port de politique, compteurs utilisateur/organisation, `429`, seuil à 80 % | Consommation atomique et bornes 20/100 vérifiées sous concurrence |
 | **2.6.3 — Observabilité et verrou final** | Métriques, journaux JSON, CI/Azure, documentation et régression complète | Rapport final, deux instances, expirations, zéro skip et tous les contrôles verts |
+
+Les spécifications détaillées sont déclinées par sous-incrément :
+
+- [`PHASE_2_6_1_SPECIFICATIONS_DETAILLEES.md`](PHASE_2_6_1_SPECIFICATIONS_DETAILLEES.md) — état Google partagé,
+  validé et implémenté ;
+- [`PHASE_2_6_2_SPECIFICATIONS_DETAILLEES.md`](PHASE_2_6_2_SPECIFICATIONS_DETAILLEES.md) — quotas et droits
+  préparatoires, validé et implémenté ;
+- [`PHASE_2_6_3_SPECIFICATIONS_DETAILLEES.md`](PHASE_2_6_3_SPECIFICATIONS_DETAILLEES.md) — observabilité et verrou
+  final, proposée pour validation.
 
 Chaque sous-incrément exige ses tests unitaires et Redis réels avant le suivant. La recette utilisateur peut être
 regroupée à la fin de 2.6.3 car aucun nouveau module visuel n’est livré ; les preuves multi-instance ne sont pas
@@ -173,6 +183,7 @@ Le préfixe technique existant est conservé pour ne pas invalider silencieuseme
 prospect:{environment}:v1:google:{<organization_uuid>}:search-lock:<user_uuid>
 prospect:{environment}:v1:google:{<organization_uuid>}:quota:<YYYY-MM-DD>:organization
 prospect:{environment}:v1:google:{<organization_uuid>}:quota:<YYYY-MM-DD>:user:<user_uuid>
+prospect:{environment}:v1:google:{<organization_uuid>}:quota:<YYYY-MM-DD>:operation:<operation_uuid>
 prospect:{environment}:v1:map-grant:<sha256_token>
 prospect:{environment}:v1:selection-grant:<sha256_token>
 prospect:{environment}:v1:google:{<organization_uuid>}:warning:<YYYY-MM-DD>:organization
@@ -191,7 +202,8 @@ Acquisition :
 - valeur propriétaire aléatoire d’au moins 256 bits ;
 - commande équivalente à `SET key owner NX PX ttl` ;
 - durée par défaut `GOOGLE_SEARCH_LOCK_TTL_SECONDS=45` ;
-- la durée doit être supérieure au délai Places configuré avec une marge minimale de cinq secondes ;
+- la durée doit être au minimum égale au délai Places, à deux délais d'opération Redis et à une marge de cinq
+  secondes, afin de couvrir l'émission séquentielle des deux jetons ;
 - contention traduite en `409 google_search_in_progress`.
 
 Libération :
@@ -236,18 +248,36 @@ l’échéance dans le fuseau de l’organisation, mais le serveur et Redis rest
 
 Un script unique :
 
-1. lit le compteur utilisateur et le compteur organisation ;
-2. vérifie les deux limites avant modification ;
-3. refuse sans incrément partiel si l’une serait dépassée ;
-4. incrémente les deux compteurs si les deux limites l’autorisent ;
-5. pose leur expiration à la prochaine minuit UTC lors de leur première création ;
-6. retourne la portée éventuelle du refus, les compteurs et le nombre de secondes avant remise à zéro.
+1. reçoit un identifiant d'opération UUID généré par le serveur et indépendant du `request_id` public ;
+2. retourne le résultat déjà enregistré si cette opération a déjà été évaluée ;
+3. lit le compteur utilisateur et le compteur organisation ;
+4. vérifie les deux limites avant modification ;
+5. refuse sans incrément partiel si l’une serait dépassée ;
+6. incrémente les deux compteurs si les deux limites l’autorisent ;
+7. enregistre le résultat de l'opération avec la même échéance ;
+8. pose l'expiration de chaque clé à la prochaine minuit UTC dès sa création ;
+9. retourne la portée éventuelle du refus, les compteurs et le nombre de secondes avant remise à zéro.
+
+L'identifiant d'opération rend un rejeu technique idempotent après une perte de réponse Redis : une réservation ne
+peut être comptée qu'une fois. Il n'est ni envoyé au navigateur, ni utilisé comme label métrique, ni réutilisé pour
+une autre action. Une réponse incertaine peut être rejouée une seule fois avec le même identifiant ; si l'issue reste
+inconnue, le serveur répond `503` et n'appelle pas Google. Une unité de protection peut alors avoir été réservée, mais
+jamais deux ; ces compteurs ne constituent pas une facturation client.
 
 Le quota « utilisateur » est évalué dans l’organisation active : un même compte membre de deux organisations utilise
 le budget de chaque organisation séparément. Cette règle suit le futur modèle de facturation par organisation.
 
 Au franchissement de 80 %, une clé sentinelle `SET NX` ayant la même échéance évite de répéter le journal
 d’avertissement. Elle ne déclenche ni courriel ni blocage dans 2.6.
+
+### 6.6 Cycle de vie des scripts Redis
+
+- les scripts Lua sont versionnés avec le code, courts, déterministes et couverts par des tests de résultat ;
+- l'adaptateur utilise `SCRIPT LOAD` et `EVALSHA` ou l'équivalent fourni par `redis-py` ;
+- après `NOSCRIPT`, il recharge le script et rejoue une seule fois, car le script absent n'a pas été exécuté ;
+- un timeout ou une rupture réseau n'est jamais traité comme `NOSCRIPT` ; seules les opérations portant un identifiant idempotent peuvent être résolues ou rejouées sans double effet ;
+- les clés passées à un même script Redis Cluster appartiennent obligatoirement au même hash slot ;
+- aucune erreur de script ne déclenche un repli mémoire.
 
 ## 7. Stratégie de panne et contrat HTTP
 
@@ -257,7 +287,8 @@ d’avertissement. Elle ne déclenche ni courriel ni blocage dans 2.6.
 | Verrou déjà détenu | `409 google_search_in_progress` | Non | Non |
 | Quota utilisateur atteint | `429 google_quota_exceeded` + `Retry-After` | Non | Non |
 | Quota organisation atteint | `429 google_quota_exceeded` + `Retry-After` | Non | Non |
-| Redis indisponible avant l’appel | `503 google_protection_unavailable` | Non | Non |
+| Redis indisponible avant toute réservation | `503 google_protection_unavailable` | Non | Non |
+| Résultat de réservation Redis toujours incertain après rejeu idempotent | `503 google_protection_unavailable` | Non | Zéro ou une unité de protection, jamais deux |
 | Google refuse ou échoue après réservation | `429` ou `502` existant | Oui, une fois | Oui |
 | Émission des jetons impossible après Google | `503 google_protection_unavailable` | Oui, une fois | Oui |
 | Jeton de carte absent, expiré, consommé ou mauvais acteur | `403 invalid_map_grant` | Non | Sans objet |
@@ -289,7 +320,7 @@ Les anciennes classes peuvent rester dans `infrastructure/memory/` uniquement co
 
 | Variable | Défaut | Règle |
 | --- | ---: | --- |
-| `GOOGLE_SEARCH_LOCK_TTL_SECONDS` | `45` | Supérieur au timeout Places + 5 s, maximum opérationnel documenté |
+| `GOOGLE_SEARCH_LOCK_TTL_SECONDS` | `45` | Au moins timeout Places + deux timeouts Redis + 5 s |
 | `GOOGLE_SEARCH_USER_DAILY_LIMIT` | `20` | Entier positif ; `0` désactive explicitement |
 | `GOOGLE_SEARCH_ORGANIZATION_DAILY_LIMIT` | `100` | Entier positif ; `0` désactive explicitement |
 | `GOOGLE_SEARCH_QUOTA_WARNING_PERCENT` | `80` | Entier entre 1 et 100 |
@@ -379,6 +410,8 @@ Deux clients Redis et deux conteneurs applicatifs indépendants partagent la mê
 - cent consommations organisation réparties entre au moins cinq utilisateurs sont acceptées sous concurrence et la
   cent-unième est refusée ;
 - un refus atomique ne laisse aucun des deux compteurs partiellement incrémenté ;
+- la perte simulée de la première réponse puis le rejeu du même identifiant d'opération ne compte qu'une unité ;
+- deux identifiants d'opération distincts comptent deux unités ;
 - toutes les clés créées ont un `PTTL` strictement positif et disparaissent après leur durée de test ;
 - l’arrêt de Redis produit le comportement fermé attendu.
 
@@ -403,8 +436,10 @@ Restent obligatoires :
 - aucun téléphone ni site Web dans le masque, le schéma ou l’interface ;
 - aucune route d’export historique ;
 - aucun stockage navigateur des résultats ou jetons ;
+- le nom Google reste temporaire ; le `place_id` visible et immuable est distinct du nom interne CRM obligatoire ;
 - attribution visible `Google Maps` ;
 - bouton d’export toujours désactivé ;
+- marque visible `Marketteo` ou `Marketteo CRM`, sans migration implicite des identifiants techniques historiques ;
 - message utilisateur compréhensible pour `409`, quota `429` et protection `503` ;
 - tests React et accessibilité sans changement visuel régressif.
 
@@ -449,6 +484,7 @@ présente 20/100 comme limites initiales de sécurité susceptibles d’être aj
 | --- | --- | --- |
 | Deux instances facturent deux appels pour le même utilisateur | Haute | Verrou Redis propriétaire avant quota et fournisseur |
 | Compteurs utilisateur et organisation divergent | Haute | Script atomique, clés dans le même hash slot |
+| Réponse Redis perdue puis quota compté deux fois | Haute | Identifiant d'opération, résultat mémorisé et rejeu idempotent borné |
 | Redis indisponible et repli mémoire | Haute | Échec fermé `503`, aucun fallback silencieux |
 | Mauvais acteur détruit un jeton | Haute | Vérification du propriétaire dans le script avant mutation |
 | Processus meurt avec un verrou/claim | Haute | TTL obligatoire dès la création |
@@ -460,27 +496,33 @@ présente 20/100 comme limites initiales de sécurité susceptibles d’être aj
 | Jeton de carte rejoué après erreur fournisseur | Haute | Jeton terminal après la première tentative Maps |
 | CI verte sans vraie concurrence | Haute | Test obligatoire avec deux applications et Redis réel |
 
-## 14. Seize décisions proposées à validation
+## 14. Seize décisions validées
+
+Les seize décisions ci-dessous ont été validées par le responsable produit le 25 août 2026.
 
 1. 2.6 est découpée en 2.6.1 état partagé, 2.6.2 quotas/droits, puis 2.6.3 observabilité/verrou final.
 2. Redis devient obligatoire pour les parcours Google en environnement complet, sans repli mémoire silencieux.
 3. Les adaptateurs mémoire restent uniquement des doublures injectées explicitement dans les tests unitaires.
-4. Le jeton de sélection Google de 2.5 est inclus dans la migration Redis pour garantir « Ajouter au CRM » entre deux instances.
+4. Le jeton de sélection Google de 2.5 est inclus dans la migration Redis pour garantir « Ajouter au CRM » entre deux instances ; il contient seulement les `place_id`, tandis que le nom interne demeure une saisie CRM distincte.
 5. Le verrou porte sur le couple utilisateur/organisation, utilise une valeur propriétaire aléatoire, un TTL de 45 secondes et une libération compare-and-delete.
 6. Une contention conserve la réponse `409` et ne consomme ni quota ni appel Google.
 7. Le jeton de carte est opaque, indexé par hash, lié au propriétaire, réclamé atomiquement, limité à cinq minutes et terminal après une tentative Maps.
 8. Le jeton de sélection est partagé, lié au propriétaire, limité à dix minutes et résoluble plusieurs fois pour préserver l’idempotence.
 9. Les limites initiales restent 20 recherches par utilisateur dans son organisation active et 100 par organisation, par journée UTC.
-10. Les deux compteurs sont réservés dans un script atomique ; un refus ne modifie aucun compteur et une réservation acceptée reste comptée après erreur Google.
+10. Les deux compteurs sont réservés dans un script atomique idempotent par opération ; un refus ne modifie aucun compteur, un rejeu ne compte pas deux fois et une réservation acceptée reste comptée après erreur Google.
 11. L’ordre obligatoire est autorisation, verrou, quota, un Text Search, puis émission des jetons.
 12. Un quota atteint produit `429` avec `Retry-After` ; une protection Redis indisponible produit `503` avant tout appel Google.
 13. Un port de politique prépare les futurs plans, mais 2.6 ne crée ni catalogue, ni abonnement, ni prix, ni registre de facturation.
 14. Les clés sont versionnées par environnement, utilisent des identifiants internes/hash, expirent automatiquement et Redis de production est privé, authentifié et sans éviction arbitraire.
 15. Les journaux JSON et métriques Prometheus excluent secrets/contenus Google et identifiants à forte cardinalité ; l’audit métier reste séparé.
-16. Le GO final exige Redis réel, deux instances, expirations, non-régression Google, zéro skip, documentation à jour et Ruff, mypy, pytest, Alembic, ESLint, Vitest, build et Azure verts.
+16. Le GO final exige Redis réel, deux instances, expirations, non-régression Google et des améliorations pré-2.6, zéro skip, documentation à jour et Ruff, mypy, pytest, Alembic, ESLint, Vitest, build et Azure verts.
 
 ## 15. Décision de sortie
 
-- **GO implémentation 2.6** : les seize décisions de la section 14 sont validées ;
-- **NO-GO** : une limite, une sémantique de jeton ou une stratégie de panne reste à arbitrer avant modification du
-  code, des dépendances ou d’Azure Pipelines.
+- **GO spécifications détaillées 2.6.1** accordé le 25 août 2026 ;
+- les seize décisions propres à 2.6.1 sont validées et son **GO d’implémentation** est accordé ;
+- les seize décisions propres à 2.6.2 sont validées et son **GO d’implémentation** est accordé ;
+- les seize décisions propres à 2.6.3 sont validées et son **GO d’implémentation** est accordé ;
+- le verrou qualité local 2.6.3 est **VERT** le 26 août 2026 ;
+- la recette fonctionnelle de 2.6 est regroupée à la clôture de la phase, après 2.6.3 ; elle est différée à
+  l’environnement de staging, où Redis et plusieurs instances API seront disponibles.

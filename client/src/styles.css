@@ -742,6 +742,10 @@ footer a:hover { color: #147da5; text-decoration: underline; }
 .compliance-form fieldset label { color: #53707c; font-size: 9px; font-weight: 700; }
 .compliance-form fieldset input { width: auto; padding: 0; }
 .compliance-form .full, .compliance-form .form-actions { grid-column: 1 / -1; }
+.import-preview-table { display: block; max-width: 100%; overflow-x: auto; }
+.import-preview-table table { width: 100%; border-collapse: collapse; font-size: 12px; }
+.import-preview-table th, .import-preview-table td { padding: 8px; border-bottom: 1px solid #dce9ec; text-align: left; white-space: nowrap; }
+.import-preview-table th { color: #456573; font-size: 10px; }
 .compact-form { grid-template-columns: minmax(150px, .8fr) minmax(220px, 1.5fr) auto; align-items: end; }
 .compliance-list { display: grid; gap: 9px; margin: 14px 0 0; padding: 0; list-style: none; }
 .compliance-list > li { display: grid; grid-template-columns: minmax(190px, 1.1fr) minmax(150px, .9fr) auto; align-items: center; gap: 14px; padding: 13px; border: 1px solid #e0ebee; border-radius: 12px; }

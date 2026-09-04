@@ -1,6 +1,13 @@
 from dataclasses import dataclass, field
 
-from .application.ports import AsyncResource, TenantUnitOfWorkFactory, UnitOfWorkFactory
+from .application.ports import (
+    AsyncResource,
+    MetricsRecorder,
+    NullMetricsRecorder,
+    TenantUnitOfWorkFactory,
+    UnitOfWorkFactory,
+)
+from .application.ports.csv_import import TemporaryCsvFileStore
 from .application.use_cases import (
     AcceptInvitationUseCase,
     ActivateRetentionPolicyUseCase,
@@ -13,6 +20,7 @@ from .application.use_cases import (
     ChangeContactPermissionUseCase,
     ChangeOrganizationStatusUseCase,
     CheckReadinessUseCase,
+    ConfirmCsvImportUseCase,
     CreateContactChannelUseCase,
     CreateContactUseCase,
     CreateManualProspectUseCase,
@@ -25,6 +33,8 @@ from .application.use_cases import (
     DeclareImportUseCase,
     GetAcquisitionUseCase,
     GetContactPermissionUseCase,
+    GetCsvImportPreviewUseCase,
+    GetCsvImportReportUseCase,
     GetCurrentSessionUseCase,
     GetImportDeclarationUseCase,
     GetMapSnapshotUseCase,
@@ -50,6 +60,7 @@ from .application.use_cases import (
     ListTenantAuditEventsUseCase,
     LoginUseCase,
     LogoutUseCase,
+    MapCsvImportUseCase,
     PlaceRetentionHoldUseCase,
     PreviewInvitationUseCase,
     ReleaseRetentionHoldUseCase,
@@ -64,6 +75,8 @@ from .application.use_cases import (
     UpdateProspectProfileUseCase,
     UpdateRetentionPolicyUseCase,
     UpdateSourceProviderUseCase,
+    UploadCsvImportUseCase,
+    ValidateCsvImportUseCase,
 )
 from .config import Settings
 
@@ -73,6 +86,8 @@ class AppContainer:
     settings: Settings
     search_google_places: SearchGooglePlacesUseCase
     get_map_snapshot: GetMapSnapshotUseCase
+    metrics: MetricsRecorder = field(default_factory=NullMetricsRecorder)
+    metrics_exporter: object | None = None
     readiness: CheckReadinessUseCase = field(default_factory=CheckReadinessUseCase)
     login: LoginUseCase | None = None
     get_current_session: GetCurrentSessionUseCase | None = None
@@ -118,6 +133,13 @@ class AppContainer:
     get_import_declaration: GetImportDeclarationUseCase | None = None
     cancel_import_declaration: CancelImportDeclarationUseCase | None = None
     archive_import_declaration: ArchiveImportDeclarationUseCase | None = None
+    upload_csv_import: UploadCsvImportUseCase | None = None
+    get_csv_import_preview: GetCsvImportPreviewUseCase | None = None
+    map_csv_import: MapCsvImportUseCase | None = None
+    validate_csv_import: ValidateCsvImportUseCase | None = None
+    confirm_csv_import: ConfirmCsvImportUseCase | None = None
+    get_csv_import_report: GetCsvImportReportUseCase | None = None
+    csv_import_file_store: TemporaryCsvFileStore | None = None
     archive_prospect: ArchiveProspectUseCase | None = None
     archive_contact: ArchiveContactUseCase | None = None
     archive_contact_channel: ArchiveContactChannelUseCase | None = None

@@ -169,6 +169,9 @@ async def test_login_rejects_untrusted_origin_and_production_cookie_is_secure() 
         google_maps_api_key="key",
         rate_limit_hmac_key="test-rate-limit-key-with-at-least-32-bytes",
         cors_allowed_origins=("https://crm.example",),
+        log_format="json",
+        metrics_enabled=True,
+        metrics_bearer_token="metrics-test-token-with-at-least-thirty-two-bytes",
     )
     authenticated_identity = identity()
     app, _ = auth_app(production_settings, SuccessfulLogin(authenticated_identity))

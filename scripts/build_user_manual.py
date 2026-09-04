@@ -231,7 +231,7 @@ def add_running_furniture(section):
     page_p = footer.paragraphs[0]
     page_p.alignment = WD_ALIGN_PARAGRAPH.RIGHT
     page_p.paragraph_format.space_before = Pt(4)
-    run = page_p.add_run("Version 0.1  |  Page ")
+    run = page_p.add_run("Version 0.5  |  Page ")
     set_font(run, size=8.5, color=MUTED)
     add_field(page_p, "PAGE")
 
@@ -269,11 +269,11 @@ def add_cover(document):
     p = document.add_paragraph()
     p.alignment = WD_ALIGN_PARAGRAPH.CENTER
     p.paragraph_format.space_after = Pt(5)
-    r = p.add_run("Version 0.1 - Première édition à valider")
+    r = p.add_run("Version 0.5 - Édition illustrée à valider")
     set_font(r, size=11, color=GREEN, bold=True)
     p = document.add_paragraph()
     p.alignment = WD_ALIGN_PARAGRAPH.CENTER
-    r = p.add_run("État fonctionnel du 25 août 2026")
+    r = p.add_run("État fonctionnel du 26 août 2026")
     set_font(r, size=10, color=MUTED, italic=True)
 
     p = document.add_paragraph()
@@ -301,6 +301,8 @@ def add_toc(document, headings):
 
 
 INLINE_PATTERN = re.compile(r"(\*\*[^*]+\*\*|`[^`]+`)")
+IMAGE_PATTERN = re.compile(r"^!\[([^\]]*)\]\(([^)]+)\)$")
+CAPTION_PATTERN = re.compile(r"^\*(Figure\s+\d+\s+—.+)\*$")
 
 
 def add_inline(paragraph, text):
@@ -394,7 +396,38 @@ def add_callout(document, text):
         set_font(run, size=10, color=GREEN)
 
 
-def add_body_from_markdown(document, markdown):
+def add_figure(document, image_path, alt_text, caption):
+    """Add a centered, accessible figure without letting tall images overflow a page."""
+    if not image_path.is_file():
+        raise FileNotFoundError(f"Image introuvable : {image_path}")
+    from PIL import Image
+
+    with Image.open(image_path) as image:
+        pixels_width, pixels_height = image.size
+    ratio = pixels_height / pixels_width
+    height_inches = min(6.25 * ratio, 5.6)
+    width_inches = height_inches / ratio
+
+    p = document.add_paragraph()
+    p.alignment = WD_ALIGN_PARAGRAPH.CENTER
+    p.paragraph_format.space_before = Pt(6)
+    p.paragraph_format.space_after = Pt(3)
+    p.paragraph_format.keep_with_next = True
+    run = p.add_run()
+    inline_shape = run.add_picture(str(image_path), width=Inches(width_inches), height=Inches(height_inches))
+    doc_pr = inline_shape._inline.docPr
+    doc_pr.set("descr", alt_text)
+    doc_pr.set("title", alt_text)
+
+    caption_p = document.add_paragraph()
+    caption_p.alignment = WD_ALIGN_PARAGRAPH.CENTER
+    caption_p.paragraph_format.space_after = Pt(10)
+    caption_p.paragraph_format.keep_together = True
+    caption_run = caption_p.add_run(caption)
+    set_font(caption_run, size=9, color=MUTED, italic=True)
+
+
+def add_body_from_markdown(document, markdown, source_dir):
     lines = markdown.splitlines()
     start = next((i for i, line in enumerate(lines) if line.startswith("## 1.")), 0)
     index = start
@@ -402,6 +435,17 @@ def add_body_from_markdown(document, markdown):
         raw = lines[index]
         line = raw.strip()
         if not line:
+            index += 1
+            continue
+        image_match = IMAGE_PATTERN.match(line)
+        if image_match:
+            caption = ""
+            if index + 1 < len(lines):
+                caption_match = CAPTION_PATTERN.match(lines[index + 1].strip())
+                if caption_match:
+                    caption = caption_match.group(1)
+                    index += 1
+            add_figure(document, source_dir / image_match.group(2), image_match.group(1), caption)
             index += 1
             continue
         if line.startswith("|"):
@@ -446,7 +490,7 @@ def build(source, output):
     add_toc(document, headings)
     if transition_note:
         add_callout(document, transition_note)
-    add_body_from_markdown(document, markdown)
+    add_body_from_markdown(document, markdown, source.parent)
     output.parent.mkdir(parents=True, exist_ok=True)
     document.save(output)
 

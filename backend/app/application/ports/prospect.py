@@ -6,6 +6,7 @@ from types import TracebackType
 from typing import Protocol, Self
 from uuid import UUID
 
+from ...domain.csv_import import CsvImportQuarantineView, CsvImportRunView, CsvImportSessionView
 from ...domain.prospect import (
     AcquisitionDraft,
     AcquisitionRecordView,
@@ -290,6 +291,70 @@ class ImportDeclarationRepository(Protocol):
     ) -> ImportDeclarationView | None: ...
 
 
+class CsvImportRepository(Protocol):
+    async def add_session(
+        self,
+        *,
+        declaration_id: UUID,
+        file_ref: str,
+        content_sha256: str,
+        byte_size: int,
+        headers: tuple[str, ...],
+        now: datetime,
+        expires_at: datetime,
+    ) -> CsvImportSessionView: ...
+
+    async def get_session(self, session_id: UUID) -> CsvImportSessionView | None: ...
+
+    async def update_mapping(
+        self, session_id: UUID, *, expected_version: int, mapping: dict[str, str], now: datetime
+    ) -> CsvImportSessionView | None: ...
+
+    async def record_validation(
+        self,
+        session_id: UUID,
+        *,
+        expected_version: int,
+        row_count: int,
+        ready_count: int,
+        duplicate_count: int,
+        review_count: int,
+        quarantined_count: int,
+        now: datetime,
+    ) -> CsvImportSessionView | None: ...
+
+    async def get_run_by_idempotency_key(self, idempotency_key: str) -> CsvImportRunView | None: ...
+
+    async def get_run(self, run_id: UUID) -> CsvImportRunView | None: ...
+
+    async def add_run(
+        self,
+        *,
+        session_id: UUID,
+        idempotency_key: str,
+        command_fingerprint: str,
+        created_count: int,
+        duplicate_count: int,
+        review_count: int,
+        quarantined_count: int,
+        now: datetime,
+    ) -> CsvImportRunView: ...
+
+    async def mark_confirmed(
+        self, session_id: UUID, *, expected_version: int, now: datetime
+    ) -> CsvImportSessionView | None: ...
+
+    async def add_quarantines(
+        self, *, run_id: UUID, rows: tuple[CsvImportQuarantineView, ...], now: datetime
+    ) -> None: ...
+
+    async def list_quarantines(self, run_id: UUID, *, limit: int) -> tuple[CsvImportQuarantineView, ...]: ...
+
+    async def fingerprint_exists(self, fingerprint: str) -> bool: ...
+
+    async def add_fingerprint(self, *, fingerprint: str, prospect_id: UUID, now: datetime) -> None: ...
+
+
 class ProspectUnitOfWork(Protocol):
     @property
     def prospects(self) -> ProspectRepository: ...
@@ -323,6 +388,9 @@ class ProspectUnitOfWork(Protocol):
 
     @property
     def import_declarations(self) -> ImportDeclarationRepository: ...
+
+    @property
+    def csv_imports(self) -> CsvImportRepository: ...
 
     @property
     def audit(self) -> AuditRecorder: ...

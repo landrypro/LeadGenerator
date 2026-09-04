@@ -20,6 +20,8 @@ from ....application.errors import (
     RetentionHoldAlreadyReleased,
 )
 from ....application.tenancy import TenantContext
+from ....application.use_cases.csv_import import CsvImportPreview, CsvImportValidation
+from ....domain.csv_import import CsvImportQuarantineView, CsvImportRunView, CsvImportSessionView
 from ....domain.identity import capabilities_for
 from ....domain.prospect import (
     ArchiveReasonCode,
@@ -43,6 +45,13 @@ from ..schemas import (
     ArchivedContactResponse,
     ArchivedProspectResponse,
     ArchiveRequest,
+    CsvImportMappingRequest,
+    CsvImportPreviewResponse,
+    CsvImportQuarantineResponse,
+    CsvImportReportResponse,
+    CsvImportSessionResponse,
+    CsvImportValidationResponse,
+    CsvImportVersionRequest,
     ImportDeclarationCreateRequest,
     ImportDeclarationPageResponse,
     ImportDeclarationResponse,
@@ -475,6 +484,144 @@ async def archive_import_declaration(
     return JSONResponse(to_import_declaration_response(declaration).model_dump(mode="json"), headers=NO_STORE_HEADERS)
 
 
+@router.put("/api/import-declarations/{declaration_id}/file", response_model=CsvImportPreviewResponse)
+async def upload_csv_import_file(declaration_id: UUID, request: Request, container: ContainerDependency) -> Response:
+    try:
+        authentication = await _authenticated_binary_mutation(request, container)
+        if request.headers.get("content-type", "").split(";", 1)[0].strip().lower() not in {
+            "text/csv",
+            "application/csv",
+        }:
+            raise ValueError("Le téléversement accepte uniquement text/csv.")
+        if container.upload_csv_import is None:
+            raise ProspectServiceUnavailable
+        preview = await container.upload_csv_import.execute(
+            context=_tenant_context(request, authentication),
+            declaration_id=declaration_id,
+            chunks=request.stream(),
+            has_capability=_has_capability(authentication, "imports:declare"),
+        )
+    except Exception as error:
+        response = _retention_error(request, error)
+        if response is not None:
+            return response
+        raise
+    return JSONResponse(_preview_response(preview).model_dump(mode="json"), status_code=201, headers=NO_STORE_HEADERS)
+
+
+@router.get("/api/csv-imports/{session_id}/preview", response_model=CsvImportPreviewResponse)
+async def get_csv_import_preview(session_id: UUID, request: Request, container: ContainerDependency) -> Response:
+    try:
+        authentication = await required_authentication(request, container)
+        if container.get_csv_import_preview is None:
+            raise ProspectServiceUnavailable
+        preview = await container.get_csv_import_preview.execute(
+            context=_tenant_context(request, authentication),
+            session_id=session_id,
+            has_capability=_has_capability(authentication, "imports:read"),
+        )
+    except Exception as error:
+        response = _retention_error(request, error)
+        if response is not None:
+            return response
+        raise
+    return JSONResponse(_preview_response(preview).model_dump(mode="json"), headers=NO_STORE_HEADERS)
+
+
+@router.patch("/api/csv-imports/{session_id}/mapping", response_model=CsvImportSessionResponse)
+async def map_csv_import(
+    session_id: UUID, payload: CsvImportMappingRequest, request: Request, container: ContainerDependency
+) -> Response:
+    try:
+        authentication = await _authenticated_mutation(request, container)
+        if container.map_csv_import is None:
+            raise ProspectServiceUnavailable
+        session = await container.map_csv_import.execute(
+            context=_tenant_context(request, authentication),
+            session_id=session_id,
+            expected_version=payload.version,
+            mapping={key: str(value) for key, value in payload.mapping.items()},
+            has_capability=_has_capability(authentication, "imports:declare"),
+        )
+    except Exception as error:
+        response = _retention_error(request, error)
+        if response is not None:
+            return response
+        raise
+    return JSONResponse(_session_response(session).model_dump(mode="json"), headers=NO_STORE_HEADERS)
+
+
+@router.post("/api/csv-imports/{session_id}/validate", response_model=CsvImportValidationResponse)
+async def validate_csv_import(
+    session_id: UUID, payload: CsvImportVersionRequest, request: Request, container: ContainerDependency
+) -> Response:
+    try:
+        authentication = await _authenticated_mutation(request, container)
+        if container.validate_csv_import is None:
+            raise ProspectServiceUnavailable
+        validation = await container.validate_csv_import.execute(
+            context=_tenant_context(request, authentication),
+            session_id=session_id,
+            expected_version=payload.version,
+            has_capability=_has_capability(authentication, "imports:declare"),
+        )
+    except Exception as error:
+        response = _retention_error(request, error)
+        if response is not None:
+            return response
+        raise
+    return JSONResponse(_validation_response(validation).model_dump(mode="json"), headers=NO_STORE_HEADERS)
+
+
+@router.post("/api/csv-imports/{session_id}/confirm", response_model=CsvImportReportResponse)
+async def confirm_csv_import(
+    session_id: UUID,
+    payload: CsvImportVersionRequest,
+    request: Request,
+    container: ContainerDependency,
+    idempotency_key: str | None = Header(default=None, alias="Idempotency-Key", max_length=128),
+) -> Response:
+    try:
+        authentication = await _authenticated_mutation(request, container)
+        if container.confirm_csv_import is None:
+            raise ProspectServiceUnavailable
+        report = await container.confirm_csv_import.execute(
+            context=_tenant_context(request, authentication),
+            session_id=session_id,
+            expected_version=payload.version,
+            idempotency_key=idempotency_key or "",
+            has_capability=_has_capability(authentication, "imports:declare"),
+        )
+    except Exception as error:
+        response = _retention_error(request, error)
+        if response is not None:
+            return response
+        raise
+    return JSONResponse(_report_response(report).model_dump(mode="json"), headers=NO_STORE_HEADERS)
+
+
+@router.get("/api/csv-import-runs/{run_id}/quarantines", response_model=list[CsvImportQuarantineResponse])
+async def list_csv_import_quarantines(run_id: UUID, request: Request, container: ContainerDependency) -> Response:
+    try:
+        authentication = await required_authentication(request, container)
+        if container.get_csv_import_report is None:
+            raise ProspectServiceUnavailable
+        quarantines = await container.get_csv_import_report.execute(
+            context=_tenant_context(request, authentication),
+            run_id=run_id,
+            has_capability=_has_capability(authentication, "imports:read"),
+        )
+    except Exception as error:
+        response = _retention_error(request, error)
+        if response is not None:
+            return response
+        raise
+    return JSONResponse(
+        [_quarantine_response(item).model_dump(mode="json") for item in quarantines],
+        headers=NO_STORE_HEADERS,
+    )
+
+
 @router.post("/api/prospects/{prospect_id}/archive", response_model=ArchivedProspectResponse)
 async def archive_prospect(
     prospect_id: UUID,
@@ -577,6 +724,69 @@ async def _authenticated_mutation(request: Request, container: ContainerDependen
     authentication = await required_authentication(request, container)
     require_csrf_token(request, authentication.identity.csrf_token)
     return authentication
+
+
+async def _authenticated_binary_mutation(request: Request, container: ContainerDependency) -> RequestAuthentication:
+    require_trusted_origin(request, container.settings.cors_allowed_origins)
+    authentication = await required_authentication(request, container)
+    require_csrf_token(request, authentication.identity.csrf_token)
+    return authentication
+
+
+def _session_response(session: CsvImportSessionView) -> CsvImportSessionResponse:
+    return CsvImportSessionResponse(
+        id=session.id,
+        declaration_id=session.declaration_id,
+        content_sha256=session.content_sha256,
+        byte_size=session.byte_size,
+        headers=list(session.headers),
+        mapping=session.mapping,
+        status=session.status.value,
+        row_count=session.row_count,
+        ready_count=session.ready_count,
+        duplicate_count=session.duplicate_count,
+        review_count=session.review_count,
+        quarantined_count=session.quarantined_count,
+        created_at=session.created_at,
+        expires_at=session.expires_at,
+        confirmed_at=session.confirmed_at,
+        version=session.version,
+    )
+
+
+def _preview_response(preview: CsvImportPreview) -> CsvImportPreviewResponse:
+    return CsvImportPreviewResponse(session=_session_response(preview.session), rows=list(preview.rows))
+
+
+def _validation_response(validation: CsvImportValidation) -> CsvImportValidationResponse:
+    return CsvImportValidationResponse(
+        session=_session_response(validation.session),
+        row_count=validation.row_count,
+        ready_count=validation.ready_count,
+        duplicate_count=validation.duplicate_count,
+        review_count=validation.review_count,
+        quarantined_count=validation.quarantined_count,
+    )
+
+
+def _report_response(report: CsvImportRunView) -> CsvImportReportResponse:
+    return CsvImportReportResponse(
+        id=report.id,
+        session_id=report.session_id,
+        created_count=report.created_count,
+        duplicate_count=report.duplicate_count,
+        review_count=report.review_count,
+        quarantined_count=report.quarantined_count,
+        completed_at=report.completed_at,
+    )
+
+
+def _quarantine_response(item: CsvImportQuarantineView) -> CsvImportQuarantineResponse:
+    return CsvImportQuarantineResponse(
+        line_number=item.line_number,
+        reason_codes=list(item.reason_codes),
+        opaque_reference=item.opaque_reference,
+    )
 
 
 def _tenant_context(request: Request, authentication: RequestAuthentication) -> TenantContext:

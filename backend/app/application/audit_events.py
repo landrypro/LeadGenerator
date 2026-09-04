@@ -132,4 +132,11 @@ def _entity_type(action: AuditAction) -> str:
         AuditAction.IMPORT_DECLARATION_ARCHIVED,
     }:
         return "import_declaration"
+    if action in {
+        AuditAction.IMPORT_FILE_UPLOADED,
+        AuditAction.IMPORT_MAPPING_SAVED,
+        AuditAction.IMPORT_VALIDATED,
+        AuditAction.IMPORT_CONFIRMED,
+    }:
+        return "csv_import_session"
     return "invitation"

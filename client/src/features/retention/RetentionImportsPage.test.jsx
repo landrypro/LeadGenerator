@@ -21,12 +21,12 @@ describe('RetentionImportsPage', () => {
     complianceApi.listAcquisitions.mockResolvedValue({ items: [] })
   })
 
-  it('rend l’import strictement déclaratif et sans sélecteur de fichier', async () => {
+  it('propose un téléversement CSV temporaire sans créer de données avant confirmation', async () => {
     render(<RetentionImportsPage session={{ capabilities: ['retention:read', 'imports:read', 'imports:declare'] }} />)
     await screen.findByRole('heading', { name: 'Politiques' })
     fireEvent.click(screen.getByRole('tab', { name: 'Déclarations d’import' }))
-    expect(screen.getByText(/téléversement et le traitement du fichier/i)).toBeInTheDocument()
+    expect(screen.getByText(/fichier CSV est temporaire/i)).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Déclarer sans téléverser' })).toBeInTheDocument()
-    expect(document.querySelector('input[type="file"]')).toBeNull()
+    expect(document.querySelector('input[type="file"]')).not.toBeNull()
   })
 })

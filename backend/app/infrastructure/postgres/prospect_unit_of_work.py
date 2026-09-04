@@ -8,6 +8,7 @@ from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 from ...application.errors import OrganizationAdministrationUnavailable
 from ...application.tenancy import TenantContext
 from .audit_recorder import SqlAlchemyAuditRecorder
+from .csv_import_repository import SqlAlchemyCsvImportRepository
 from .prospect_repository import (
     SqlAlchemyAcquisitionRepository,
     SqlAlchemyContactChannelRepository,
@@ -38,6 +39,7 @@ class SqlAlchemyProspectUnitOfWork(SqlAlchemyTenantUnitOfWork):
         self.retention_reviews: SqlAlchemyRetentionReviewRepository
         self.retention_holds: SqlAlchemyRetentionHoldRepository
         self.import_declarations: SqlAlchemyImportDeclarationRepository
+        self.csv_imports: SqlAlchemyCsvImportRepository
         self.audit: SqlAlchemyAuditRecorder
 
     async def __aenter__(self) -> SqlAlchemyProspectUnitOfWork:
@@ -56,6 +58,7 @@ class SqlAlchemyProspectUnitOfWork(SqlAlchemyTenantUnitOfWork):
         self.retention_reviews = SqlAlchemyRetentionReviewRepository(self.session)
         self.retention_holds = SqlAlchemyRetentionHoldRepository(self.session)
         self.import_declarations = SqlAlchemyImportDeclarationRepository(self.session)
+        self.csv_imports = SqlAlchemyCsvImportRepository(self.session)
         self.audit = SqlAlchemyAuditRecorder(self.session)
         return self
 

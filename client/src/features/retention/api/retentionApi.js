@@ -14,4 +14,18 @@ export const retentionApi = {
   createImport: (payload) => postJson('/api/import-declarations', payload, { headers: idempotencyHeaders() }),
   cancelImport: (id, version) => postJson(`/api/import-declarations/${encodeURIComponent(id)}/cancel`, { version }),
   archiveImport: (id, payload) => postJson(`/api/import-declarations/${encodeURIComponent(id)}/archive`, payload),
+  uploadCsv: (declarationId, file) => request(`/api/import-declarations/${encodeURIComponent(declarationId)}/file`, {
+    method: 'PUT', headers: { 'Content-Type': 'text/csv' }, body: file,
+  }),
+  previewCsv: (sessionId) => request(`/api/csv-imports/${encodeURIComponent(sessionId)}/preview`),
+  mapCsv: (sessionId, payload) => request(`/api/csv-imports/${encodeURIComponent(sessionId)}/mapping`, {
+    method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload),
+  }),
+  validateCsv: (sessionId, version) => postJson(`/api/csv-imports/${encodeURIComponent(sessionId)}/validate`, { version }),
+  confirmCsv: (sessionId, version, idempotencyKey) => postJson(
+    `/api/csv-imports/${encodeURIComponent(sessionId)}/confirm`,
+    { version },
+    { headers: { 'Idempotency-Key': idempotencyKey } },
+  ),
+  listCsvQuarantines: (runId) => request(`/api/csv-import-runs/${encodeURIComponent(runId)}/quarantines`),
 }

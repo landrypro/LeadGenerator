@@ -11,13 +11,16 @@ from .audit import (
     TenantAuditReadUnitOfWorkFactory,
 )
 from .clock import Clock
+from .events import NullTechnicalEventLogger, TechnicalEventLogger
 from .exporter import LeadExporter
 from .generation_guard import GenerationGuard
+from .google_quota import GoogleSearchPolicyProvider, GoogleSearchQuota
 from .health import DependencyHealth, DependencyProbe
 from .identity import IdentityRepository, IdentityUnitOfWork, IdentityUnitOfWorkFactory
 from .login_limits import LoginLimitStatus, LoginRateLimiter
 from .map_grants import MapSnapshotGrantStore
 from .maps import MapImage, StaticMapGateway
+from .metrics import MetricsRecorder, NullMetricsRecorder
 from .organization import (
     CreateMemberInvitationGatewayResult,
     CreateMemberInvitationResultCode,
@@ -75,6 +78,8 @@ __all__ = [
     "DependencyHealth",
     "DependencyProbe",
     "GenerationGuard",
+    "GoogleSearchPolicyProvider",
+    "GoogleSearchQuota",
     "GoogleSelectionGrantStore",
     "IdentityRepository",
     "IdentityUnitOfWork",
@@ -93,6 +98,9 @@ __all__ = [
     "MapSnapshotGrantStore",
     "MemberInvitationMutationGatewayResult",
     "MemberInvitationMutationResultCode",
+    "MetricsRecorder",
+    "NullMetricsRecorder",
+    "NullTechnicalEventLogger",
     "OrganizationAdministrationGateway",
     "OrganizationStatusGatewayResult",
     "OrganizationStatusResultCode",
@@ -114,6 +122,7 @@ __all__ = [
     "StaticMapGateway",
     "SwitchOrganizationGatewayResult",
     "SwitchOrganizationResultCode",
+    "TechnicalEventLogger",
     "TenantAuditReadUnitOfWorkFactory",
     "TenantAuditedUnitOfWorkFactory",
     "TenantUnitOfWorkFactory",

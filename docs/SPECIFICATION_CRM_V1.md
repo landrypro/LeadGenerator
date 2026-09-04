@@ -4,8 +4,8 @@
 | --- | --- |
 | Produit | Marketteo CRM |
 | Ancienne désignation | Prospect CRM ; `LeadGenerator` reste un identifiant technique transitoire |
-| Version du document | 1.5 |
-| Statut | Périmètre V1 enrichi et amélioration d'identité prospect pré-2.6 validée |
+| Version du document | 1.6 |
+| Statut | Phase 2.6 validée ; spécifications détaillées 2.6.1 proposées |
 | Date | 25 août 2026 |
 | Marché initial | Canada |
 | Langues V1 | Français canadien (`fr-CA`) et anglais canadien (`en-CA`) |
@@ -856,8 +856,31 @@ Décision produit du 25 août 2026 : la phase **2.5 est officiellement clôturé
 verrou local complet vert (`20260815_0013`, 227 tests backend, 144 tests frontend, zéro skip). Les réserves SEC-01,
 AUD-01, GOO-01 et NAV-01 sont acceptées et suivies ; Azure est reporté au verrou de préproduction. La prochaine phase
 de spécification est donc **2.6 — Redis partagé, quotas et durcissement**. Sa proposition détaillée est disponible
-dans [`PHASE_2_6_SPECIFICATIONS_DETAILLEES.md`](PHASE_2_6_SPECIFICATIONS_DETAILLEES.md) ; ses seize décisions restent
-à valider avant toute modification du code, des dépendances ou du pipeline.
+dans [`PHASE_2_6_SPECIFICATIONS_DETAILLEES.md`](PHASE_2_6_SPECIFICATIONS_DETAILLEES.md). Ses seize décisions ont été
+validées le 25 août 2026 et autorisent la spécification détaillée de 2.6.1 avant toute implémentation. Cette
+spécification est disponible dans
+[`PHASE_2_6_1_SPECIFICATIONS_DETAILLEES.md`](PHASE_2_6_1_SPECIFICATIONS_DETAILLEES.md). Ses seize décisions propres
+et son GO d’implémentation sont validés ; la recette fonctionnelle sera regroupée à la clôture de 2.6. La version 1.0
+de 2.6 consolide la séparation `place_id`/nom interne validée avant 2.6 et impose une réservation de quota idempotente
+par opération afin qu'une réponse Redis perdue ne puisse jamais compter deux fois.
+
+Les spécifications proposées de la phase suivante, **Phase 3 — Cœur CRM**, sont consignées dans
+[`PHASE_3_SPECIFICATIONS_DETAILLEES.md`](PHASE_3_SPECIFICATIONS_DETAILLEES.md). Elles regroupent l’import CSV
+conforme, le Kanban, les activités/tâches, les opportunités, la résolution de lieu et la fondation bilingue sans
+réimplémenter les protections de conformité déjà livrées en 2.5 et 2.6.
+Les seize décisions de cadrage de la phase 3 ont été validées le 26 août 2026 ; elles autorisent la préparation des
+spécifications détaillées de **3.1 — Import CSV conforme réel**, sans lancer de code avant un GO d’implémentation.
+Les spécifications détaillées de cet incrément sont disponibles dans
+[`PHASE_3_1_SPECIFICATIONS_DETAILLEES.md`](PHASE_3_1_SPECIFICATIONS_DETAILLEES.md) ; les seize décisions et le GO
+d’implémentation ont été approuvés le 26 août 2026. La recette locale et le verrou qualité complet sont verts ; la
+clôture avec réserve a été prononcée le 4 septembre 2026. La réserve staging multi-instance 2.6 et la preuve Azure
+restent obligatoires avant préproduction, sans bloquer 3.2.
+
+Les spécifications proposées de **3.2 — Pipeline Kanban** sont disponibles dans
+[`PHASE_3_2_SPECIFICATIONS_DETAILLEES.md`](PHASE_3_2_SPECIFICATIONS_DETAILLEES.md). Elles définissent les neuf étapes,
+les transitions versionnées et idempotentes, l’historique atomique, l’audit, les filtres et l’interface accessible. Les
+seize décisions propres à 3.2 ont été validées le 4 septembre 2026. Aucun code 3.2 ne démarre avant un GO
+d’implémentation explicite.
 
 Le développement de 2.5 est découpé en cinq sous-incréments validés séparément : **2.5.1** modèle de données et
 migrations, **2.5.2** socle prospect et ajout Google, **2.5.3** provenance/permissions/fournisseurs, **2.5.4**

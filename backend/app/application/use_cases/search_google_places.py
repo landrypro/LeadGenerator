@@ -1,13 +1,20 @@
 from __future__ import annotations
 
+from collections.abc import Callable
 from dataclasses import dataclass
-from datetime import UTC, datetime
+from datetime import datetime
+from time import perf_counter
+from uuid import UUID, uuid4
 
 from ...domain.geo import haversine_km
 from ...domain.google_place import GooglePlaceSearchResult, GooglePlaceSearchStats, GooglePlaceSummary
+from ..errors import GoogleProtectionUnavailable, GoogleQuotaExceeded, GoogleSearchInProgress, PlacesProviderError
 from ..models import GoogleAccessContext, GooglePlaceSearchCriteria, MapPoint, MapSnapshot
+from ..ports.clock import Clock
 from ..ports.generation_guard import GenerationGuard
+from ..ports.google_quota import GoogleSearchPolicyProvider, GoogleSearchQuota
 from ..ports.map_grants import MapSnapshotGrantStore
+from ..ports.metrics import MetricsRecorder, NullMetricsRecorder
 from ..ports.places import PlaceCandidate, PlacesGateway
 from ..ports.prospect import GoogleSelectionGrantStore
 
@@ -30,20 +37,53 @@ class SearchGooglePlacesUseCase:
         generation_guard: GenerationGuard,
         map_grants: MapSnapshotGrantStore,
         selection_grants: GoogleSelectionGrantStore,
+        policy_provider: GoogleSearchPolicyProvider,
+        quota: GoogleSearchQuota,
+        clock: Clock,
+        operation_id_factory: Callable[[], UUID] = uuid4,
+        metrics: MetricsRecorder | None = None,
     ) -> None:
         self._places = places
         self._generation_guard = generation_guard
         self._map_grants = map_grants
         self._selection_grants = selection_grants
+        self._policy_provider = policy_provider
+        self._quota = quota
+        self._clock = clock
+        self._operation_id_factory = operation_id_factory
+        self._metrics = metrics or NullMetricsRecorder()
 
     async def execute(
         self,
         criteria: GooglePlaceSearchCriteria,
         access: GoogleAccessContext,
     ) -> SearchGooglePlacesOutcome:
-        async with self._generation_guard.hold(access.owner):
-            candidates = await self._places.search(criteria)
-            search = self._build_result(candidates, criteria)
+        policy = await self._policy_provider.resolve(access.owner)
+        try:
+            async with self._generation_guard.hold(access.owner):
+                self._metrics.record_google_search_lock("accepted")
+                reservation = await self._quota.reserve(
+                    access.owner,
+                    policy,
+                    self._operation_id_factory(),
+                    now=self._clock.now(),
+                )
+                if not reservation.allowed:
+                    self._metrics.record_google_search_quota(
+                        reservation.scope or "user", "rejected", policy.policy_code
+                    )
+                    raise GoogleQuotaExceeded(reservation.scope or "user", reservation.retry_after_seconds)
+                self._metrics.record_google_search_quota("user", "accepted", policy.policy_code)
+                self._metrics.record_google_search_quota("organization", "accepted", policy.policy_code)
+                candidates = await self._search_places(criteria)
+        except GoogleSearchInProgress:
+            self._metrics.record_google_search_lock("contended")
+            raise
+        except GoogleProtectionUnavailable:
+            self._metrics.record_google_search_lock("unavailable")
+            raise
+        else:
+            search = self._build_result(candidates, criteria, searched_at=self._clock.now())
             snapshot = MapSnapshot(
                 center_latitude=criteria.center_latitude,
                 center_longitude=criteria.center_longitude,
@@ -66,10 +106,22 @@ class SearchGooglePlacesUseCase:
                 selection_token=selection_token,
             )
 
+    async def _search_places(self, criteria: GooglePlaceSearchCriteria):  # type: ignore[no-untyped-def]
+        started_at = perf_counter()
+        try:
+            candidates = await self._places.search(criteria)
+        except PlacesProviderError:
+            self._metrics.record_google_upstream("places_text_search", "failed", perf_counter() - started_at)
+            raise
+        self._metrics.record_google_upstream("places_text_search", "accepted", perf_counter() - started_at)
+        return candidates
+
     @staticmethod
     def _build_result(
         candidates: list[PlaceCandidate],
         criteria: GooglePlaceSearchCriteria,
+        *,
+        searched_at: datetime,
     ) -> GooglePlaceSearchResult:
         places: list[GooglePlaceSummary] = []
         seen_place_ids: set[str] = set()
@@ -108,7 +160,7 @@ class SearchGooglePlacesUseCase:
                 outside_radius_removed=outside_radius_removed,
                 service_area_unverified=service_area_unverified,
             ),
-            searched_at=datetime.now(UTC),
+            searched_at=searched_at,
         )
 
     @staticmethod

@@ -2,6 +2,19 @@ class GoogleSearchInProgress(RuntimeError):
     """Une recherche Google est déjà en cours pour le même acteur locataire."""
 
 
+class GoogleProtectionUnavailable(RuntimeError):
+    """Redis ne peut pas garantir les protections d'un parcours Google."""
+
+
+class GoogleQuotaExceeded(RuntimeError):
+    """La politique de coût Google refuse une nouvelle recherche quotidienne."""
+
+    def __init__(self, scope: str, retry_after_seconds: int) -> None:
+        super().__init__("La limite quotidienne de recherches Google est atteinte.")
+        self.scope = scope
+        self.retry_after_seconds = max(1, retry_after_seconds)
+
+
 class InvalidMapSnapshotGrant(RuntimeError):
     """Le jeton de carte est absent, expiré ou déjà consommé."""
 

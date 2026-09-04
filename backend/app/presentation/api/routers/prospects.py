@@ -9,6 +9,7 @@ from ....application.errors import (
     AuthenticationRequired,
     AuthenticationServiceUnavailable,
     CsrfValidationFailed,
+    GoogleProtectionUnavailable,
     InsufficientCapability,
     InvalidGoogleSelectionGrant,
     ProspectResourceNotFound,
@@ -236,6 +237,13 @@ def _prospect_error(request: Request, error: Exception) -> Response | None:
         return api_error(request, 403, "insufficient_capability", "Autorisation prospects insuffisante.")
     if isinstance(error, InvalidGoogleSelectionGrant):
         return api_error(request, 400, "google_selection_invalid", "La sélection Google n’est plus utilisable.")
+    if isinstance(error, GoogleProtectionUnavailable):
+        return api_error(
+            request,
+            503,
+            "google_protection_unavailable",
+            "La protection temporaire du parcours Google est indisponible.",
+        )
     if isinstance(error, ProspectResourceNotFound):
         return api_error(request, 404, "prospect_not_found", "Prospect introuvable.")
     if isinstance(error, ProspectVersionConflict):
