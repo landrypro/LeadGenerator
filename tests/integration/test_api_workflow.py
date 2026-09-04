@@ -6,7 +6,12 @@ import pytest
 from httpx import ASGITransport, AsyncClient
 
 from backend.app.application.errors import StaticMapProviderError
-from backend.app.application.models import GooglePlaceSearchCriteria
+from backend.app.application.models import (
+    GoogleAccessOwner,
+    GooglePlaceSearchCriteria,
+    GoogleQuotaReservation,
+    GoogleSearchQuotaPolicy,
+)
 from backend.app.application.ports.maps import MapImage
 from backend.app.application.ports.places import PlaceCandidate
 from backend.app.application.use_cases import GetMapSnapshotUseCase, SearchGooglePlacesUseCase
@@ -71,6 +76,63 @@ class CurrentSession:
         return self.identities[token]
 
 
+class PermissiveGoogleSearchPolicy:
+    async def resolve(self, owner: GoogleAccessOwner) -> GoogleSearchQuotaPolicy:
+        del owner
+        return GoogleSearchQuotaPolicy(True, 20, 100, 80, "test_policy")
+
+
+class PermissiveGoogleSearchQuota:
+    async def reserve(
+        self,
+        owner: GoogleAccessOwner,
+        policy: GoogleSearchQuotaPolicy,
+        operation_id: object,
+        *,
+        now: datetime,
+    ) -> GoogleQuotaReservation:
+        del owner, operation_id
+        return GoogleQuotaReservation(
+            True,
+            None,
+            1,
+            policy.user_daily_limit - 1,
+            1,
+            policy.organization_daily_limit - 1,
+            now,
+            1,
+            policy.policy_code,
+        )
+
+
+class RejectedGoogleSearchQuota:
+    async def reserve(
+        self,
+        owner: GoogleAccessOwner,
+        policy: GoogleSearchQuotaPolicy,
+        operation_id: object,
+        *,
+        now: datetime,
+    ) -> GoogleQuotaReservation:
+        del owner, operation_id
+        return GoogleQuotaReservation(
+            False,
+            "organization",
+            1,
+            policy.user_daily_limit - 1,
+            policy.organization_daily_limit,
+            0,
+            now,
+            123,
+            policy.policy_code,
+        )
+
+
+class SystemTestClock:
+    def now(self) -> datetime:
+        return datetime.now(UTC)
+
+
 class FakePlacesGateway:
     def __init__(self) -> None:
         self.calls = 0
@@ -121,6 +183,7 @@ def integration_app(
     identities=None,
     places_gateway: FakePlacesGateway | None = None,
     map_gateway: FakeStaticMapGateway | None = None,
+    quota: object | None = None,
 ) -> tuple[object, FakePlacesGateway]:
     settings = Settings(
         google_maps_api_key="test-places-key",
@@ -138,6 +201,9 @@ def integration_app(
             InMemoryGenerationGuard(),
             grants,
             selection_grants,
+            PermissiveGoogleSearchPolicy(),
+            quota or PermissiveGoogleSearchQuota(),
+            SystemTestClock(),
         ),
         get_map_snapshot=GetMapSnapshotUseCase(grants, maps),
         get_current_session=CurrentSession(identities or {SESSION_TOKEN: authenticated_identity()}),  # type: ignore[arg-type]
@@ -203,6 +269,20 @@ async def test_limited_search_and_protected_map_workflow_through_http() -> None:
 
         replay_response = await client.post("/api/map/snapshot", json={"token": token}, headers=headers)
         assert replay_response.status_code == 403
+
+
+@pytest.mark.integration
+async def test_quota_rejection_is_no_store_and_never_reaches_places() -> None:
+    app, places_gateway = integration_app(quota=RejectedGoogleSearchQuota())
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+        response = await client.post("/api/google/places/search", json=search_payload(), headers=authorize(client))
+
+    assert response.status_code == 429
+    assert response.headers["cache-control"] == "no-store, max-age=0"
+    assert response.headers["retry-after"] == "123"
+    assert response.json()["error"]["code"] == "google_quota_exceeded"
+    assert response.json()["error"]["fields"] == {"scope": "organization"}
+    assert places_gateway.calls == 0
 
 
 @pytest.mark.integration

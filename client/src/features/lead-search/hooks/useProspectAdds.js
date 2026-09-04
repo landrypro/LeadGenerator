@@ -10,6 +10,7 @@ function setToArray(value) {
 
 export function useProspectAdds({ selectionToken, clearError, reportError }) {
   const [selectedPlaceIds, setSelectedPlaceIds] = useState(() => new Set())
+  const [internalAliases, setInternalAliases] = useState({})
   const [itemStates, setItemStates] = useState({})
   const [addingIds, setAddingIds] = useState(() => new Set())
   const activeRequestRef = useRef(null)
@@ -17,6 +18,7 @@ export function useProspectAdds({ selectionToken, clearError, reportError }) {
   useEffect(() => {
     activeRequestRef.current?.abort()
     setSelectedPlaceIds(new Set())
+    setInternalAliases({})
     setItemStates({})
     setAddingIds(new Set())
   }, [selectionToken])
@@ -25,6 +27,13 @@ export function useProspectAdds({ selectionToken, clearError, reportError }) {
 
   const selectedCount = selectedPlaceIds.size
   const adding = addingIds.size > 0
+  const selectedReady = selectedCount > 0 && setToArray(selectedPlaceIds).every(
+    (placeId) => internalAliases[placeId]?.trim(),
+  )
+
+  const updateInternalAlias = useCallback((placeId, value) => {
+    setInternalAliases((current) => ({ ...current, [placeId]: value }))
+  }, [])
 
   const togglePlace = useCallback((placeId) => {
     setSelectedPlaceIds((current) => {
@@ -37,7 +46,11 @@ export function useProspectAdds({ selectionToken, clearError, reportError }) {
 
   const addPlaces = useCallback(async (placeIds) => {
     const requested = Array.from(new Set(placeIds.filter(Boolean)))
-    if (!selectionToken || !requested.length) return null
+    const items = requested.map((placeId) => ({
+      place_id: placeId,
+      internal_alias: internalAliases[placeId]?.trim() ?? '',
+    }))
+    if (!selectionToken || !items.length || items.some((item) => !item.internal_alias)) return null
     const controller = new AbortController()
     activeRequestRef.current = controller
     setAddingIds(new Set(requested))
@@ -45,12 +58,19 @@ export function useProspectAdds({ selectionToken, clearError, reportError }) {
     try {
       const outcome = await leadSearchApi.addGoogleProspects({
         selection_token: selectionToken,
-        place_ids: requested,
+        items,
       }, controller.signal)
       setItemStates((current) => {
         const next = { ...current }
         for (const item of outcome.items ?? []) {
           next[item.place_id] = item.disposition
+        }
+        return next
+      })
+      setInternalAliases((current) => {
+        const next = { ...current }
+        for (const item of outcome.items ?? []) {
+          if (item.prospect?.internal_alias) next[item.place_id] = item.prospect.internal_alias
         }
         return next
       })
@@ -74,21 +94,24 @@ export function useProspectAdds({ selectionToken, clearError, reportError }) {
       if (activeRequestRef.current === controller) activeRequestRef.current = null
       setAddingIds(new Set())
     }
-  }, [clearError, reportError, selectionToken])
+  }, [clearError, internalAliases, reportError, selectionToken])
 
   const addOne = useCallback((placeId) => addPlaces([placeId]), [addPlaces])
   const addSelected = useCallback(() => addPlaces(setToArray(selectedPlaceIds)), [addPlaces, selectedPlaceIds])
 
   const value = useMemo(() => ({
     selectedPlaceIds,
+    internalAliases,
     itemStates,
     addingIds,
     selectedCount,
+    selectedReady,
     adding,
     togglePlace,
+    updateInternalAlias,
     addOne,
     addSelected,
-  }), [addOne, addSelected, adding, addingIds, itemStates, selectedCount, selectedPlaceIds, togglePlace])
+  }), [addOne, addSelected, adding, addingIds, internalAliases, itemStates, selectedCount, selectedPlaceIds, selectedReady, togglePlace, updateInternalAlias])
 
   return value
 }

@@ -7,6 +7,7 @@ from dataclasses import dataclass, field
 from datetime import datetime
 from enum import StrEnum
 from types import MappingProxyType
+from typing import cast
 from uuid import UUID
 
 
@@ -58,6 +59,29 @@ class AuditAction(StrEnum):
     CONTACT_CREATED = "contact.created"
     CHANNEL_CREATED = "channel.created"
     PROVENANCE_RECORDED = "provenance.recorded"
+    SOURCE_PROVIDER_CREATED = "source_provider.created"
+    SOURCE_PROVIDER_UPDATED = "source_provider.updated"
+    SOURCE_PROVIDER_STATUS_CHANGED = "source_provider.status_changed"
+    ACQUISITION_DECLARED = "acquisition.declared"
+    ACQUISITION_QUARANTINED = "acquisition.quarantined"
+    ACQUISITION_APPROVED = "acquisition.approved"
+    ACQUISITION_REJECTED = "acquisition.rejected"
+    CONTACT_PERMISSION_CHANGED = "contact_permission.changed"
+    RETENTION_POLICY_CREATED = "retention_policy.created"
+    RETENTION_POLICY_ACTIVATED = "retention_policy.activated"
+    RETENTION_POLICY_SUPERSEDED = "retention_policy.superseded"
+    RETENTION_HOLD_PLACED = "retention_hold.placed"
+    RETENTION_HOLD_RELEASED = "retention_hold.released"
+    IMPORT_DECLARATION_DECLARED = "import_declaration.declared"
+    IMPORT_DECLARATION_QUARANTINED = "import_declaration.quarantined"
+    IMPORT_DECLARATION_CANCELLED = "import_declaration.cancelled"
+    IMPORT_DECLARATION_ARCHIVED = "import_declaration.archived"
+    IMPORT_FILE_UPLOADED = "import.file_uploaded"
+    IMPORT_MAPPING_SAVED = "import.mapping_saved"
+    IMPORT_VALIDATED = "import.validated"
+    IMPORT_CONFIRMED = "import.confirmed"
+    CONTACT_ARCHIVED = "contact.archived"
+    CONTACT_CHANNEL_ARCHIVED = "contact_channel.archived"
 
 
 _ENTITY_TYPE_PATTERN = re.compile(r"^[a-z][a-z0-9_]{0,63}$", re.ASCII)
@@ -73,6 +97,36 @@ _PROSPECT_ORIGINS = frozenset({"connector", "google_place", "import", "manual", 
 _CONTACT_CHANNEL_TYPES = frozenset({"email", "facebook", "linkedin", "other", "phone"})
 _PROVENANCE_SOURCE_KINDS = frozenset(
     {"api", "csv", "facebook", "google_maps", "linkedin", "manual", "open_data", "other"}
+)
+_SOURCE_PROVIDER_STATUSES = frozenset({"active", "draft", "retired", "suspended"})
+_ACQUISITION_STATUSES = frozenset({"approved", "pending_review", "quarantined", "rejected"})
+_PERMISSION_STATUSES = frozenset({"allowed", "do_not_contact", "opted_out", "unknown"})
+_RETENTION_RESOURCE_TYPES = frozenset(
+    {"acquisition_record", "contact", "contact_channel", "import_declaration", "prospect", "provenance_record"}
+)
+_RETENTION_POLICY_STATUSES = frozenset({"active", "draft", "superseded"})
+_RETENTION_HOLD_REASONS = frozenset(
+    {"contractual_obligation", "data_subject_request", "investigation", "legal_request", "other", "quality_review"}
+)
+_RETENTION_RELEASE_REASONS = frozenset({"entered_in_error", "expired", "other", "resolved"})
+_IMPORT_DECLARATION_STATUSES = frozenset({"archived", "cancelled", "declared", "quarantined"})
+_IMPORT_DECLARATION_REASON_CODES = frozenset(
+    {"category_not_acquired", "field_not_allowed", "high_risk_free_text", "provider_history_incomplete"}
+)
+_ARCHIVE_REASON_CODES = frozenset(
+    {"duplicate", "import_cancelled", "invalid_data", "no_longer_relevant", "other", "relationship_ended"}
+)
+_QUARANTINE_REASON_CODES = frozenset(
+    {
+        "contract_expired",
+        "contract_not_started",
+        "data_category_not_allowed",
+        "provider_not_active",
+        "purpose_not_allowed",
+        "rights_attestation_missing",
+        "source_kind_mismatch",
+        "territory_not_allowed",
+    }
 )
 _TENANT_ACTIONS = frozenset(
     {
@@ -92,6 +146,29 @@ _TENANT_ACTIONS = frozenset(
         AuditAction.CONTACT_CREATED,
         AuditAction.CHANNEL_CREATED,
         AuditAction.PROVENANCE_RECORDED,
+        AuditAction.SOURCE_PROVIDER_CREATED,
+        AuditAction.SOURCE_PROVIDER_UPDATED,
+        AuditAction.SOURCE_PROVIDER_STATUS_CHANGED,
+        AuditAction.ACQUISITION_DECLARED,
+        AuditAction.ACQUISITION_QUARANTINED,
+        AuditAction.ACQUISITION_APPROVED,
+        AuditAction.ACQUISITION_REJECTED,
+        AuditAction.CONTACT_PERMISSION_CHANGED,
+        AuditAction.RETENTION_POLICY_CREATED,
+        AuditAction.RETENTION_POLICY_ACTIVATED,
+        AuditAction.RETENTION_POLICY_SUPERSEDED,
+        AuditAction.RETENTION_HOLD_PLACED,
+        AuditAction.RETENTION_HOLD_RELEASED,
+        AuditAction.IMPORT_DECLARATION_DECLARED,
+        AuditAction.IMPORT_DECLARATION_QUARANTINED,
+        AuditAction.IMPORT_DECLARATION_CANCELLED,
+        AuditAction.IMPORT_DECLARATION_ARCHIVED,
+        AuditAction.IMPORT_FILE_UPLOADED,
+        AuditAction.IMPORT_MAPPING_SAVED,
+        AuditAction.IMPORT_VALIDATED,
+        AuditAction.IMPORT_CONFIRMED,
+        AuditAction.CONTACT_ARCHIVED,
+        AuditAction.CONTACT_CHANNEL_ARCHIVED,
     }
 )
 _PLATFORM_ACTIONS = frozenset(set(AuditAction) - _TENANT_ACTIONS)
@@ -119,6 +196,29 @@ _ACTION_ENTITY_TYPES = {
     AuditAction.CONTACT_CREATED: "contact",
     AuditAction.CHANNEL_CREATED: "contact_channel",
     AuditAction.PROVENANCE_RECORDED: "provenance",
+    AuditAction.SOURCE_PROVIDER_CREATED: "source_provider",
+    AuditAction.SOURCE_PROVIDER_UPDATED: "source_provider",
+    AuditAction.SOURCE_PROVIDER_STATUS_CHANGED: "source_provider",
+    AuditAction.ACQUISITION_DECLARED: "acquisition",
+    AuditAction.ACQUISITION_QUARANTINED: "acquisition",
+    AuditAction.ACQUISITION_APPROVED: "acquisition",
+    AuditAction.ACQUISITION_REJECTED: "acquisition",
+    AuditAction.CONTACT_PERMISSION_CHANGED: "contact_permission",
+    AuditAction.RETENTION_POLICY_CREATED: "retention_policy",
+    AuditAction.RETENTION_POLICY_ACTIVATED: "retention_policy",
+    AuditAction.RETENTION_POLICY_SUPERSEDED: "retention_policy",
+    AuditAction.RETENTION_HOLD_PLACED: "retention_hold",
+    AuditAction.RETENTION_HOLD_RELEASED: "retention_hold",
+    AuditAction.IMPORT_DECLARATION_DECLARED: "import_declaration",
+    AuditAction.IMPORT_DECLARATION_QUARANTINED: "import_declaration",
+    AuditAction.IMPORT_DECLARATION_CANCELLED: "import_declaration",
+    AuditAction.IMPORT_DECLARATION_ARCHIVED: "import_declaration",
+    AuditAction.IMPORT_FILE_UPLOADED: "csv_import_session",
+    AuditAction.IMPORT_MAPPING_SAVED: "csv_import_session",
+    AuditAction.IMPORT_VALIDATED: "csv_import_session",
+    AuditAction.IMPORT_CONFIRMED: "csv_import_session",
+    AuditAction.CONTACT_ARCHIVED: "contact",
+    AuditAction.CONTACT_CHANNEL_ARCHIVED: "contact_channel",
 }
 
 
@@ -234,7 +334,25 @@ class AuditMetadataPolicy:
         if action is AuditAction.PROSPECT_UPDATED:
             cls._require_keys(values, {"changed_fields"})
             changed_fields = values["changed_fields"]
-            allowed_fields = frozenset({"internal_alias", "owner_id", "priority", "retention_review_at", "stage_code"})
+            allowed_fields = frozenset(
+                {
+                    "internal_alias",
+                    "owner_id",
+                    "priority",
+                    "retention_review_at",
+                    "stage_code",
+                    "industry_label",
+                    "segment_code",
+                    "size_band",
+                    "address_line_1",
+                    "address_line_2",
+                    "city",
+                    "region",
+                    "postal_code",
+                    "country_code",
+                    "tags",
+                }
+            )
             if (
                 isinstance(changed_fields, (str, bytes))
                 or not isinstance(changed_fields, Sequence)
@@ -248,11 +366,24 @@ class AuditMetadataPolicy:
             return {"changed_fields": tuple(sorted(changed_fields))}
 
         if action is AuditAction.PROSPECT_ARCHIVED:
-            cls._require_keys(values, {"previous_version"})
+            cls._require_keys(
+                values, {"previous_version"}, {"archive_reason_code", "contacts_archived", "channels_archived"}
+            )
             previous_version = values["previous_version"]
             if not isinstance(previous_version, int) or previous_version <= 0:
                 raise InvalidAuditMetadata("previous_version doit etre strictement positif.")
-            return {"previous_version": previous_version}
+            prospect_archive_result: dict[str, object] = {"previous_version": previous_version}
+            if "archive_reason_code" in values:
+                prospect_archive_result["archive_reason_code"] = cls._choice(
+                    values["archive_reason_code"], _ARCHIVE_REASON_CODES, "archive_reason_code"
+                )
+            for count_field in ("contacts_archived", "channels_archived"):
+                if count_field in values:
+                    count = values[count_field]
+                    if not isinstance(count, int) or count < 0:
+                        raise InvalidAuditMetadata(f"{count_field} doit etre un entier positif.")
+                    prospect_archive_result[count_field] = count
+            return prospect_archive_result
 
         if action is AuditAction.CONTACT_CREATED:
             cls._require_keys(values, {"prospect_id"})
@@ -271,6 +402,168 @@ class AuditMetadataPolicy:
             return {
                 "source_kind": cls._choice(values["source_kind"], _PROVENANCE_SOURCE_KINDS, "source_kind"),
             }
+
+        if action is AuditAction.SOURCE_PROVIDER_CREATED:
+            cls._require_keys(values, {"source_kind", "status"})
+            return {
+                "source_kind": cls._choice(values["source_kind"], _PROVENANCE_SOURCE_KINDS, "source_kind"),
+                "status": cls._choice(values["status"], _SOURCE_PROVIDER_STATUSES, "status"),
+            }
+
+        if action is AuditAction.SOURCE_PROVIDER_UPDATED:
+            cls._require_keys(values, {"changed_fields"})
+            allowed_fields = frozenset(
+                {
+                    "allowed_data_categories",
+                    "allowed_purposes",
+                    "allowed_territories",
+                    "label",
+                    "terms_reference",
+                    "terms_url",
+                    "valid_from",
+                    "valid_until",
+                }
+            )
+            return {"changed_fields": cls._field_names(values["changed_fields"], allowed_fields)}
+
+        if action is AuditAction.SOURCE_PROVIDER_STATUS_CHANGED:
+            cls._require_keys(values, {"previous_status", "new_status"})
+            return {
+                "previous_status": cls._choice(values["previous_status"], _SOURCE_PROVIDER_STATUSES, "previous_status"),
+                "new_status": cls._choice(values["new_status"], _SOURCE_PROVIDER_STATUSES, "new_status"),
+            }
+
+        if action is AuditAction.ACQUISITION_DECLARED:
+            cls._require_keys(values, {"source_kind", "status"})
+            return {
+                "source_kind": cls._choice(values["source_kind"], _PROVENANCE_SOURCE_KINDS, "source_kind"),
+                "status": cls._choice(values["status"], _ACQUISITION_STATUSES, "status"),
+            }
+
+        if action is AuditAction.ACQUISITION_QUARANTINED:
+            cls._require_keys(values, {"source_kind", "reason_code"})
+            return {
+                "source_kind": cls._choice(values["source_kind"], _PROVENANCE_SOURCE_KINDS, "source_kind"),
+                "reason_code": cls._choice(values["reason_code"], _QUARANTINE_REASON_CODES, "reason_code"),
+            }
+
+        if action in {AuditAction.ACQUISITION_APPROVED, AuditAction.ACQUISITION_REJECTED}:
+            cls._require_keys(values, {"previous_status", "new_status"})
+            return {
+                "previous_status": cls._choice(values["previous_status"], _ACQUISITION_STATUSES, "previous_status"),
+                "new_status": cls._choice(values["new_status"], _ACQUISITION_STATUSES, "new_status"),
+            }
+
+        if action is AuditAction.CONTACT_PERMISSION_CHANGED:
+            cls._require_keys(values, {"previous_status", "new_status", "propagated_count"})
+            propagated_count = values["propagated_count"]
+            if not isinstance(propagated_count, int) or propagated_count < 0:
+                raise InvalidAuditMetadata("propagated_count doit etre un entier positif.")
+            return {
+                "previous_status": cls._choice(values["previous_status"], _PERMISSION_STATUSES, "previous_status"),
+                "new_status": cls._choice(values["new_status"], _PERMISSION_STATUSES, "new_status"),
+                "propagated_count": propagated_count,
+            }
+
+        if action is AuditAction.RETENTION_POLICY_CREATED:
+            cls._require_keys(values, {"resource_type", "status"})
+            return {
+                "resource_type": cls._choice(values["resource_type"], _RETENTION_RESOURCE_TYPES, "resource_type"),
+                "status": cls._choice(values["status"], _RETENTION_POLICY_STATUSES, "status"),
+            }
+
+        if action in {AuditAction.RETENTION_POLICY_ACTIVATED, AuditAction.RETENTION_POLICY_SUPERSEDED}:
+            cls._require_keys(values, {"resource_type", "previous_status", "new_status"})
+            return {
+                "resource_type": cls._choice(values["resource_type"], _RETENTION_RESOURCE_TYPES, "resource_type"),
+                "previous_status": cls._choice(
+                    values["previous_status"], _RETENTION_POLICY_STATUSES, "previous_status"
+                ),
+                "new_status": cls._choice(values["new_status"], _RETENTION_POLICY_STATUSES, "new_status"),
+            }
+
+        if action is AuditAction.RETENTION_HOLD_PLACED:
+            cls._require_keys(values, {"resource_type", "reason_code"})
+            return {
+                "resource_type": cls._choice(values["resource_type"], _RETENTION_RESOURCE_TYPES, "resource_type"),
+                "reason_code": cls._choice(values["reason_code"], _RETENTION_HOLD_REASONS, "reason_code"),
+            }
+
+        if action is AuditAction.RETENTION_HOLD_RELEASED:
+            cls._require_keys(values, {"resource_type", "release_reason_code"})
+            return {
+                "resource_type": cls._choice(values["resource_type"], _RETENTION_RESOURCE_TYPES, "resource_type"),
+                "release_reason_code": cls._choice(
+                    values["release_reason_code"], _RETENTION_RELEASE_REASONS, "release_reason_code"
+                ),
+            }
+
+        if action in {
+            AuditAction.IMPORT_DECLARATION_DECLARED,
+            AuditAction.IMPORT_DECLARATION_QUARANTINED,
+            AuditAction.IMPORT_DECLARATION_CANCELLED,
+        }:
+            optional = {"decision_reason_codes"} if action is AuditAction.IMPORT_DECLARATION_QUARANTINED else None
+            cls._require_keys(values, {"status"}, optional)
+            result = {"status": cls._choice(values["status"], _IMPORT_DECLARATION_STATUSES, "status")}
+            if "decision_reason_codes" in values:
+                result["decision_reason_codes"] = cls._field_names(
+                    values["decision_reason_codes"], _IMPORT_DECLARATION_REASON_CODES
+                )
+            return result
+
+        if action is AuditAction.IMPORT_DECLARATION_ARCHIVED:
+            cls._require_keys(values, {"previous_status", "archive_reason_code"})
+            return {
+                "previous_status": cls._choice(
+                    values["previous_status"], _IMPORT_DECLARATION_STATUSES, "previous_status"
+                ),
+                "archive_reason_code": cls._choice(
+                    values["archive_reason_code"], _ARCHIVE_REASON_CODES, "archive_reason_code"
+                ),
+            }
+
+        if action is AuditAction.IMPORT_FILE_UPLOADED:
+            cls._require_keys(values, {"byte_size", "header_count"})
+            if not all(
+                isinstance(values[key], int) and cast(int, values[key]) >= 0 for key in ("byte_size", "header_count")
+            ):
+                raise InvalidAuditMetadata("Les métadonnées du fichier importé sont invalides.")
+            return {"byte_size": values["byte_size"], "header_count": values["header_count"]}
+
+        if action is AuditAction.IMPORT_MAPPING_SAVED:
+            cls._require_keys(values, {"mapped_field_count"})
+            count = values["mapped_field_count"]
+            if not isinstance(count, int) or not 1 <= count <= 9:
+                raise InvalidAuditMetadata("mapped_field_count est invalide.")
+            return {"mapped_field_count": count}
+
+        if action in {AuditAction.IMPORT_VALIDATED, AuditAction.IMPORT_CONFIRMED}:
+            allowed = {"created_count", "duplicate_count", "ready_count", "review_count", "quarantined_count"}
+            cls._require_keys(values, set(values), None)
+            if not values or set(values) - allowed:
+                raise InvalidAuditMetadata("Les compteurs d’import sont invalides.")
+            if not all(isinstance(value, int) and value >= 0 for value in values.values()):
+                raise InvalidAuditMetadata("Les compteurs d’import sont invalides.")
+            return dict(values)
+
+        if action in {AuditAction.CONTACT_ARCHIVED, AuditAction.CONTACT_CHANNEL_ARCHIVED}:
+            cls._require_keys(values, {"previous_version", "archive_reason_code"}, {"channels_archived"})
+            previous_version = values["previous_version"]
+            if not isinstance(previous_version, int) or previous_version <= 0:
+                raise InvalidAuditMetadata("previous_version doit etre strictement positif.")
+            archive_result = {
+                "previous_version": previous_version,
+                "archive_reason_code": cls._choice(
+                    values["archive_reason_code"], _ARCHIVE_REASON_CODES, "archive_reason_code"
+                ),
+            }
+            if "channels_archived" in values:
+                count = values["channels_archived"]
+                if not isinstance(count, int) or count < 0:
+                    raise InvalidAuditMetadata("channels_archived doit etre un entier positif.")
+                archive_result["channels_archived"] = count
+            return archive_result
 
         cls._require_keys(values, set())
         return {}
@@ -296,6 +589,18 @@ class AuditMetadataPolicy:
         if not isinstance(value, str) or value not in choices:
             raise InvalidAuditMetadata(f"{field_name} contient un code non autorisé.")
         return value
+
+    @classmethod
+    def _field_names(cls, value: object, allowed_fields: frozenset[str]) -> tuple[str, ...]:
+        if (
+            isinstance(value, (str, bytes))
+            or not isinstance(value, Sequence)
+            or not value
+            or any(not isinstance(field_name, str) or field_name not in allowed_fields for field_name in value)
+            or len(set(value)) != len(value)
+        ):
+            raise InvalidAuditMetadata("changed_fields contient une valeur interdite ou dupliquee.")
+        return tuple(sorted(value))
 
     @classmethod
     def _status_operation(cls, values: Mapping[str, object]) -> dict[str, object]:

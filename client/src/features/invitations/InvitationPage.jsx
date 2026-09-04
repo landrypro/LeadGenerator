@@ -68,7 +68,7 @@ export function InvitationPage({ initialToken, auth }) {
     <section className="invitation-card" aria-labelledby="invitation-title">
       <header className="invitation-header">
         <div className="login-brand" aria-hidden="true"><Building2 size={25} /></div>
-        <div><p className="eyebrow">Prospect CRM</p><h1 id="invitation-title">Invitation</h1></div>
+        <div><p className="eyebrow">Marketteo CRM</p><h1 id="invitation-title">Invitation</h1></div>
       </header>
       {state === 'loading' && <p className="invitation-status" role="status">Vérification de l’invitation…</p>}
       {state === 'invalid' && <TerminalInvitationState message={error} />}

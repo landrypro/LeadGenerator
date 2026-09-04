@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import os
+import re
 from collections.abc import Mapping
 from dataclasses import dataclass, field
 from typing import Final
@@ -13,6 +14,8 @@ DEFAULT_CORS_ORIGINS = (
 VALID_APP_ENVIRONMENTS: Final = frozenset({"development", "test", "staging", "production"})
 POSTGRESQL_ASYNC_PREFIX: Final = "postgresql+asyncpg://"
 REDIS_PREFIXES: Final = ("redis://", "rediss://")
+GOOGLE_SEARCH_QUOTA_POLICY_CODE_PATTERN: Final = re.compile(r"[a-z0-9_]{3,64}")
+INSTANCE_ID_PATTERN: Final = re.compile(r"[A-Za-z0-9_.-]{1,128}")
 
 
 @dataclass(frozen=True, slots=True)
@@ -33,7 +36,7 @@ class Settings:
     session_absolute_seconds: int = 43_200
     invitation_ttl_seconds: int = 259_200
     invitation_delivery_backend: str = "disabled"
-    invitation_from_email: str = "no-reply@prospect.local"
+    invitation_from_email: str = "no-reply@marketteo.local"
     invitation_smtp_host: str = "127.0.0.1"
     invitation_smtp_port: int = 1025
     invitation_smtp_timeout_seconds: float = 5.0
@@ -51,17 +54,34 @@ class Settings:
     google_maps_static_api_key: str = field(default="", repr=False)
     cors_allowed_origins: tuple[str, ...] = DEFAULT_CORS_ORIGINS
     places_timeout_seconds: float = 30.0
+    google_search_lock_ttl_seconds: float = 45.0
+    google_search_user_daily_limit: int = 20
+    google_search_organization_daily_limit: int = 100
+    google_search_quota_warning_percent: int = 80
+    google_search_quota_policy_code: str = "server_default_v1"
     static_maps_timeout_seconds: float = 20.0
     map_grant_ttl_seconds: float = 300.0
     map_grant_max_entries: int = 1_000
     google_selection_grant_ttl_seconds: int = 600
     google_selection_grant_max_entries: int = 1_000
-    app_title: str = "Prospect CRM"
+    import_temp_directory: str = ".runtime/imports"
+    import_temp_max_bytes: int = 10 * 1024 * 1024
+    log_format: str = "text"
+    instance_id: str = ""
+    metrics_enabled: bool = False
+    metrics_bearer_token: str = field(default="", repr=False)
+    app_title: str = "Marketteo CRM"
     app_version: str = "1.5.0"
 
     def __post_init__(self) -> None:
         if self.app_env not in VALID_APP_ENVIRONMENTS:
             raise ValueError("APP_ENV doit être development, test, staging ou production.")
+        if self.log_format not in {"text", "json"}:
+            raise ValueError("LOG_FORMAT doit être text ou json.")
+        if self.instance_id and not INSTANCE_ID_PATTERN.fullmatch(self.instance_id):
+            raise ValueError("INSTANCE_ID est invalide.")
+        if self.metrics_enabled and len(self.metrics_bearer_token.encode("utf-8")) < 32:
+            raise ValueError("METRICS_BEARER_TOKEN doit contenir au moins 32 octets si les métriques sont activées.")
         if self.database_url and not self.database_url.startswith(POSTGRESQL_ASYNC_PREFIX):
             raise ValueError("DATABASE_URL doit utiliser postgresql+asyncpg://.")
         if self.redis_url and not self.redis_url.startswith(REDIS_PREFIXES):
@@ -108,12 +128,35 @@ class Settings:
             raise ValueError("Au moins une origine CORS doit être configurée.")
         if self.places_timeout_seconds <= 0 or self.static_maps_timeout_seconds <= 0:
             raise ValueError("Les délais d’attente HTTP doivent être positifs.")
+        minimum_search_lock_ttl = self.places_timeout_seconds + (2 * self.dependency_connect_timeout_seconds) + 5
+        if self.google_search_lock_ttl_seconds < minimum_search_lock_ttl:
+            raise ValueError("GOOGLE_SEARCH_LOCK_TTL_SECONDS est insuffisant pour le délai Places et Redis.")
+        quota_limits = (self.google_search_user_daily_limit, self.google_search_organization_daily_limit)
+        if any(limit < 0 or limit > 10_000 for limit in quota_limits):
+            raise ValueError("Les limites quotidiennes de recherche Google doivent être comprises entre 0 et 10000.")
+        if not 1 <= self.google_search_quota_warning_percent <= 100:
+            raise ValueError("GOOGLE_SEARCH_QUOTA_WARNING_PERCENT doit être compris entre 1 et 100.")
+        if not GOOGLE_SEARCH_QUOTA_POLICY_CODE_PATTERN.fullmatch(self.google_search_quota_policy_code):
+            raise ValueError("GOOGLE_SEARCH_QUOTA_POLICY_CODE est invalide.")
         if self.map_grant_ttl_seconds <= 0 or self.map_grant_max_entries <= 0:
             raise ValueError("La configuration des jetons de carte doit être positive.")
         if self.google_selection_grant_ttl_seconds <= 0 or self.google_selection_grant_max_entries <= 0:
             raise ValueError("La configuration des jetons de sélection Google doit être positive.")
+        if not self.import_temp_directory.strip() or self.import_temp_max_bytes != 10 * 1024 * 1024:
+            raise ValueError("La configuration du stockage temporaire CSV est invalide.")
+        if self.app_env != "test" and self.map_grant_ttl_seconds > 300:
+            raise ValueError("MAP_SNAPSHOT_GRANT_TTL_SECONDS ne peut pas dépasser 300 hors test.")
+        if self.app_env in {"staging", "production"} and self.google_selection_grant_ttl_seconds > 900:
+            raise ValueError("GOOGLE_SELECTION_GRANT_TTL_SECONDS ne peut pas dépasser 900 en staging et production.")
+        if self.app_env == "staging" and not self.redis_url:
+            raise ValueError("REDIS_URL est obligatoire en staging.")
         if self.app_env == "production":
             self._validate_production_settings()
+        if self.app_env in {"staging", "production"}:
+            if self.log_format != "json":
+                raise ValueError("LOG_FORMAT=json est obligatoire en staging et production.")
+            if not self.metrics_enabled:
+                raise ValueError("METRICS_ENABLED=true est obligatoire en staging et production.")
 
     def _validate_production_settings(self) -> None:
         if not self.database_url or not self.redis_url:
@@ -167,7 +210,7 @@ class Settings:
             session_absolute_seconds=int(values.get("SESSION_ABSOLUTE_SECONDS", "43200")),
             invitation_ttl_seconds=int(values.get("INVITATION_TTL_SECONDS", "259200")),
             invitation_delivery_backend=values.get("INVITATION_DELIVERY_BACKEND", "disabled").strip().lower(),
-            invitation_from_email=values.get("INVITATION_FROM_EMAIL", "no-reply@prospect.local").strip(),
+            invitation_from_email=values.get("INVITATION_FROM_EMAIL", "no-reply@marketteo.local").strip(),
             invitation_smtp_host=values.get("INVITATION_SMTP_HOST", "127.0.0.1").strip(),
             invitation_smtp_port=int(values.get("INVITATION_SMTP_PORT", "1025")),
             invitation_smtp_timeout_seconds=float(values.get("INVITATION_SMTP_TIMEOUT_SECONDS", "5")),
@@ -185,11 +228,24 @@ class Settings:
             google_maps_static_api_key=values.get("GOOGLE_MAPS_STATIC_API_KEY", "").strip(),
             cors_allowed_origins=origins,
             places_timeout_seconds=float(values.get("GOOGLE_PLACES_TIMEOUT_SECONDS", "30")),
+            google_search_lock_ttl_seconds=float(values.get("GOOGLE_SEARCH_LOCK_TTL_SECONDS", "45")),
+            google_search_user_daily_limit=int(values.get("GOOGLE_SEARCH_USER_DAILY_LIMIT", "20")),
+            google_search_organization_daily_limit=int(values.get("GOOGLE_SEARCH_ORGANIZATION_DAILY_LIMIT", "100")),
+            google_search_quota_warning_percent=int(values.get("GOOGLE_SEARCH_QUOTA_WARNING_PERCENT", "80")),
+            google_search_quota_policy_code=values.get("GOOGLE_SEARCH_QUOTA_POLICY_CODE", "server_default_v1").strip(),
             static_maps_timeout_seconds=float(values.get("GOOGLE_STATIC_MAPS_TIMEOUT_SECONDS", "20")),
             map_grant_ttl_seconds=float(values.get("MAP_SNAPSHOT_GRANT_TTL_SECONDS", "300")),
             map_grant_max_entries=int(values.get("MAP_SNAPSHOT_GRANT_MAX_ENTRIES", "1000")),
             google_selection_grant_ttl_seconds=int(values.get("GOOGLE_SELECTION_GRANT_TTL_SECONDS", "600")),
             google_selection_grant_max_entries=int(values.get("GOOGLE_SELECTION_GRANT_MAX_ENTRIES", "1000")),
+            import_temp_directory=values.get("IMPORT_TEMP_DIRECTORY", ".runtime/imports").strip(),
+            import_temp_max_bytes=int(values.get("IMPORT_TEMP_MAX_BYTES", str(10 * 1024 * 1024))),
+            log_format=values.get("LOG_FORMAT", "json" if app_env in {"staging", "production"} else "text")
+            .strip()
+            .lower(),
+            instance_id=values.get("INSTANCE_ID", "").strip(),
+            metrics_enabled=_parse_bool(values.get("METRICS_ENABLED", "false")),
+            metrics_bearer_token=values.get("METRICS_BEARER_TOKEN", "").strip(),
         )
 
 

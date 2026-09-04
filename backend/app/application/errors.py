@@ -2,12 +2,29 @@ class GoogleSearchInProgress(RuntimeError):
     """Une recherche Google est déjà en cours pour le même acteur locataire."""
 
 
+class GoogleProtectionUnavailable(RuntimeError):
+    """Redis ne peut pas garantir les protections d'un parcours Google."""
+
+
+class GoogleQuotaExceeded(RuntimeError):
+    """La politique de coût Google refuse une nouvelle recherche quotidienne."""
+
+    def __init__(self, scope: str, retry_after_seconds: int) -> None:
+        super().__init__("La limite quotidienne de recherches Google est atteinte.")
+        self.scope = scope
+        self.retry_after_seconds = max(1, retry_after_seconds)
+
+
 class InvalidMapSnapshotGrant(RuntimeError):
     """Le jeton de carte est absent, expiré ou déjà consommé."""
 
 
 class InvalidGoogleSelectionGrant(RuntimeError):
     """Le jeton de sélection Google est absent, expiré ou ne couvre pas les établissements demandés."""
+
+
+class InvalidGoogleProspectCommand(ValueError):
+    """La commande d'ajout Google contient des établissements ou noms internes invalides."""
 
 
 class MapSnapshotGrantInProgress(RuntimeError):
@@ -156,6 +173,52 @@ class ProspectServiceUnavailable(RuntimeError):
 
 class ProspectResourceNotFound(RuntimeError):
     """Le prospect demandé n’existe pas dans l’organisation active."""
+
+
+class ProviderNotUsable(RuntimeError):
+    """Le fournisseur ne peut pas justifier une acquisition exploitable."""
+
+
+class AcquisitionNotApproved(RuntimeError):
+    """L’acquisition ne peut pas alimenter une donnée métier."""
+
+
+class AcquisitionQuarantined(RuntimeError):
+    """L’acquisition est en quarantaine."""
+
+
+class ProspectComplianceResourceNotFound(RuntimeError):
+    """La ressource conformité n’existe pas dans l’organisation active."""
+
+
+class RetentionPolicyOverlap(RuntimeError):
+    """La politique de conservation chevauche une version active existante."""
+
+
+class RetentionHoldAlreadyReleased(RuntimeError):
+    """La mise en attente de conservation est déjà libérée."""
+
+
+class RetentionResourceOnHold(RuntimeError):
+    """La ressource est protégée par une mise en attente active."""
+
+
+class RawImportContentForbidden(RuntimeError):
+    """La déclaration d’import contient du contenu brut interdit."""
+
+
+class ChannelDuplicate(RuntimeError):
+    """Le canal existe déjà sur la même cible active."""
+
+
+class InvalidPermissionTransition(RuntimeError):
+    """Le changement de permission demandé n’est pas autorisé."""
+
+
+class ProspectVersionConflict(RuntimeError):
+    def __init__(self, current_version: int | None = None) -> None:
+        super().__init__("La ressource prospect a été modifiée depuis sa lecture.")
+        self.current_version = current_version
 
 
 class OrganizationResourceNotFound(RuntimeError):

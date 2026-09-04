@@ -15,13 +15,16 @@ variables:
   testRedisUrl: 'redis://127.0.0.1:56379/0'
   testMailpitApiUrl: 'http://127.0.0.1:58025'
   testMailpitSmtpPort: '51025'
-  expectedAlembicRevision: '20260813_0008'
+  expectedAlembicRevision: '20260826_0014'
 
 steps:
   - task: UsePythonVersion@0
     inputs:
       versionSpec: $(pythonVersion)
     displayName: Utiliser Python $(pythonVersion)
+
+  - script: mkdir -p test-results
+    displayName: Préparer le répertoire des preuves de qualité
 
   - script: |
       python -m pip install --upgrade pip
@@ -61,7 +64,6 @@ steps:
       MIGRATION_DATABASE_URL: $(testMigrationDatabaseUrl)
 
   - script: |
-      mkdir -p test-results
       python -m alembic -c backend/alembic.ini current > test-results/alembic-current.txt
       python scripts/quality_gate.py alembic-current test-results/alembic-current.txt $(expectedAlembicRevision)
     displayName: Vérifier la révision Alembic courante
@@ -135,6 +137,13 @@ steps:
 
   - script: git diff --check
     displayName: Vérifier les espaces et conflits de diff
+
+  - task: PublishPipelineArtifact@1
+    condition: succeededOrFailed()
+    inputs:
+      targetPath: $(Build.SourcesDirectory)/test-results
+      artifact: MarketteoQualityEvidence
+    displayName: Publier les preuves de qualité
 
   - task: CopyFiles@2
     inputs:

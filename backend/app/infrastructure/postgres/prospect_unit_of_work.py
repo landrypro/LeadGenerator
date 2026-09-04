@@ -8,11 +8,19 @@ from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 from ...application.errors import OrganizationAdministrationUnavailable
 from ...application.tenancy import TenantContext
 from .audit_recorder import SqlAlchemyAuditRecorder
+from .csv_import_repository import SqlAlchemyCsvImportRepository
 from .prospect_repository import (
+    SqlAlchemyAcquisitionRepository,
     SqlAlchemyContactChannelRepository,
+    SqlAlchemyContactPermissionRepository,
     SqlAlchemyContactRepository,
+    SqlAlchemyImportDeclarationRepository,
     SqlAlchemyProspectRepository,
     SqlAlchemyProvenanceRepository,
+    SqlAlchemyRetentionHoldRepository,
+    SqlAlchemyRetentionPolicyRepository,
+    SqlAlchemyRetentionReviewRepository,
+    SqlAlchemySourceProviderRepository,
 )
 from .tenant_unit_of_work import SqlAlchemyTenantUnitOfWork
 
@@ -23,7 +31,15 @@ class SqlAlchemyProspectUnitOfWork(SqlAlchemyTenantUnitOfWork):
         self.prospects: SqlAlchemyProspectRepository
         self.contacts: SqlAlchemyContactRepository
         self.contact_channels: SqlAlchemyContactChannelRepository
+        self.contact_permissions: SqlAlchemyContactPermissionRepository
         self.provenance: SqlAlchemyProvenanceRepository
+        self.source_providers: SqlAlchemySourceProviderRepository
+        self.acquisitions: SqlAlchemyAcquisitionRepository
+        self.retention_policies: SqlAlchemyRetentionPolicyRepository
+        self.retention_reviews: SqlAlchemyRetentionReviewRepository
+        self.retention_holds: SqlAlchemyRetentionHoldRepository
+        self.import_declarations: SqlAlchemyImportDeclarationRepository
+        self.csv_imports: SqlAlchemyCsvImportRepository
         self.audit: SqlAlchemyAuditRecorder
 
     async def __aenter__(self) -> SqlAlchemyProspectUnitOfWork:
@@ -34,7 +50,15 @@ class SqlAlchemyProspectUnitOfWork(SqlAlchemyTenantUnitOfWork):
         self.prospects = SqlAlchemyProspectRepository(self.session)
         self.contacts = SqlAlchemyContactRepository(self.session)
         self.contact_channels = SqlAlchemyContactChannelRepository(self.session)
+        self.contact_permissions = SqlAlchemyContactPermissionRepository(self.session)
         self.provenance = SqlAlchemyProvenanceRepository(self.session)
+        self.source_providers = SqlAlchemySourceProviderRepository(self.session)
+        self.acquisitions = SqlAlchemyAcquisitionRepository(self.session)
+        self.retention_policies = SqlAlchemyRetentionPolicyRepository(self.session)
+        self.retention_reviews = SqlAlchemyRetentionReviewRepository(self.session)
+        self.retention_holds = SqlAlchemyRetentionHoldRepository(self.session)
+        self.import_declarations = SqlAlchemyImportDeclarationRepository(self.session)
+        self.csv_imports = SqlAlchemyCsvImportRepository(self.session)
         self.audit = SqlAlchemyAuditRecorder(self.session)
         return self
 

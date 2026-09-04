@@ -87,7 +87,7 @@ export function OrganizationPage({ session, onOrganizationUpdated }) {
 
   async function submit(event) {
     event.preventDefault()
-    if (!organization || !hasChanges || submitting) return
+    if (!organization || !hasChanges || submitting || mutationControllerRef.current) return
     const controller = new AbortController()
     const sequence = mutationSequenceRef.current + 1
     mutationSequenceRef.current = sequence

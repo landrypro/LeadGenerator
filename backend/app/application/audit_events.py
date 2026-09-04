@@ -96,8 +96,47 @@ def _entity_type(action: AuditAction) -> str:
         return "prospect"
     if action is AuditAction.CONTACT_CREATED:
         return "contact"
-    if action is AuditAction.CHANNEL_CREATED:
+    if action is AuditAction.CONTACT_ARCHIVED:
+        return "contact"
+    if action in {AuditAction.CHANNEL_CREATED, AuditAction.CONTACT_CHANNEL_ARCHIVED}:
         return "contact_channel"
     if action is AuditAction.PROVENANCE_RECORDED:
         return "provenance"
+    if action in {
+        AuditAction.SOURCE_PROVIDER_CREATED,
+        AuditAction.SOURCE_PROVIDER_UPDATED,
+        AuditAction.SOURCE_PROVIDER_STATUS_CHANGED,
+    }:
+        return "source_provider"
+    if action in {
+        AuditAction.ACQUISITION_DECLARED,
+        AuditAction.ACQUISITION_QUARANTINED,
+        AuditAction.ACQUISITION_APPROVED,
+        AuditAction.ACQUISITION_REJECTED,
+    }:
+        return "acquisition"
+    if action is AuditAction.CONTACT_PERMISSION_CHANGED:
+        return "contact_permission"
+    if action in {
+        AuditAction.RETENTION_POLICY_CREATED,
+        AuditAction.RETENTION_POLICY_ACTIVATED,
+        AuditAction.RETENTION_POLICY_SUPERSEDED,
+    }:
+        return "retention_policy"
+    if action in {AuditAction.RETENTION_HOLD_PLACED, AuditAction.RETENTION_HOLD_RELEASED}:
+        return "retention_hold"
+    if action in {
+        AuditAction.IMPORT_DECLARATION_DECLARED,
+        AuditAction.IMPORT_DECLARATION_QUARANTINED,
+        AuditAction.IMPORT_DECLARATION_CANCELLED,
+        AuditAction.IMPORT_DECLARATION_ARCHIVED,
+    }:
+        return "import_declaration"
+    if action in {
+        AuditAction.IMPORT_FILE_UPLOADED,
+        AuditAction.IMPORT_MAPPING_SAVED,
+        AuditAction.IMPORT_VALIDATED,
+        AuditAction.IMPORT_CONFIRMED,
+    }:
+        return "csv_import_session"
     return "invitation"

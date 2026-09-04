@@ -5,6 +5,11 @@ import { PlaceSearchPage } from '../features/lead-search/LeadGeneratorPage'
 import { OrganizationPage } from '../features/organizations/OrganizationPage'
 import { MembersPage } from '../features/organizations/MembersPage'
 import { PlatformOrganizationsPage } from '../features/platform/PlatformOrganizationsPage'
+import { ProvidersAcquisitionsPage } from '../features/compliance/ProvidersAcquisitionsPage'
+import { RetentionImportsPage } from '../features/retention/RetentionImportsPage'
+import { CreateProspectPage } from '../features/prospects/CreateProspectPage'
+import { ProspectDetailPage } from '../features/prospects/ProspectDetailPage'
+import { ProspectsPage } from '../features/prospects/ProspectsPage'
 
 
 export const CRM_PATHS = Object.freeze({
@@ -12,6 +17,11 @@ export const CRM_PATHS = Object.freeze({
   login: '/login',
   acceptInvitation: '/accept-invitation',
   search: '/app/search',
+  prospects: '/app/prospects',
+  prospectNew: '/app/prospects/new',
+  prospectDetail: '/app/prospects/:prospectId',
+  compliance: '/app/compliance/sources',
+  retention: '/app/compliance/retention',
   account: '/app/account',
   organization: '/app/admin/organization',
   users: '/app/admin/users',
@@ -23,6 +33,47 @@ export const CRM_PATHS = Object.freeze({
 // Seules les pages terminées sont enregistrées. Les chemins réservés ne sont
 // rendus routables qu’avec leurs écrans, leurs capacités et leurs tests.
 export const routes = Object.freeze([
+  Object.freeze({
+    id: 'retention-imports', path: CRM_PATHS.retention, label: 'Conservation et imports', title: 'Conservation des données', requiredCapability: 'retention:read', requiresActiveOrganization: true, Component: RetentionImportsPage,
+  }),
+  Object.freeze({
+    id: 'compliance-sources',
+    path: CRM_PATHS.compliance,
+    label: 'Sources et acquisitions',
+    title: 'Fournisseurs et acquisitions',
+    requiredCapability: 'providers:read',
+    requiresActiveOrganization: true,
+    Component: ProvidersAcquisitionsPage,
+  }),
+  Object.freeze({
+    id: 'prospects',
+    path: CRM_PATHS.prospects,
+    label: 'Prospects',
+    title: 'Prospects',
+    requiredCapability: 'prospects:read',
+    requiresActiveOrganization: true,
+    Component: ProspectsPage,
+  }),
+  Object.freeze({
+    id: 'prospect-new',
+    path: CRM_PATHS.prospectNew,
+    label: 'Ajouter un prospect',
+    title: 'Ajouter un prospect',
+    navigation: false,
+    requiredCapability: 'prospects:create',
+    requiresActiveOrganization: true,
+    Component: CreateProspectPage,
+  }),
+  Object.freeze({
+    id: 'prospect-detail',
+    path: CRM_PATHS.prospectDetail,
+    label: 'Fiche prospect',
+    title: 'Fiche prospect',
+    navigation: false,
+    requiredCapability: 'prospects:read',
+    requiresActiveOrganization: true,
+    Component: ProspectDetailPage,
+  }),
   Object.freeze({
     id: 'google-place-search',
     path: CRM_PATHS.search,
@@ -90,7 +141,20 @@ export const routes = Object.freeze([
 
 
 export function findRoute(pathname) {
-  return routes.find((route) => route.path === pathname) ?? null
+  const exact = routes.find((route) => route.path === pathname)
+  if (exact) return exact
+  for (const route of routes) {
+    const names = []
+    const pattern = route.path.replace(/:([A-Za-z][A-Za-z0-9_]*)/g, (_match, name) => {
+      names.push(name)
+      return '([^/]+)'
+    })
+    if (!names.length) continue
+    const match = new RegExp(`^${pattern}$`).exec(pathname)
+    if (!match) continue
+    return { ...route, params: Object.fromEntries(names.map((name, index) => [name, decodeURIComponent(match[index + 1])])) }
+  }
+  return null
 }
 
 
@@ -102,7 +166,7 @@ export function canAccessRoute(route, session) {
 
 
 export function navigationRoutes(session) {
-  return routes.filter((route) => canAccessRoute(route, session))
+  return routes.filter((route) => route.navigation !== false && canAccessRoute(route, session))
 }
 
 

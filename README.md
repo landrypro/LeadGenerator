@@ -1,8 +1,23 @@
-# Prospect CRM
+# Marketteo CRM
 
-Prospect est une application React et FastAPI en migration vers un CRM de gestion commerciale. La phase 1 fournit une recherche Google Places ponctuelle et conforme : une seule requête Text Search par action, vingt établissements au maximum, aucun contact dans la liste et aucune persistance des résultats Google.
+Marketteo est une application React et FastAPI en migration vers un CRM de gestion commerciale. La phase 1 fournit une recherche Google Places ponctuelle et conforme : une seule requête Text Search par action, vingt établissements au maximum, aucun contact dans la liste et aucune persistance des résultats Google.
 
 Ce fichier réunit le guide utilisateur et la documentation technique du socle actuel. La spécification complète se trouve dans [`docs/SPECIFICATION_CRM_V1.md`](docs/SPECIFICATION_CRM_V1.md), les décisions validées sur les sources dans [`docs/PHASE_1_1_ACQUISITION_CONSERVATION.md`](docs/PHASE_1_1_ACQUISITION_CONSERVATION.md) et la conception validée des fondations dans [`docs/PHASE_2_SPECIFICATIONS_DETAILLEES.md`](docs/PHASE_2_SPECIFICATIONS_DETAILLEES.md). Le contrat de 2.3.4 et son rapport d’implémentation se trouvent dans [`docs/PHASE_2_3_4_SPECIFICATIONS_DETAILLEES.md`](docs/PHASE_2_3_4_SPECIFICATIONS_DETAILLEES.md) et [`docs/PHASE_2_3_4_RAPPORT_IMPLEMENTATION.md`](docs/PHASE_2_3_4_RAPPORT_IMPLEMENTATION.md). La recette hébergée temporaire est cadrée par [`docs/PHASE_2_4_QA_SPECIFICATIONS_DETAILLEES.md`](docs/PHASE_2_4_QA_SPECIFICATIONS_DETAILLEES.md) et [`docs/PHASE_2_4_QA_DEPLOIEMENT_ORACLE.md`](docs/PHASE_2_4_QA_DEPLOIEMENT_ORACLE.md).
+
+La phase 2.5 livre le portefeuille Prospects, les contacts et permissions, les fournisseurs/acquisitions, la
+conservation et les déclarations d’import sans fichier. Sa recette regroupée se trouve dans
+[`docs/PHASE_2_5_RECETTE_REGROUPEE_QA.md`](docs/PHASE_2_5_RECETTE_REGROUPEE_QA.md). La phase 2.5 a reçu son GO de
+clôture officiel le 25 août 2026, avec quatre réserves fonctionnelles acceptées. Le passage Azure est reporté au verrou
+de préproduction. Les décisions générales de 2.6 et celles de ses trois sous-incréments sont validées. Le
+contrat et l’implémentation de l’état Google partagé sont documentés dans
+[`docs/PHASE_2_6_SPECIFICATIONS_DETAILLEES.md`](docs/PHASE_2_6_SPECIFICATIONS_DETAILLEES.md) et
+[`docs/PHASE_2_6_1_SPECIFICATIONS_DETAILLEES.md`](docs/PHASE_2_6_1_SPECIFICATIONS_DETAILLEES.md). Le contrat des
+quotas et droits préparatoires est dans
+[`docs/PHASE_2_6_2_SPECIFICATIONS_DETAILLEES.md`](docs/PHASE_2_6_2_SPECIFICATIONS_DETAILLEES.md). Le verrou
+d’observabilité final est décrit dans [`docs/PHASE_2_6_3_SPECIFICATIONS_DETAILLEES.md`](docs/PHASE_2_6_3_SPECIFICATIONS_DETAILLEES.md).
+Son rapport d’implémentation et la recette finale sont disponibles dans
+[`docs/PHASE_2_6_3_RAPPORT_IMPLEMENTATION.md`](docs/PHASE_2_6_3_RAPPORT_IMPLEMENTATION.md) et
+[`docs/PHASE_2_6_RECETTE_FINALE_QA.md`](docs/PHASE_2_6_RECETTE_FINALE_QA.md).
 
 ## Fonctionnalités disponibles
 
@@ -32,8 +47,12 @@ Ce fichier réunit le guide utilisateur et la documentation technique du socle a
 - résultats temporaires conservés uniquement dans l’état mémoire React ;
 - attribution visible `Google Maps`, non traduisible et conforme au style textuel officiel dans le conteneur des résultats ;
 - recherche et carte accessibles uniquement avec une session, une organisation active et les capacités `google:search` et `google:map` ;
-- carte Google statique protégée par un jeton serveur court, lié au compte et à l’organisation, à usage unique ;
-- verrou de concurrence par compte et organisation, sans identité déclarative fournie par le navigateur ;
+- carte Google statique protégée par un jeton serveur Redis court, lié au compte et à l’organisation, à usage unique ;
+- verrou Redis partagé par compte et organisation, sans identité déclarative fournie par le navigateur ;
+- quota Redis quotidien UTC partagé : 20 recherches par utilisateur/organisation active et 100 par organisation,
+  avec refus avant Google lorsque la limite est atteinte ;
+- sélection Google temporaire partagée entre instances, limitée à vingt `place_id`, sans donnée descriptive Google ;
+- indisponibilité de la protection Google signalée de manière contrôlée, sans repli mémoire ni appel Google supplémentaire ;
 - export des résultats Google indisponible : bouton visible mais désactivé et route historique absente ;
 - pages de conditions d’utilisation et de confidentialité.
 
@@ -66,7 +85,7 @@ Un lien expiré, révoqué, déjà utilisé ou inconnu produit volontairement le
 
 La recherche part directement. L’utilisateur et l’organisation sont déduits de la session ; aucun prénom, société ou identifiant locataire n’est redemandé. Le serveur interroge Google une seule fois avec `pageSize: 20`. Il ne suit pas `nextPageToken`. Les résultats situés hors du rayon sont exclus ; les établissements sans coordonnées ne sont conservés que si l’option de zone de service est active.
 
-Un compte sans organisation active ou sans la capacité requise voit un état d’accès refusé et ne peut déclencher aucun appel Google facturable. Un Administrateur de plateforme ne reçoit aucun accès Google implicite.
+Un compte sans organisation active ou sans la capacité requise voit un état d’accès refusé et ne peut déclencher aucun appel Google facturable. Un Administrateur de plateforme ne reçoit aucun accès Google implicite. Chaque organisation applique aussi une limite opérationnelle quotidienne UTC : 20 recherches par utilisateur dans l’organisation active et 100 pour l’organisation. Lorsqu'elle est atteinte, la recherche n'est pas envoyée à Google et l'application indique le délai avant remise à zéro.
 
 ### Consulter les résultats
 
@@ -204,8 +223,25 @@ Variables d’identité principales :
 | `INVITATION_DELIVERY_BACKEND` | `mailpit` | Interception locale seulement ; refusée en staging et production. |
 | `INVITATION_SMTP_HOST` / `INVITATION_SMTP_PORT` | `127.0.0.1:1025` | Destination Mailpit locale, jamais dérivée d’une requête. |
 | `RATE_LIMIT_HMAC_KEY` | aucun secret par défaut | Secret local aléatoire d’au moins 32 octets pour pseudonymiser les dimensions Redis. |
-| `MAP_SNAPSHOT_GRANT_TTL_SECONDS` | `300` | Durée maximale de la concession de carte ; une valeur supérieure à cinq minutes est refusée en production. |
-| `MAP_SNAPSHOT_GRANT_MAX_ENTRIES` | `1000` | Capacité de l’adaptateur mémoire mono-instance. |
+| `GOOGLE_SEARCH_LOCK_TTL_SECONDS` | `45` | Au minimum délai Places + deux délais Redis + 5 secondes. |
+| `GOOGLE_SEARCH_USER_DAILY_LIMIT` | `20` | Limite opérationnelle quotidienne UTC par utilisateur dans l’organisation active ; `0` désactive la portée. |
+| `GOOGLE_SEARCH_ORGANIZATION_DAILY_LIMIT` | `100` | Limite opérationnelle quotidienne UTC partagée par l’organisation ; `0` désactive la portée. |
+| `GOOGLE_SEARCH_QUOTA_WARNING_PERCENT` | `80` | Seuil technique d’avertissement unique, sans notification utilisateur dans 2.6.2. |
+| `GOOGLE_SEARCH_QUOTA_POLICY_CODE` | `server_default_v1` | Code technique de la politique serveur ; ce n’est pas un nom de plan commercial. |
+| `MAP_SNAPSHOT_GRANT_TTL_SECONDS` | `300` | Durée maximale de la concession de carte ; une valeur supérieure à cinq minutes est refusée hors test. |
+| `GOOGLE_SELECTION_GRANT_TTL_SECONDS` | `600` | Durée maximale de conservation de la sélection Google ; limitée à 900 secondes en staging et production. |
+| `LOG_FORMAT` | `text` localement | `json` est obligatoire en staging et production. |
+| `INSTANCE_ID` | généré au démarrage | Identifiant technique non secret d’une instance API. |
+| `METRICS_ENABLED` | `false` | Active l’export interne ; obligatoirement `true` en staging et production. |
+| `METRICS_BEARER_TOKEN` | aucun | Secret dédié d’au moins 32 octets requis quand les métriques sont activées ; jamais côté navigateur. |
+
+### Observabilité opérateur
+
+`GET /internal/metrics` est réservé au collecteur d’exploitation. Il n’est pas présent dans l’interface, ne lit pas la
+session et retourne volontairement `404` lorsque les métriques sont désactivées ou que le bearer est absent/invalide.
+En staging et production, placez ce bearer dans le coffre de secrets, limitez l’accès réseau au collecteur via le
+reverse proxy et utilisez `LOG_FORMAT=json`. Les journaux et métriques ne contiennent ni clé Google, ni courriel,
+jeton, requête, résultat, `place_id`, adresse ou coordonnées.
 
 ### Tester le provisioning local
 
@@ -369,7 +405,7 @@ Le backend conserve des dépendances dirigées vers le domaine et l’applicatio
 | `backend/app/infrastructure/invitations/` | Jetons cryptographiques et livraison SMTP Mailpit locale. |
 | `backend/app/infrastructure/security/` | Adaptateur Argon2id exécuté hors de la boucle asynchrone. |
 | `backend/app/infrastructure/google/` | Appel HTTP Google et adaptation des données. |
-| `backend/app/infrastructure/memory/` | Verrou et jetons temporaires, remplaçables par Redis. |
+| `backend/app/infrastructure/memory/` | Doublures explicites réservées aux tests unitaires. |
 | `backend/app/presentation/api/` | Schémas Pydantic, mappers et routes FastAPI. |
 | `client/src/features/lead-search/` | Écran transitoire de recherche, état local et composants React. |
 | `client/src/features/auth/` | Connexion, restauration et état de session conservé uniquement en mémoire. |

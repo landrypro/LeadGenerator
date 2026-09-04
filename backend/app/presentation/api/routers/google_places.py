@@ -2,6 +2,8 @@ from fastapi import APIRouter, Request, Response
 from fastapi.responses import JSONResponse
 
 from ....application.errors import (
+    GoogleProtectionUnavailable,
+    GoogleQuotaExceeded,
     GoogleSearchInProgress,
     MapSnapshotGrantCapacityReached,
     PlacesProviderError,
@@ -41,6 +43,22 @@ async def search_google_places(
                 409,
                 "google_search_in_progress",
                 "Une recherche Google est déjà en cours pour ce compte.",
+            )
+        if isinstance(error, GoogleQuotaExceeded):
+            return api_error(
+                request,
+                429,
+                "google_quota_exceeded",
+                "La limite quotidienne de recherches Google est atteinte. Réessayez après la remise à zéro.",
+                fields={"scope": error.scope},
+                headers={"Retry-After": str(error.retry_after_seconds)},
+            )
+        if isinstance(error, GoogleProtectionUnavailable):
+            return api_error(
+                request,
+                503,
+                "google_protection_unavailable",
+                "La protection temporaire du parcours Google est indisponible.",
             )
         if isinstance(error, MapSnapshotGrantCapacityReached):
             return api_error(

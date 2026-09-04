@@ -1,13 +1,13 @@
-"""Façade de compatibilité des jetons de carte en mémoire."""
+"""Port historique des concessions Static Maps.
 
-from .application.errors import InvalidMapSnapshotGrant, MapSnapshotGrantCapacityReached, MapSnapshotGrantInProgress
-from .infrastructure.memory.map_grants import InMemoryMapSnapshotGrantStore
+Les adaptateurs mémoire ne sont plus réexportés ici : ils restent des doublures de tests explicites.
+"""
 
-MapSnapshotGrantRegistry = InMemoryMapSnapshotGrantStore
+from .application.errors import InvalidMapSnapshotGrant, MapSnapshotGrantInProgress
+from .application.ports.map_grants import MapSnapshotGrantStore
 
 __all__ = [
     "InvalidMapSnapshotGrant",
-    "MapSnapshotGrantCapacityReached",
     "MapSnapshotGrantInProgress",
-    "MapSnapshotGrantRegistry",
+    "MapSnapshotGrantStore",
 ]

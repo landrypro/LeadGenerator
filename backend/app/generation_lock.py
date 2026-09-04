@@ -1,8 +1,9 @@
-"""Façade du verrou Google local mono-instance."""
+"""Port historique du verrou Google.
+
+Les adaptateurs mémoire ne sont plus réexportés ici : ils restent des doublures de tests explicites.
+"""
 
 from .application.errors import GoogleSearchInProgress
-from .infrastructure.memory.generation_guard import InMemoryGenerationGuard
+from .application.ports.generation_guard import GenerationGuard
 
-GenerationRegistry = InMemoryGenerationGuard
-
-__all__ = ["GenerationRegistry", "GoogleSearchInProgress"]
+__all__ = ["GenerationGuard", "GoogleSearchInProgress"]

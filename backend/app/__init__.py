@@ -1,1 +1,1 @@
-"""Backend de Prospect CRM."""
+"""Backend de Marketteo CRM."""

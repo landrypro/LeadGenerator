@@ -4,7 +4,7 @@ from uuid import uuid4
 from httpx import ASGITransport, AsyncClient
 
 from backend.app.application.use_cases.search_google_places import SearchGooglePlacesOutcome
-from backend.app.bootstrap import create_app
+from backend.app.bootstrap import build_container, create_app
 from backend.app.config import Settings
 from backend.app.container import AppContainer
 from backend.app.domain.google_place import GooglePlaceSearchResult, GooglePlaceSearchStats
@@ -79,6 +79,36 @@ async def test_create_app_uses_injected_settings_for_health() -> None:
 
     assert response.status_code == 200
     assert response.json() == {"status": "ok", "google_api_key_configured": True}
+
+
+async def test_default_container_without_redis_fails_google_closed_without_memory_fallback() -> None:
+    settings = Settings(google_maps_api_key="configured", cors_allowed_origins=("http://test",))
+    default_container = build_container(settings)
+    identity = authenticated_identity()
+    container = AppContainer(
+        settings=settings,
+        search_google_places=default_container.search_google_places,
+        get_map_snapshot=default_container.get_map_snapshot,
+        get_current_session=CurrentSession(identity),  # type: ignore[arg-type]
+    )
+    app = create_app(container=container)
+
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+        client.cookies.set(settings.session_cookie_name, "current-session")
+        response = await client.post(
+            "/api/google/places/search",
+            headers={"Origin": "http://test", "X-CSRF-Token": "csrf-test"},
+            json={
+                "query": "plombier",
+                "center_latitude": 46.8,
+                "center_longitude": -71.2,
+                "radius_km": 12,
+            },
+        )
+
+    assert response.status_code == 503
+    assert response.headers["cache-control"] == "no-store, max-age=0"
+    assert response.json()["error"]["code"] == "google_protection_unavailable"
 
 
 async def test_routes_receive_injected_use_cases() -> None:

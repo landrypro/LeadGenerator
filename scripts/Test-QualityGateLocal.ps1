@@ -26,8 +26,14 @@ $composeFile = Join-Path $workspace 'compose.test.yaml'
 $python = Join-Path $workspace '.venv\Scripts\python.exe'
 $client = Join-Path $workspace 'client'
 $testResults = Join-Path $workspace 'test-results'
+$pytestTemp = Join-Path $testResults 'pytest-quality-tmp'
+$qualityRoot = Join-Path ([System.IO.Path]::GetTempPath()) ("marketteo-quality-{0}" -f ([guid]::NewGuid().ToString('N')))
+$qualityClient = Join-Path $qualityRoot 'client'
+$qualityNpmCache = Join-Path $qualityRoot 'npm-cache'
+$vitestReport = Join-Path $testResults 'vitest.xml'
 $projectName = 'prospect-crm-quality'
-$expectedAlembicRevision = '20260814_0009'
+# Phase 3.1 ajoute la migration CSV et déplace la tête de référence.
+$expectedAlembicRevision = '20260826_0014'
 $script:resolvedDockerMode = $null
 $script:wslWorkspace = $null
 $script:wslDistribution = $null
@@ -75,6 +81,31 @@ function Get-ComposeFileArgument {
     }
 
     return $composeFile
+}
+
+function Initialize-QualityClient {
+    New-Item -ItemType Directory -Path $qualityClient -Force -ErrorAction Stop | Out-Null
+    Get-ChildItem -LiteralPath $client -Force |
+        Where-Object { $_.Name -notin @('node_modules', 'dist') } |
+        ForEach-Object {
+            Copy-Item -LiteralPath $_.FullName -Destination $qualityClient -Recurse -Force -ErrorAction Stop
+        }
+}
+
+function Remove-QualityClient {
+    if (-not (Test-Path -LiteralPath $qualityRoot)) {
+        return
+    }
+
+    $temporaryRoot = [System.IO.Path]::GetFullPath([System.IO.Path]::GetTempPath()).TrimEnd('\')
+    $resolvedQualityRoot = [System.IO.Path]::GetFullPath($qualityRoot)
+    $qualityRootParent = [System.IO.Path]::GetDirectoryName($resolvedQualityRoot)
+    $qualityRootName = [System.IO.Path]::GetFileName($resolvedQualityRoot)
+    if ($qualityRootParent -ne $temporaryRoot -or -not $qualityRootName.StartsWith('marketteo-quality-')) {
+        throw "Nettoyage refusé pour le répertoire frontend temporaire inattendu : $resolvedQualityRoot"
+    }
+
+    Remove-Item -LiteralPath $resolvedQualityRoot -Recurse -Force -ErrorAction Stop
 }
 
 function Initialize-DockerCli {
@@ -163,9 +194,15 @@ try {
         }
         Invoke-DockerCli version
     }
-    Invoke-QualityStep 'Nettoyage de la composition de test' { Invoke-DockerCli compose -p $projectName -f (Get-ComposeFileArgument) down --volumes --remove-orphans }
-    Invoke-QualityStep 'Dépendances réelles' { Invoke-DockerCli compose -p $projectName -f (Get-ComposeFileArgument) up -d --wait }
-    Invoke-QualityStep 'Rôle PostgreSQL applicatif' { Invoke-DockerCli compose -p $projectName -f (Get-ComposeFileArgument) run --rm database-role-provisioner }
+    Invoke-QualityStep 'Nettoyage de la composition de test' {
+        Invoke-DockerCli -Arguments @('compose', '-p', $projectName, '-f', (Get-ComposeFileArgument), 'down', '--volumes', '--remove-orphans')
+    }
+    Invoke-QualityStep 'Dépendances réelles' {
+        Invoke-DockerCli -Arguments @('compose', '-p', $projectName, '-f', (Get-ComposeFileArgument), 'up', '-d', '--wait')
+    }
+    Invoke-QualityStep 'Rôle PostgreSQL applicatif' {
+        Invoke-DockerCli -Arguments @('compose', '-p', $projectName, '-f', (Get-ComposeFileArgument), 'run', '--rm', 'database-role-provisioner')
+    }
     Invoke-QualityStep 'Alembic upgrade' { & $python -m alembic -c (Join-Path $workspace 'backend\alembic.ini') upgrade head }
     Invoke-QualityStep 'Alembic reconstruction' {
         & $python -m alembic -c (Join-Path $workspace 'backend\alembic.ini') downgrade 20260723_0002
@@ -184,21 +221,65 @@ try {
     Invoke-QualityStep 'Ruff' { & $python -m ruff check (Join-Path $workspace 'backend\app') (Join-Path $workspace 'tests') (Join-Path $workspace 'scripts\quality_gate.py') }
     Invoke-QualityStep 'Format Ruff' { & $python -m ruff format --check (Join-Path $workspace 'backend\app') (Join-Path $workspace 'tests') (Join-Path $workspace 'scripts\quality_gate.py') }
     Invoke-QualityStep 'mypy' { Push-Location $workspace; try { & $python -m mypy } finally { Pop-Location } }
-    Invoke-QualityStep 'pytest réel' { Push-Location $workspace; try { & $python -m pytest -p no:cacheprovider --junitxml=test-results/pytest-quality.xml } finally { Pop-Location } }
+    Invoke-QualityStep 'pytest réel' {
+        Push-Location $workspace
+        try {
+            & $python -m pytest -p no:cacheprovider "--basetemp=$pytestTemp" --junitxml=test-results/pytest-quality.xml
+        }
+        finally {
+            Pop-Location
+        }
+    }
     Invoke-QualityStep 'Zéro skip backend' { & $python (Join-Path $workspace 'scripts\quality_gate.py') junit-no-skips (Join-Path $testResults 'pytest-quality.xml') }
-    Invoke-QualityStep 'npm ci' { Push-Location $client; try { npm.cmd ci } finally { Pop-Location } }
-    Invoke-QualityStep 'Audit npm' { Push-Location $client; try { npm.cmd audit --audit-level=high } finally { Pop-Location } }
-    Invoke-QualityStep 'ESLint' { Push-Location $client; try { npm.cmd run lint } finally { Pop-Location } }
-    Invoke-QualityStep 'Vitest avec axe' { Push-Location $client; try { npm.cmd run test:ci } finally { Pop-Location } }
-    Invoke-QualityStep 'Zéro skip frontend' { & $python (Join-Path $workspace 'scripts\quality_gate.py') junit-no-skips (Join-Path $testResults 'vitest.xml') }
-    Invoke-QualityStep 'Build Vite' { Push-Location $client; try { npm.cmd run build } finally { Pop-Location } }
+    Invoke-QualityStep 'Préparation frontend isolée' {
+        Initialize-QualityClient
+        $global:LASTEXITCODE = 0
+    }
+    Invoke-QualityStep 'npm ci' {
+        Push-Location $qualityClient
+        try { npm.cmd ci --cache $qualityNpmCache }
+        finally { Pop-Location }
+    }
+    Invoke-QualityStep 'Audit npm' {
+        Push-Location $qualityClient
+        try { npm.cmd audit --audit-level=high --cache $qualityNpmCache }
+        finally { Pop-Location }
+    }
+    Invoke-QualityStep 'ESLint' { Push-Location $qualityClient; try { npm.cmd run lint } finally { Pop-Location } }
+    Invoke-QualityStep 'Vitest avec axe' {
+        Push-Location $qualityClient
+        try {
+            & (Join-Path $qualityClient 'node_modules\.bin\vitest.cmd') run --reporter=default --reporter=junit "--outputFile.junit=$vitestReport"
+        }
+        finally {
+            Pop-Location
+        }
+    }
+    Invoke-QualityStep 'Zéro skip frontend' { & $python (Join-Path $workspace 'scripts\quality_gate.py') junit-no-skips $vitestReport }
+    Invoke-QualityStep 'Build Vite' { Push-Location $qualityClient; try { npm.cmd run build } finally { Pop-Location } }
     Invoke-QualityStep 'Sources navigateur' { & $python (Join-Path $workspace 'scripts\quality_gate.py') browser-sources (Join-Path $client 'src') }
-    Invoke-QualityStep 'Artefact Vite' { & $python (Join-Path $workspace 'scripts\quality_gate.py') artifact (Join-Path $client 'dist') }
-    Invoke-QualityStep 'Diff Git' { Push-Location $workspace; try { git diff --check } finally { Pop-Location } }
-    Write-Host "`nVerrou qualité local 2.5.2 : VERT" -ForegroundColor Green
+    Invoke-QualityStep 'Artefact Vite' { & $python (Join-Path $workspace 'scripts\quality_gate.py') artifact (Join-Path $qualityClient 'dist') }
+    Invoke-QualityStep 'Diff Git' { Push-Location $workspace; try { git --no-pager diff --check } finally { Pop-Location } }
+    $summary = @(
+        '# Rapport du verrou qualité local 2.6.3'
+        ''
+        "- Date UTC : $([DateTime]::UtcNow.ToString('u'))"
+        "- Mode Docker : $script:resolvedDockerMode"
+        "- Révision Alembic attendue : $expectedAlembicRevision"
+        '- Verdict automatisé : VERT'
+        '- Rapports : `pytest-quality.xml`, `vitest.xml`, `alembic-current.txt`'
+    )
+    Set-Content -LiteralPath (Join-Path $testResults 'quality-summary.md') -Value $summary -Encoding utf8
+    Write-Host "`nVerrou qualité local 2.6.3 : VERT" -ForegroundColor Green
 }
 finally {
     if ($script:resolvedDockerMode) {
-        Invoke-DockerCli compose -p $projectName -f (Get-ComposeFileArgument) down --volumes --remove-orphans
+        Invoke-DockerCli -Arguments @('compose', '-p', $projectName, '-f', (Get-ComposeFileArgument), 'down', '--volumes', '--remove-orphans')
+    }
+    try {
+        Remove-QualityClient
+    }
+    catch {
+        Write-Warning "Le répertoire frontend temporaire n'a pas pu être supprimé : $($_.Exception.Message)"
     }
 }

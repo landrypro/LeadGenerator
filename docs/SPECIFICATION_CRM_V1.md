@@ -4,9 +4,9 @@
 | --- | --- |
 | Produit | Marketteo CRM |
 | Ancienne désignation | Prospect CRM ; `LeadGenerator` reste un identifiant technique transitoire |
-| Version du document | 1.4 |
-| Statut | Périmètre V1 enrichi, acquisition multicanale et ordre d’intégration validés |
-| Date | 9 août 2026 |
+| Version du document | 1.6 |
+| Statut | Phase 2.6 validée ; spécifications détaillées 2.6.1 proposées |
+| Date | 25 août 2026 |
 | Marché initial | Canada |
 | Langues V1 | Français canadien (`fr-CA`) et anglais canadien (`en-CA`) |
 | Compte de facturation Google | Canada, hors Espace économique européen |
@@ -32,7 +32,7 @@ Ce document ne constitue pas un avis juridique. La conformité finale dépendra 
 9. Les notes, tâches, statuts, opportunités, consentements et coordonnées obtenues indépendamment de Google sont des données CRM persistantes.
 10. Les exports sont limités aux données internes, importées ou saisies par l’organisation, jamais aux contenus issus de Google Maps Platform.
 11. La recherche accepte un lieu métier compréhensible — ville, région si nécessaire et pays — résolu côté serveur avant le Text Search ; latitude et longitude restent disponibles en mode avancé.
-12. L’ajout d’un résultat Google au CRM reste explicite, individuel ou groupé dans la limite de vingt références, et ne persiste que le `place_id`.
+12. L’ajout d’un résultat Google au CRM reste explicite, individuel ou groupé dans la limite de vingt références. Il persiste le `place_id` et un nom interne CRM saisi séparément par l’utilisateur, jamais le nom Google copié automatiquement.
 13. Le pipeline représente des états commerciaux ; appels, courriels, rendez-vous et relances sont des activités ou prochaines actions distinctes.
 14. L’interface, les courriels et les messages applicatifs sont disponibles en français canadien et en anglais canadien.
 15. Marketteo prévoit des plans Freemium, Starter, Business et Sur mesure sous la forme d’abonnements SaaS et de droits d’usage ; il ne devient pas un logiciel de comptabilité.
@@ -152,7 +152,7 @@ Principes structurants :
 - un statut de canal inconnu bloque les actions automatisées jusqu’à justification ;
 - les durées de conservation sont configurables, documentées et soumises à une revue ;
 - l’import conforme est avancé après le socle des prospects internes pour accélérer la croissance du portefeuille ;
-- la création groupée depuis Google accepte au maximum vingt `place_id` explicitement sélectionnés et aucun champ descriptif Google.
+- la création groupée depuis Google accepte au maximum vingt couples `place_id` et nom interne explicitement saisi ; aucun champ descriptif Google n'est accepté ni persisté.
 
 ### 4.6 Acquisition multicanale
 
@@ -485,8 +485,8 @@ Principes obligatoires :
 3. Il vérifie le centre et le rayon sur la carte ; les coordonnées manuelles restent disponibles en mode avancé.
 4. Le serveur applique les limites et interroge Text Search exactement une fois après confirmation.
 5. L’interface affiche au maximum 20 résultats temporaires avec attribution Google Maps.
-6. Le commercial sélectionne un ou plusieurs résultats et choisit explicitement Ajouter au CRM.
-7. Il complète au besoin l’alias et les données CRM internes, puis confirme.
+6. Le commercial sélectionne un ou plusieurs résultats et saisit pour chacun un nom interne CRM obligatoire.
+7. Il choisit explicitement Ajouter au CRM ; le nom Google temporaire n’est jamais repris automatiquement comme alias.
 8. Le serveur enregistre uniquement le `place_id`, l’étape Nouveau, le responsable et les données internes saisies.
 9. Les doublons sont signalés sans créer une seconde fiche active.
 10. Les données Google disparaissent lorsque la réponse ou la vue est détruite.
@@ -661,7 +661,7 @@ confirmer une ville non ambiguë sans autoriser une recherche multi-zone.
 - `GET /api/pipeline/stages`
 - `PATCH /api/pipeline/stages`
 
-La création depuis Google accepte un `google_place_id` mais aucun champ descriptif Google.
+La création depuis Google accepte un `google_place_id` et un `internal_alias` saisi par l’utilisateur, mais aucun champ descriptif Google. Le `google_place_id` est immuable ; l’alias interne reste modifiable dans le CRM.
 
 ### Activités, tâches et opportunités
 
@@ -852,6 +852,36 @@ Ordre détaillé restant validé après la clôture de 2.3.5-E :
    explicite des références Google ;
 3. **2.6 — Redis partagé, quotas et durcissement**, en préparant les droits liés aux plans.
 
+Décision produit du 25 août 2026 : la phase **2.5 est officiellement clôturée** après recette fonctionnelle signée et
+verrou local complet vert (`20260815_0013`, 227 tests backend, 144 tests frontend, zéro skip). Les réserves SEC-01,
+AUD-01, GOO-01 et NAV-01 sont acceptées et suivies ; Azure est reporté au verrou de préproduction. La prochaine phase
+de spécification est donc **2.6 — Redis partagé, quotas et durcissement**. Sa proposition détaillée est disponible
+dans [`PHASE_2_6_SPECIFICATIONS_DETAILLEES.md`](PHASE_2_6_SPECIFICATIONS_DETAILLEES.md). Ses seize décisions ont été
+validées le 25 août 2026 et autorisent la spécification détaillée de 2.6.1 avant toute implémentation. Cette
+spécification est disponible dans
+[`PHASE_2_6_1_SPECIFICATIONS_DETAILLEES.md`](PHASE_2_6_1_SPECIFICATIONS_DETAILLEES.md). Ses seize décisions propres
+et son GO d’implémentation sont validés ; la recette fonctionnelle sera regroupée à la clôture de 2.6. La version 1.0
+de 2.6 consolide la séparation `place_id`/nom interne validée avant 2.6 et impose une réservation de quota idempotente
+par opération afin qu'une réponse Redis perdue ne puisse jamais compter deux fois.
+
+Les spécifications proposées de la phase suivante, **Phase 3 — Cœur CRM**, sont consignées dans
+[`PHASE_3_SPECIFICATIONS_DETAILLEES.md`](PHASE_3_SPECIFICATIONS_DETAILLEES.md). Elles regroupent l’import CSV
+conforme, le Kanban, les activités/tâches, les opportunités, la résolution de lieu et la fondation bilingue sans
+réimplémenter les protections de conformité déjà livrées en 2.5 et 2.6.
+Les seize décisions de cadrage de la phase 3 ont été validées le 26 août 2026 ; elles autorisent la préparation des
+spécifications détaillées de **3.1 — Import CSV conforme réel**, sans lancer de code avant un GO d’implémentation.
+Les spécifications détaillées de cet incrément sont disponibles dans
+[`PHASE_3_1_SPECIFICATIONS_DETAILLEES.md`](PHASE_3_1_SPECIFICATIONS_DETAILLEES.md) ; les seize décisions et le GO
+d’implémentation ont été approuvés le 26 août 2026. La recette locale et le verrou qualité complet sont verts ; la
+clôture avec réserve a été prononcée le 4 septembre 2026. La réserve staging multi-instance 2.6 et la preuve Azure
+restent obligatoires avant préproduction, sans bloquer 3.2.
+
+Les spécifications proposées de **3.2 — Pipeline Kanban** sont disponibles dans
+[`PHASE_3_2_SPECIFICATIONS_DETAILLEES.md`](PHASE_3_2_SPECIFICATIONS_DETAILLEES.md). Elles définissent les neuf étapes,
+les transitions versionnées et idempotentes, l’historique atomique, l’audit, les filtres et l’interface accessible. Les
+seize décisions propres à 3.2 ont été validées le 4 septembre 2026. Aucun code 3.2 ne démarre avant un GO
+d’implémentation explicite.
+
 Le développement de 2.5 est découpé en cinq sous-incréments validés séparément : **2.5.1** modèle de données et
 migrations, **2.5.2** socle prospect et ajout Google, **2.5.3** provenance/permissions/fournisseurs, **2.5.4**
 conservation et déclarations d’import, puis **2.5.5** interface et verrou qualité final. Aucun lot suivant ne commence
@@ -1007,8 +1037,8 @@ La V1 est prête pour la production lorsque :
 | Décision | Choix V1 validé |
 | --- | --- |
 | Sources autorisées | Les sept sources définies dans le référentiel ; toute source inconnue est refusée |
-| Ajout depuis Google | Sélection explicite de vingt `place_id` maximum par action |
-| Données Google conservées | `place_id` uniquement ; les détails sont réaffichés en direct |
+| Ajout depuis Google | Sélection explicite de vingt couples `place_id` et nom interne saisi maximum par action |
+| Données conservées lors de l'ajout Google | `place_id` et nom interne saisi séparément ; aucun nom ou détail Google copié ; les détails sont réaffichés en direct |
 | Ordre d’implémentation | Import conforme immédiatement après le module de prospects internes |
 | Modèle de conformité | Provenance, permission de contact et conservation sont gérées séparément |
 | Permission inconnue | Aucun envoi ni appel automatisé avant qualification du canal |

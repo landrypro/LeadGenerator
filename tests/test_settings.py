@@ -54,6 +54,27 @@ def test_settings_reject_invalid_operational_limits() -> None:
 @pytest.mark.parametrize(
     ("field", "value"),
     [
+        ("google_search_user_daily_limit", -1),
+        ("google_search_organization_daily_limit", 10_001),
+        ("google_search_quota_warning_percent", 0),
+        ("google_search_quota_policy_code", "Plan Commercial"),
+    ],
+)
+def test_settings_reject_invalid_google_quota_policy(field: str, value: int | str) -> None:
+    with pytest.raises(ValueError):
+        Settings(**{field: value})  # type: ignore[arg-type]
+
+
+def test_settings_accept_zero_to_disable_a_google_quota_scope() -> None:
+    settings = Settings(google_search_user_daily_limit=0, google_search_organization_daily_limit=0)
+
+    assert settings.google_search_user_daily_limit == 0
+    assert settings.google_search_organization_daily_limit == 0
+
+
+@pytest.mark.parametrize(
+    ("field", "value"),
+    [
         ("database_url", "postgresql://db/prospect"),
         ("redis_url", "http://redis:6379"),
     ],
@@ -74,6 +95,13 @@ def test_production_requires_dependencies_google_and_public_cors() -> None:
             redis_url="rediss://redis:6379/0",
             cors_allowed_origins=("https://crm.example",),
         )
+
+
+def test_staging_requires_redis_and_google_lock_covers_places_and_redis_timeouts() -> None:
+    with pytest.raises(ValueError, match="REDIS_URL"):
+        Settings(app_env="staging")
+    with pytest.raises(ValueError, match="GOOGLE_SEARCH_LOCK_TTL_SECONDS"):
+        Settings(places_timeout_seconds=40, google_search_lock_ttl_seconds=45)
 
     with pytest.raises(ValueError, match="CORS"):
         Settings(
