@@ -7,6 +7,7 @@ from typing import Protocol, Self
 from uuid import UUID
 
 from ...domain.csv_import import CsvImportQuarantineView, CsvImportRunView, CsvImportSessionView
+from ...domain.pipeline import PipelineStageView, ProspectStageTransitionView
 from ...domain.prospect import (
     AcquisitionDraft,
     AcquisitionRecordView,
@@ -61,6 +62,7 @@ class ProspectRepository(Protocol):
         origin: str | None = None,
         owner_id: UUID | None = None,
         priority: int | None = None,
+        stage_code: str | None = None,
     ) -> tuple[ProspectView, ...]: ...
 
     async def update(
@@ -78,6 +80,55 @@ class ProspectRepository(Protocol):
     async def archive_with_cascade(
         self, prospect_id: UUID, *, expected_version: int, now: datetime, reason_code: str = "other"
     ) -> tuple[ProspectView, int, int] | None: ...
+
+    async def change_stage(
+        self,
+        prospect_id: UUID,
+        *,
+        expected_version: int,
+        from_stage: str,
+        to_stage: str,
+        now: datetime,
+    ) -> ProspectView | None: ...
+
+
+class PipelineRepository(Protocol):
+    async def list_stages(self) -> tuple[PipelineStageView, ...]: ...
+
+    async def ensure_default_stages(self, *, organization_id: UUID, now: datetime) -> tuple[PipelineStageView, ...]: ...
+
+    async def update_stage(
+        self,
+        stage_code: str,
+        *,
+        expected_version: int,
+        color_token: str | None,
+        labels: dict[str, str] | None,
+        now: datetime,
+    ) -> PipelineStageView | None: ...
+
+    async def add_transition(
+        self,
+        *,
+        organization_id: UUID,
+        prospect_id: UUID,
+        actor_id: UUID,
+        from_stage: str,
+        to_stage: str,
+        from_version: int,
+        resulting_version: int,
+        reason_code: str | None,
+        reason_note: str | None,
+        idempotency_key: str,
+        command_fingerprint: str,
+        now: datetime,
+    ) -> ProspectStageTransitionView: ...
+
+    async def get_transition_by_idempotency_key(
+        self, *, prospect_id: UUID, idempotency_key: str
+    ) -> ProspectStageTransitionView | None: ...
+
+    async def list_transitions(self, prospect_id: UUID, *, limit: int) -> tuple[ProspectStageTransitionView, ...]: ...
 
 
 class ContactRepository(Protocol):
@@ -358,6 +409,9 @@ class CsvImportRepository(Protocol):
 class ProspectUnitOfWork(Protocol):
     @property
     def prospects(self) -> ProspectRepository: ...
+
+    @property
+    def pipeline(self) -> PipelineRepository: ...
 
     @property
     def contacts(self) -> ContactRepository: ...

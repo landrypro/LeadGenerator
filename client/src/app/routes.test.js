@@ -6,7 +6,7 @@ import {
 
 
 describe('routes CRM', () => {
-  it('déclare les routes canoniques jusqu’à 2.5.5-E', () => {
+  it('déclare les routes canoniques jusqu’au pipeline Kanban 3.2', () => {
     expect(CRM_PATHS).toEqual({
       home: '/',
       login: '/login',
@@ -15,6 +15,7 @@ describe('routes CRM', () => {
       prospects: '/app/prospects',
       prospectNew: '/app/prospects/new',
       prospectDetail: '/app/prospects/:prospectId',
+      pipeline: '/app/pipeline',
       compliance: '/app/compliance/sources',
       retention: '/app/compliance/retention',
       account: '/app/account',
@@ -26,10 +27,11 @@ describe('routes CRM', () => {
     })
   })
 
-  it('active les pages terminées jusqu’au portefeuille prospects', () => {
+  it('active les pages terminées jusqu’au pipeline Kanban', () => {
     expect(routes.map((route) => route.path)).toEqual([
       '/app/compliance/retention',
       '/app/compliance/sources',
+      '/app/pipeline',
       '/app/prospects',
       '/app/prospects/new',
       '/app/prospects/:prospectId',
@@ -69,6 +71,9 @@ describe('routes CRM', () => {
       'account',
     ])
     expect(canAccessRoute(findRoute('/app/search'), tenant)).toBe(true)
+
+    const pipelineUser = session({ activeOrganization: { id: 'org-1', name: 'Entreprise' }, capabilities: ['pipeline:read'] })
+    expect(navigationRoutes(pipelineUser).map((route) => route.id)).toEqual(['pipeline', 'account'])
 
     const auditor = session({
       activeOrganization: { id: 'org-1', name: 'Entreprise' },

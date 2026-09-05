@@ -9,6 +9,7 @@ from ...application.errors import OrganizationAdministrationUnavailable
 from ...application.tenancy import TenantContext
 from .audit_recorder import SqlAlchemyAuditRecorder
 from .csv_import_repository import SqlAlchemyCsvImportRepository
+from .pipeline_repository import SqlAlchemyPipelineRepository
 from .prospect_repository import (
     SqlAlchemyAcquisitionRepository,
     SqlAlchemyContactChannelRepository,
@@ -29,6 +30,7 @@ class SqlAlchemyProspectUnitOfWork(SqlAlchemyTenantUnitOfWork):
     def __init__(self, session_factory: async_sessionmaker[AsyncSession], context: TenantContext) -> None:
         super().__init__(session_factory, context)
         self.prospects: SqlAlchemyProspectRepository
+        self.pipeline: SqlAlchemyPipelineRepository
         self.contacts: SqlAlchemyContactRepository
         self.contact_channels: SqlAlchemyContactChannelRepository
         self.contact_permissions: SqlAlchemyContactPermissionRepository
@@ -48,6 +50,7 @@ class SqlAlchemyProspectUnitOfWork(SqlAlchemyTenantUnitOfWork):
         except SQLAlchemyError as error:
             raise OrganizationAdministrationUnavailable from error
         self.prospects = SqlAlchemyProspectRepository(self.session)
+        self.pipeline = SqlAlchemyPipelineRepository(self.session)
         self.contacts = SqlAlchemyContactRepository(self.session)
         self.contact_channels = SqlAlchemyContactChannelRepository(self.session)
         self.contact_permissions = SqlAlchemyContactPermissionRepository(self.session)

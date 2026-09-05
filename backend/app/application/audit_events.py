@@ -92,8 +92,11 @@ def _entity_type(action: AuditAction) -> str:
         AuditAction.PROSPECT_CREATED,
         AuditAction.PROSPECT_UPDATED,
         AuditAction.PROSPECT_ARCHIVED,
+        AuditAction.PROSPECT_STAGE_CHANGED,
     }:
         return "prospect"
+    if action is AuditAction.PIPELINE_STAGE_SETTINGS_UPDATED:
+        return "pipeline_stage_setting"
     if action is AuditAction.CONTACT_CREATED:
         return "contact"
     if action is AuditAction.CONTACT_ARCHIVED:

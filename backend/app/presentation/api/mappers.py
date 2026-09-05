@@ -209,6 +209,7 @@ def to_prospect_response(view: ProspectView) -> ProspectResponse:
         created_at=view.created_at,
         updated_at=view.updated_at,
         archived_at=view.archived_at,
+        stage_changed_at=view.stage_changed_at,
     )
 
 

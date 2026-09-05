@@ -20,22 +20,141 @@ from ....application.models import GoogleAccessOwner
 from ....application.tenancy import TenantContext
 from ....application.use_cases import GoogleProspectInput
 from ....domain.identity import capabilities_for
+from ....domain.pipeline import PipelineStageView, PipelineValidationError, ProspectStageTransitionView
 from ....domain.prospect import ProspectOrigin, ProspectProfilePatch
 from ..dependencies import ContainerDependency, RequestAuthentication, required_authentication
 from ..mappers import to_prospect_response
 from ..responses import NO_STORE_HEADERS, api_error
 from ..schemas import (
     CreateProspectRequest,
+    PipelineBoardResponse,
+    PipelineColumnPageResponse,
+    PipelineStageResponse,
+    PipelineStageUpdateRequest,
     ProspectFromGoogleItemResponse,
     ProspectFromGoogleRequest,
     ProspectFromGoogleResponse,
     ProspectPageResponse,
     ProspectProfileUpdateRequest,
     ProspectResponse,
+    ProspectStageTransitionPageResponse,
+    ProspectStageTransitionRequest,
+    ProspectStageTransitionResponse,
+    ReopenProspectRequest,
 )
 from ..security import require_csrf_token, require_json_content_type, require_trusted_origin
 
 router = APIRouter(prefix="/api/prospects", tags=["prospects"])
+
+
+@router.get("/pipeline/stages", response_model=list[PipelineStageResponse])
+async def list_pipeline_stages(request: Request, container: ContainerDependency) -> Response:
+    try:
+        authentication = await required_authentication(request, container)
+        if container.list_pipeline_stages is None:
+            raise ProspectServiceUnavailable
+        stages = await container.list_pipeline_stages.execute(
+            context=_tenant_context(request, authentication),
+            has_capability=_has_capability(authentication, "pipeline:read"),
+        )
+    except Exception as error:
+        response = _prospect_error(request, error)
+        if response is not None:
+            return response
+        raise
+    return JSONResponse([_stage_response(stage).model_dump(mode="json") for stage in stages], headers=NO_STORE_HEADERS)
+
+
+@router.get("/pipeline/board", response_model=PipelineBoardResponse)
+async def get_pipeline_board(
+    request: Request,
+    container: ContainerDependency,
+    search_text: str | None = Query(default=None, max_length=160),
+    owner_id: UUID | None = None,
+    priority: int | None = Query(default=None, ge=0, le=5),
+) -> Response:
+    try:
+        authentication = await required_authentication(request, container)
+        if container.get_pipeline_board is None:
+            raise ProspectServiceUnavailable
+        board = await container.get_pipeline_board.execute(
+            context=_tenant_context(request, authentication),
+            has_capability=_has_capability(authentication, "pipeline:read"),
+            search_text=search_text,
+            owner_id=owner_id,
+            priority=priority,
+        )
+    except Exception as error:
+        response = _prospect_error(request, error)
+        if response is not None:
+            return response
+        raise
+    payload = PipelineBoardResponse(
+        stages=[_stage_response(stage) for stage in board.stages],
+        columns={key: [to_prospect_response(item) for item in items] for key, items in board.columns.items()},
+        next_cursors=board.next_cursors,
+    )
+    return JSONResponse(payload.model_dump(mode="json"), headers=NO_STORE_HEADERS)
+
+
+@router.get("/pipeline/board/columns/{stage_code}", response_model=PipelineColumnPageResponse)
+async def get_pipeline_column(
+    stage_code: str,
+    request: Request,
+    container: ContainerDependency,
+    cursor: str | None = Query(default=None, max_length=512),
+    limit: int = Query(default=25, ge=1, le=25),
+    search_text: str | None = Query(default=None, max_length=160),
+    owner_id: UUID | None = None,
+    priority: int | None = Query(default=None, ge=0, le=5),
+) -> Response:
+    try:
+        authentication = await required_authentication(request, container)
+        if container.list_pipeline_column is None:
+            raise ProspectServiceUnavailable
+        page = await container.list_pipeline_column.execute(
+            context=_tenant_context(request, authentication),
+            has_capability=_has_capability(authentication, "pipeline:read"),
+            stage_code=stage_code,
+            cursor=cursor,
+            limit=limit,
+            search_text=search_text,
+            owner_id=owner_id,
+            priority=priority,
+        )
+    except Exception as error:
+        response = _prospect_error(request, error)
+        if response is not None:
+            return response
+        raise
+    payload = PipelineColumnPageResponse(
+        items=[to_prospect_response(item) for item in page.items], next_cursor=page.next_cursor
+    )
+    return JSONResponse(payload.model_dump(mode="json"), headers=NO_STORE_HEADERS)
+
+
+@router.patch("/pipeline/stages/{stage_code}", response_model=PipelineStageResponse)
+async def update_pipeline_stage(
+    stage_code: str, payload: PipelineStageUpdateRequest, request: Request, container: ContainerDependency
+) -> Response:
+    try:
+        authentication = await _authenticated_mutation(request, container)
+        if container.update_pipeline_stage is None:
+            raise ProspectServiceUnavailable
+        stage = await container.update_pipeline_stage.execute(
+            context=_tenant_context(request, authentication),
+            stage_code=stage_code,
+            expected_version=payload.version,
+            color_token=payload.color_token,
+            labels=payload.labels,
+            has_capability=_has_capability(authentication, "pipeline:configure"),
+        )
+    except Exception as error:
+        response = _prospect_error(request, error)
+        if response is not None:
+            return response
+        raise
+    return JSONResponse(_stage_response(stage).model_dump(mode="json"), headers=NO_STORE_HEADERS)
 
 
 @router.get("", response_model=ProspectPageResponse)
@@ -163,6 +282,83 @@ async def get_prospect(prospect_id: UUID, request: Request, container: Container
     return JSONResponse(to_prospect_response(prospect).model_dump(mode="json"), headers=NO_STORE_HEADERS)
 
 
+@router.post("/{prospect_id}/stage-transitions", response_model=ProspectStageTransitionResponse)
+async def move_prospect_stage(
+    prospect_id: UUID, payload: ProspectStageTransitionRequest, request: Request, container: ContainerDependency
+) -> Response:
+    try:
+        authentication = await _authenticated_mutation(request, container)
+        if container.move_prospect_stage is None:
+            raise ProspectServiceUnavailable
+        _prospect, transition = await container.move_prospect_stage.execute(
+            context=_tenant_context(request, authentication),
+            prospect_id=prospect_id,
+            expected_version=payload.version,
+            to_stage=payload.to_stage,
+            reason_code=payload.reason_code,
+            reason_note=payload.reason_note,
+            idempotency_key=payload.idempotency_key,
+            has_capability=_has_capability(authentication, "pipeline:move"),
+        )
+    except Exception as error:
+        response = _prospect_error(request, error)
+        if response is not None:
+            return response
+        raise
+    return JSONResponse(_transition_response(transition).model_dump(mode="json"), headers=NO_STORE_HEADERS)
+
+
+@router.get("/{prospect_id}/stage-transitions", response_model=ProspectStageTransitionPageResponse)
+async def list_prospect_stage_transitions(
+    prospect_id: UUID, request: Request, container: ContainerDependency
+) -> Response:
+    try:
+        authentication = await required_authentication(request, container)
+        if container.list_prospect_stage_transitions is None:
+            raise ProspectServiceUnavailable
+        items = await container.list_prospect_stage_transitions.execute(
+            context=_tenant_context(request, authentication),
+            prospect_id=prospect_id,
+            has_capability=_has_capability(authentication, "pipeline:history:read"),
+        )
+    except Exception as error:
+        response = _prospect_error(request, error)
+        if response is not None:
+            return response
+        raise
+    return JSONResponse(
+        ProspectStageTransitionPageResponse(items=[_transition_response(item) for item in items]).model_dump(
+            mode="json"
+        ),
+        headers=NO_STORE_HEADERS,
+    )
+
+
+@router.post("/{prospect_id}/reopen", response_model=ProspectStageTransitionResponse)
+async def reopen_prospect(
+    prospect_id: UUID, payload: ReopenProspectRequest, request: Request, container: ContainerDependency
+) -> Response:
+    try:
+        authentication = await _authenticated_mutation(request, container)
+        if container.reopen_prospect is None:
+            raise ProspectServiceUnavailable
+        _prospect, transition = await container.reopen_prospect.execute(
+            context=_tenant_context(request, authentication),
+            prospect_id=prospect_id,
+            expected_version=payload.version,
+            reason_code=payload.reason_code,
+            reason_note=payload.reason_note,
+            idempotency_key=payload.idempotency_key,
+            has_capability=_has_capability(authentication, "pipeline:reopen"),
+        )
+    except Exception as error:
+        response = _prospect_error(request, error)
+        if response is not None:
+            return response
+        raise
+    return JSONResponse(_transition_response(transition).model_dump(mode="json"), headers=NO_STORE_HEADERS)
+
+
 @router.patch("/{prospect_id}", response_model=ProspectResponse)
 async def update_prospect_profile(
     prospect_id: UUID,
@@ -203,6 +399,31 @@ async def update_prospect_profile(
             return response
         raise
     return JSONResponse(to_prospect_response(prospect).model_dump(mode="json"), headers=NO_STORE_HEADERS)
+
+
+def _stage_response(stage: PipelineStageView) -> PipelineStageResponse:
+    return PipelineStageResponse(
+        code=stage.code.value,
+        position=stage.position,
+        color_token=stage.color_token,
+        labels=dict(stage.labels),
+        version=stage.version,
+    )
+
+
+def _transition_response(transition: ProspectStageTransitionView) -> ProspectStageTransitionResponse:
+    return ProspectStageTransitionResponse(
+        id=transition.id,
+        prospect_id=transition.prospect_id,
+        actor_id=transition.actor_id,
+        from_stage=transition.from_stage.value,
+        to_stage=transition.to_stage.value,
+        from_version=transition.from_version,
+        resulting_version=transition.resulting_version,
+        reason_code=transition.reason_code,
+        reason_note=transition.reason_note,
+        occurred_at=transition.occurred_at,
+    )
 
 
 async def _authenticated_mutation(request: Request, container: ContainerDependency) -> RequestAuthentication:
@@ -248,6 +469,8 @@ def _prospect_error(request: Request, error: Exception) -> Response | None:
         return api_error(request, 404, "prospect_not_found", "Prospect introuvable.")
     if isinstance(error, ProspectVersionConflict):
         return api_error(request, 409, "optimistic_lock_conflict", "Le prospect a changé depuis sa lecture.")
+    if isinstance(error, PipelineValidationError):
+        return api_error(request, 422, "pipeline_transition_invalid", str(error))
     if isinstance(error, (AuthenticationServiceUnavailable, ProspectServiceUnavailable)):
         return api_error(request, 503, "prospects_unavailable", "Les prospects sont temporairement indisponibles.")
     if isinstance(error, ValueError):

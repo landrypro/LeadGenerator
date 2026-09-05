@@ -321,6 +321,64 @@ class ProspectResponse(BaseModel):
     created_at: datetime
     updated_at: datetime
     archived_at: datetime | None
+    stage_changed_at: datetime | None
+
+
+class PipelineStageResponse(BaseModel):
+    code: str
+    position: int
+    color_token: str
+    labels: dict[str, str]
+    version: int
+
+
+class PipelineBoardResponse(BaseModel):
+    stages: list[PipelineStageResponse]
+    columns: dict[str, list[ProspectResponse]]
+    next_cursors: dict[str, str | None]
+
+
+class PipelineColumnPageResponse(BaseModel):
+    items: list[ProspectResponse]
+    next_cursor: str | None
+
+
+class ProspectStageTransitionRequest(StrictCommand):
+    version: int = Field(ge=1)
+    to_stage: str = Field(min_length=1, max_length=32)
+    reason_code: str | None = Field(default=None, min_length=1, max_length=64)
+    reason_note: str | None = Field(default=None, min_length=1, max_length=500)
+    idempotency_key: str = Field(min_length=8, max_length=128)
+
+
+class ReopenProspectRequest(StrictCommand):
+    version: int = Field(ge=1)
+    reason_code: str = Field(min_length=1, max_length=64)
+    reason_note: str | None = Field(default=None, min_length=1, max_length=500)
+    idempotency_key: str = Field(min_length=8, max_length=128)
+
+
+class PipelineStageUpdateRequest(StrictCommand):
+    version: int = Field(ge=1)
+    color_token: str | None = Field(default=None, min_length=1, max_length=32)
+    labels: dict[str, str] | None = None
+
+
+class ProspectStageTransitionResponse(BaseModel):
+    id: UUID
+    prospect_id: UUID
+    actor_id: UUID
+    from_stage: str
+    to_stage: str
+    from_version: int
+    resulting_version: int
+    reason_code: str | None
+    reason_note: str | None
+    occurred_at: datetime
+
+
+class ProspectStageTransitionPageResponse(BaseModel):
+    items: list[ProspectStageTransitionResponse]
 
 
 class ProspectPageResponse(BaseModel):

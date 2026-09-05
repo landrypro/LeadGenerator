@@ -39,6 +39,7 @@ from .application.use_cases import (
     GetImportDeclarationUseCase,
     GetMapSnapshotUseCase,
     GetOrganizationUseCase,
+    GetPipelineBoardUseCase,
     GetProspectUseCase,
     GetRetentionHoldUseCase,
     GetRetentionPolicyUseCase,
@@ -49,9 +50,12 @@ from .application.use_cases import (
     ListImportDeclarationsUseCase,
     ListMemberInvitationsUseCase,
     ListMembersUseCase,
+    ListPipelineColumnUseCase,
+    ListPipelineStagesUseCase,
     ListPlatformAuditEventsUseCase,
     ListPlatformOrganizationsUseCase,
     ListProspectChannelsUseCase,
+    ListProspectStageTransitionsUseCase,
     ListProspectsUseCase,
     ListRetentionHoldsUseCase,
     ListRetentionPoliciesUseCase,
@@ -61,9 +65,11 @@ from .application.use_cases import (
     LoginUseCase,
     LogoutUseCase,
     MapCsvImportUseCase,
+    MoveProspectStageUseCase,
     PlaceRetentionHoldUseCase,
     PreviewInvitationUseCase,
     ReleaseRetentionHoldUseCase,
+    ReopenProspectUseCase,
     ResendInitialInvitationUseCase,
     ResendMemberInvitationUseCase,
     RevokeInitialInvitationUseCase,
@@ -72,6 +78,7 @@ from .application.use_cases import (
     SwitchOrganizationUseCase,
     UpdateMembershipUseCase,
     UpdateOrganizationUseCase,
+    UpdatePipelineStageUseCase,
     UpdateProspectProfileUseCase,
     UpdateRetentionPolicyUseCase,
     UpdateSourceProviderUseCase,
@@ -103,6 +110,13 @@ class AppContainer:
     list_prospects: ListProspectsUseCase | None = None
     get_prospect: GetProspectUseCase | None = None
     update_prospect_profile: UpdateProspectProfileUseCase | None = None
+    list_pipeline_stages: ListPipelineStagesUseCase | None = None
+    get_pipeline_board: GetPipelineBoardUseCase | None = None
+    list_pipeline_column: ListPipelineColumnUseCase | None = None
+    move_prospect_stage: MoveProspectStageUseCase | None = None
+    reopen_prospect: ReopenProspectUseCase | None = None
+    list_prospect_stage_transitions: ListProspectStageTransitionsUseCase | None = None
+    update_pipeline_stage: UpdatePipelineStageUseCase | None = None
     create_source_provider: CreateSourceProviderUseCase | None = None
     update_source_provider: UpdateSourceProviderUseCase | None = None
     get_source_provider: GetSourceProviderUseCase | None = None

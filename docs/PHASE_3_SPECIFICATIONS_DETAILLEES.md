@@ -4,9 +4,9 @@
 | --- | --- |
 | Produit | Marketteo CRM |
 | Phase | 3 — Cœur CRM |
-| Version | 1.2 — 3.1 clôturé avec réserve, spécifications 3.2 validées |
+| Version | 1.3 — 3.1 clôturé avec réserve, 3.2 implémenté |
 | Prérequis | Phase 2.5 livrée ; verrou qualité local 2.6 vert ; recette multi-instance 2.6 différée au staging |
-| Statut | 3.1 clôturé avec réserve — 3.2 en attente du GO d’implémentation |
+| Statut | 3.1 clôturé avec réserve — 3.2 implémenté, recette à exécuter |
 | Date | 4 septembre 2026 |
 
 ## 1. Objet
@@ -149,4 +149,4 @@ Les routes suivent les conventions existantes : JSON UTF-8, erreur avec `code`, 
 
 Les seize décisions de cadrage de la phase 3 ont été validées par le responsable produit le 26 août 2026. Les spécifications, l’implémentation et la recette locale de **3.1 — Import CSV conforme réel** sont terminées. La clôture avec réserve a été prononcée le 4 septembre 2026 ; la recette multi-instance 2.6 en staging et la preuve Azure restent obligatoires avant préproduction.
 
-Le GO de rédaction des spécifications détaillées de **3.2 — Pipeline Kanban** a été accordé. Les seize décisions disponibles dans [`PHASE_3_2_SPECIFICATIONS_DETAILLEES.md`](PHASE_3_2_SPECIFICATIONS_DETAILLEES.md) ont été validées le 4 septembre 2026. Un GO d’implémentation explicite reste nécessaire avant toute modification de code 3.2.
+Les seize décisions disponibles dans [`PHASE_3_2_SPECIFICATIONS_DETAILLEES.md`](PHASE_3_2_SPECIFICATIONS_DETAILLEES.md) ont été validées le 4 septembre 2026. Le GO explicite a permis l’implémentation du Kanban : migration `20260904_0015`, droits, API, audit, écran et tests ciblés. La recette PostgreSQL/RLS et le verrou complet restent requis avant sa clôture.

@@ -59,6 +59,7 @@ from .application.use_cases import (
     GetImportDeclarationUseCase,
     GetMapSnapshotUseCase,
     GetOrganizationUseCase,
+    GetPipelineBoardUseCase,
     GetProspectUseCase,
     GetRetentionHoldUseCase,
     GetRetentionPolicyUseCase,
@@ -69,9 +70,12 @@ from .application.use_cases import (
     ListImportDeclarationsUseCase,
     ListMemberInvitationsUseCase,
     ListMembersUseCase,
+    ListPipelineColumnUseCase,
+    ListPipelineStagesUseCase,
     ListPlatformAuditEventsUseCase,
     ListPlatformOrganizationsUseCase,
     ListProspectChannelsUseCase,
+    ListProspectStageTransitionsUseCase,
     ListProspectsUseCase,
     ListRetentionHoldsUseCase,
     ListRetentionPoliciesUseCase,
@@ -81,9 +85,11 @@ from .application.use_cases import (
     LoginUseCase,
     LogoutUseCase,
     MapCsvImportUseCase,
+    MoveProspectStageUseCase,
     PlaceRetentionHoldUseCase,
     PreviewInvitationUseCase,
     ReleaseRetentionHoldUseCase,
+    ReopenProspectUseCase,
     ResendInitialInvitationUseCase,
     ResendMemberInvitationUseCase,
     RevokeInitialInvitationUseCase,
@@ -92,6 +98,7 @@ from .application.use_cases import (
     SwitchOrganizationUseCase,
     UpdateMembershipUseCase,
     UpdateOrganizationUseCase,
+    UpdatePipelineStageUseCase,
     UpdateProspectProfileUseCase,
     UpdateRetentionPolicyUseCase,
     UpdateSourceProviderUseCase,
@@ -249,6 +256,13 @@ def build_container(settings: Settings) -> AppContainer:
     list_prospects: ListProspectsUseCase | None = None
     get_prospect: GetProspectUseCase | None = None
     update_prospect_profile: UpdateProspectProfileUseCase | None = None
+    list_pipeline_stages: ListPipelineStagesUseCase | None = None
+    get_pipeline_board: GetPipelineBoardUseCase | None = None
+    list_pipeline_column: ListPipelineColumnUseCase | None = None
+    move_prospect_stage: MoveProspectStageUseCase | None = None
+    reopen_prospect: ReopenProspectUseCase | None = None
+    list_prospect_stage_transitions: ListProspectStageTransitionsUseCase | None = None
+    update_pipeline_stage: UpdatePipelineStageUseCase | None = None
     create_source_provider: CreateSourceProviderUseCase | None = None
     update_source_provider: UpdateSourceProviderUseCase | None = None
     get_source_provider: GetSourceProviderUseCase | None = None
@@ -458,6 +472,15 @@ def build_container(settings: Settings) -> AppContainer:
         list_prospects = ListProspectsUseCase(database.tenant_prospect_unit_of_work, prospect_cursor_codec)
         get_prospect = GetProspectUseCase(database.tenant_prospect_unit_of_work)
         update_prospect_profile = UpdateProspectProfileUseCase(database.tenant_prospect_unit_of_work, clock)
+        list_pipeline_stages = ListPipelineStagesUseCase(database.tenant_prospect_unit_of_work, clock)
+        get_pipeline_board = GetPipelineBoardUseCase(
+            database.tenant_prospect_unit_of_work, clock, prospect_cursor_codec
+        )
+        list_pipeline_column = ListPipelineColumnUseCase(database.tenant_prospect_unit_of_work, prospect_cursor_codec)
+        move_prospect_stage = MoveProspectStageUseCase(database.tenant_prospect_unit_of_work, clock)
+        reopen_prospect = ReopenProspectUseCase(move_prospect_stage, database.tenant_prospect_unit_of_work)
+        list_prospect_stage_transitions = ListProspectStageTransitionsUseCase(database.tenant_prospect_unit_of_work)
+        update_pipeline_stage = UpdatePipelineStageUseCase(database.tenant_prospect_unit_of_work, clock)
         create_source_provider = CreateSourceProviderUseCase(database.tenant_prospect_unit_of_work, clock)
         update_source_provider = UpdateSourceProviderUseCase(database.tenant_prospect_unit_of_work, clock)
         get_source_provider = GetSourceProviderUseCase(database.tenant_prospect_unit_of_work)
@@ -534,6 +557,13 @@ def build_container(settings: Settings) -> AppContainer:
         list_prospects=list_prospects,
         get_prospect=get_prospect,
         update_prospect_profile=update_prospect_profile,
+        list_pipeline_stages=list_pipeline_stages,
+        get_pipeline_board=get_pipeline_board,
+        list_pipeline_column=list_pipeline_column,
+        move_prospect_stage=move_prospect_stage,
+        reopen_prospect=reopen_prospect,
+        list_prospect_stage_transitions=list_prospect_stage_transitions,
+        update_pipeline_stage=update_pipeline_stage,
         create_source_provider=create_source_provider,
         update_source_provider=update_source_provider,
         get_source_provider=get_source_provider,

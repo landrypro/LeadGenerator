@@ -56,6 +56,8 @@ class AuditAction(StrEnum):
     PROSPECT_CREATED = "prospect.created"
     PROSPECT_UPDATED = "prospect.updated"
     PROSPECT_ARCHIVED = "prospect.archived"
+    PROSPECT_STAGE_CHANGED = "prospect.stage_changed"
+    PIPELINE_STAGE_SETTINGS_UPDATED = "pipeline.stage_settings_updated"
     CONTACT_CREATED = "contact.created"
     CHANNEL_CREATED = "channel.created"
     PROVENANCE_RECORDED = "provenance.recorded"
@@ -143,6 +145,8 @@ _TENANT_ACTIONS = frozenset(
         AuditAction.PROSPECT_CREATED,
         AuditAction.PROSPECT_UPDATED,
         AuditAction.PROSPECT_ARCHIVED,
+        AuditAction.PROSPECT_STAGE_CHANGED,
+        AuditAction.PIPELINE_STAGE_SETTINGS_UPDATED,
         AuditAction.CONTACT_CREATED,
         AuditAction.CHANNEL_CREATED,
         AuditAction.PROVENANCE_RECORDED,
@@ -193,6 +197,8 @@ _ACTION_ENTITY_TYPES = {
     AuditAction.PROSPECT_CREATED: "prospect",
     AuditAction.PROSPECT_UPDATED: "prospect",
     AuditAction.PROSPECT_ARCHIVED: "prospect",
+    AuditAction.PROSPECT_STAGE_CHANGED: "prospect",
+    AuditAction.PIPELINE_STAGE_SETTINGS_UPDATED: "pipeline_stage_setting",
     AuditAction.CONTACT_CREATED: "contact",
     AuditAction.CHANNEL_CREATED: "contact_channel",
     AuditAction.PROVENANCE_RECORDED: "provenance",
@@ -364,6 +370,69 @@ class AuditMetadataPolicy:
             ):
                 raise InvalidAuditMetadata("changed_fields contient une valeur prospect interdite ou dupliquee.")
             return {"changed_fields": tuple(sorted(changed_fields))}
+
+        if action is AuditAction.PROSPECT_STAGE_CHANGED:
+            cls._require_keys(values, {"from_stage", "to_stage", "from_version", "resulting_version"}, {"reason_code"})
+            allowed_stages = frozenset(
+                {
+                    "new",
+                    "qualifying",
+                    "qualified",
+                    "contacted",
+                    "opportunity",
+                    "proposal_sent",
+                    "negotiation",
+                    "won",
+                    "lost",
+                }
+            )
+            from_version, resulting_version = values["from_version"], values["resulting_version"]
+            if (
+                not isinstance(from_version, int)
+                or not isinstance(resulting_version, int)
+                or from_version <= 0
+                or resulting_version <= from_version
+            ):
+                raise InvalidAuditMetadata("Les versions de transition sont invalides.")
+            result = {
+                "from_stage": cls._choice(values["from_stage"], allowed_stages, "from_stage"),
+                "to_stage": cls._choice(values["to_stage"], allowed_stages, "to_stage"),
+                "from_version": from_version,
+                "resulting_version": resulting_version,
+            }
+            if "reason_code" in values:
+                reason_code = values["reason_code"]
+                if not isinstance(reason_code, str) or not 1 <= len(reason_code) <= 64:
+                    raise InvalidAuditMetadata("reason_code est invalide.")
+                result["reason_code"] = reason_code
+            return result
+
+        if action is AuditAction.PIPELINE_STAGE_SETTINGS_UPDATED:
+            cls._require_keys(values, {"stage_code", "changed_fields"})
+            allowed_stages = frozenset(
+                {
+                    "new",
+                    "qualifying",
+                    "qualified",
+                    "contacted",
+                    "opportunity",
+                    "proposal_sent",
+                    "negotiation",
+                    "won",
+                    "lost",
+                }
+            )
+            changed_fields = values["changed_fields"]
+            if (
+                isinstance(changed_fields, (str, bytes))
+                or not isinstance(changed_fields, Sequence)
+                or set(changed_fields) - {"color_token", "labels"}
+            ):
+                raise InvalidAuditMetadata("changed_fields de pipeline est invalide.")
+            return {
+                "stage_code": cls._choice(values["stage_code"], allowed_stages, "stage_code"),
+                "changed_fields": tuple(sorted(changed_fields)),
+            }
 
         if action is AuditAction.PROSPECT_ARCHIVED:
             cls._require_keys(

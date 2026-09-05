@@ -173,7 +173,7 @@ class ProspectModel(Base):
         ),
         CheckConstraint("char_length(source_label) BETWEEN 1 AND 160", name="source_label_length"),
         CheckConstraint(
-            "stage_code IN ('new', 'qualified', 'contacted', 'proposal_sent', 'won', 'lost', 'archived')",
+            "stage_code IN ('new', 'qualifying', 'qualified', 'contacted', 'opportunity', 'proposal_sent', 'negotiation', 'won', 'lost', 'archived')",
             name="stage_code_allowed",
         ),
         CheckConstraint("priority BETWEEN 0 AND 5", name="priority_range"),
@@ -230,6 +230,7 @@ class ProspectModel(Base):
     retention_review_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=text("CURRENT_TIMESTAMP"))
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=text("CURRENT_TIMESTAMP"))
+    stage_changed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     archived_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     archived_by: Mapped[UUID | None] = mapped_column(ForeignKey("users.id", ondelete="RESTRICT"))
     archive_reason_code: Mapped[str | None] = mapped_column(String(64))
@@ -244,6 +245,79 @@ class ProspectModel(Base):
     postal_code: Mapped[str | None] = mapped_column(String(32))
     country_code: Mapped[str | None] = mapped_column(String(2))
     tags: Mapped[list[str]] = mapped_column(JSONB, server_default=text("'[]'::jsonb"))
+
+
+class PipelineStageSettingModel(Base):
+    __tablename__ = "pipeline_stage_settings"
+    __table_args__ = (
+        CheckConstraint(
+            "stage_code IN ('new', 'qualifying', 'qualified', 'contacted', 'opportunity', 'proposal_sent', 'negotiation', 'won', 'lost')",
+            name="stage_code_allowed",
+        ),
+        CheckConstraint("position BETWEEN 1 AND 9", name="position_range"),
+        CheckConstraint("char_length(color_token) BETWEEN 1 AND 32", name="color_token_length"),
+        CheckConstraint("labels IS NOT NULL AND jsonb_typeof(labels) = 'object'", name="labels_object"),
+        CheckConstraint("version > 0", name="version_positive"),
+        UniqueConstraint("organization_id", "stage_code", name="uq_pipeline_stage_settings_organization_stage"),
+        UniqueConstraint("organization_id", "position", name="uq_pipeline_stage_settings_organization_position"),
+    )
+
+    id: Mapped[UUID] = mapped_column(primary_key=True, default=uuid4)
+    organization_id: Mapped[UUID] = mapped_column(ForeignKey("organizations.id", ondelete="CASCADE"))
+    stage_code: Mapped[str] = mapped_column(String(32))
+    position: Mapped[int] = mapped_column(Integer)
+    color_token: Mapped[str] = mapped_column(String(32))
+    labels: Mapped[dict[str, str]] = mapped_column(JSONB)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=text("CURRENT_TIMESTAMP"))
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=text("CURRENT_TIMESTAMP"))
+    version: Mapped[int] = mapped_column(Integer, server_default=text("1"))
+
+
+class ProspectStageTransitionModel(Base):
+    __tablename__ = "prospect_stage_transitions"
+    __table_args__ = (
+        CheckConstraint(
+            "from_stage IN ('new', 'qualifying', 'qualified', 'contacted', 'opportunity', 'proposal_sent', 'negotiation', 'won', 'lost')",
+            name="from_stage_allowed",
+        ),
+        CheckConstraint(
+            "to_stage IN ('new', 'qualifying', 'qualified', 'contacted', 'opportunity', 'proposal_sent', 'negotiation', 'won', 'lost')",
+            name="to_stage_allowed",
+        ),
+        CheckConstraint("from_stage <> to_stage", name="stage_changed"),
+        CheckConstraint("from_version > 0 AND resulting_version > from_version", name="version_sequence"),
+        CheckConstraint("reason_note IS NULL OR char_length(reason_note) BETWEEN 1 AND 500", name="reason_note_length"),
+        ForeignKeyConstraint(
+            ["organization_id", "prospect_id"], ["prospects.organization_id", "prospects.id"], ondelete="RESTRICT"
+        ),
+        UniqueConstraint("organization_id", "id", name="uq_prospect_stage_transitions_organization_id_id"),
+        UniqueConstraint(
+            "organization_id",
+            "prospect_id",
+            "idempotency_key",
+            name="uq_prospect_stage_transitions_idempotency",
+        ),
+        Index(
+            "ix_prospect_stage_transitions_organization_prospect_occurred",
+            "organization_id",
+            "prospect_id",
+            "occurred_at",
+        ),
+    )
+
+    id: Mapped[UUID] = mapped_column(primary_key=True, default=uuid4)
+    organization_id: Mapped[UUID] = mapped_column(ForeignKey("organizations.id", ondelete="CASCADE"))
+    prospect_id: Mapped[UUID] = mapped_column()
+    actor_id: Mapped[UUID] = mapped_column(ForeignKey("users.id", ondelete="RESTRICT"))
+    from_stage: Mapped[str] = mapped_column(String(32))
+    to_stage: Mapped[str] = mapped_column(String(32))
+    from_version: Mapped[int] = mapped_column(Integer)
+    resulting_version: Mapped[int] = mapped_column(Integer)
+    reason_code: Mapped[str | None] = mapped_column(String(64))
+    reason_note: Mapped[str | None] = mapped_column(Text)
+    idempotency_key: Mapped[str] = mapped_column(String(128))
+    command_fingerprint: Mapped[str] = mapped_column(String(128))
+    occurred_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
 
 
 class ContactModel(Base):

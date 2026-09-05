@@ -15,7 +15,7 @@ variables:
   testRedisUrl: 'redis://127.0.0.1:56379/0'
   testMailpitApiUrl: 'http://127.0.0.1:58025'
   testMailpitSmtpPort: '51025'
-  expectedAlembicRevision: '20260826_0014'
+  expectedAlembicRevision: '20260904_0015'
 
 steps:
   - task: UsePythonVersion@0

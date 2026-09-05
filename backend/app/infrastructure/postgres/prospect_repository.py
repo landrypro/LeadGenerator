@@ -417,6 +417,41 @@ class SqlAlchemyProspectRepository(ProspectRepository):
         )
         return _prospect_from_row(cast(Mapping[str, object], row)) if row is not None else None
 
+    async def change_stage(
+        self,
+        prospect_id: UUID,
+        *,
+        expected_version: int,
+        from_stage: str,
+        to_stage: str,
+        now: datetime,
+    ) -> ProspectView | None:
+        row = (
+            (
+                await self._session.execute(
+                    text(
+                        """
+                    UPDATE public.prospects
+                    SET stage_code = :to_stage, stage_changed_at = :now, updated_at = :now, version = version + 1
+                    WHERE id = :prospect_id AND version = :expected_version
+                      AND stage_code = :from_stage AND archived_at IS NULL
+                    RETURNING *
+                    """
+                    ),
+                    {
+                        "prospect_id": prospect_id,
+                        "expected_version": expected_version,
+                        "from_stage": from_stage,
+                        "to_stage": to_stage,
+                        "now": now,
+                    },
+                )
+            )
+            .mappings()
+            .one_or_none()
+        )
+        return _prospect_from_row(cast(Mapping[str, object], row)) if row else None
+
     async def get_by_google_place_id(self, google_place_id: str) -> ProspectView | None:
         row = (
             (
@@ -447,6 +482,7 @@ class SqlAlchemyProspectRepository(ProspectRepository):
         origin: str | None = None,
         owner_id: UUID | None = None,
         priority: int | None = None,
+        stage_code: str | None = None,
     ) -> tuple[ProspectView, ...]:
         cursor_clause = ""
         parameters: dict[str, object] = {
@@ -457,6 +493,7 @@ class SqlAlchemyProspectRepository(ProspectRepository):
             "origin": origin,
             "owner_id": owner_id,
             "priority": priority,
+            "stage_code": stage_code,
         }
         if after_created_at is not None and after_id is not None:
             cursor_clause = "AND (created_at, id) < (:after_created_at, :after_id)"
@@ -1671,6 +1708,7 @@ def _prospect_from_row(row: Mapping[str, object]) -> ProspectView:
         created_at=_datetime(row["created_at"]),
         updated_at=_datetime(row["updated_at"]),
         archived_at=_optional_datetime(row["archived_at"]),
+        stage_changed_at=_optional_datetime(row.get("stage_changed_at")),
         owner_id=_optional_uuid(row.get("owner_id")),
         profile_provenance_id=_optional_uuid(row.get("profile_provenance_id")),
         industry_label=_optional_str(row.get("industry_label")),
@@ -1931,6 +1969,7 @@ def _active_prospect_query(cursor_clause: str) -> str:
           AND (CAST(:origin AS text) IS NULL OR origin = CAST(:origin AS text))
           AND (CAST(:owner_id AS uuid) IS NULL OR owner_id = CAST(:owner_id AS uuid))
           AND (CAST(:priority AS integer) IS NULL OR priority = CAST(:priority AS integer))
+          AND (CAST(:stage_code AS text) IS NULL OR stage_code = CAST(:stage_code AS text))
           {cursor_clause}
         ORDER BY created_at DESC, id DESC
         LIMIT :limit OFFSET :offset

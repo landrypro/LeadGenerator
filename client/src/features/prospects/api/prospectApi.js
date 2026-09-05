@@ -61,4 +61,35 @@ export const prospectApi = {
       fallbackMessage: 'Impossible de modifier la permission.',
     })
   },
+
+  pipelineBoard({ searchText = '', priority = '' } = {}, signal) {
+    const parameters = new URLSearchParams()
+    if (searchText.trim()) parameters.set('search_text', searchText.trim())
+    if (priority !== '') parameters.set('priority', String(priority))
+    const query = parameters.toString()
+    return request(`/api/prospects/pipeline/board${query ? `?${query}` : ''}`, { signal, fallbackMessage: 'Impossible de charger le pipeline.' })
+  },
+
+  pipelineColumn(stageCode, { cursor = '', searchText = '', priority = '' } = {}, signal) {
+    const parameters = new URLSearchParams({ limit: '25' })
+    if (cursor) parameters.set('cursor', cursor)
+    if (searchText.trim()) parameters.set('search_text', searchText.trim())
+    if (priority !== '') parameters.set('priority', String(priority))
+    return request(`/api/prospects/pipeline/board/columns/${encodeURIComponent(stageCode)}?${parameters}`, {
+      signal,
+      fallbackMessage: 'Impossible de charger davantage de prospects.',
+    })
+  },
+
+  moveStage(prospectId, payload, signal) {
+    return postJson(`/api/prospects/${encodeURIComponent(prospectId)}/stage-transitions`, payload, { signal, fallbackMessage: 'Impossible de déplacer le prospect.' })
+  },
+
+  reopen(prospectId, payload, signal) {
+    return postJson(`/api/prospects/${encodeURIComponent(prospectId)}/reopen`, payload, { signal, fallbackMessage: 'Impossible de réouvrir le prospect.' })
+  },
+
+  listStageTransitions(prospectId, signal) {
+    return request(`/api/prospects/${encodeURIComponent(prospectId)}/stage-transitions`, { signal, fallbackMessage: 'Impossible de charger l’historique du pipeline.' })
+  },
 }
