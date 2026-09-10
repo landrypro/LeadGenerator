@@ -13,6 +13,8 @@ MetricsOutcome = Literal["accepted", "rejected", "failed", "expired", "contended
 QuotaScope = Literal["user", "organization"]
 GrantAction = Literal["issued", "claimed", "rejected", "resolved"]
 GoogleApi = Literal["places_text_search", "maps_static"]
+CrmCommand = Literal["activity", "task"]
+CrmTaskAction = Literal["created", "updated", "completed", "cancelled", "reopened", "reminder_changed"]
 
 
 class MetricsRecorder(Protocol):
@@ -45,6 +47,14 @@ class MetricsRecorder(Protocol):
         duration_seconds: float,
     ) -> None: ...
 
+    def record_crm_activity_command(self, activity_type: str, result: MetricsOutcome) -> None: ...
+
+    def record_crm_task_command(self, action: CrmTaskAction, result: MetricsOutcome) -> None: ...
+
+    def record_crm_task_version_conflict(self) -> None: ...
+
+    def record_crm_timeline_request(self, result: MetricsOutcome) -> None: ...
+
 
 class NullMetricsRecorder:
     """Doublure explicite, sans effet, utilisée hors des tests d'observabilité."""
@@ -71,3 +81,15 @@ class NullMetricsRecorder:
 
     def record_google_upstream(self, api: GoogleApi, outcome: MetricsOutcome, duration_seconds: float) -> None:
         del api, outcome, duration_seconds
+
+    def record_crm_activity_command(self, activity_type: str, result: MetricsOutcome) -> None:
+        del activity_type, result
+
+    def record_crm_task_command(self, action: CrmTaskAction, result: MetricsOutcome) -> None:
+        del action, result
+
+    def record_crm_task_version_conflict(self) -> None:
+        return None
+
+    def record_crm_timeline_request(self, result: MetricsOutcome) -> None:
+        del result

@@ -3,6 +3,7 @@ import { useEffect, useRef, useState } from 'react'
 import { toUserMessage } from '../../../shared/api/errors'
 import { createRequestId } from '../../../shared/ids/requestId'
 import { ErrorBanner } from '../../../shared/ui/Feedback'
+import { IANA_TIMEZONES } from '../../../shared/ianaTimezones'
 import { platformApi } from '../api/platformApi'
 import { resolveDefaultTimezone } from '../defaultTimezone'
 
@@ -16,6 +17,7 @@ export function ProvisionOrganizationForm({ createId = createRequestId, onProvis
   const [blocked, setBlocked] = useState(false)
   const [submitting, setSubmitting] = useState(false)
   const [message, setMessage] = useState({ type: '', text: '' })
+  const [timezoneSuggestionsVisible, setTimezoneSuggestionsVisible] = useState(false)
   const controllerRef = useRef(null)
   const pendingRef = useRef(false)
   const mountedRef = useRef(true)
@@ -82,7 +84,7 @@ export function ProvisionOrganizationForm({ createId = createRequestId, onProvis
     <form className="platform-provision-form" onSubmit={submit}>
       <Field label="Nom de l’organisation" id="platform-organization-name"><input id="platform-organization-name" value={form.name} onChange={(event) => update('name', event.target.value)} maxLength="160" disabled={submitting} required /></Field>
       <Field label="Langue" id="platform-organization-locale"><select id="platform-organization-locale" value={form.locale} onChange={(event) => update('locale', event.target.value)} disabled={submitting}><option value="fr-CA">Français (Canada)</option><option value="en-CA">English (Canada)</option></select></Field>
-      <Field label="Fuseau horaire IANA" id="platform-organization-timezone"><input id="platform-organization-timezone" value={form.timezone} onChange={(event) => update('timezone', event.target.value)} maxLength="64" disabled={submitting} required /></Field>
+      <Field label="Fuseau horaire IANA" id="platform-organization-timezone"><input id="platform-organization-timezone" list="platform-organization-timezones" value={form.timezone} onFocus={() => setTimezoneSuggestionsVisible(true)} onChange={(event) => update('timezone', event.target.value)} maxLength="64" disabled={submitting} required /><datalist id="platform-organization-timezones">{timezoneSuggestionsVisible && IANA_TIMEZONES.map((timezone) => <option key={timezone} value={timezone} />)}</datalist><p className="form-help">Commencez à saisir un continent ou une ville pour afficher les fuseaux proposés.</p></Field>
       <Field label="Courriel de l’administrateur initial" id="platform-administrator-email"><input id="platform-administrator-email" type="email" autoComplete="email" value={form.email} onChange={(event) => update('email', event.target.value)} maxLength="254" disabled={submitting} required /></Field>
       <div className="platform-provision-actions">
         <button className="primary-button" type="submit" disabled={submitting || blocked || !isValid(form)}>{submitting ? 'Provisionnement…' : intent ? 'Réessayer la même intention' : 'Créer l’organisation'}</button>

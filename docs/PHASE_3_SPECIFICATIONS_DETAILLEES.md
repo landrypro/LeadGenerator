@@ -4,10 +4,10 @@
 | --- | --- |
 | Produit | Marketteo CRM |
 | Phase | 3 — Cœur CRM |
-| Version | 1.3 — 3.1 clôturé avec réserve, 3.2 implémenté |
+| Version | 1.6 — 3.3 clôturé avec réserves, passage autorisé à l’incrément suivant |
 | Prérequis | Phase 2.5 livrée ; verrou qualité local 2.6 vert ; recette multi-instance 2.6 différée au staging |
-| Statut | 3.1 clôturé avec réserve — 3.2 implémenté, recette à exécuter |
-| Date | 4 septembre 2026 |
+| Statut | 3.1, 3.2 et 3.3 clôturés avec réserves — contrôles transversaux regroupés pour la recette finale 3.6 |
+| Date | 10 septembre 2026 |
 
 ## 1. Objet
 
@@ -149,4 +149,23 @@ Les routes suivent les conventions existantes : JSON UTF-8, erreur avec `code`, 
 
 Les seize décisions de cadrage de la phase 3 ont été validées par le responsable produit le 26 août 2026. Les spécifications, l’implémentation et la recette locale de **3.1 — Import CSV conforme réel** sont terminées. La clôture avec réserve a été prononcée le 4 septembre 2026 ; la recette multi-instance 2.6 en staging et la preuve Azure restent obligatoires avant préproduction.
 
-Les seize décisions disponibles dans [`PHASE_3_2_SPECIFICATIONS_DETAILLEES.md`](PHASE_3_2_SPECIFICATIONS_DETAILLEES.md) ont été validées le 4 septembre 2026. Le GO explicite a permis l’implémentation du Kanban : migration `20260904_0015`, droits, API, audit, écran et tests ciblés. La recette PostgreSQL/RLS et le verrou complet restent requis avant sa clôture.
+Les seize décisions disponibles dans [`PHASE_3_2_SPECIFICATIONS_DETAILLEES.md`](PHASE_3_2_SPECIFICATIONS_DETAILLEES.md) ont été validées le 4 septembre 2026. Le GO explicite a permis l’implémentation du Kanban : migration `20260904_0015`, droits, API, audit, écran et tests. La recette fonctionnelle KAN-01 à KAN-14, les vérifications API guidées et le verrou local sont terminés. La clôture avec réserve est prononcée le 5 septembre 2026 : `SEC-01` et `AUD-01` sont reportés au verrou global 3.6.
+
+Les seize décisions de **3.3 — Activités, tâches et rappels**, documentées dans [`PHASE_3_3_SPECIFICATIONS_DETAILLEES.md`](PHASE_3_3_SPECIFICATIONS_DETAILLEES.md), ont été validées le 5 septembre 2026. L’implémentation est découpée en cinq sous-lots 3.3-A à 3.3-E avec tests automatisés obligatoires après chacun ; la recette fonctionnelle est regroupée après 3.3-E.
+
+Les sous-lots **3.3-A — Socle backend**, **3.3-B — Cas d’utilisation et API**, **3.3-C — Chronologie et activités** et
+**3.3-D — Tâches, rappels et prochaine action** sont implémentés. Le socle couvre le domaine, la matrice de capacités,
+les ports, les dépôts PostgreSQL et la migration `20260905_0016` ; l’API ajoute `20260905_0017` ; la fiche prospect
+expose ensuite la chronologie, les activités déclaratives, les corrections append-only, les avertissements de permission
+bilingues et les tâches. La vue « Mes tâches », les rappels dus, l’accusé, le report borné et la prochaine action sur la
+fiche, la liste et le Kanban complètent 3.3-D. Les rapports correspondants sont
+[`PHASE_3_3_A_RAPPORT_IMPLEMENTATION.md`](PHASE_3_3_A_RAPPORT_IMPLEMENTATION.md),
+[`PHASE_3_3_B_RAPPORT_IMPLEMENTATION.md`](PHASE_3_3_B_RAPPORT_IMPLEMENTATION.md) et
+[`PHASE_3_3_C_RAPPORT_IMPLEMENTATION.md`](PHASE_3_3_C_RAPPORT_IMPLEMENTATION.md), ainsi que
+[`PHASE_3_3_D_RAPPORT_IMPLEMENTATION.md`](PHASE_3_3_D_RAPPORT_IMPLEMENTATION.md). Reste la recette regroupée et le
+verrou final (3.3-E).
+
+Le lot **3.3-E** est terminé : migrations `20260905_0016` à `20260905_0019`, recette fonctionnelle unique,
+documentation utilisateur et attentes CI sont alignées. Le verrou qualité global du 10 septembre 2026 est vert avec
+274 tests backend et 162 tests frontend, sans échec ni skip. La clôture avec réserves de 3.3 est prononcée ; les
+scénarios fonctionnels restants et les contrôles transversaux sont regroupés dans la recette finale 3.6.

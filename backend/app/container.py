@@ -21,6 +21,7 @@ from .application.use_cases import (
     ChangeOrganizationStatusUseCase,
     CheckReadinessUseCase,
     ConfirmCsvImportUseCase,
+    CreateActivityUseCase,
     CreateContactChannelUseCase,
     CreateContactUseCase,
     CreateManualProspectUseCase,
@@ -28,6 +29,7 @@ from .application.use_cases import (
     CreateOrganizationUseCase,
     CreateRetentionPolicyUseCase,
     CreateSourceProviderUseCase,
+    CreateTaskUseCase,
     DecideAcquisitionUseCase,
     DeclareAcquisitionUseCase,
     DeclareImportUseCase,
@@ -47,9 +49,11 @@ from .application.use_cases import (
     ListAcquisitionsUseCase,
     ListContactChannelsUseCase,
     ListContactsUseCase,
+    ListDueRemindersUseCase,
     ListImportDeclarationsUseCase,
     ListMemberInvitationsUseCase,
     ListMembersUseCase,
+    ListNextActionsUseCase,
     ListPipelineColumnUseCase,
     ListPipelineStagesUseCase,
     ListPlatformAuditEventsUseCase,
@@ -57,10 +61,12 @@ from .application.use_cases import (
     ListProspectChannelsUseCase,
     ListProspectStageTransitionsUseCase,
     ListProspectsUseCase,
+    ListProspectTimelineUseCase,
     ListRetentionHoldsUseCase,
     ListRetentionPoliciesUseCase,
     ListRetentionReviewsUseCase,
     ListSourceProvidersUseCase,
+    ListTasksUseCase,
     ListTenantAuditEventsUseCase,
     LoginUseCase,
     LogoutUseCase,
@@ -82,6 +88,7 @@ from .application.use_cases import (
     UpdateProspectProfileUseCase,
     UpdateRetentionPolicyUseCase,
     UpdateSourceProviderUseCase,
+    UpdateTaskUseCase,
     UploadCsvImportUseCase,
     ValidateCsvImportUseCase,
 )
@@ -110,6 +117,13 @@ class AppContainer:
     list_prospects: ListProspectsUseCase | None = None
     get_prospect: GetProspectUseCase | None = None
     update_prospect_profile: UpdateProspectProfileUseCase | None = None
+    create_activity: CreateActivityUseCase | None = None
+    create_task: CreateTaskUseCase | None = None
+    update_task: UpdateTaskUseCase | None = None
+    list_prospect_timeline: ListProspectTimelineUseCase | None = None
+    list_tasks: ListTasksUseCase | None = None
+    list_due_reminders: ListDueRemindersUseCase | None = None
+    list_next_actions: ListNextActionsUseCase | None = None
     list_pipeline_stages: ListPipelineStagesUseCase | None = None
     get_pipeline_board: GetPipelineBoardUseCase | None = None
     list_pipeline_column: ListPipelineColumnUseCase | None = None

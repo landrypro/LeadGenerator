@@ -29,9 +29,14 @@ Statuts : `couvert`, `capturée (v0.5)`, `capture à produire`, `hors édition`.
 | Plateforme | Organisations | Admin plateforme | Provisionner, suspendre, réactiver | CAP-23 | couvert |
 | Plateforme | Audit plateforme | Admin plateforme | Filtrer et consulter | CAP-24 | couvert |
 | Imports | Rapport de quarantaine CSV | Gestionnaire, admin | Consulter les lignes et motifs minimisés | CAP-25 | capture à produire |
+| Pipeline | `/app/pipeline` | Commercial, gestionnaire, admin | Filtrer et consulter les étapes commerciales | CAP-26 | couvert |
+| Pipeline | Déplacement, perte et réouverture | Commercial, gestionnaire, admin | Changer d'étape ou documenter une perte | CAP-27 | couvert |
+| Prospects | Chronologie commerciale | Commercial, gestionnaire, admin | Déclarer ou corriger une activité | CAP-28 | couvert |
+| CRM avancé | `/app/tasks` et tâches prospect | Commercial, gestionnaire, admin selon capacité | Créer, terminer, annuler, rouvrir et gérer un rappel | CAP-29 | couvert |
+| CRM avancé | Prochaine action | Commercial, gestionnaire, admin | Consulter la tâche ouverte prioritaire dans la fiche, la liste ou le Kanban | CAP-30 | couvert |
 | Export | Export Google/Excel | Désactivé | Aucun | - | hors édition |
-| CRM avancé | Pipeline, tâches, rappels, opportunités | Planifié | Aucun | - | hors édition |
+| CRM avancé | Opportunités | Planifié | Aucun | - | hors édition |
 
 ## Cahier de captures
 
-Les captures CAP-01, CAP-05, CAP-06, CAP-07, CAP-09, CAP-10 et CAP-11 sont représentées dans l'édition 0.5 par quatre vues de démonstration. Les autres captures restent à produire avec un environnement de démonstration. Elles doivent utiliser des noms fictifs, masquer les courriels si nécessaire, montrer uniquement la zone utile et conserver une largeur cohérente. Une capture ne doit être ajoutée que si elle facilite une décision ou une action ; les procédures simples restent textuelles.
+Les captures CAP-01, CAP-05, CAP-06, CAP-07, CAP-09, CAP-10 et CAP-11 sont représentées dans les éditions illustrées 0.5 et 0.6 par quatre vues de démonstration. Les captures CAP-26 à CAP-30 restent à produire avec un environnement de démonstration lorsque les parcours auront été stabilisés. Toutes les captures doivent utiliser des noms fictifs, masquer les courriels si nécessaire, montrer uniquement la zone utile et conserver une largeur cohérente. Une capture ne doit être ajoutée que si elle facilite une décision ou une action ; les procédures simples restent textuelles.

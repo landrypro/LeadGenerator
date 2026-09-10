@@ -7,6 +7,7 @@ from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from ...application.errors import OrganizationAdministrationUnavailable
 from ...application.tenancy import TenantContext
+from .activity_repository import SqlAlchemyActivityRepository, SqlAlchemyTaskEventRepository, SqlAlchemyTaskRepository
 from .audit_recorder import SqlAlchemyAuditRecorder
 from .csv_import_repository import SqlAlchemyCsvImportRepository
 from .pipeline_repository import SqlAlchemyPipelineRepository
@@ -42,6 +43,9 @@ class SqlAlchemyProspectUnitOfWork(SqlAlchemyTenantUnitOfWork):
         self.retention_holds: SqlAlchemyRetentionHoldRepository
         self.import_declarations: SqlAlchemyImportDeclarationRepository
         self.csv_imports: SqlAlchemyCsvImportRepository
+        self.activities: SqlAlchemyActivityRepository
+        self.tasks: SqlAlchemyTaskRepository
+        self.task_events: SqlAlchemyTaskEventRepository
         self.audit: SqlAlchemyAuditRecorder
 
     async def __aenter__(self) -> SqlAlchemyProspectUnitOfWork:
@@ -62,6 +66,9 @@ class SqlAlchemyProspectUnitOfWork(SqlAlchemyTenantUnitOfWork):
         self.retention_holds = SqlAlchemyRetentionHoldRepository(self.session)
         self.import_declarations = SqlAlchemyImportDeclarationRepository(self.session)
         self.csv_imports = SqlAlchemyCsvImportRepository(self.session)
+        self.activities = SqlAlchemyActivityRepository(self.session)
+        self.tasks = SqlAlchemyTaskRepository(self.session)
+        self.task_events = SqlAlchemyTaskEventRepository(self.session)
         self.audit = SqlAlchemyAuditRecorder(self.session)
         return self
 

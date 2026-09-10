@@ -32,8 +32,8 @@ $qualityClient = Join-Path $qualityRoot 'client'
 $qualityNpmCache = Join-Path $qualityRoot 'npm-cache'
 $vitestReport = Join-Path $testResults 'vitest.xml'
 $projectName = 'prospect-crm-quality'
-# Phase 3.1 ajoute la migration CSV et déplace la tête de référence.
-$expectedAlembicRevision = '20260904_0015'
+# Le socle 3.3-A ajoute activités et tâches et déplace la tête de référence.
+$expectedAlembicRevision = '20260905_0019'
 $script:resolvedDockerMode = $null
 $script:wslWorkspace = $null
 $script:wslDistribution = $null
@@ -261,7 +261,7 @@ try {
     Invoke-QualityStep 'Artefact Vite' { & $python (Join-Path $workspace 'scripts\quality_gate.py') artifact (Join-Path $qualityClient 'dist') }
     Invoke-QualityStep 'Diff Git' { Push-Location $workspace; try { git --no-pager diff --check } finally { Pop-Location } }
     $summary = @(
-        '# Rapport du verrou qualité local 3.2'
+        '# Rapport du verrou qualité local 3.3'
         ''
         "- Date UTC : $([DateTime]::UtcNow.ToString('u'))"
         "- Mode Docker : $script:resolvedDockerMode"
@@ -270,7 +270,7 @@ try {
         '- Rapports : `pytest-quality.xml`, `vitest.xml`, `alembic-current.txt`'
     )
     Set-Content -LiteralPath (Join-Path $testResults 'quality-summary.md') -Value $summary -Encoding utf8
-    Write-Host "`nVerrou qualité local 3.2 : VERT" -ForegroundColor Green
+    Write-Host "`nVerrou qualité local 3.3 : VERT" -ForegroundColor Green
 }
 finally {
     if ($script:resolvedDockerMode) {

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 
 import { leadSearchApi } from '../api/leadSearchApi'
 
@@ -15,7 +15,7 @@ export function useProspectAdds({ selectionToken, clearError, reportError }) {
   const [addingIds, setAddingIds] = useState(() => new Set())
   const activeRequestRef = useRef(null)
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     activeRequestRef.current?.abort()
     setSelectedPlaceIds(new Set())
     setInternalAliases({})

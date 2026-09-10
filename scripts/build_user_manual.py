@@ -231,7 +231,7 @@ def add_running_furniture(section):
     page_p = footer.paragraphs[0]
     page_p.alignment = WD_ALIGN_PARAGRAPH.RIGHT
     page_p.paragraph_format.space_before = Pt(4)
-    run = page_p.add_run("Version 0.5  |  Page ")
+    run = page_p.add_run("Version 0.7  |  Page ")
     set_font(run, size=8.5, color=MUTED)
     add_field(page_p, "PAGE")
 
@@ -269,11 +269,11 @@ def add_cover(document):
     p = document.add_paragraph()
     p.alignment = WD_ALIGN_PARAGRAPH.CENTER
     p.paragraph_format.space_after = Pt(5)
-    r = p.add_run("Version 0.5 - Édition illustrée à valider")
+    r = p.add_run("Version 0.7 - Édition 3.3 préparée pour recette fonctionnelle")
     set_font(r, size=11, color=GREEN, bold=True)
     p = document.add_paragraph()
     p.alignment = WD_ALIGN_PARAGRAPH.CENTER
-    r = p.add_run("État fonctionnel du 26 août 2026")
+    r = p.add_run("État fonctionnel du 5 septembre 2026")
     set_font(r, size=10, color=MUTED, italic=True)
 
     p = document.add_paragraph()

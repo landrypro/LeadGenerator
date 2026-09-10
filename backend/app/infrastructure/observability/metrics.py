@@ -4,7 +4,14 @@ from collections import defaultdict
 from collections.abc import Mapping
 from threading import Lock
 
-from ...application.ports.metrics import GoogleApi, GrantAction, MetricsOutcome, QuotaScope, RedisOperation
+from ...application.ports.metrics import (
+    CrmTaskAction,
+    GoogleApi,
+    GrantAction,
+    MetricsOutcome,
+    QuotaScope,
+    RedisOperation,
+)
 
 
 class PrometheusMetricsRecorder:
@@ -41,6 +48,18 @@ class PrometheusMetricsRecorder:
         labels = {"api": api, "outcome": outcome}
         self._increment("marketteo_google_upstream_calls_total", labels)
         self._observe("marketteo_google_upstream_duration_seconds", labels, duration_seconds)
+
+    def record_crm_activity_command(self, activity_type: str, result: MetricsOutcome) -> None:
+        self._increment("marketteo_crm_activity_command_total", {"type": activity_type, "result": result})
+
+    def record_crm_task_command(self, action: CrmTaskAction, result: MetricsOutcome) -> None:
+        self._increment("marketteo_crm_task_command_total", {"action": action, "result": result})
+
+    def record_crm_task_version_conflict(self) -> None:
+        self._increment("marketteo_crm_task_version_conflict_total", {})
+
+    def record_crm_timeline_request(self, result: MetricsOutcome) -> None:
+        self._increment("marketteo_crm_timeline_request_total", {"result": result})
 
     def render(self) -> bytes:
         with self._lock:

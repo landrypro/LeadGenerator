@@ -92,4 +92,60 @@ export const prospectApi = {
   listStageTransitions(prospectId, signal) {
     return request(`/api/prospects/${encodeURIComponent(prospectId)}/stage-transitions`, { signal, fallbackMessage: 'Impossible de charger l’historique du pipeline.' })
   },
+
+  listTimeline(prospectId, signal) {
+    return request(`/api/prospects/${encodeURIComponent(prospectId)}/timeline`, {
+      signal,
+      fallbackMessage: 'Impossible de charger la chronologie.',
+    })
+  },
+
+  createActivity(prospectId, payload, signal) {
+    return postJson(`/api/prospects/${encodeURIComponent(prospectId)}/activities`, payload, {
+      signal,
+      fallbackMessage: 'Impossible d’enregistrer l’activité.',
+    })
+  },
+
+  correctActivity(activityId, payload, signal) {
+    return postJson(`/api/prospects/activities/${encodeURIComponent(activityId)}/corrections`, payload, {
+      signal,
+      fallbackMessage: 'Impossible de corriger l’activité.',
+    })
+  },
+
+  listTasks({ mine = false, prospectId = '', status = '', dueBefore = '' } = {}, signal) {
+    const parameters = new URLSearchParams({ limit: '100' })
+    if (mine) parameters.set('mine', 'true')
+    if (prospectId) parameters.set('prospect_id', prospectId)
+    if (status) parameters.set('status', status)
+    if (dueBefore) parameters.set('due_before', dueBefore)
+    return request(`/api/prospects/tasks?${parameters}`, { signal, fallbackMessage: 'Impossible de charger les tâches.' })
+  },
+
+  listDueReminders({ mine = true } = {}, signal) {
+    return request(`/api/prospects/tasks/reminders/due?mine=${mine ? 'true' : 'false'}`, { signal, fallbackMessage: 'Impossible de charger les rappels.' })
+  },
+
+  listNextActions(signal) {
+    return request('/api/prospects/tasks/next-actions?limit=500', { signal, fallbackMessage: 'Impossible de charger les prochaines actions.' })
+  },
+
+  createTask(prospectId, payload, signal) {
+    return postJson(`/api/prospects/${encodeURIComponent(prospectId)}/tasks`, payload, { signal, fallbackMessage: 'Impossible de créer la tâche.' })
+  },
+
+  updateTask(taskId, payload, signal) {
+    return request(`/api/prospects/tasks/${encodeURIComponent(taskId)}`, {
+      method: 'PATCH', signal, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload),
+      fallbackMessage: 'Impossible de modifier la tâche.',
+    })
+  },
+
+  taskAction(taskId, action, payload, signal) {
+    return postJson(`/api/prospects/tasks/${encodeURIComponent(taskId)}/${encodeURIComponent(action)}`, payload, {
+      signal,
+      fallbackMessage: 'Impossible de modifier la tâche.',
+    })
+  },
 }

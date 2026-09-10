@@ -6,7 +6,7 @@ import {
 
 
 describe('routes CRM', () => {
-  it('déclare les routes canoniques jusqu’au pipeline Kanban 3.2', () => {
+  it('déclare les routes canoniques jusqu’aux tâches 3.3-D', () => {
     expect(CRM_PATHS).toEqual({
       home: '/',
       login: '/login',
@@ -16,6 +16,7 @@ describe('routes CRM', () => {
       prospectNew: '/app/prospects/new',
       prospectDetail: '/app/prospects/:prospectId',
       pipeline: '/app/pipeline',
+      tasks: '/app/tasks',
       compliance: '/app/compliance/sources',
       retention: '/app/compliance/retention',
       account: '/app/account',
@@ -27,11 +28,12 @@ describe('routes CRM', () => {
     })
   })
 
-  it('active les pages terminées jusqu’au pipeline Kanban', () => {
+  it('active les pages terminées jusqu’aux tâches 3.3-D', () => {
     expect(routes.map((route) => route.path)).toEqual([
       '/app/compliance/retention',
       '/app/compliance/sources',
       '/app/pipeline',
+      '/app/tasks',
       '/app/prospects',
       '/app/prospects/new',
       '/app/prospects/:prospectId',
@@ -60,10 +62,11 @@ describe('routes CRM', () => {
 
     const tenant = session({
       activeOrganization: { id: 'org-1', name: 'Entreprise' },
-      capabilities: ['google:search', 'prospects:read', 'providers:read', 'organization:read', 'members:read'],
+      capabilities: ['google:search', 'prospects:read', 'providers:read', 'organization:read', 'members:read', 'tasks:read'],
     })
     expect(navigationRoutes(tenant).map((route) => route.id)).toEqual([
       'compliance-sources',
+      'tasks',
       'prospects',
       'google-place-search',
       'organization',

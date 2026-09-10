@@ -28,8 +28,10 @@ export function ProspectsPage({ session }) {
   const [searchText, setSearchText] = useState('')
   const [submittedSearch, setSubmittedSearch] = useState('')
   const [includeArchived, setIncludeArchived] = useState(false)
+  const [nextActions, setNextActions] = useState({})
   const requestRef = useRef(null)
   const canCreate = session.capabilities.includes('prospects:create')
+  const canReadTasks = session.capabilities.includes('tasks:read')
 
   const load = useCallback(async ({ cursor = '', append = false } = {}) => {
     requestRef.current?.abort()
@@ -39,10 +41,16 @@ export function ProspectsPage({ session }) {
     else setLoading(true)
     setError('')
     try {
-      const result = await prospectApi.list({ cursor, includeArchived, searchText: submittedSearch }, controller.signal)
+      const [result, actionPage] = await Promise.all([
+        prospectApi.list({ cursor, includeArchived, searchText: submittedSearch }, controller.signal),
+        canReadTasks ? prospectApi.listNextActions(controller.signal) : Promise.resolve({ items: [] }),
+      ])
+      const actionByProspect = Object.fromEntries((actionPage.items ?? []).map((task) => [task.prospect_id, task]))
+      setNextActions((current) => append ? { ...current, ...actionByProspect } : actionByProspect)
+      const items = (result.items ?? []).map((prospect) => ({ ...prospect, next_action: actionByProspect[prospect.id] ?? null }))
       setPage((current) => append
-        ? { items: [...current.items, ...(result.items ?? [])], next_cursor: result.next_cursor }
-        : { items: result.items ?? [], next_cursor: result.next_cursor })
+        ? { items: [...current.items, ...items], next_cursor: result.next_cursor }
+        : { items, next_cursor: result.next_cursor })
     } catch (requestError) {
       if (requestError?.name !== 'AbortError') setError(toUserMessage(requestError, 'Impossible de charger les prospects.'))
     } finally {
@@ -50,7 +58,7 @@ export function ProspectsPage({ session }) {
       setLoading(false)
       setLoadingMore(false)
     }
-  }, [includeArchived, submittedSearch])
+  }, [canReadTasks, includeArchived, submittedSearch])
 
   useEffect(() => {
     load()
@@ -94,7 +102,7 @@ export function ProspectsPage({ session }) {
         {page.items.map((prospect) => <a className={`prospect-row ${prospect.archived_at ? 'archived' : ''}`} href={`/app/prospects/${encodeURIComponent(prospect.id)}`} onClick={(event) => followInternalLink(event, `/app/prospects/${encodeURIComponent(prospect.id)}`)} key={prospect.id} role="listitem">
           <div className="prospect-row-icon" aria-hidden="true"><Building2 size={19} /></div>
           <div className="prospect-row-main"><h3>{prospect.internal_alias}</h3><div><OriginBadge origin={prospect.origin} /> {prospect.google_place_id && <span className="prospect-place-id">Place ID&nbsp;: <code>{prospect.google_place_id}</code></span>} {prospect.industry_label && <span>{prospect.industry_label}</span>} {prospect.city && <span>{prospect.city}</span>}</div></div>
-          <div className="prospect-row-meta"><span>Priorité {prospect.priority}/5</span><time dateTime={prospect.updated_at}>Mis à jour le {formatDate(prospect.updated_at)}</time>{prospect.archived_at && <strong>Archivé</strong>}</div>
+          <div className="prospect-row-meta"><span>Priorité {prospect.priority}/5</span>{nextActions[prospect.id] && <span className="next-action-summary">Prochaine action : {nextActions[prospect.id].title}</span>}<time dateTime={prospect.updated_at}>Mis à jour le {formatDate(prospect.updated_at)}</time>{prospect.archived_at && <strong>Archivé</strong>}</div>
         </a>)}
       </div>}
 

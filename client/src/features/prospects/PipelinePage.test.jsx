@@ -6,7 +6,7 @@ import { PipelinePage } from './PipelinePage'
 
 
 vi.mock('./api/prospectApi', () => ({
-  prospectApi: { pipelineBoard: vi.fn(), pipelineColumn: vi.fn(), moveStage: vi.fn(), reopen: vi.fn() },
+  prospectApi: { pipelineBoard: vi.fn(), pipelineColumn: vi.fn(), moveStage: vi.fn(), reopen: vi.fn(), listNextActions: vi.fn() },
 }))
 
 
@@ -31,6 +31,7 @@ describe('PipelinePage', () => {
     prospectApi.moveStage.mockResolvedValue({})
     prospectApi.reopen.mockResolvedValue({})
     prospectApi.pipelineColumn.mockResolvedValue({ items: [laterProspect], next_cursor: null })
+    prospectApi.listNextActions.mockResolvedValue({ items: [{ prospect_id: 'prospect-new', title: 'Appeler demain' }] })
   })
 
   it('réouvre un prospect perdu avec une action dédiée et des motifs compréhensibles', async () => {
@@ -93,5 +94,12 @@ describe('PipelinePage', () => {
     ))
     expect(await screen.findByText('Prospect chargé ensuite')).toBeInTheDocument()
     expect(screen.queryByRole('button', { name: 'Charger plus' })).not.toBeInTheDocument()
+  })
+
+  it('affiche la prochaine action fournie par le serveur sans modifier le déplacement', async () => {
+    render(<PipelinePage session={{ ...session, capabilities: [...session.capabilities, 'tasks:read'] }} />)
+
+    expect(await screen.findByText('Prochaine action : Appeler demain')).toBeInTheDocument()
+    expect(prospectApi.listNextActions).toHaveBeenCalled()
   })
 })

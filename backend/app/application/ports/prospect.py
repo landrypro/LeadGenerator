@@ -40,6 +40,7 @@ from ...domain.prospect import (
 )
 from ..models import GoogleAccessOwner
 from ..tenancy import TenantContext
+from .activity import ActivityRepository, TaskEventRepository, TaskRepository
 from .audit import AuditRecorder
 
 
@@ -445,6 +446,15 @@ class ProspectUnitOfWork(Protocol):
 
     @property
     def csv_imports(self) -> CsvImportRepository: ...
+
+    @property
+    def activities(self) -> ActivityRepository: ...
+
+    @property
+    def tasks(self) -> TaskRepository: ...
+
+    @property
+    def task_events(self) -> TaskEventRepository: ...
 
     @property
     def audit(self) -> AuditRecorder: ...

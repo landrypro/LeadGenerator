@@ -3,6 +3,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { Building2, Check, LoaderCircle } from '../../icons'
 import { toUserMessage } from '../../shared/api/errors'
 import { ErrorBanner } from '../../shared/ui/Feedback'
+import { IANA_TIMEZONES } from '../../shared/ianaTimezones'
 import { organizationApi } from './api/organizationApi'
 import { useOrganization } from './hooks/useOrganization'
 
@@ -12,17 +13,6 @@ const STATUS_LABELS = Object.freeze({
   provisioning: 'En cours d’activation',
   suspended: 'Suspendue',
 })
-
-const TIMEZONE_SUGGESTIONS = Object.freeze([
-  'America/Toronto',
-  'America/Montreal',
-  'America/Vancouver',
-  'America/Edmonton',
-  'America/Winnipeg',
-  'America/Halifax',
-  'America/St_Johns',
-])
-
 
 function formatDate(value, locale, timezone) {
   try {
@@ -48,6 +38,7 @@ export function OrganizationPage({ session, onOrganizationUpdated }) {
   const [mutationError, setMutationError] = useState('')
   const [conflictVersion, setConflictVersion] = useState('')
   const [success, setSuccess] = useState('')
+  const [timezoneSuggestionsVisible, setTimezoneSuggestionsVisible] = useState(false)
   const mutationControllerRef = useRef(null)
   const mutationSequenceRef = useRef(0)
   const canUpdate = session.capabilities.includes('organization:update')
@@ -190,10 +181,11 @@ export function OrganizationPage({ session, onOrganizationUpdated }) {
           </select>
 
           <label htmlFor="organization-timezone">Fuseau horaire IANA</label>
-          <input id="organization-timezone" list="organization-timezones" value={draft.timezone} onChange={(event) => updateDraft('timezone', event.target.value)} minLength="1" maxLength="64" required />
+          <input id="organization-timezone" list="organization-timezones" value={draft.timezone} onFocus={() => setTimezoneSuggestionsVisible(true)} onChange={(event) => updateDraft('timezone', event.target.value)} minLength="1" maxLength="64" required />
           <datalist id="organization-timezones">
-            {TIMEZONE_SUGGESTIONS.map((timezone) => <option key={timezone} value={timezone} />)}
+            {timezoneSuggestionsVisible && IANA_TIMEZONES.map((timezone) => <option key={timezone} value={timezone} />)}
           </datalist>
+          <p className="form-help">Commencez à saisir un continent ou une ville pour afficher les fuseaux proposés.</p>
 
           <button className="primary-button organization-submit" type="submit" disabled={!hasChanges || submitting || !draft.name.trim() || !draft.timezone.trim()}>
             {submitting ? <><LoaderCircle className="spin" size={18} /> Enregistrement…</> : 'Enregistrer les modifications'}

@@ -47,9 +47,11 @@ export function PipelinePage({ session }) {
   const [lossReasonCode, setLossReasonCode] = useState('no_need')
   const [lossReasonNote, setLossReasonNote] = useState('')
   const [lossFormError, setLossFormError] = useState('')
+  const [nextActions, setNextActions] = useState({})
   const requestRef = useRef(null)
   const canMove = session.capabilities.includes('pipeline:move')
   const canReopen = session.capabilities.includes('pipeline:reopen')
+  const canReadTasks = session.capabilities.includes('tasks:read')
 
   const load = useCallback(async () => {
     requestRef.current?.abort()
@@ -58,14 +60,19 @@ export function PipelinePage({ session }) {
     setLoading(true)
     setError('')
     try {
-      setBoard(await prospectApi.pipelineBoard({ searchText: submittedSearch }, controller.signal))
+      const [nextBoard, actionPage] = await Promise.all([
+        prospectApi.pipelineBoard({ searchText: submittedSearch }, controller.signal),
+        canReadTasks ? prospectApi.listNextActions(controller.signal) : Promise.resolve({ items: [] }),
+      ])
+      setNextActions(Object.fromEntries((actionPage.items ?? []).map((task) => [task.prospect_id, task])))
+      setBoard(nextBoard)
     } catch (requestError) {
       if (requestError?.name !== 'AbortError') setError(toUserMessage(requestError, 'Impossible de charger le pipeline.'))
     } finally {
       if (requestRef.current === controller) requestRef.current = null
       setLoading(false)
     }
-  }, [submittedSearch])
+  }, [canReadTasks, submittedSearch])
 
   useEffect(() => {
     load()
@@ -203,6 +210,7 @@ export function PipelinePage({ session }) {
         <div className="pipeline-cards">{(board.columns?.[stage.code] ?? []).map((prospect) => <article className="pipeline-card" key={prospect.id}>
           <a href={`/app/prospects/${encodeURIComponent(prospect.id)}`} onClick={(event) => followInternalLink(event, `/app/prospects/${encodeURIComponent(prospect.id)}`)}><Building2 size={16} /><strong>{prospect.internal_alias}</strong></a>
           <small>Priorité {prospect.priority}/5</small>
+          {nextActions[prospect.id] && <small className="next-action-summary">Prochaine action : {nextActions[prospect.id].title}</small>}
           {canMove && stage.code !== 'lost' && stage.code !== 'won' && <div className="pipeline-move-actions">
             {index > 0 && <button type="button" disabled={moving === prospect.id} onClick={() => move(prospect, board.stages[index - 1])}>← {stageLabel(board.stages[index - 1])}</button>}
             {index < board.stages.length - 1 && <button type="button" disabled={moving === prospect.id} onClick={() => move(prospect, board.stages[index + 1])}>{stageLabel(board.stages[index + 1])} →</button>}

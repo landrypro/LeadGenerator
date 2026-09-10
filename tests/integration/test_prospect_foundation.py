@@ -9,6 +9,12 @@ from sqlalchemy.exc import DBAPIError
 
 from backend.app.application.errors import OrganizationAdministrationUnavailable
 from backend.app.application.tenancy import TenantContext
+from backend.app.domain.activity import (
+    ActivityDirection,
+    ActivityType,
+    ProspectActivityDraft,
+    ProspectTaskDraft,
+)
 from backend.app.domain.audit import AuditAction, AuditActorKind, AuditEventDraft, AuditScope, AuditSource
 from backend.app.domain.prospect import (
     ContactChannelDraft,
@@ -149,7 +155,8 @@ async def test_prospect_tables_are_rls_protected_and_privileges_are_narrow() -> 
                             FROM pg_class
                             WHERE relname IN (
                                 'source_providers', 'acquisition_records', 'provenance_records',
-                                'prospects', 'contacts', 'contact_channels', 'contact_permissions'
+                                'prospects', 'contacts', 'contact_channels', 'contact_permissions',
+                                'prospect_activities', 'prospect_tasks', 'prospect_task_events'
                             )
                             """
                         )
@@ -168,7 +175,8 @@ async def test_prospect_tables_are_rls_protected_and_privileges_are_narrow() -> 
                             WHERE schemaname = 'public'
                               AND tablename IN (
                                   'source_providers', 'acquisition_records', 'provenance_records',
-                                  'prospects', 'contacts', 'contact_channels', 'contact_permissions'
+                                  'prospects', 'contacts', 'contact_channels', 'contact_permissions',
+                                  'prospect_activities', 'prospect_tasks', 'prospect_task_events'
                               )
                             """
                         )
@@ -183,7 +191,8 @@ async def test_prospect_tables_are_rls_protected_and_privileges_are_narrow() -> 
                     WHERE table_schema = 'public'
                       AND table_name IN (
                           'source_providers', 'acquisition_records', 'provenance_records',
-                          'prospects', 'contacts', 'contact_channels', 'contact_permissions'
+                          'prospects', 'contacts', 'contact_channels', 'contact_permissions',
+                          'prospect_activities', 'prospect_tasks', 'prospect_task_events'
                       )
                       AND grantee = 'PUBLIC'
                     """
@@ -191,14 +200,50 @@ async def test_prospect_tables_are_rls_protected_and_privileges_are_narrow() -> 
             )
 
         async with app.engine.connect() as connection:
-            may_delete = await connection.scalar(
-                text("SELECT has_table_privilege(current_user, 'public.prospects', 'DELETE')")
+            delete_privileges = (
+                (
+                    await connection.execute(
+                        text(
+                            """
+                        SELECT
+                            has_table_privilege(current_user, 'public.prospect_activities', 'DELETE') AS activities,
+                            has_table_privilege(current_user, 'public.prospect_tasks', 'DELETE') AS tasks,
+                            has_table_privilege(current_user, 'public.prospect_task_events', 'DELETE') AS task_events
+                        """
+                        )
+                    )
+                )
+                .mappings()
+                .one()
             )
+        async with owner.engine.connect() as connection:
+            text_limit_rows = (
+                (
+                    await connection.execute(
+                        text(
+                            """
+                        SELECT table_name, column_name, character_maximum_length
+                        FROM information_schema.columns
+                        WHERE table_schema = 'public'
+                          AND (table_name, column_name) IN (
+                              ('prospect_activities', 'summary'),
+                              ('prospect_tasks', 'title')
+                          )
+                        """
+                        )
+                    )
+                )
+                .mappings()
+                .all()
+            )
+            text_limits = {
+                (row["table_name"], row["column_name"]): row["character_maximum_length"] for row in text_limit_rows
+            }
     finally:
         await app.close()
         await owner.close()
 
-    assert len(rls_rows) == 7
+    assert len(rls_rows) == 10
     assert all(row["relrowsecurity"] and row["relforcerowsecurity"] for row in rls_rows)
     assert policies == {
         "source_providers_tenant_isolation",
@@ -208,9 +253,16 @@ async def test_prospect_tables_are_rls_protected_and_privileges_are_narrow() -> 
         "contacts_tenant_isolation",
         "contact_channels_tenant_isolation",
         "contact_permissions_tenant_isolation",
+        "prospect_activities_tenant_isolation",
+        "prospect_tasks_tenant_isolation",
+        "prospect_task_events_tenant_isolation",
     }
     assert public_grants == 0
-    assert may_delete is False
+    assert not any(delete_privileges.values())
+    assert text_limits == {
+        ("prospect_activities", "summary"): 160,
+        ("prospect_tasks", "title"): 160,
+    }
 
 
 async def test_prospect_repository_isolated_by_tenant_and_audited_atomically() -> None:
@@ -240,6 +292,28 @@ async def test_prospect_repository_isolated_by_tenant_and_audited_atomically() -
                     origin=ProspectOrigin.MANUAL,
                     source_label="Saisie QA",
                 ),
+                now=now,
+            )
+            activity = await unit_of_work.activities.add(
+                ProspectActivityDraft(
+                    prospect_id=prospect.id,
+                    activity_type=ActivityType.NOTE,
+                    direction=ActivityDirection.INTERNAL,
+                    summary="Note isolée",
+                    occurred_at=now,
+                ),
+                organization_id=fixture.organization_a_id,
+                actor_id=fixture.actor_a_id,
+                now=now,
+            )
+            task = await unit_of_work.tasks.add(
+                ProspectTaskDraft(
+                    prospect_id=prospect.id,
+                    title="Tâche isolée",
+                    due_at=now.replace(year=now.year + 1),
+                ),
+                organization_id=fixture.organization_a_id,
+                actor_id=fixture.actor_a_id,
                 now=now,
             )
             channel = await unit_of_work.contact_channels.add(
@@ -279,6 +353,8 @@ async def test_prospect_repository_isolated_by_tenant_and_audited_atomically() -
         )
         async with app.tenant_prospect_unit_of_work(context_b) as unit_of_work:
             invisible = await unit_of_work.prospects.get(prospect.id)
+            invisible_activity = await unit_of_work.activities.get(activity.id)
+            invisible_task = await unit_of_work.tasks.get(task.id)
 
         async with owner.engine.connect() as connection:
             audit_count = await connection.scalar(
@@ -292,6 +368,8 @@ async def test_prospect_repository_isolated_by_tenant_and_audited_atomically() -
 
     assert channel.value_normalized == "qa@example.ca"
     assert invisible is None
+    assert invisible_activity is None
+    assert invisible_task is None
     assert audit_count == 1
 
 

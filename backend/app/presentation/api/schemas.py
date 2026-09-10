@@ -364,6 +364,52 @@ class PipelineStageUpdateRequest(StrictCommand):
     labels: dict[str, str] | None = None
 
 
+class ActivityCreateRequest(StrictCommand):
+    activity_type: Literal["note", "call", "email", "meeting"]
+    direction: Literal["internal", "inbound", "outbound"] = "internal"
+    summary: str = Field(min_length=1, max_length=160)
+    note: str | None = Field(default=None, max_length=4000)
+    occurred_at: datetime
+    contact_channel_id: UUID | None = None
+    idempotency_key: str = Field(min_length=8, max_length=128)
+
+
+class ActivityCorrectionRequest(StrictCommand):
+    summary: str = Field(min_length=1, max_length=160)
+    note: str | None = Field(default=None, max_length=4000)
+    occurred_at: datetime
+    correction_reason: str = Field(min_length=1, max_length=500)
+    idempotency_key: str = Field(min_length=8, max_length=128)
+
+
+class TaskCreateRequest(StrictCommand):
+    title: str = Field(min_length=1, max_length=160)
+    description: str | None = Field(default=None, max_length=2000)
+    due_at: datetime
+    reminder_at: datetime | None = None
+    priority: Literal["low", "normal", "high", "urgent"] = "normal"
+    assigned_membership_id: UUID | None = None
+    idempotency_key: str = Field(min_length=8, max_length=128)
+
+
+class TaskUpdateRequest(StrictCommand):
+    version: int = Field(ge=1)
+    title: str | None = Field(default=None, min_length=1, max_length=160)
+    description: str | None = Field(default=None, max_length=2000)
+    due_at: datetime | None = None
+    reminder_at: datetime | None = None
+    priority: Literal["low", "normal", "high", "urgent"] | None = None
+    assigned_membership_id: UUID | None = None
+    idempotency_key: str = Field(min_length=8, max_length=128)
+
+
+class TaskActionRequest(StrictCommand):
+    version: int = Field(ge=1)
+    idempotency_key: str = Field(min_length=8, max_length=128)
+    reason: str | None = Field(default=None, max_length=500)
+    reminder_at: datetime | None = None
+
+
 class ProspectStageTransitionResponse(BaseModel):
     id: UUID
     prospect_id: UUID

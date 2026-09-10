@@ -1,8 +1,8 @@
 # Marketteo CRM - Manuel utilisateur
 
-**Version :** 0.5
-**État :** édition illustrée à valider
-**Date de référence :** 26 août 2026
+**Version :** 0.7
+**État :** édition 3.3 préparée pour recette fonctionnelle
+**Date de référence :** 5 septembre 2026
 **Public :** commerciaux, gestionnaires, administrateurs d'organisation et administrateurs de plateforme
 
 > Les libellés visibles de l'application utilisent désormais la marque Marketteo CRM. Les identifiants techniques historiques peuvent encore contenir `prospect` ou `LeadGenerator` afin de préserver les installations existantes.
@@ -14,10 +14,10 @@ Marketteo CRM permet à une organisation de rechercher ponctuellement des établ
 Le parcours quotidien le plus courant est le suivant :
 
 1. ouvrir l'organisation dans laquelle vous travaillez ;
-2. rechercher des établissements ou créer un prospect manuellement ;
-3. ouvrir la fiche du prospect et compléter son profil ;
-4. ajouter les personnes et canaux de contact obtenus indépendamment ;
-5. vérifier la permission avant toute prise de contact.
+2. rechercher, importer ou créer un prospect manuellement ;
+3. compléter le profil CRM, les personnes et les canaux obtenus indépendamment ;
+4. consigner les interactions déjà réalisées dans la chronologie commerciale ;
+5. suivre le prospect dans le pipeline, sans contourner la permission de contact.
 
 ### 1.1 Règle essentielle sur les données Google
 
@@ -30,8 +30,9 @@ Lorsqu'un résultat est ajouté au CRM, Marketteo conserve la référence Google
 - Une recherche Google retourne au maximum 20 résultats et ne lance pas de pagination automatique.
 - Une limite opérationnelle est appliquée par journée UTC : 20 recherches par utilisateur dans l'organisation active et 100 par organisation. Elle protège le budget technique Google ; ce n'est pas encore un forfait commercial ni une facture.
 - Le bouton « Exporter Excel » des résultats Google est désactivé.
-- Une déclaration d'import CSV enregistre l'intention et le schéma ; aucun fichier n'est encore téléversé ou traité.
-- Le pipeline commercial complet, les tâches, rappels, opportunités et la facturation ne font pas partie de cette édition.
+- L'import accepte uniquement un CSV UTF-8 de 10 Mio ou moins. Les formats Excel, PDF, ZIP et les connecteurs externes ne sont pas pris en charge.
+- Les tâches et rappels sont internes à Marketteo : ils n’envoient aucune notification externe. Les opportunités,
+  automatisations commerciales et la facturation ne font pas partie de cette édition.
 - Les métriques et journaux techniques sont réservés à l’exploitation : ils ne sont pas visibles dans le CRM et ne
   changent ni les droits commerciaux ni les limites affichées.
 
@@ -89,8 +90,10 @@ Le menu affiche uniquement les pages autorisées pour votre rôle. L'absence d'u
 | Prospects, contacts et canaux | Oui | Oui | Oui | Selon appartenance |
 | Autoriser un contact | Non | Oui | Oui | Selon appartenance |
 | Enregistrer « Ne pas contacter » ou une opposition | Oui | Oui | Oui | Selon appartenance |
+| Pipeline commercial | Consulter et déplacer | Consulter, déplacer et réouvrir | Consulter, déplacer et réouvrir | Selon appartenance |
+| Chronologie commerciale | Consulter, créer et corriger ses saisies | Consulter, créer et corriger les saisies | Consulter, créer et corriger les saisies | Selon appartenance |
 | Sources et acquisitions | Non | Consultation et déclaration | Gestion et revue | Selon appartenance |
-| Conservation et déclarations d'import | Non | Consultation, déclaration, création de hold | Gestion complète | Selon appartenance |
+| Conservation et imports CSV | Consultation du rapport | Déclarer, téléverser, mapper, valider et confirmer | Gestion complète | Selon appartenance |
 | Membres et journal d'activité | Non | Consultation | Gestion | Selon appartenance |
 | Organisations et audit de plateforme | Non | Non | Non | Oui |
 
@@ -203,11 +206,63 @@ Les gestionnaires et administrateurs peuvent autoriser un canal lorsqu'une prove
 ![Fiche prospect et permissions de contact](images/fiche-prospect-permissions.png)
 *Figure 4 — Fiche prospect : profil CRM, contacts, canaux et état de permission. Les données affichées sont fictives.*
 
-## 5. Documenter les sources et acquisitions
+### 4.7 Consigner une activité commerciale
+
+La section « Chronologie commerciale » de la fiche prospect conserve les faits utiles au suivi. Elle est distincte du « Journal d'activité », qui reste un audit technique. Une activité n'envoie aucun courriel, ne lance aucun appel et ne modifie jamais la permission d'un canal.
+
+1. ouvrez la fiche du prospect, puis « Ajouter une activité » ;
+2. choisissez le type : note interne, appel déclaré, courriel déclaré ou réunion déclarée ;
+3. pour un appel ou un courriel, choisissez le sens de l'échange et, si utile, le canal correspondant ;
+4. indiquez la date et l'heure réelles, un résumé, puis des détails internes facultatifs ;
+5. sélectionnez « Enregistrer l'activité ».
+
+Un avertissement s'affiche si le canal choisi est restreint ou si sa permission est non déterminée. Il signale qu'il faut vérifier la permission avant tout contact réel ; l'inscription d'un fait passé ne constitue ni une autorisation ni une action de contact.
+
+### 4.8 Corriger une activité
+
+Une activité déjà inscrite ne se modifie pas directement. Ouvrez « Corriger », ajustez le résumé, les détails ou la date, indiquez le motif de la correction puis enregistrez. La saisie initiale demeure dans la chronologie et la nouvelle entrée porte sa correction. Un commercial corrige ses propres saisies ; un gestionnaire ou un administrateur peut corriger les saisies de l'organisation.
+
+## 5. Suivre le pipeline commercial
+
+Ouvrez « Pipeline ». Cette vue classe les prospects actifs par étape commerciale ; elle ne contient pas les prospects archivés et ne remplace ni les permissions de contact ni les données de provenance.
+
+Les étapes initiales sont : Nouveau, Qualification en cours, Qualifié, Contact établi, Opportunité détectée, Proposition envoyée, Négociation, Gagné et Perdu. Utilisez le champ « Filtrer » pour rechercher un nom interne, un secteur ou une ville CRM.
+
+### 5.1 Faire progresser un prospect
+
+1. repérez la carte du prospect dans sa colonne ;
+2. utilisez le bouton vers l'étape précédente ou suivante ;
+3. attendez le rechargement de la colonne avant une nouvelle action.
+
+Un déplacement est contrôlé par la version courante du prospect. Si un autre membre a modifié le même prospect, rechargez le pipeline, vérifiez l'étape affichée puis recommencez seulement si le déplacement reste pertinent.
+
+### 5.2 Marquer un prospect comme perdu ou le réouvrir
+
+Depuis une étape non terminale, sélectionnez « Marquer perdu », puis choisissez le motif commercial. Si vous sélectionnez « Autre motif », précisez la raison avant de confirmer.
+
+Les étapes « Gagné » et « Perdu » sont terminales. Un gestionnaire ou un administrateur peut sélectionner « Réouvrir », choisir un motif et confirmer la reprise du suivi. Un commercial peut consulter ces étapes mais ne peut pas les réouvrir.
+
+> Important : le passage à une étape ne crée pas d'appel, de courriel, de tâche ou de permission de contact. Consignez séparément les activités déjà réalisées.
+
+### 5.3 Gérer les tâches et rappels
+
+Sur la fiche d’un prospect, ouvrez « Tâches et prochaine action » pour planifier une tâche. Saisissez un titre, une
+échéance et, si utile, un rappel interne. Les heures sont affichées dans le fuseau horaire de l’organisation ; elles ne
+déclenchent aucun courriel, appel ou notification externe.
+
+Ouvrez « Mes tâches » pour consulter vos tâches ouvertes et les rappels dus. Vous pouvez terminer une tâche, l’annuler
+en indiquant un motif, la rouvrir avec un motif, accuser un rappel ou le reporter. Le report est limité à sept jours. Une
+tâche en retard reste visible jusqu’à sa finalisation. Si l’application indique que le responsable est désactivé, contactez
+un gestionnaire pour décider de la suite : aucune réaffectation n’est faite automatiquement.
+
+La « prochaine action » affichée sur la fiche, dans la liste des prospects et sur une carte Kanban est calculée à partir
+de la première tâche ouverte. Elle ne modifie jamais l’étape commerciale du prospect.
+
+## 6. Documenter les sources et acquisitions
 
 Ouvrez « Sources et acquisitions ». Une acquisition approuvée documente la provenance des données, mais ne crée jamais automatiquement une permission de contact.
 
-### 5.1 Cycle d'un fournisseur
+### 6.1 Cycle d'un fournisseur
 
 Cette procédure est réservée à l'administrateur.
 
@@ -221,7 +276,7 @@ Cette procédure est réservée à l'administrateur.
 
 N'activez pas un fournisseur dont les droits, dates, territoires ou catégories ne sont pas confirmés.
 
-### 5.2 Déclarer une acquisition
+### 6.2 Déclarer une acquisition
 
 Cette action est accessible au gestionnaire et à l'administrateur lorsqu'un fournisseur actif et compatible existe.
 
@@ -234,11 +289,11 @@ Cette action est accessible au gestionnaire et à l'administrateur lorsqu'un fou
 
 L'administrateur peut ensuite approuver ou rejeter une acquisition en attente. Une déclaration rejetée reste visible dans l'historique d'audit et ne peut pas servir de provenance.
 
-## 6. Conservation et déclarations d'import
+## 7. Conservation et déclarations d'import
 
 Ouvrez « Conservation et imports ». Les archivages sont logiques : ils ne suppriment pas physiquement les données.
 
-### 6.1 Consulter ou créer une politique
+### 7.1 Consulter ou créer une politique
 
 L'onglet « Politiques » présente la ressource, le délai de revue, l'état et la version.
 
@@ -250,7 +305,7 @@ Pour un administrateur :
 4. sélectionnez « Créer » ;
 5. vérifiez le brouillon puis sélectionnez « Activer ».
 
-### 6.2 Utiliser un hold
+### 7.2 Utiliser un hold
 
 Un hold protège une ressource contre le traitement normal de conservation, par exemple pendant une demande légale ou une revue qualité.
 
@@ -261,7 +316,7 @@ Un hold protège une ressource contre le traitement normal de conservation, par 
 
 Un gestionnaire ou administrateur autorisé peut créer un hold. Seul un rôle disposant de la capacité de libération peut sélectionner « Lever ». Ces actions sont journalisées.
 
-### 6.3 Déclarer un import CSV
+### 7.3 Déclarer un import CSV
 
 1. ouvrez « Déclarations d'import » ;
 2. choisissez une acquisition approuvée ;
@@ -271,7 +326,7 @@ Un gestionnaire ou administrateur autorisé peut créer un hold. Seul un rôle d
 
 La déclaration ne téléverse aucun fichier. Elle peut être annulée ou archivée selon votre rôle.
 
-### 6.4 Importer un CSV déclaré
+### 7.4 Importer un CSV déclaré
 
 Après avoir créé une déclaration CSV liée à une acquisition approuvée :
 
@@ -284,15 +339,15 @@ Après avoir créé une déclaration CSV liée à une acquisition approuvée :
 
 Les lignes valides créent des données CRM avec leur provenance. Les canaux reçoivent toujours la permission « non déterminée » : un import n’autorise jamais à contacter une personne. Les doublons exacts sont ignorés. Le rapport n’affiche que les numéros de lignes, les codes de motifs et une référence opaque ; il ne restitue aucune valeur brute du fichier. Le fichier source reste privé et temporaire, puis est supprimé après confirmation ou au plus tard dans les 24 heures.
 
-## 7. Administrer une organisation
+## 8. Administrer une organisation
 
-### 7.1 Consulter ou modifier l'organisation
+### 8.1 Consulter ou modifier l'organisation
 
 Ouvrez « Organisation » pour consulter le nom, la langue, le fuseau horaire, l'état et la date de création. L'administrateur peut modifier le nom, la langue et le fuseau horaire IANA, puis enregistrer.
 
 Si l'écran signale « Une version plus récente existe », rechargez les données avant de reprendre vos changements. Ce contrôle évite d'écraser la modification d'un autre utilisateur.
 
-### 7.2 Gérer les membres
+### 8.2 Gérer les membres
 
 Ouvrez « Membres », puis l'onglet « Membres ».
 
@@ -300,7 +355,7 @@ Ouvrez « Membres », puis l'onglet « Membres ».
 - L'administrateur peut sélectionner « Modifier », changer le rôle ou l'état et confirmer l'action sensible.
 - Le dernier administrateur actif de l'organisation ne peut pas être désactivé ou rétrogradé sans remplacement.
 
-### 7.3 Inviter une personne
+### 8.3 Inviter une personne
 
 Dans l'onglet « Invitations » :
 
@@ -311,7 +366,7 @@ Dans l'onglet « Invitations » :
 
 L'administrateur peut renvoyer ou révoquer une invitation lorsqu'une action est proposée. Un renvoi invalide l'ancien lien. Aucun jeton d'invitation n'est affiché dans le navigateur.
 
-### 7.4 Consulter le journal d'activité
+### 8.4 Consulter le journal d'activité
 
 Ouvrez « Journal d'activité ». Vous pouvez filtrer par période, action, type d'entité, identifiant exact et acteur.
 
@@ -323,7 +378,7 @@ Ouvrez « Journal d'activité ». Vous pouvez filtrer par période, action, type
 
 Le journal présente les changements validés de l'organisation active. Il ne remplace pas une sauvegarde et n'autorise pas la modification des événements.
 
-## 8. Mon compte et session
+## 9. Mon compte et session
 
 Ouvrez « Compte » ou sélectionnez votre nom dans l'en-tête pour consulter :
 
@@ -334,11 +389,11 @@ Ouvrez « Compte » ou sélectionnez votre nom dans l'en-tête pour consulter :
 
 Sélectionnez « Se déconnecter » lorsque vous avez terminé, particulièrement sur un appareil partagé. Les informations de session ne sont pas enregistrées dans le stockage du navigateur.
 
-## 9. Administration de la plateforme
+## 10. Administration de la plateforme
 
 Cette section s'adresse uniquement aux administrateurs de plateforme.
 
-### 9.1 Provisionner une organisation
+### 10.1 Provisionner une organisation
 
 1. ouvrez « Plateforme » ;
 2. saisissez le nom de l'organisation, la langue et le fuseau horaire IANA ;
@@ -350,11 +405,11 @@ L'administrateur initial reçoit un lien à usage unique. Si une intention de re
 
 Selon les actions disponibles, un administrateur de plateforme peut renvoyer ou révoquer l'invitation initiale, suspendre une organisation ou la réactiver. Chaque opération sensible demande une justification ou une confirmation et est auditée.
 
-### 9.2 Consulter l'audit plateforme
+### 10.2 Consulter l'audit plateforme
 
 Ouvrez « Audit plateforme ». Utilisez les filtres de période, action, type d'entité, identifiant et acteur comme dans le journal d'une organisation. L'audit plateforme reste séparé des données propres aux organisations et s'affiche en UTC.
 
-## 10. Dépannage de premier niveau
+## 11. Dépannage de premier niveau
 
 ### Une page n'apparaît pas dans le menu
 
@@ -394,11 +449,19 @@ Vérifiez que le lien est complet et que le compte connecté correspond à l'adr
 
 C'est l'état normal après sa création. Un gestionnaire ou administrateur doit vérifier une provenance compatible avant de l'autoriser. En cas d'opposition ou de doute, choisissez l'état restrictif approprié.
 
-## 11. Glossaire
+### Un déplacement du pipeline est refusé
+
+Vérifiez que le prospect n'est pas archivé, que l'étape cible est proposée par l'application et que votre rôle permet l'action. En cas de conflit de version, rechargez le pipeline avant de décider si le déplacement doit être repris.
+
+## 12. Glossaire
+
+**Activité commerciale** : note ou interaction déjà réalisée, inscrite volontairement dans la chronologie du prospect. Elle n'envoie aucun message et ne crée pas de permission.
 
 **Acquisition** : déclaration décrivant comment, quand et pour quelle finalité un ensemble de données a été obtenu.
 
 **Canal de contact** : moyen de joindre un établissement ou une personne, par exemple un courriel, un téléphone ou un profil social.
+
+**Étape commerciale** : position actuelle d'un prospect dans le pipeline, distincte de son archivage et de la permission de contact.
 
 **Hold** : protection temporaire empêchant l'application normale d'une politique de conservation sur une ressource.
 
@@ -412,9 +475,11 @@ C'est l'état normal après sa création. Un gestionnaire ou administrateur doit
 
 **Résultat Google temporaire** : information affichée pendant une recherche et non conservée comme donnée descriptive dans le CRM.
 
-## 12. Historique du document
+## 13. Historique du document
 
 | Version | Date | État | Résumé |
 |---|---|---|---|
+| 0.7 | 5 septembre 2026 | À valider | Ajout des tâches, rappels internes et prochaine action 3.3-D |
+| 0.6 | 5 septembre 2026 | À valider | Ajout du pipeline commercial, de la chronologie d'activités et du parcours réel d'import CSV ; limites mises à jour |
 | 0.5 | 26 août 2026 | À valider | Ajout de quatre captures d'écran avec données de démonstration ; procédures alignées sur le nom interne CRM et le `place_id` |
 | 0.1 | 25 août 2026 | À valider | Structure initiale fondée sur les routes, composants, capacités et règles métier présentes dans le dépôt |

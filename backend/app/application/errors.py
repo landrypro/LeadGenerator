@@ -221,6 +221,24 @@ class ProspectVersionConflict(RuntimeError):
         self.current_version = current_version
 
 
+class ActivityResourceNotFound(RuntimeError):
+    """L’activité demandée n’existe pas dans l’organisation active."""
+
+
+class TaskResourceNotFound(RuntimeError):
+    """La tâche demandée n’existe pas dans l’organisation active."""
+
+
+class TaskVersionConflict(RuntimeError):
+    def __init__(self, current_version: int | None = None) -> None:
+        super().__init__("La tâche a été modifiée depuis sa lecture.")
+        self.current_version = current_version
+
+
+class ProspectArchivedReadOnly(RuntimeError):
+    """Un prospect archivé ne peut pas recevoir d’activité ou de tâche."""
+
+
 class OrganizationResourceNotFound(RuntimeError):
     """La ressource n’existe pas dans l’organisation active."""
 

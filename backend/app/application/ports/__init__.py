@@ -1,3 +1,4 @@
+from .activity import ActivityRepository, TaskEventRepository, TaskRepository
 from .audit import (
     ActorAuditedUnitOfWorkFactory,
     AuditCursorCodec,
@@ -64,6 +65,7 @@ from .unit_of_work import ActorUnitOfWorkFactory, TenantUnitOfWorkFactory, UnitO
 __all__ = [
     "AcceptanceGatewayResult",
     "AcceptanceResultCode",
+    "ActivityRepository",
     "ActorAuditedUnitOfWorkFactory",
     "ActorUnitOfWorkFactory",
     "AsyncResource",
@@ -122,6 +124,8 @@ __all__ = [
     "StaticMapGateway",
     "SwitchOrganizationGatewayResult",
     "SwitchOrganizationResultCode",
+    "TaskEventRepository",
+    "TaskRepository",
     "TechnicalEventLogger",
     "TenantAuditReadUnitOfWorkFactory",
     "TenantAuditedUnitOfWorkFactory",

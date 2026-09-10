@@ -84,6 +84,14 @@ class AuditAction(StrEnum):
     IMPORT_CONFIRMED = "import.confirmed"
     CONTACT_ARCHIVED = "contact.archived"
     CONTACT_CHANNEL_ARCHIVED = "contact_channel.archived"
+    PROSPECT_ACTIVITY_CREATED = "prospect.activity_created"
+    PROSPECT_ACTIVITY_CORRECTED = "prospect.activity_corrected"
+    PROSPECT_TASK_CREATED = "prospect.task_created"
+    PROSPECT_TASK_UPDATED = "prospect.task_updated"
+    PROSPECT_TASK_COMPLETED = "prospect.task_completed"
+    PROSPECT_TASK_CANCELLED = "prospect.task_cancelled"
+    PROSPECT_TASK_REOPENED = "prospect.task_reopened"
+    PROSPECT_TASK_REMINDER_CHANGED = "prospect.task_reminder_changed"
 
 
 _ENTITY_TYPE_PATTERN = re.compile(r"^[a-z][a-z0-9_]{0,63}$", re.ASCII)
@@ -173,6 +181,14 @@ _TENANT_ACTIONS = frozenset(
         AuditAction.IMPORT_CONFIRMED,
         AuditAction.CONTACT_ARCHIVED,
         AuditAction.CONTACT_CHANNEL_ARCHIVED,
+        AuditAction.PROSPECT_ACTIVITY_CREATED,
+        AuditAction.PROSPECT_ACTIVITY_CORRECTED,
+        AuditAction.PROSPECT_TASK_CREATED,
+        AuditAction.PROSPECT_TASK_UPDATED,
+        AuditAction.PROSPECT_TASK_COMPLETED,
+        AuditAction.PROSPECT_TASK_CANCELLED,
+        AuditAction.PROSPECT_TASK_REOPENED,
+        AuditAction.PROSPECT_TASK_REMINDER_CHANGED,
     }
 )
 _PLATFORM_ACTIONS = frozenset(set(AuditAction) - _TENANT_ACTIONS)
@@ -225,6 +241,14 @@ _ACTION_ENTITY_TYPES = {
     AuditAction.IMPORT_CONFIRMED: "csv_import_session",
     AuditAction.CONTACT_ARCHIVED: "contact",
     AuditAction.CONTACT_CHANNEL_ARCHIVED: "contact_channel",
+    AuditAction.PROSPECT_ACTIVITY_CREATED: "prospect_activity",
+    AuditAction.PROSPECT_ACTIVITY_CORRECTED: "prospect_activity",
+    AuditAction.PROSPECT_TASK_CREATED: "prospect_task",
+    AuditAction.PROSPECT_TASK_UPDATED: "prospect_task",
+    AuditAction.PROSPECT_TASK_COMPLETED: "prospect_task",
+    AuditAction.PROSPECT_TASK_CANCELLED: "prospect_task",
+    AuditAction.PROSPECT_TASK_REOPENED: "prospect_task",
+    AuditAction.PROSPECT_TASK_REMINDER_CHANGED: "prospect_task",
 }
 
 
@@ -405,6 +429,63 @@ class AuditMetadataPolicy:
                 if not isinstance(reason_code, str) or not 1 <= len(reason_code) <= 64:
                     raise InvalidAuditMetadata("reason_code est invalide.")
                 result["reason_code"] = reason_code
+            return result
+
+        if action in {AuditAction.PROSPECT_ACTIVITY_CREATED, AuditAction.PROSPECT_ACTIVITY_CORRECTED}:
+            cls._require_keys(values, {"activity_type"}, {"direction", "correction"})
+            result = {
+                "activity_type": cls._choice(
+                    values["activity_type"], frozenset({"note", "call", "email", "meeting"}), "activity_type"
+                )
+            }
+            if "direction" in values:
+                result["direction"] = cls._choice(
+                    values["direction"], frozenset({"internal", "inbound", "outbound"}), "direction"
+                )
+            if "correction" in values:
+                if not isinstance(values["correction"], bool):
+                    raise InvalidAuditMetadata("correction doit être booléen.")
+                result["correction"] = values["correction"]
+            return result
+
+        if action in {
+            AuditAction.PROSPECT_TASK_CREATED,
+            AuditAction.PROSPECT_TASK_UPDATED,
+            AuditAction.PROSPECT_TASK_COMPLETED,
+            AuditAction.PROSPECT_TASK_CANCELLED,
+            AuditAction.PROSPECT_TASK_REOPENED,
+            AuditAction.PROSPECT_TASK_REMINDER_CHANGED,
+        }:
+            cls._require_keys(values, {"resulting_status", "resulting_version"}, {"changed_fields"})
+            version = values["resulting_version"]
+            if not isinstance(version, int) or version <= 0:
+                raise InvalidAuditMetadata("resulting_version est invalide.")
+            result = {
+                "resulting_status": cls._choice(
+                    values["resulting_status"], frozenset({"open", "completed", "cancelled"}), "resulting_status"
+                ),
+                "resulting_version": version,
+            }
+            if "changed_fields" in values:
+                result["changed_fields"] = cls._field_names(
+                    values["changed_fields"],
+                    frozenset(
+                        {
+                            "assigned_membership_id",
+                            "cancelled_at",
+                            "cancelled_reason",
+                            "completed_at",
+                            "description",
+                            "due_at",
+                            "priority",
+                            "reminder_acknowledged_at",
+                            "reminder_at",
+                            "reminder_snoozed_until",
+                            "status",
+                            "title",
+                        }
+                    ),
+                )
             return result
 
         if action is AuditAction.PIPELINE_STAGE_SETTINGS_UPDATED:

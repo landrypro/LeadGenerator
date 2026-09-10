@@ -420,7 +420,7 @@ Pour conserver la preuve :
 | KAN-14 | Pagination de colonne jusqu’à 50 |OK  |  |
 | SEC-01 | `Cache-Control: no-store` |OK(avec reserve)  |  |
 | AUD-01 | Audit sans données inutiles |OK(avec reserve)  |  |
-| QG-01 | Verrou qualité vert |  |  |
+| QG-01 | Verrou qualité vert | OK |  |
 
 ## 9. Critères de clôture
 
