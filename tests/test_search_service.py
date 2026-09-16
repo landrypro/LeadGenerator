@@ -1,15 +1,26 @@
 from dataclasses import fields
+from datetime import UTC, datetime
 from uuid import uuid4
 
 import pytest
 
-from backend.app.application.models import GoogleAccessContext, GooglePlaceSearchCriteria
+from backend.app.application.models import (
+    GoogleAccessContext,
+    GoogleAccessOwner,
+    GooglePlaceSearchCriteria,
+    GoogleQuotaReservation,
+    GoogleSearchQuotaPolicy,
+)
 from backend.app.application.ports.places import PlaceCandidate
 from backend.app.application.use_cases.search_google_places import (
     MAX_GOOGLE_RESULTS,
     SearchGooglePlacesUseCase,
 )
-from backend.app.infrastructure.memory import InMemoryGenerationGuard, InMemoryMapSnapshotGrantStore
+from backend.app.infrastructure.memory import (
+    InMemoryGenerationGuard,
+    InMemoryGoogleSelectionGrantStore,
+    InMemoryMapSnapshotGrantStore,
+)
 
 
 class FakePlacesGateway:
@@ -20,6 +31,40 @@ class FakePlacesGateway:
     async def search(self, criteria: GooglePlaceSearchCriteria) -> list[PlaceCandidate]:
         self.calls += 1
         return self.candidates
+
+
+class PermissiveGoogleSearchPolicy:
+    async def resolve(self, owner: GoogleAccessOwner) -> GoogleSearchQuotaPolicy:
+        del owner
+        return GoogleSearchQuotaPolicy(True, 20, 100, 80, "test_policy")
+
+
+class PermissiveGoogleSearchQuota:
+    async def reserve(
+        self,
+        owner: GoogleAccessOwner,
+        policy: GoogleSearchQuotaPolicy,
+        operation_id: object,
+        *,
+        now: datetime,
+    ) -> GoogleQuotaReservation:
+        del owner, operation_id
+        return GoogleQuotaReservation(
+            True,
+            None,
+            1,
+            policy.user_daily_limit - 1,
+            1,
+            policy.organization_daily_limit - 1,
+            now,
+            1,
+            policy.policy_code,
+        )
+
+
+class FixedClock:
+    def now(self) -> datetime:
+        return datetime(2026, 8, 25, 12, tzinfo=UTC)
 
 
 def candidate(index: int, **overrides: object) -> PlaceCandidate:
@@ -39,6 +84,10 @@ def use_case(gateway: FakePlacesGateway) -> SearchGooglePlacesUseCase:
         gateway,
         InMemoryGenerationGuard(),
         InMemoryMapSnapshotGrantStore(),
+        InMemoryGoogleSelectionGrantStore(),
+        PermissiveGoogleSearchPolicy(),
+        PermissiveGoogleSearchQuota(),
+        FixedClock(),
     )
 
 
@@ -59,6 +108,7 @@ async def test_use_case_calls_gateway_once_and_limits_results_to_twenty() -> Non
     assert len(outcome.search.places) == MAX_GOOGLE_RESULTS == 20
     assert outcome.search.stats.api_calls == 1
     assert outcome.search.stats.raw_results == 25
+    assert outcome.selection_token
 
 
 @pytest.mark.asyncio

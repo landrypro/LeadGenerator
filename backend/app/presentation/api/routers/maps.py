@@ -1,7 +1,12 @@
 from fastapi import APIRouter, Request
 from fastapi.responses import Response
 
-from ....application.errors import InvalidMapSnapshotGrant, MapSnapshotGrantInProgress, StaticMapProviderError
+from ....application.errors import (
+    GoogleProtectionUnavailable,
+    InvalidMapSnapshotGrant,
+    MapSnapshotGrantInProgress,
+    StaticMapProviderError,
+)
 from ..dependencies import ContainerDependency
 from ..google_access import google_access_error, required_google_access
 from ..responses import NO_STORE_HEADERS, api_error
@@ -43,6 +48,13 @@ async def map_snapshot(
                 409,
                 "map_grant_in_progress",
                 "Cette carte est déjà en cours de génération.",
+            )
+        if isinstance(error, GoogleProtectionUnavailable):
+            return api_error(
+                request,
+                503,
+                "google_protection_unavailable",
+                "La protection temporaire du parcours Google est indisponible.",
             )
         if isinstance(error, StaticMapProviderError):
             return api_error(

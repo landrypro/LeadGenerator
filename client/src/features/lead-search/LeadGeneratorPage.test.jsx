@@ -5,11 +5,12 @@ import { PlaceSearchPage } from './LeadGeneratorPage'
 import { leadSearchApi } from './api/leadSearchApi'
 
 vi.mock('./api/leadSearchApi', () => ({
-  leadSearchApi: {
-    health: vi.fn(),
-    search: vi.fn(),
-    mapSnapshot: vi.fn(),
-  },
+    leadSearchApi: {
+      health: vi.fn(),
+      search: vi.fn(),
+      mapSnapshot: vi.fn(),
+      addGoogleProspects: vi.fn(),
+    },
 }))
 
 
@@ -32,6 +33,7 @@ function successfulResult() {
     stats: { api_calls: 1, raw_results: 1, displayed_results: 1 },
     searched_at: '2026-07-22T12:00:00Z',
     map_snapshot_token: 'snapshot-token-long-enough-for-the-server',
+    selection_token: 'selection-token-long-enough-for-the-server',
     search_parameters: {
       query: 'plombier',
       center_latitude: 46.8139,
@@ -50,6 +52,25 @@ describe('PlaceSearchPage', () => {
     vi.clearAllMocks()
     leadSearchApi.health.mockResolvedValue({ google_api_key_configured: true })
     leadSearchApi.mapSnapshot.mockResolvedValue(new Blob(['map'], { type: 'image/png' }))
+    leadSearchApi.addGoogleProspects.mockResolvedValue({
+      items: [{
+        place_id: 'place-1',
+        disposition: 'created',
+        prospect: {
+          id: 'prospect-1',
+          internal_alias: 'Plomberie Nord',
+          origin: 'google_place',
+          source_label: 'google_places:text_search',
+          google_place_id: 'place-1',
+          stage_code: 'new',
+          priority: 0,
+          version: 1,
+          created_at: '2026-08-14T12:00:00Z',
+          updated_at: '2026-08-14T12:00:00Z',
+          archived_at: null,
+        },
+      }],
+    })
   })
 
   it('soumet uniquement les paramètres de la recherche limitée et affiche le résultat', async () => {
@@ -163,5 +184,54 @@ describe('PlaceSearchPage', () => {
     view.unmount()
 
     expect(capturedSignal.aborted).toBe(true)
+  })
+
+  it('ajoute un établissement Google au CRM avec le jeton de sélection', async () => {
+    leadSearchApi.search.mockResolvedValue(successfulResult())
+    render(<PlaceSearchPage session={{ capabilities: ['google:search', 'prospects:create'] }} />)
+
+    submitSearch()
+    await screen.findByText('Plomberie Boréale')
+    fireEvent.change(screen.getByLabelText('Nom interne CRM pour Plomberie Boréale'), { target: { value: 'Plomberie Nord' } })
+    const addButton = screen.getByRole('button', { name: /^Ajouter$/i })
+    await waitFor(() => expect(addButton).toBeEnabled())
+    fireEvent.click(addButton)
+
+    await waitFor(() => expect(leadSearchApi.addGoogleProspects).toHaveBeenCalledTimes(1))
+    expect(leadSearchApi.addGoogleProspects.mock.calls[0][0]).toEqual({
+      selection_token: 'selection-token-long-enough-for-the-server',
+      items: [{ place_id: 'place-1', internal_alias: 'Plomberie Nord' }],
+    })
+    expect(await screen.findByRole('button', { name: /Ajouté/i })).toBeDisabled()
+  })
+
+  it('ajoute la sélection Google au CRM sans stockage navigateur', async () => {
+    const storageWrite = vi.spyOn(Storage.prototype, 'setItem')
+    leadSearchApi.search.mockResolvedValue(successfulResult())
+    render(<PlaceSearchPage session={{ capabilities: ['google:search', 'prospects:create'] }} />)
+
+    submitSearch()
+    await screen.findByText('Plomberie Boréale')
+    fireEvent.change(screen.getByLabelText('Nom interne CRM pour Plomberie Boréale'), { target: { value: 'Plomberie Nord' } })
+    fireEvent.click(screen.getByRole('checkbox', { name: /Sélectionner Plomberie Boréale/i }))
+    const addSelectionButton = screen.getByRole('button', { name: /Ajouter la sélection/i })
+    await waitFor(() => expect(addSelectionButton).toBeEnabled())
+    fireEvent.click(addSelectionButton)
+
+    await waitFor(() => expect(leadSearchApi.addGoogleProspects).toHaveBeenCalledTimes(1))
+    expect(storageWrite).not.toHaveBeenCalled()
+    storageWrite.mockRestore()
+  })
+
+  it('affiche le Place ID séparément et exige un nom interne CRM', async () => {
+    leadSearchApi.search.mockResolvedValue(successfulResult())
+    render(<PlaceSearchPage session={{ capabilities: ['google:search', 'prospects:create'] }} />)
+
+    submitSearch()
+
+    expect(await screen.findByText('place-1')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /^Ajouter$/i })).toBeDisabled()
+    fireEvent.change(screen.getByLabelText('Nom interne CRM pour Plomberie Boréale'), { target: { value: 'Compte Québec' } })
+    expect(screen.getByRole('button', { name: /^Ajouter$/i })).toBeEnabled()
   })
 })

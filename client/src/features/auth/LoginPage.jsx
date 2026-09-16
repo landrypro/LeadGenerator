@@ -26,7 +26,7 @@ export function LoginPage({ onLogin }) {
   return <main className="login-page">
     <section className="login-card" aria-labelledby="login-title">
       <div className="login-brand" aria-hidden="true"><Building2 size={25} /></div>
-      <p className="eyebrow">Prospect CRM</p>
+      <p className="eyebrow">Marketteo CRM</p>
       <h1 id="login-title">Connexion</h1>
       <p className="login-intro">Accédez à votre espace sécurisé de gestion des prospects.</p>
       {error && <ErrorBanner><span>{error}</span></ErrorBanner>}

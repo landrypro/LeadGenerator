@@ -21,12 +21,14 @@ def test_search_response_preserves_effective_parameters_without_requester() -> N
             stats=GooglePlaceSearchStats(api_calls=1, raw_results=0, displayed_results=0),
         ),
         map_snapshot_token="snapshot-token",
+        selection_token="selection-token",
     )
 
     serialized = to_search_response(outcome, request).model_dump(mode="json")
 
     assert serialized["search_parameters"]["query"] == "électricien commercial"
     assert serialized["search_parameters"]["radius_km"] == 12
+    assert serialized["selection_token"] == "selection-token"
     assert "requester" not in serialized["search_parameters"]
     assert "target" not in serialized["search_parameters"]
     assert "max_tiles" not in serialized["search_parameters"]

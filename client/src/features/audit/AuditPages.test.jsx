@@ -95,4 +95,31 @@ describe('pages d’audit', () => {
     expect(screen.getByText('Les détails de cette version ne peuvent pas être affichés.')).toBeInTheDocument()
     expect(screen.queryByText('Commercial')).not.toBeInTheDocument()
   })
+
+  it('rend un changement d’étape Kanban avec ses métadonnées de workflow', async () => {
+    auditApi.listTenant.mockResolvedValue({
+      items: [{
+        ...event,
+        action: 'prospect.stage_changed',
+        entity_type: 'prospect',
+        metadata: {
+          from_stage: 'qualifying',
+          to_stage: 'qualified',
+          from_version: 2,
+          resulting_version: 3,
+        },
+      }],
+      next_cursor: null,
+    })
+
+    render(<TenantAuditPage session={session} />)
+
+    expect(await screen.findByText('Étape commerciale modifiée')).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'Afficher les détails' }))
+    expect(screen.getByText('Étape précédente')).toBeInTheDocument()
+    expect(screen.getByText('Qualification')).toBeInTheDocument()
+    expect(screen.getByText('Nouvelle étape')).toBeInTheDocument()
+    expect(screen.getByText('Qualifié')).toBeInTheDocument()
+    expect(screen.getByText('2 → 3')).toBeInTheDocument()
+  })
 })

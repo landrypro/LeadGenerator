@@ -20,4 +20,11 @@ export const leadSearchApi = {
       fallbackMessage: 'La carte Google est indisponible.',
     })
   },
+
+  addGoogleProspects(payload, signal) {
+    return postJson('/api/prospects/from-google', payload, {
+      signal,
+      fallbackMessage: 'L’ajout au CRM a échoué.',
+    })
+  },
 }

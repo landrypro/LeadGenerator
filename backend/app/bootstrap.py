@@ -1,8 +1,11 @@
 from __future__ import annotations
 
+import asyncio
 from collections.abc import AsyncIterator, Awaitable, Callable
-from contextlib import asynccontextmanager
+from contextlib import asynccontextmanager, suppress
 from pathlib import Path
+from time import perf_counter
+from uuid import uuid4
 
 from fastapi import FastAPI, HTTPException, Request, Response
 from fastapi.exception_handlers import request_validation_exception_handler
@@ -11,24 +14,88 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 
-from .application.ports import AsyncResource, DependencyProbe, TenantUnitOfWorkFactory, UnitOfWorkFactory
+from .application.ports import (
+    AsyncResource,
+    DependencyProbe,
+    GenerationGuard,
+    GoogleSearchPolicyProvider,
+    GoogleSearchQuota,
+    GoogleSelectionGrantStore,
+    MapSnapshotGrantStore,
+    MetricsRecorder,
+    NullMetricsRecorder,
+    TenantUnitOfWorkFactory,
+    UnitOfWorkFactory,
+)
+from .application.ports.csv_import import TemporaryCsvFileStore
 from .application.use_cases import (
     AcceptInvitationUseCase,
+    ActivateRetentionPolicyUseCase,
+    AddGoogleProspectsUseCase,
+    ArchiveContactChannelUseCase,
+    ArchiveContactUseCase,
+    ArchiveImportDeclarationUseCase,
+    ArchiveProspectUseCase,
+    CancelImportDeclarationUseCase,
+    ChangeContactPermissionUseCase,
     ChangeOrganizationStatusUseCase,
     CheckReadinessUseCase,
+    ConfirmCsvImportUseCase,
+    CreateActivityUseCase,
+    CreateContactChannelUseCase,
+    CreateContactUseCase,
+    CreateManualProspectUseCase,
     CreateMemberInvitationUseCase,
     CreateOrganizationUseCase,
+    CreateRetentionPolicyUseCase,
+    CreateSourceProviderUseCase,
+    CreateTaskUseCase,
+    DecideAcquisitionUseCase,
+    DeclareAcquisitionUseCase,
+    DeclareImportUseCase,
+    GetAcquisitionUseCase,
+    GetContactPermissionUseCase,
+    GetCsvImportPreviewUseCase,
+    GetCsvImportReportUseCase,
     GetCurrentSessionUseCase,
+    GetImportDeclarationUseCase,
     GetMapSnapshotUseCase,
     GetOrganizationUseCase,
+    GetPipelineBoardUseCase,
+    GetProspectUseCase,
+    GetRetentionHoldUseCase,
+    GetRetentionPolicyUseCase,
+    GetSourceProviderUseCase,
+    ListAcquisitionsUseCase,
+    ListContactChannelsUseCase,
+    ListContactsUseCase,
+    ListDueRemindersUseCase,
+    ListImportDeclarationsUseCase,
     ListMemberInvitationsUseCase,
     ListMembersUseCase,
+    ListNextActionsUseCase,
+    ListPipelineColumnUseCase,
+    ListPipelineStagesUseCase,
     ListPlatformAuditEventsUseCase,
     ListPlatformOrganizationsUseCase,
+    ListProspectChannelsUseCase,
+    ListProspectStageTransitionsUseCase,
+    ListProspectsUseCase,
+    ListProspectTimelineUseCase,
+    ListRetentionHoldsUseCase,
+    ListRetentionPoliciesUseCase,
+    ListRetentionReviewsUseCase,
+    ListSourceProvidersUseCase,
+    ListTasksUseCase,
     ListTenantAuditEventsUseCase,
     LoginUseCase,
     LogoutUseCase,
+    MapCsvImportUseCase,
+    MoveProspectStageUseCase,
+    PlaceRetentionHoldUseCase,
     PreviewInvitationUseCase,
+    ReleaseRetentionHoldUseCase,
+    ReopenProspectUseCase,
     ResendInitialInvitationUseCase,
     ResendMemberInvitationUseCase,
     RevokeInitialInvitationUseCase,
@@ -37,6 +104,13 @@ from .application.use_cases import (
     SwitchOrganizationUseCase,
     UpdateMembershipUseCase,
     UpdateOrganizationUseCase,
+    UpdatePipelineStageUseCase,
+    UpdateProspectProfileUseCase,
+    UpdateRetentionPolicyUseCase,
+    UpdateSourceProviderUseCase,
+    UpdateTaskUseCase,
+    UploadCsvImportUseCase,
+    ValidateCsvImportUseCase,
 )
 from .config import Settings
 from .container import AppContainer
@@ -47,21 +121,36 @@ from .infrastructure.google.places import (
     GooglePlacesGateway,
     GooglePlacesSettings,
 )
+from .infrastructure.google.quota_policy import SettingsGoogleSearchPolicyProvider
 from .infrastructure.google.static_maps import GoogleStaticMapGateway
 from .infrastructure.health import UnconfiguredDependencyProbe
+from .infrastructure.imports import LocalTemporaryCsvFileStore
 from .infrastructure.invitations import (
     DisabledInvitationDelivery,
     MailpitInvitationDelivery,
     SecureInvitationTokenGenerator,
 )
-from .infrastructure.memory import InMemoryGenerationGuard, InMemoryMapSnapshotGrantStore
+from .infrastructure.observability import PrometheusMetricsRecorder, TechnicalEventLogger, configure_application_logging
 from .infrastructure.pagination import HmacCursorCodec
 from .infrastructure.postgres import (
     PostgresDatabase,
     SqlAlchemyOrganizationAdministrationGateway,
     SqlAlchemyProvisioningGateway,
 )
-from .infrastructure.redis import RedisInvitationRateLimiter, RedisLoginRateLimiter, RedisResource, RedisSessionStore
+from .infrastructure.redis import (
+    RedisGenerationGuard,
+    RedisGoogleSearchQuota,
+    RedisGoogleSelectionGrantStore,
+    RedisInvitationRateLimiter,
+    RedisLoginRateLimiter,
+    RedisMapSnapshotGrantStore,
+    RedisResource,
+    RedisSessionStore,
+    UnavailableGenerationGuard,
+    UnavailableGoogleSearchQuota,
+    UnavailableGoogleSelectionGrantStore,
+    UnavailableMapSnapshotGrantStore,
+)
 from .infrastructure.security import Argon2PasswordHasher
 from .presentation.api.responses import api_error
 from .presentation.api.routers import (
@@ -73,7 +162,11 @@ from .presentation.api.routers import (
     maps_router,
     organization_router,
     platform_router,
+    prospect_compliance_router,
+    prospects_router,
+    retention_router,
 )
+from .presentation.api.routers.metrics import router as metrics_router
 
 DEVELOPMENT_RATE_LIMIT_KEY = b"prospect-development-only-rate-limit-key"
 
@@ -120,11 +213,37 @@ def build_container(settings: Settings) -> AppContainer:
         )
     )
     places_gateway = GooglePlacesGateway(places_client)
-    generation_guard = InMemoryGenerationGuard()
-    map_grants = InMemoryMapSnapshotGrantStore(
-        ttl_seconds=settings.map_grant_ttl_seconds,
-        max_grants=settings.map_grant_max_entries,
-    )
+    generation_guard: GenerationGuard
+    map_grants: MapSnapshotGrantStore
+    selection_grants: GoogleSelectionGrantStore
+    google_quota: GoogleSearchQuota
+    metrics: MetricsRecorder = PrometheusMetricsRecorder() if settings.metrics_enabled else NullMetricsRecorder()
+    if redis is None:
+        generation_guard = UnavailableGenerationGuard()
+        map_grants = UnavailableMapSnapshotGrantStore()
+        selection_grants = UnavailableGoogleSelectionGrantStore()
+        google_quota = UnavailableGoogleSearchQuota()
+    else:
+        generation_guard = RedisGenerationGuard(
+            redis.client,
+            environment=settings.app_env,
+            ttl_seconds=settings.google_search_lock_ttl_seconds,
+            metrics=metrics,
+        )
+        map_grants = RedisMapSnapshotGrantStore(
+            redis.client,
+            environment=settings.app_env,
+            ttl_seconds=settings.map_grant_ttl_seconds,
+            metrics=metrics,
+        )
+        selection_grants = RedisGoogleSelectionGrantStore(
+            redis.client,
+            environment=settings.app_env,
+            ttl_seconds=settings.google_selection_grant_ttl_seconds,
+            metrics=metrics,
+        )
+        google_quota = RedisGoogleSearchQuota(redis.client, environment=settings.app_env, metrics=metrics)
+    google_policy: GoogleSearchPolicyProvider = SettingsGoogleSearchPolicyProvider(settings)
     static_maps = GoogleStaticMapGateway(
         api_key=settings.static_maps_api_key,
         timeout_seconds=settings.static_maps_timeout_seconds,
@@ -139,6 +258,65 @@ def build_container(settings: Settings) -> AppContainer:
     reactivate_organization: ChangeOrganizationStatusUseCase | None = None
     list_tenant_audit_events: ListTenantAuditEventsUseCase | None = None
     list_platform_audit_events: ListPlatformAuditEventsUseCase | None = None
+    create_manual_prospect: CreateManualProspectUseCase | None = None
+    add_google_prospects: AddGoogleProspectsUseCase | None = None
+    list_prospects: ListProspectsUseCase | None = None
+    get_prospect: GetProspectUseCase | None = None
+    update_prospect_profile: UpdateProspectProfileUseCase | None = None
+    create_activity: CreateActivityUseCase | None = None
+    create_task: CreateTaskUseCase | None = None
+    update_task: UpdateTaskUseCase | None = None
+    list_prospect_timeline: ListProspectTimelineUseCase | None = None
+    list_tasks: ListTasksUseCase | None = None
+    list_due_reminders: ListDueRemindersUseCase | None = None
+    list_next_actions: ListNextActionsUseCase | None = None
+    list_pipeline_stages: ListPipelineStagesUseCase | None = None
+    get_pipeline_board: GetPipelineBoardUseCase | None = None
+    list_pipeline_column: ListPipelineColumnUseCase | None = None
+    move_prospect_stage: MoveProspectStageUseCase | None = None
+    reopen_prospect: ReopenProspectUseCase | None = None
+    list_prospect_stage_transitions: ListProspectStageTransitionsUseCase | None = None
+    update_pipeline_stage: UpdatePipelineStageUseCase | None = None
+    create_source_provider: CreateSourceProviderUseCase | None = None
+    update_source_provider: UpdateSourceProviderUseCase | None = None
+    get_source_provider: GetSourceProviderUseCase | None = None
+    list_source_providers: ListSourceProvidersUseCase | None = None
+    declare_acquisition: DeclareAcquisitionUseCase | None = None
+    get_acquisition: GetAcquisitionUseCase | None = None
+    list_acquisitions: ListAcquisitionsUseCase | None = None
+    decide_acquisition: DecideAcquisitionUseCase | None = None
+    create_contact: CreateContactUseCase | None = None
+    list_contacts: ListContactsUseCase | None = None
+    list_contact_channels: ListContactChannelsUseCase | None = None
+    list_prospect_channels: ListProspectChannelsUseCase | None = None
+    create_contact_channel: CreateContactChannelUseCase | None = None
+    get_contact_permission: GetContactPermissionUseCase | None = None
+    change_contact_permission: ChangeContactPermissionUseCase | None = None
+    create_retention_policy: CreateRetentionPolicyUseCase | None = None
+    update_retention_policy: UpdateRetentionPolicyUseCase | None = None
+    activate_retention_policy: ActivateRetentionPolicyUseCase | None = None
+    list_retention_policies: ListRetentionPoliciesUseCase | None = None
+    get_retention_policy: GetRetentionPolicyUseCase | None = None
+    list_retention_reviews: ListRetentionReviewsUseCase | None = None
+    place_retention_hold: PlaceRetentionHoldUseCase | None = None
+    list_retention_holds: ListRetentionHoldsUseCase | None = None
+    get_retention_hold: GetRetentionHoldUseCase | None = None
+    release_retention_hold: ReleaseRetentionHoldUseCase | None = None
+    declare_import: DeclareImportUseCase | None = None
+    list_import_declarations: ListImportDeclarationsUseCase | None = None
+    get_import_declaration: GetImportDeclarationUseCase | None = None
+    cancel_import_declaration: CancelImportDeclarationUseCase | None = None
+    archive_import_declaration: ArchiveImportDeclarationUseCase | None = None
+    upload_csv_import: UploadCsvImportUseCase | None = None
+    get_csv_import_preview: GetCsvImportPreviewUseCase | None = None
+    map_csv_import: MapCsvImportUseCase | None = None
+    validate_csv_import: ValidateCsvImportUseCase | None = None
+    confirm_csv_import: ConfirmCsvImportUseCase | None = None
+    get_csv_import_report: GetCsvImportReportUseCase | None = None
+    csv_file_store: TemporaryCsvFileStore | None = None
+    archive_prospect: ArchiveProspectUseCase | None = None
+    archive_contact: ArchiveContactUseCase | None = None
+    archive_contact_channel: ArchiveContactChannelUseCase | None = None
     resend_initial_invitation: ResendInitialInvitationUseCase | None = None
     revoke_initial_invitation: RevokeInitialInvitationUseCase | None = None
     preview_invitation: PreviewInvitationUseCase | None = None
@@ -157,6 +335,7 @@ def build_container(settings: Settings) -> AppContainer:
         rate_limit_key = settings.rate_limit_hmac_key.encode("utf-8") or DEVELOPMENT_RATE_LIMIT_KEY
         cursor_codec = HmacCursorCodec(rate_limit_key)
         audit_cursor_codec = HmacAuditCursorCodec(rate_limit_key)
+        prospect_cursor_codec = HmacCursorCodec(rate_limit_key)
         session_store = RedisSessionStore(
             redis.client,
             environment=settings.app_env,
@@ -298,6 +477,76 @@ def build_container(settings: Settings) -> AppContainer:
             audit_cursor_codec,
             clock,
         )
+        create_manual_prospect = CreateManualProspectUseCase(database.tenant_prospect_unit_of_work, clock)
+        add_google_prospects = AddGoogleProspectsUseCase(
+            database.tenant_prospect_unit_of_work,
+            selection_grants,
+            clock,
+        )
+        list_prospects = ListProspectsUseCase(database.tenant_prospect_unit_of_work, prospect_cursor_codec)
+        get_prospect = GetProspectUseCase(database.tenant_prospect_unit_of_work)
+        update_prospect_profile = UpdateProspectProfileUseCase(database.tenant_prospect_unit_of_work, clock)
+        create_activity = CreateActivityUseCase(database.tenant_prospect_unit_of_work, clock, metrics)
+        create_task = CreateTaskUseCase(database.tenant_prospect_unit_of_work, clock, metrics)
+        update_task = UpdateTaskUseCase(database.tenant_prospect_unit_of_work, clock, metrics)
+        list_prospect_timeline = ListProspectTimelineUseCase(database.tenant_prospect_unit_of_work, metrics)
+        list_tasks = ListTasksUseCase(database.tenant_prospect_unit_of_work)
+        list_due_reminders = ListDueRemindersUseCase(database.tenant_prospect_unit_of_work, clock)
+        list_next_actions = ListNextActionsUseCase(database.tenant_prospect_unit_of_work)
+        list_pipeline_stages = ListPipelineStagesUseCase(database.tenant_prospect_unit_of_work, clock)
+        get_pipeline_board = GetPipelineBoardUseCase(
+            database.tenant_prospect_unit_of_work, clock, prospect_cursor_codec
+        )
+        list_pipeline_column = ListPipelineColumnUseCase(database.tenant_prospect_unit_of_work, prospect_cursor_codec)
+        move_prospect_stage = MoveProspectStageUseCase(database.tenant_prospect_unit_of_work, clock)
+        reopen_prospect = ReopenProspectUseCase(move_prospect_stage, database.tenant_prospect_unit_of_work)
+        list_prospect_stage_transitions = ListProspectStageTransitionsUseCase(database.tenant_prospect_unit_of_work)
+        update_pipeline_stage = UpdatePipelineStageUseCase(database.tenant_prospect_unit_of_work, clock)
+        create_source_provider = CreateSourceProviderUseCase(database.tenant_prospect_unit_of_work, clock)
+        update_source_provider = UpdateSourceProviderUseCase(database.tenant_prospect_unit_of_work, clock)
+        get_source_provider = GetSourceProviderUseCase(database.tenant_prospect_unit_of_work)
+        list_source_providers = ListSourceProvidersUseCase(database.tenant_prospect_unit_of_work)
+        declare_acquisition = DeclareAcquisitionUseCase(database.tenant_prospect_unit_of_work, clock)
+        get_acquisition = GetAcquisitionUseCase(database.tenant_prospect_unit_of_work)
+        list_acquisitions = ListAcquisitionsUseCase(database.tenant_prospect_unit_of_work)
+        decide_acquisition = DecideAcquisitionUseCase(database.tenant_prospect_unit_of_work, clock)
+        create_contact = CreateContactUseCase(database.tenant_prospect_unit_of_work, clock)
+        list_contacts = ListContactsUseCase(database.tenant_prospect_unit_of_work)
+        list_contact_channels = ListContactChannelsUseCase(database.tenant_prospect_unit_of_work)
+        list_prospect_channels = ListProspectChannelsUseCase(database.tenant_prospect_unit_of_work)
+        create_contact_channel = CreateContactChannelUseCase(database.tenant_prospect_unit_of_work, clock)
+        get_contact_permission = GetContactPermissionUseCase(database.tenant_prospect_unit_of_work)
+        change_contact_permission = ChangeContactPermissionUseCase(database.tenant_prospect_unit_of_work, clock)
+        create_retention_policy = CreateRetentionPolicyUseCase(database.tenant_prospect_unit_of_work, clock)
+        update_retention_policy = UpdateRetentionPolicyUseCase(database.tenant_prospect_unit_of_work, clock)
+        activate_retention_policy = ActivateRetentionPolicyUseCase(database.tenant_prospect_unit_of_work, clock)
+        list_retention_policies = ListRetentionPoliciesUseCase(database.tenant_prospect_unit_of_work)
+        get_retention_policy = GetRetentionPolicyUseCase(database.tenant_prospect_unit_of_work)
+        list_retention_reviews = ListRetentionReviewsUseCase(database.tenant_prospect_unit_of_work)
+        place_retention_hold = PlaceRetentionHoldUseCase(database.tenant_prospect_unit_of_work, clock)
+        list_retention_holds = ListRetentionHoldsUseCase(database.tenant_prospect_unit_of_work)
+        get_retention_hold = GetRetentionHoldUseCase(database.tenant_prospect_unit_of_work)
+        release_retention_hold = ReleaseRetentionHoldUseCase(database.tenant_prospect_unit_of_work, clock)
+        declare_import = DeclareImportUseCase(database.tenant_prospect_unit_of_work, clock)
+        list_import_declarations = ListImportDeclarationsUseCase(database.tenant_prospect_unit_of_work)
+        get_import_declaration = GetImportDeclarationUseCase(database.tenant_prospect_unit_of_work)
+        cancel_import_declaration = CancelImportDeclarationUseCase(database.tenant_prospect_unit_of_work, clock)
+        archive_import_declaration = ArchiveImportDeclarationUseCase(database.tenant_prospect_unit_of_work, clock)
+        csv_file_store = LocalTemporaryCsvFileStore(
+            settings.import_temp_directory,
+            max_bytes=settings.import_temp_max_bytes,
+        )
+        upload_csv_import = UploadCsvImportUseCase(database.tenant_prospect_unit_of_work, csv_file_store, clock)
+        get_csv_import_preview = GetCsvImportPreviewUseCase(
+            database.tenant_prospect_unit_of_work, csv_file_store, clock
+        )
+        map_csv_import = MapCsvImportUseCase(database.tenant_prospect_unit_of_work, clock)
+        validate_csv_import = ValidateCsvImportUseCase(database.tenant_prospect_unit_of_work, csv_file_store, clock)
+        confirm_csv_import = ConfirmCsvImportUseCase(database.tenant_prospect_unit_of_work, csv_file_store, clock)
+        get_csv_import_report = GetCsvImportReportUseCase(database.tenant_prospect_unit_of_work)
+        archive_prospect = ArchiveProspectUseCase(database.tenant_prospect_unit_of_work, clock)
+        archive_contact = ArchiveContactUseCase(database.tenant_prospect_unit_of_work, clock)
+        archive_contact_channel = ArchiveContactChannelUseCase(database.tenant_prospect_unit_of_work, clock)
 
     return AppContainer(
         settings=settings,
@@ -305,8 +554,15 @@ def build_container(settings: Settings) -> AppContainer:
             places_gateway,
             generation_guard,
             map_grants,
+            selection_grants,
+            google_policy,
+            google_quota,
+            SystemClock(),
+            metrics=metrics,
         ),
-        get_map_snapshot=GetMapSnapshotUseCase(map_grants, static_maps),
+        get_map_snapshot=GetMapSnapshotUseCase(map_grants, static_maps, metrics),
+        metrics=metrics,
+        metrics_exporter=metrics if settings.metrics_enabled else None,
         readiness=CheckReadinessUseCase(probes),
         login=login,
         get_current_session=get_current_session,
@@ -317,6 +573,65 @@ def build_container(settings: Settings) -> AppContainer:
         reactivate_organization=reactivate_organization,
         list_tenant_audit_events=list_tenant_audit_events,
         list_platform_audit_events=list_platform_audit_events,
+        create_manual_prospect=create_manual_prospect,
+        add_google_prospects=add_google_prospects,
+        list_prospects=list_prospects,
+        get_prospect=get_prospect,
+        update_prospect_profile=update_prospect_profile,
+        create_activity=create_activity,
+        create_task=create_task,
+        update_task=update_task,
+        list_prospect_timeline=list_prospect_timeline,
+        list_tasks=list_tasks,
+        list_due_reminders=list_due_reminders,
+        list_next_actions=list_next_actions,
+        list_pipeline_stages=list_pipeline_stages,
+        get_pipeline_board=get_pipeline_board,
+        list_pipeline_column=list_pipeline_column,
+        move_prospect_stage=move_prospect_stage,
+        reopen_prospect=reopen_prospect,
+        list_prospect_stage_transitions=list_prospect_stage_transitions,
+        update_pipeline_stage=update_pipeline_stage,
+        create_source_provider=create_source_provider,
+        update_source_provider=update_source_provider,
+        get_source_provider=get_source_provider,
+        list_source_providers=list_source_providers,
+        declare_acquisition=declare_acquisition,
+        get_acquisition=get_acquisition,
+        list_acquisitions=list_acquisitions,
+        decide_acquisition=decide_acquisition,
+        create_contact=create_contact,
+        list_contacts=list_contacts,
+        list_contact_channels=list_contact_channels,
+        list_prospect_channels=list_prospect_channels,
+        create_contact_channel=create_contact_channel,
+        get_contact_permission=get_contact_permission,
+        change_contact_permission=change_contact_permission,
+        create_retention_policy=create_retention_policy,
+        update_retention_policy=update_retention_policy,
+        activate_retention_policy=activate_retention_policy,
+        list_retention_policies=list_retention_policies,
+        get_retention_policy=get_retention_policy,
+        list_retention_reviews=list_retention_reviews,
+        place_retention_hold=place_retention_hold,
+        list_retention_holds=list_retention_holds,
+        get_retention_hold=get_retention_hold,
+        release_retention_hold=release_retention_hold,
+        declare_import=declare_import,
+        list_import_declarations=list_import_declarations,
+        get_import_declaration=get_import_declaration,
+        cancel_import_declaration=cancel_import_declaration,
+        archive_import_declaration=archive_import_declaration,
+        upload_csv_import=upload_csv_import,
+        get_csv_import_preview=get_csv_import_preview,
+        map_csv_import=map_csv_import,
+        validate_csv_import=validate_csv_import,
+        confirm_csv_import=confirm_csv_import,
+        get_csv_import_report=get_csv_import_report,
+        csv_import_file_store=csv_file_store,
+        archive_prospect=archive_prospect,
+        archive_contact=archive_contact,
+        archive_contact_channel=archive_contact_channel,
         resend_initial_invitation=resend_initial_invitation,
         revoke_initial_invitation=revoke_initial_invitation,
         preview_invitation=preview_invitation,
@@ -347,9 +662,16 @@ def create_app(
 
     @asynccontextmanager
     async def lifespan(_: FastAPI) -> AsyncIterator[None]:
+        cleanup_task: asyncio.Task[None] | None = None
+        if resolved_container.csv_import_file_store is not None:
+            cleanup_task = asyncio.create_task(_cleanup_temporary_csv_files(resolved_container.csv_import_file_store))
         try:
             yield
         finally:
+            if cleanup_task is not None:
+                cleanup_task.cancel()
+                with suppress(asyncio.CancelledError):
+                    await cleanup_task
             await resolved_container.close()
 
     app = FastAPI(
@@ -362,19 +684,53 @@ def create_app(
         CORSMiddleware,
         allow_origins=list(resolved_settings.cors_allowed_origins),
         allow_credentials=True,
-        allow_methods=["GET", "POST", "PATCH", "DELETE"],
+        allow_methods=["GET", "POST", "PUT", "PATCH", "DELETE"],
         allow_headers=["*"],
     )
-    app.middleware("http")(_add_request_id)
+    technical_logger = configure_application_logging(
+        log_format=resolved_settings.log_format,
+        instance_id=resolved_settings.instance_id or uuid4().hex,
+    )
+    app.state.technical_logger = technical_logger
+    app.middleware("http")(_add_request_id(technical_logger))
 
     @app.exception_handler(RequestValidationError)
     async def sanitized_api_validation_error(request: Request, error: RequestValidationError) -> Response:
         protected_payload = request.url.path.startswith(
-            ("/api/auth/", "/api/google/", "/api/map/", "/api/audit-events", "/api/platform/audit-events")
+            (
+                "/api/auth/",
+                "/api/google/",
+                "/api/map/",
+                "/api/audit-events",
+                "/api/platform/audit-events",
+                "/api/prospects",
+                "/api/source-providers",
+                "/api/acquisitions",
+                "/api/contact-channels",
+                "/api/retention",
+                "/api/import-declarations",
+                "/api/csv-imports",
+                "/api/csv-import-runs",
+                "/api/contacts",
+            )
         )
         if not protected_payload:
             return await request_validation_exception_handler(request, error)
-        if request.url.path.startswith(("/api/google/", "/api/map/")):
+        if request.url.path.startswith(
+            (
+                "/api/google/",
+                "/api/map/",
+                "/api/prospects",
+                "/api/source-providers",
+                "/api/acquisitions",
+                "/api/contact-channels",
+                "/api/retention",
+                "/api/import-declarations",
+                "/api/csv-imports",
+                "/api/csv-import-runs",
+                "/api/contacts",
+            )
+        ):
             content_type = request.headers.get("content-type", "").partition(";")[0].strip().lower()
             if content_type != "application/json":
                 return api_error(
@@ -402,6 +758,20 @@ def create_app(
             message = "Les filtres d’audit sont invalides."
         elif request.url.path.startswith(("/api/google/", "/api/map/")):
             message = "La commande Google est invalide."
+        elif request.url.path.startswith(
+            (
+                "/api/prospects",
+                "/api/source-providers",
+                "/api/acquisitions",
+                "/api/contact-channels",
+                "/api/retention",
+                "/api/import-declarations",
+                "/api/csv-imports",
+                "/api/csv-import-runs",
+                "/api/contacts",
+            )
+        ):
+            message = "La commande prospect est invalide."
         else:
             message = "La requête d’authentification est invalide."
         return api_error(
@@ -413,12 +783,16 @@ def create_app(
         )
 
     app.include_router(health_router)
+    app.include_router(metrics_router)
     app.include_router(auth_router)
     app.include_router(audit_router)
     app.include_router(invitations_router)
     app.include_router(platform_router)
     app.include_router(organization_router)
     app.include_router(google_places_router)
+    app.include_router(prospects_router)
+    app.include_router(prospect_compliance_router)
+    app.include_router(retention_router)
     app.include_router(maps_router)
 
     frontend_dist = Path(__file__).resolve().parents[2] / "client" / "dist"
@@ -439,13 +813,57 @@ def create_app(
     return app
 
 
-async def _add_request_id(request: Request, call_next: Callable[[Request], Awaitable[Response]]) -> Response:
-    from uuid import uuid4
+async def _cleanup_temporary_csv_files(file_store: TemporaryCsvFileStore) -> None:
+    """Run while the API is alive so private temporary CSV files cannot outlive 24 hours."""
+    while True:
+        await file_store.cleanup_expired(max_age_seconds=24 * 60 * 60)
+        await asyncio.sleep(60)
 
-    request_id = uuid4().hex
-    request.state.request_id = request_id
-    response = await call_next(request)
-    response.headers["X-Request-ID"] = request_id
-    response.headers["X-Content-Type-Options"] = "nosniff"
-    response.headers["Referrer-Policy"] = "no-referrer"
-    return response
+
+def _add_request_id(
+    technical_logger: TechnicalEventLogger,
+) -> Callable[[Request, Callable[[Request], Awaitable[Response]]], Awaitable[Response]]:
+    async def middleware(request: Request, call_next: Callable[[Request], Awaitable[Response]]) -> Response:
+        request_id = uuid4().hex
+        request.state.request_id = request_id
+        started_at = perf_counter()
+        try:
+            response = await call_next(request)
+        except Exception:
+            _log_request(technical_logger, request, request_id, "http_request_failed", "5xx", started_at)
+            raise
+        response.headers["X-Request-ID"] = request_id
+        response.headers["X-Content-Type-Options"] = "nosniff"
+        response.headers["Referrer-Policy"] = "no-referrer"
+        status_class = f"{response.status_code // 100}xx"
+        event = "http_request_completed" if response.status_code < 500 else "http_request_failed"
+        _log_request(technical_logger, request, request_id, event, status_class, started_at)
+        return response
+
+    return middleware
+
+
+def _log_request(
+    technical_logger: TechnicalEventLogger,
+    request: Request,
+    request_id: str,
+    event: str,
+    status_class: str,
+    started_at: float,
+) -> None:
+    route = getattr(request.scope.get("route"), "path", "unmatched")
+    if not isinstance(route, str):
+        route = "unmatched"
+    if (
+        route in {"/api/health", "/api/health/live", "/api/health/ready", "/internal/metrics"}
+        and event == "http_request_completed"
+    ):
+        return
+    technical_logger.info(
+        event,
+        request_id=request_id,
+        route=route,
+        method=request.method,
+        status_class=status_class,
+        duration_ms=round((perf_counter() - started_at) * 1000),
+    )

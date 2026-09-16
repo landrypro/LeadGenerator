@@ -3,13 +3,14 @@ from uuid import uuid4
 
 import pytest
 
+from backend.app.application.errors import GoogleSearchInProgress
 from backend.app.application.models import GoogleAccessOwner
-from backend.app.generation_lock import GenerationRegistry, GoogleSearchInProgress
+from backend.app.infrastructure.memory import InMemoryGenerationGuard
 
 
 @pytest.mark.asyncio
 async def test_same_user_and_organization_cannot_search_twice_concurrently() -> None:
-    registry = GenerationRegistry()
+    registry = InMemoryGenerationGuard()
     owner = GoogleAccessOwner(uuid4(), uuid4())
 
     async with registry.hold(owner):
@@ -23,7 +24,7 @@ async def test_same_user_and_organization_cannot_search_twice_concurrently() -> 
 
 @pytest.mark.asyncio
 async def test_different_users_or_organizations_can_search_concurrently() -> None:
-    registry = GenerationRegistry()
+    registry = InMemoryGenerationGuard()
     organization_id = uuid4()
     first = GoogleAccessOwner(uuid4(), organization_id)
     second = GoogleAccessOwner(uuid4(), organization_id)
@@ -35,7 +36,7 @@ async def test_different_users_or_organizations_can_search_concurrently() -> Non
 
 @pytest.mark.asyncio
 async def test_guard_releases_owner_after_failure() -> None:
-    registry = GenerationRegistry()
+    registry = InMemoryGenerationGuard()
     owner = GoogleAccessOwner(uuid4(), uuid4())
 
     with pytest.raises(RuntimeError):
@@ -48,7 +49,7 @@ async def test_guard_releases_owner_after_failure() -> None:
 
 @pytest.mark.asyncio
 async def test_guard_releases_owner_after_cancellation() -> None:
-    registry = GenerationRegistry()
+    registry = InMemoryGenerationGuard()
     owner = GoogleAccessOwner(uuid4(), uuid4())
     acquired = asyncio.Event()
 

@@ -48,10 +48,10 @@ export function AuthenticatedLayout({
         className="authenticated-brand"
         href={availableRoutes[0]?.path ?? CRM_PATHS.account}
         onClick={(event) => followInternalLink(event, availableRoutes[0]?.path ?? CRM_PATHS.account)}
-        aria-label="Prospect CRM — Accueil"
+        aria-label="Marketteo CRM — Accueil"
       >
         <span className="authenticated-brand-mark" aria-hidden="true"><Building2 size={20} /></span>
-        <span><strong>Prospect</strong><small>CRM commercial</small></span>
+        <span><strong>Marketteo</strong><small>CRM commercial</small></span>
       </a>
 
       <button
@@ -112,7 +112,7 @@ export function AuthenticatedLayout({
     </header>
 
     <nav className="route-breadcrumb" aria-label="Fil d’Ariane">
-      <span>Prospect CRM</span><span aria-hidden="true">/</span><strong>{currentRoute?.title ?? 'Page introuvable'}</strong>
+      <span>Marketteo CRM</span><span aria-hidden="true">/</span><strong>{currentRoute?.title ?? 'Page introuvable'}</strong>
     </nav>
     <div id="route-content" className="route-content" tabIndex="-1">{children}</div>
   </div>

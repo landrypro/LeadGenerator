@@ -1,5 +1,21 @@
 """Règles et objets métier indépendants des frameworks et fournisseurs externes."""
 
+from .activity import (
+    ActivityDirection,
+    ActivityType,
+    ActivityValidationError,
+    ContactPermissionSnapshot,
+    ProspectActivityDraft,
+    ProspectActivityView,
+    ProspectTaskDraft,
+    ProspectTaskEventView,
+    ProspectTaskView,
+    TaskEventType,
+    TaskPriority,
+    TaskStatus,
+    validate_activity_draft,
+    validate_task_draft,
+)
 from .google_place import GooglePlaceSearchResult, GooglePlaceSearchStats, GooglePlaceSummary
 from .identity import (
     AuthenticatedIdentity,
@@ -38,7 +54,11 @@ from .provisioning import (
 
 __all__ = [
     "AcceptedInvitation",
+    "ActivityDirection",
+    "ActivityType",
+    "ActivityValidationError",
     "AuthenticatedIdentity",
+    "ContactPermissionSnapshot",
     "CreatedSession",
     "GooglePlaceSearchResult",
     "GooglePlaceSearchStats",
@@ -57,11 +77,19 @@ __all__ = [
     "OrganizationProvisioningView",
     "OrganizationStatus",
     "PlatformRole",
+    "ProspectActivityDraft",
+    "ProspectActivityView",
+    "ProspectTaskDraft",
+    "ProspectTaskEventView",
+    "ProspectTaskView",
     "ProvisionOrganizationCommand",
     "ProvisioningView",
     "SearchResult",
     "SearchStats",
     "SessionRecord",
+    "TaskEventType",
+    "TaskPriority",
+    "TaskStatus",
     "UserIdentity",
     "UserStatus",
     "ValidatedProvisionOrganization",
@@ -70,6 +98,8 @@ __all__ = [
     "invitation_state",
     "normalize_email",
     "select_active_organization",
+    "validate_activity_draft",
     "validate_new_password",
     "validate_provision_organization",
+    "validate_task_draft",
 ]

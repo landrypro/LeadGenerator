@@ -1,3 +1,4 @@
+from .activity import ActivityRepository, TaskEventRepository, TaskRepository
 from .audit import (
     ActorAuditedUnitOfWorkFactory,
     AuditCursorCodec,
@@ -11,13 +12,16 @@ from .audit import (
     TenantAuditReadUnitOfWorkFactory,
 )
 from .clock import Clock
+from .events import NullTechnicalEventLogger, TechnicalEventLogger
 from .exporter import LeadExporter
 from .generation_guard import GenerationGuard
+from .google_quota import GoogleSearchPolicyProvider, GoogleSearchQuota
 from .health import DependencyHealth, DependencyProbe
 from .identity import IdentityRepository, IdentityUnitOfWork, IdentityUnitOfWorkFactory
 from .login_limits import LoginLimitStatus, LoginRateLimiter
 from .map_grants import MapSnapshotGrantStore
 from .maps import MapImage, StaticMapGateway
+from .metrics import MetricsRecorder, NullMetricsRecorder
 from .organization import (
     CreateMemberInvitationGatewayResult,
     CreateMemberInvitationResultCode,
@@ -35,6 +39,7 @@ from .organization import (
 from .pagination import CursorCodec
 from .passwords import PasswordHasher
 from .places import PlaceCandidate, PlacesGateway
+from .prospect import GoogleSelectionGrantStore, ProspectUnitOfWork, ProspectUnitOfWorkFactory
 from .provisioning import (
     AcceptanceGatewayResult,
     AcceptanceResultCode,
@@ -60,6 +65,7 @@ from .unit_of_work import ActorUnitOfWorkFactory, TenantUnitOfWorkFactory, UnitO
 __all__ = [
     "AcceptanceGatewayResult",
     "AcceptanceResultCode",
+    "ActivityRepository",
     "ActorAuditedUnitOfWorkFactory",
     "ActorUnitOfWorkFactory",
     "AsyncResource",
@@ -74,6 +80,9 @@ __all__ = [
     "DependencyHealth",
     "DependencyProbe",
     "GenerationGuard",
+    "GoogleSearchPolicyProvider",
+    "GoogleSearchQuota",
+    "GoogleSelectionGrantStore",
     "IdentityRepository",
     "IdentityUnitOfWork",
     "IdentityUnitOfWorkFactory",
@@ -91,6 +100,9 @@ __all__ = [
     "MapSnapshotGrantStore",
     "MemberInvitationMutationGatewayResult",
     "MemberInvitationMutationResultCode",
+    "MetricsRecorder",
+    "NullMetricsRecorder",
+    "NullTechnicalEventLogger",
     "OrganizationAdministrationGateway",
     "OrganizationStatusGatewayResult",
     "OrganizationStatusResultCode",
@@ -100,6 +112,8 @@ __all__ = [
     "PlatformAuditReadUnitOfWorkFactory",
     "PlatformAuditedUnitOfWorkFactory",
     "PlatformProvisioningGateway",
+    "ProspectUnitOfWork",
+    "ProspectUnitOfWorkFactory",
     "ProvisionGatewayResult",
     "ProvisionResultCode",
     "ResendGatewayResult",
@@ -110,6 +124,9 @@ __all__ = [
     "StaticMapGateway",
     "SwitchOrganizationGatewayResult",
     "SwitchOrganizationResultCode",
+    "TaskEventRepository",
+    "TaskRepository",
+    "TechnicalEventLogger",
     "TenantAuditReadUnitOfWorkFactory",
     "TenantAuditedUnitOfWorkFactory",
     "TenantUnitOfWorkFactory",

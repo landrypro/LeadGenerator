@@ -37,7 +37,7 @@ class MailpitInvitationDelivery:
         email.set_content(
             "\n".join(
                 (
-                    "Vous avez été invité à rejoindre Prospect CRM.",
+                    "Vous avez été invité à rejoindre Marketteo CRM.",
                     f"Organisation : {message.organization_name}",
                     f"Rôle : {message.role.value}",
                     f"Expiration : {message.expires_at.isoformat()}",

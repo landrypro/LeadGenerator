@@ -1,14 +1,48 @@
 from .audit import AuditEventModel
 from .base import NAMING_CONVENTION, Base
 from .identity import InvitationDeliveryAttemptModel, MembershipModel, OrganizationModel, UserInvitationModel, UserModel
+from .prospect import (
+    AcquisitionRecordModel,
+    ContactChannelModel,
+    ContactModel,
+    ContactPermissionModel,
+    CsvImportFingerprintModel,
+    CsvImportQuarantineModel,
+    CsvImportRunModel,
+    CsvImportSessionModel,
+    PipelineStageSettingModel,
+    ProspectActivityModel,
+    ProspectModel,
+    ProspectStageTransitionModel,
+    ProspectTaskEventModel,
+    ProspectTaskModel,
+    ProvenanceRecordModel,
+    SourceProviderModel,
+)
 
 __all__ = [
     "NAMING_CONVENTION",
+    "AcquisitionRecordModel",
     "AuditEventModel",
     "Base",
+    "ContactChannelModel",
+    "ContactModel",
+    "ContactPermissionModel",
+    "CsvImportFingerprintModel",
+    "CsvImportQuarantineModel",
+    "CsvImportRunModel",
+    "CsvImportSessionModel",
     "InvitationDeliveryAttemptModel",
     "MembershipModel",
     "OrganizationModel",
+    "PipelineStageSettingModel",
+    "ProspectActivityModel",
+    "ProspectModel",
+    "ProspectStageTransitionModel",
+    "ProspectTaskEventModel",
+    "ProspectTaskModel",
+    "ProvenanceRecordModel",
+    "SourceProviderModel",
     "UserInvitationModel",
     "UserModel",
 ]

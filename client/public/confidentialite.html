@@ -4,33 +4,33 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <meta name="robots" content="index,follow" />
-  <title>Politique de confidentialité — Prospect</title>
+  <title>Politique de confidentialité — Marketteo</title>
   <link rel="stylesheet" href="/legal.css" />
 </head>
 <body>
   <div class="legal-shell">
-    <nav class="legal-nav"><a class="brand" href="/"><span class="brand-mark">P</span><strong>Prospect</strong></a><a class="back" href="/">Retour à l’application</a></nav>
+    <nav class="legal-nav"><a class="brand" href="/"><span class="brand-mark">M</span><strong>Marketteo</strong></a><a class="back" href="/">Retour à l’application</a></nav>
     <main class="legal-card">
       <p class="eyebrow">Informations légales</p>
       <h1>Politique de confidentialité</h1>
-      <p class="updated">Dernière mise à jour : 2 août 2026</p>
+      <p class="updated">Dernière mise à jour : 25 août 2026</p>
 
       <div class="notice"><strong>Document à faire valider avant commercialisation.</strong> L’identité, l’adresse et les coordonnées du responsable du traitement doivent être complétées avant la mise à disposition du public.</div>
 
       <h2>1. Informations traitées</h2>
-      <p>Pour fournir un compte, Prospect conserve le courriel normalisé, le nom affiché, l’état du compte et ses appartenances aux organisations. Le mot de passe en clair n’est jamais conservé : seul un condensat Argon2id est enregistré. Lors d’une recherche, Prospect traite temporairement le terme, la zone demandée et les résultats renvoyés par Google Places. L’utilisateur et l’organisation sont déduits de la session ; aucun prénom, raison sociale ou adresse professionnelle n’est redemandé. La liste ne demande ni téléphone ni site Web. Le serveur peut traiter les données techniques minimales nécessaires à la sécurité et au diagnostic, sans journaliser le contenu Google, le mot de passe, les jetons ou les clés secrètes.</p>
+      <p>Pour fournir un compte, Marketteo conserve le courriel normalisé, le nom affiché, l’état du compte et ses appartenances aux organisations. Le mot de passe en clair n’est jamais conservé : seul un condensat Argon2id est enregistré. Lors d’une recherche, Marketteo traite temporairement le terme, la zone demandée et les résultats renvoyés par Google Places. L’utilisateur et l’organisation sont déduits de la session ; aucun prénom, raison sociale ou adresse professionnelle n’est redemandé. La liste ne demande ni téléphone ni site Web. Le serveur peut traiter les données techniques minimales nécessaires à la sécurité et au diagnostic, sans journaliser le contenu Google, le mot de passe, les jetons ou les clés secrètes.</p>
 
       <h2>2. Finalités</h2>
       <ul><li>authentifier l’utilisateur et appliquer ses droits d’accès ;</li><li>exécuter la recherche ponctuelle demandée ;</li><li>empêcher plusieurs recherches simultanées pour un même compte dans une même organisation ;</li><li>produire, sur demande, une carte protégée par un jeton court lié au compte et à l’organisation ;</li><li>sécuriser et diagnostiquer le service ;</li><li>respecter les obligations légales et contractuelles.</li></ul>
 
       <h2>3. Conservation</h2>
-      <p>Les informations de compte et d’appartenance sont conservées dans PostgreSQL tant que le compte est actif ou pendant la durée requise par les obligations applicables. Les durées juridiques définitives devront être validées avant commercialisation. La session est conservée dans Redis et expire après 30 minutes d’inactivité et 12 heures au maximum avec la configuration initiale. Les résultats Google restent uniquement dans la mémoire de la page ouverte. Aucun mot de passe, identifiant de session, jeton CSRF, concession de carte ou résultat Google n’est placé dans <code>localStorage</code>, <code>sessionStorage</code>, IndexedDB ou un cache de service worker. Les résultats ne sont pas exportés et disparaissent au rechargement ou à la fermeture de la vue.</p>
+      <p>Les informations de compte et d’appartenance sont conservées dans PostgreSQL tant que le compte est actif ou pendant la durée requise par les obligations applicables. Les durées juridiques définitives devront être validées avant commercialisation. La session est conservée dans Redis et expire après 30 minutes d’inactivité et 12 heures au maximum avec la configuration initiale. Les résultats Google restent uniquement dans la mémoire de la page ouverte. Lorsqu’un établissement est ajouté au CRM, Marketteo conserve uniquement son <code>place_id</code> comme référence Google et un nom interne saisi séparément par l’utilisateur ; le nom Google n’est pas copié dans la fiche. Aucun mot de passe, identifiant de session, jeton CSRF, concession de carte ou résultat Google n’est placé dans <code>localStorage</code>, <code>sessionStorage</code>, IndexedDB ou un cache de service worker. Les résultats ne sont pas exportés et disparaissent au rechargement ou à la fermeture de la vue.</p>
 
       <h2>4. Google Maps Platform</h2>
       <p>Le terme, les coordonnées géographiques et les paramètres strictement nécessaires sont transmis à Google Maps Platform. Une seule requête Text Search est réalisée par action, avec vingt résultats au maximum et sans suivi de page suivante. Google traite ces informations conformément à sa <a href="https://policies.google.com/privacy" target="_blank" rel="noopener noreferrer">Politique de confidentialité</a>. L’utilisation de Google Maps est aussi soumise aux <a href="https://maps.google.com/help/terms_maps/" target="_blank" rel="noopener noreferrer">Conditions supplémentaires Google Maps</a>.</p>
 
       <h2>5. Partage et export</h2>
-      <p>Les données ne sont communiquées qu’aux prestataires nécessaires au service, notamment Google Maps Platform, ou lorsque la loi l’exige. Prospect ne vend pas les informations déclarées par l’utilisateur. La route historique d’export des résultats Google a été retirée et le bouton correspondant est inaccessible.</p>
+      <p>Les données ne sont communiquées qu’aux prestataires nécessaires au service, notamment Google Maps Platform, ou lorsque la loi l’exige. Marketteo ne vend pas les informations déclarées par l’utilisateur. La route historique d’export des résultats Google a été retirée et le bouton correspondant est inaccessible.</p>
 
       <h2>6. Sécurité</h2>
       <p>Les appels Google sont exécutés côté serveur : les clés ne sont jamais envoyées au navigateur. Les mots de passe sont protégés avec Argon2id. La session repose sur un identifiant opaque aléatoire, un cookie <code>HttpOnly</code> et une protection CSRF ; les échecs de connexion sont limités. La recherche et la carte exigent une organisation active et des droits distincts. La carte facturable exige un jeton aléatoire, éphémère, lié au compte et à l’organisation, puis consommé au premier essai. Les réponses d’authentification, de recherche et de carte portent la directive <code>Cache-Control: no-store</code>.</p>
@@ -41,7 +41,7 @@
       <h2>8. Modifications</h2>
       <p>Cette politique peut évoluer pour refléter les changements du service, de la loi ou des exigences Google Maps Platform. La date indiquée en haut de la page identifie la version applicable.</p>
     </main>
-    <p class="legal-footer">© 2026 Prospect · <a href="/conditions.html">Conditions d’utilisation</a></p>
+    <p class="legal-footer">© 2026 Marketteo · <a href="/conditions.html">Conditions d’utilisation</a></p>
   </div>
 </body>
 </html>
