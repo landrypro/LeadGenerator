@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import date, datetime
 from typing import Any, Literal
 from uuid import UUID
 
@@ -408,6 +408,43 @@ class TaskActionRequest(StrictCommand):
     idempotency_key: str = Field(min_length=8, max_length=128)
     reason: str | None = Field(default=None, max_length=500)
     reminder_at: datetime | None = None
+
+
+class OpportunityCreateRequest(StrictCommand):
+    name: str = Field(min_length=1, max_length=160)
+    amount: str = Field(min_length=1, max_length=32)
+    currency_code: str = Field(min_length=3, max_length=3)
+    probability: int = Field(ge=0, le=100)
+    expected_close_on: date
+    owner_membership_id: UUID | None = None
+    idempotency_key: str = Field(min_length=1, max_length=128)
+
+
+class OpportunityUpdateRequest(StrictCommand):
+    version: int = Field(ge=1)
+    name: str | None = Field(default=None, min_length=1, max_length=160)
+    amount: str | None = Field(default=None, min_length=1, max_length=32)
+    currency_code: str | None = Field(default=None, min_length=3, max_length=3)
+    probability: int | None = Field(default=None, ge=0, le=100)
+    expected_close_on: date | None = None
+    owner_membership_id: UUID | None = None
+    idempotency_key: str = Field(min_length=1, max_length=128)
+
+
+class OpportunityTransitionRequest(StrictCommand):
+    version: int = Field(ge=1)
+    to_stage: str = Field(min_length=1, max_length=32)
+    reason_code: str | None = Field(default=None, min_length=1, max_length=64)
+    reason_note: str | None = Field(default=None, min_length=1, max_length=500)
+    idempotency_key: str = Field(min_length=1, max_length=128)
+
+
+class OpportunityReopenRequest(StrictCommand):
+    version: int = Field(ge=1)
+    reason_code: str = Field(min_length=1, max_length=64)
+    reason_note: str | None = Field(default=None, min_length=1, max_length=500)
+    probability: int = Field(ge=0, le=100)
+    idempotency_key: str = Field(min_length=1, max_length=128)
 
 
 class ProspectStageTransitionResponse(BaseModel):

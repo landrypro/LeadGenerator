@@ -1,8 +1,8 @@
 # Marketteo CRM - Manuel utilisateur
 
-**Version :** 0.7
-**État :** édition 3.3 préparée pour recette fonctionnelle
-**Date de référence :** 5 septembre 2026
+**Version :** 0.8
+**État :** édition 3.4 préparée pour recette fonctionnelle
+**Date de référence :** 10 septembre 2026
 **Public :** commerciaux, gestionnaires, administrateurs d'organisation et administrateurs de plateforme
 
 > Les libellés visibles de l'application utilisent désormais la marque Marketteo CRM. Les identifiants techniques historiques peuvent encore contenir `prospect` ou `LeadGenerator` afin de préserver les installations existantes.
@@ -31,8 +31,8 @@ Lorsqu'un résultat est ajouté au CRM, Marketteo conserve la référence Google
 - Une limite opérationnelle est appliquée par journée UTC : 20 recherches par utilisateur dans l'organisation active et 100 par organisation. Elle protège le budget technique Google ; ce n'est pas encore un forfait commercial ni une facture.
 - Le bouton « Exporter Excel » des résultats Google est désactivé.
 - L'import accepte uniquement un CSV UTF-8 de 10 Mio ou moins. Les formats Excel, PDF, ZIP et les connecteurs externes ne sont pas pris en charge.
-- Les tâches et rappels sont internes à Marketteo : ils n’envoient aucune notification externe. Les opportunités,
-  automatisations commerciales et la facturation ne font pas partie de cette édition.
+- Les tâches et rappels sont internes à Marketteo : ils n’envoient aucune notification externe. Les automatisations
+  commerciales et la facturation ne font pas partie de cette édition.
 - Les métriques et journaux techniques sont réservés à l’exploitation : ils ne sont pas visibles dans le CRM et ne
   changent ni les droits commerciaux ni les limites affichées.
 
@@ -411,6 +411,20 @@ Ouvrez « Audit plateforme ». Utilisez les filtres de période, action, type d'
 
 ## 11. Dépannage de premier niveau
 
+### Gérer une opportunité
+
+Ouvrez un prospect puis la section « Opportunités » pour créer une affaire avec nom, montant, devise, probabilité et
+échéance. Le portefeuille « Opportunités » permet de filtrer les affaires et affiche les totaux séparément par devise.
+Une valeur pondérée est informative : elle correspond au montant multiplié par la probabilité.
+
+Les étapes d’une opportunité et celles du prospect dans le Kanban sont indépendantes. Après une transition d’affaire,
+« Aligner le pipeline » déclenche une seconde confirmation ; un alignement impossible doit être réalisé étape par étape
+dans le Kanban. Une affaire gagnée ou perdue est en lecture seule jusqu’à sa réouverture par un administrateur ou un
+gestionnaire. Une perte et une réouverture exigent un motif compréhensible.
+
+Ne combinez jamais des montants de devises différentes. Si une affaire change pendant votre saisie, rechargez-la et
+vérifiez sa nouvelle version avant de recommencer.
+
 ### Une page n'apparaît pas dans le menu
 
 Votre rôle ne possède probablement pas la capacité requise, ou aucune organisation active n'est sélectionnée. Vérifiez « Mon compte » et l'organisation active, puis contactez un administrateur.
@@ -479,6 +493,7 @@ Vérifiez que le prospect n'est pas archivé, que l'étape cible est proposée p
 
 | Version | Date | État | Résumé |
 |---|---|---|---|
+| 0.8 | 10 septembre 2026 | À valider | Ajout du portefeuille, du cycle de vie et de l’alignement explicite des opportunités 3.4 |
 | 0.7 | 5 septembre 2026 | À valider | Ajout des tâches, rappels internes et prochaine action 3.3-D |
 | 0.6 | 5 septembre 2026 | À valider | Ajout du pipeline commercial, de la chronologie d'activités et du parcours réel d'import CSV ; limites mises à jour |
 | 0.5 | 26 août 2026 | À valider | Ajout de quatre captures d'écran avec données de démonstration ; procédures alignées sur le nom interne CRM et le `place_id` |

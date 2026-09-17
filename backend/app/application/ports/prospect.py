@@ -42,6 +42,7 @@ from ..models import GoogleAccessOwner
 from ..tenancy import TenantContext
 from .activity import ActivityRepository, TaskEventRepository, TaskRepository
 from .audit import AuditRecorder
+from .opportunity import OpportunityEventRepository, OpportunityRepository
 
 
 class ProspectRepository(Protocol):
@@ -455,6 +456,12 @@ class ProspectUnitOfWork(Protocol):
 
     @property
     def task_events(self) -> TaskEventRepository: ...
+
+    @property
+    def opportunities(self) -> OpportunityRepository: ...
+
+    @property
+    def opportunity_events(self) -> OpportunityEventRepository: ...
 
     @property
     def audit(self) -> AuditRecorder: ...

@@ -12,6 +12,7 @@ import { ProspectDetailPage } from '../features/prospects/ProspectDetailPage'
 import { ProspectsPage } from '../features/prospects/ProspectsPage'
 import { PipelinePage } from '../features/prospects/PipelinePage'
 import { TasksPage } from '../features/prospects/TasksPage'
+import { OpportunitiesPage } from '../features/opportunities/OpportunitiesPage'
 
 
 export const CRM_PATHS = Object.freeze({
@@ -23,6 +24,7 @@ export const CRM_PATHS = Object.freeze({
   prospectNew: '/app/prospects/new',
   prospectDetail: '/app/prospects/:prospectId',
   pipeline: '/app/pipeline',
+  opportunities: '/app/opportunities',
   tasks: '/app/tasks',
   compliance: '/app/compliance/sources',
   retention: '/app/compliance/retention',
@@ -57,6 +59,15 @@ export const routes = Object.freeze([
     requiredCapability: 'pipeline:read',
     requiresActiveOrganization: true,
     Component: PipelinePage,
+  }),
+  Object.freeze({
+    id: 'opportunities',
+    path: CRM_PATHS.opportunities,
+    label: 'Opportunités',
+    title: 'Opportunités',
+    requiredCapability: 'opportunities:read',
+    requiresActiveOrganization: true,
+    Component: OpportunitiesPage,
   }),
   Object.freeze({
     id: 'tasks',

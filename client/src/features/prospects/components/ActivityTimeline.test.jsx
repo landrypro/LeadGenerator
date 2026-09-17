@@ -41,17 +41,21 @@ describe('ActivityTimeline', () => {
     expect(onCorrect).toHaveBeenCalledWith(activity, expect.objectContaining({ correction_reason: 'Typo corrected' }))
   })
 
-  it('fusionne les transitions du pipeline et les événements de tâche dans la chronologie', () => {
+  it('fusionne les transitions, les événements de tâche et les événements d’opportunité dans la chronologie', () => {
     render(<ActivityTimeline activities={[activity]} taskEvents={[{
       id: 'task-event-1', task_id: 'task-1', event_type: 'completed', occurred_at: '2026-09-05T15:00:00Z', reason: null,
     }]} tasks={[{ id: 'task-1', title: 'Relance QA' }]} transitions={[{
       id: 'transition-1', from_stage: 'new', to_stage: 'qualifying', occurred_at: '2026-09-05T16:00:00Z',
+    }]} opportunityEvents={[{
+      id: 'opportunity-event-1', event_type: 'stage_changed', from_stage: 'discovery', to_stage: 'qualification', occurred_at: '2026-09-05T17:00:00Z',
     }]} channels={channels} locale="fr-CA" timezone="America/Toronto" canCreate={false} canCorrectAny={false} canCorrectSelf={false} submitting={false} onCreate={vi.fn()} onCorrect={vi.fn()} />)
 
     expect(screen.getByText('Étape modifiée')).toBeInTheDocument()
     expect(screen.getByText('Nouveau → Qualification')).toBeInTheDocument()
     expect(screen.getByText('Tâche terminée')).toBeInTheDocument()
     expect(screen.getByText('Relance QA')).toBeInTheDocument()
+    expect(screen.getByText('Étape de l’opportunité modifiée')).toBeInTheDocument()
+    expect(screen.getByText('Découverte → Qualification')).toBeInTheDocument()
   })
 
   it('ne présente aucune violation axe', async () => {

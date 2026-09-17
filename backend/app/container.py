@@ -26,6 +26,7 @@ from .application.use_cases import (
     CreateContactUseCase,
     CreateManualProspectUseCase,
     CreateMemberInvitationUseCase,
+    CreateOpportunityUseCase,
     CreateOrganizationUseCase,
     CreateRetentionPolicyUseCase,
     CreateSourceProviderUseCase,
@@ -40,6 +41,7 @@ from .application.use_cases import (
     GetCurrentSessionUseCase,
     GetImportDeclarationUseCase,
     GetMapSnapshotUseCase,
+    GetOpportunityUseCase,
     GetOrganizationUseCase,
     GetPipelineBoardUseCase,
     GetProspectUseCase,
@@ -54,6 +56,9 @@ from .application.use_cases import (
     ListMemberInvitationsUseCase,
     ListMembersUseCase,
     ListNextActionsUseCase,
+    ListOpportunitiesUseCase,
+    ListOpportunityEventsUseCase,
+    ListOpportunitySummariesUseCase,
     ListPipelineColumnUseCase,
     ListPipelineStagesUseCase,
     ListPlatformAuditEventsUseCase,
@@ -75,6 +80,7 @@ from .application.use_cases import (
     PlaceRetentionHoldUseCase,
     PreviewInvitationUseCase,
     ReleaseRetentionHoldUseCase,
+    ReopenOpportunityUseCase,
     ReopenProspectUseCase,
     ResendInitialInvitationUseCase,
     ResendMemberInvitationUseCase,
@@ -82,7 +88,9 @@ from .application.use_cases import (
     RevokeMemberInvitationUseCase,
     SearchGooglePlacesUseCase,
     SwitchOrganizationUseCase,
+    TransitionOpportunityUseCase,
     UpdateMembershipUseCase,
+    UpdateOpportunityUseCase,
     UpdateOrganizationUseCase,
     UpdatePipelineStageUseCase,
     UpdateProspectProfileUseCase,
@@ -119,6 +127,14 @@ class AppContainer:
     update_prospect_profile: UpdateProspectProfileUseCase | None = None
     create_activity: CreateActivityUseCase | None = None
     create_task: CreateTaskUseCase | None = None
+    create_opportunity: CreateOpportunityUseCase | None = None
+    update_opportunity: UpdateOpportunityUseCase | None = None
+    transition_opportunity: TransitionOpportunityUseCase | None = None
+    reopen_opportunity: ReopenOpportunityUseCase | None = None
+    get_opportunity: GetOpportunityUseCase | None = None
+    list_opportunities: ListOpportunitiesUseCase | None = None
+    list_opportunity_events: ListOpportunityEventsUseCase | None = None
+    list_opportunity_summaries: ListOpportunitySummariesUseCase | None = None
     update_task: UpdateTaskUseCase | None = None
     list_prospect_timeline: ListProspectTimelineUseCase | None = None
     list_tasks: ListTasksUseCase | None = None

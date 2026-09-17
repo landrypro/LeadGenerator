@@ -6,7 +6,7 @@ import {
 
 
 describe('routes CRM', () => {
-  it('déclare les routes canoniques jusqu’aux tâches 3.3-D', () => {
+  it('déclare les routes canoniques jusqu’aux opportunités 3.4-C', () => {
     expect(CRM_PATHS).toEqual({
       home: '/',
       login: '/login',
@@ -16,6 +16,7 @@ describe('routes CRM', () => {
       prospectNew: '/app/prospects/new',
       prospectDetail: '/app/prospects/:prospectId',
       pipeline: '/app/pipeline',
+      opportunities: '/app/opportunities',
       tasks: '/app/tasks',
       compliance: '/app/compliance/sources',
       retention: '/app/compliance/retention',
@@ -28,11 +29,12 @@ describe('routes CRM', () => {
     })
   })
 
-  it('active les pages terminées jusqu’aux tâches 3.3-D', () => {
+  it('active les pages terminées jusqu’aux opportunités 3.4-C', () => {
     expect(routes.map((route) => route.path)).toEqual([
       '/app/compliance/retention',
       '/app/compliance/sources',
       '/app/pipeline',
+      '/app/opportunities',
       '/app/tasks',
       '/app/prospects',
       '/app/prospects/new',
@@ -49,6 +51,7 @@ describe('routes CRM', () => {
     expect(findRoute('/app/audit')?.requiredCapability).toBe('audit:read')
     expect(findRoute('/app/platform/audit')?.requiredCapability).toBe('platform:audit:read')
     expect(findRoute('/app/prospects')?.requiredCapability).toBe('prospects:read')
+    expect(findRoute('/app/opportunities')?.requiredCapability).toBe('opportunities:read')
     expect(findRoute('/app/compliance/sources')?.requiredCapability).toBe('providers:read')
     expect(findRoute('/app/compliance/retention')?.requiredCapability).toBe('retention:read')
     expect(findRoute('/app/prospects/11111111-1111-1111-1111-111111111111')?.params).toEqual({
@@ -62,10 +65,11 @@ describe('routes CRM', () => {
 
     const tenant = session({
       activeOrganization: { id: 'org-1', name: 'Entreprise' },
-      capabilities: ['google:search', 'prospects:read', 'providers:read', 'organization:read', 'members:read', 'tasks:read'],
+      capabilities: ['google:search', 'prospects:read', 'providers:read', 'organization:read', 'members:read', 'tasks:read', 'opportunities:read'],
     })
     expect(navigationRoutes(tenant).map((route) => route.id)).toEqual([
       'compliance-sources',
+      'opportunities',
       'tasks',
       'prospects',
       'google-place-search',

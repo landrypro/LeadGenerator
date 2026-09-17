@@ -92,6 +92,10 @@ class AuditAction(StrEnum):
     PROSPECT_TASK_CANCELLED = "prospect.task_cancelled"
     PROSPECT_TASK_REOPENED = "prospect.task_reopened"
     PROSPECT_TASK_REMINDER_CHANGED = "prospect.task_reminder_changed"
+    OPPORTUNITY_CREATED = "opportunity.created"
+    OPPORTUNITY_UPDATED = "opportunity.updated"
+    OPPORTUNITY_STAGE_CHANGED = "opportunity.stage_changed"
+    OPPORTUNITY_REOPENED = "opportunity.reopened"
 
 
 _ENTITY_TYPE_PATTERN = re.compile(r"^[a-z][a-z0-9_]{0,63}$", re.ASCII)
@@ -189,6 +193,10 @@ _TENANT_ACTIONS = frozenset(
         AuditAction.PROSPECT_TASK_CANCELLED,
         AuditAction.PROSPECT_TASK_REOPENED,
         AuditAction.PROSPECT_TASK_REMINDER_CHANGED,
+        AuditAction.OPPORTUNITY_CREATED,
+        AuditAction.OPPORTUNITY_UPDATED,
+        AuditAction.OPPORTUNITY_STAGE_CHANGED,
+        AuditAction.OPPORTUNITY_REOPENED,
     }
 )
 _PLATFORM_ACTIONS = frozenset(set(AuditAction) - _TENANT_ACTIONS)
@@ -249,6 +257,10 @@ _ACTION_ENTITY_TYPES = {
     AuditAction.PROSPECT_TASK_CANCELLED: "prospect_task",
     AuditAction.PROSPECT_TASK_REOPENED: "prospect_task",
     AuditAction.PROSPECT_TASK_REMINDER_CHANGED: "prospect_task",
+    AuditAction.OPPORTUNITY_CREATED: "opportunity",
+    AuditAction.OPPORTUNITY_UPDATED: "opportunity",
+    AuditAction.OPPORTUNITY_STAGE_CHANGED: "opportunity",
+    AuditAction.OPPORTUNITY_REOPENED: "opportunity",
 }
 
 
@@ -483,6 +495,51 @@ class AuditMetadataPolicy:
                             "reminder_snoozed_until",
                             "status",
                             "title",
+                        }
+                    ),
+                )
+            return result
+
+        if action in {
+            AuditAction.OPPORTUNITY_CREATED,
+            AuditAction.OPPORTUNITY_UPDATED,
+            AuditAction.OPPORTUNITY_STAGE_CHANGED,
+            AuditAction.OPPORTUNITY_REOPENED,
+        }:
+            cls._require_keys(
+                values,
+                {"resulting_version", "stage_code"},
+                {"changed_fields", "from_stage", "reason_code", "currency_code"},
+            )
+            version = values["resulting_version"]
+            if not isinstance(version, int) or version <= 0:
+                raise InvalidAuditMetadata("resulting_version est invalide.")
+            stages = frozenset({"discovery", "qualification", "proposal", "negotiation", "won", "lost"})
+            result = {
+                "resulting_version": version,
+                "stage_code": cls._choice(values["stage_code"], stages, "stage_code"),
+            }
+            if "from_stage" in values:
+                result["from_stage"] = cls._choice(values["from_stage"], stages, "from_stage")
+            if "reason_code" in values:
+                result["reason_code"] = cls._short_text(values["reason_code"], "reason_code", 64)
+            if "currency_code" in values:
+                result["currency_code"] = cls._short_text(values["currency_code"], "currency_code", 3)
+            if "changed_fields" in values:
+                result["changed_fields"] = cls._field_names(
+                    values["changed_fields"],
+                    frozenset(
+                        {
+                            "amount",
+                            "closed_at",
+                            "currency_code",
+                            "expected_close_on",
+                            "loss_reason_code",
+                            "loss_reason_note",
+                            "name",
+                            "owner_membership_id",
+                            "probability",
+                            "stage_code",
                         }
                     ),
                 )
@@ -738,6 +795,12 @@ class AuditMetadataPolicy:
     def _choice(value: object, choices: frozenset[str], field_name: str) -> str:
         if not isinstance(value, str) or value not in choices:
             raise InvalidAuditMetadata(f"{field_name} contient un code non autorisé.")
+        return value
+
+    @staticmethod
+    def _short_text(value: object, field_name: str, maximum: int) -> str:
+        if not isinstance(value, str) or not 1 <= len(value) <= maximum:
+            raise InvalidAuditMetadata(f"{field_name} est invalide.")
         return value
 
     @classmethod

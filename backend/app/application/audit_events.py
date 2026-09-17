@@ -106,6 +106,13 @@ def _entity_type(action: AuditAction) -> str:
         AuditAction.PROSPECT_TASK_REMINDER_CHANGED,
     }:
         return "prospect_task"
+    if action in {
+        AuditAction.OPPORTUNITY_CREATED,
+        AuditAction.OPPORTUNITY_UPDATED,
+        AuditAction.OPPORTUNITY_STAGE_CHANGED,
+        AuditAction.OPPORTUNITY_REOPENED,
+    }:
+        return "opportunity"
     if action is AuditAction.PIPELINE_STAGE_SETTINGS_UPDATED:
         return "pipeline_stage_setting"
     if action is AuditAction.CONTACT_CREATED:

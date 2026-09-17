@@ -6,6 +6,8 @@ import { toUserMessage } from '../../shared/api/errors'
 import { ErrorBanner } from '../../shared/ui/Feedback'
 import { createRequestId } from '../../shared/ids/requestId'
 import { prospectApi } from './api/prospectApi'
+import { opportunityApi } from '../opportunities/api/opportunityApi'
+import { formatMoney } from '../opportunities/opportunityPresentation'
 
 
 function stageLabel(stage) {
@@ -48,10 +50,12 @@ export function PipelinePage({ session }) {
   const [lossReasonNote, setLossReasonNote] = useState('')
   const [lossFormError, setLossFormError] = useState('')
   const [nextActions, setNextActions] = useState({})
+  const [opportunitySummaries, setOpportunitySummaries] = useState({})
   const requestRef = useRef(null)
   const canMove = session.capabilities.includes('pipeline:move')
   const canReopen = session.capabilities.includes('pipeline:reopen')
   const canReadTasks = session.capabilities.includes('tasks:read')
+  const canReadOpportunities = session.capabilities.includes('opportunities:read')
 
   const load = useCallback(async () => {
     requestRef.current?.abort()
@@ -60,11 +64,14 @@ export function PipelinePage({ session }) {
     setLoading(true)
     setError('')
     try {
-      const [nextBoard, actionPage] = await Promise.all([
-        prospectApi.pipelineBoard({ searchText: submittedSearch }, controller.signal),
+      const nextBoard = await prospectApi.pipelineBoard({ searchText: submittedSearch }, controller.signal)
+      const prospectIds = Object.values(nextBoard.columns ?? {}).flat().map((prospect) => prospect.id)
+      const [actionPage, summariesPage] = await Promise.all([
         canReadTasks ? prospectApi.listNextActions(controller.signal) : Promise.resolve({ items: [] }),
+        canReadOpportunities ? opportunityApi.summaries(prospectIds, controller.signal) : Promise.resolve({ items: [] }),
       ])
       setNextActions(Object.fromEntries((actionPage.items ?? []).map((task) => [task.prospect_id, task])))
+      setOpportunitySummaries(Object.fromEntries((summariesPage.items ?? []).map((summary) => [summary.prospect_id, summary])))
       setBoard(nextBoard)
     } catch (requestError) {
       if (requestError?.name !== 'AbortError') setError(toUserMessage(requestError, 'Impossible de charger le pipeline.'))
@@ -72,7 +79,7 @@ export function PipelinePage({ session }) {
       if (requestRef.current === controller) requestRef.current = null
       setLoading(false)
     }
-  }, [canReadTasks, submittedSearch])
+  }, [canReadOpportunities, canReadTasks, submittedSearch])
 
   useEffect(() => {
     load()
@@ -211,6 +218,7 @@ export function PipelinePage({ session }) {
           <a href={`/app/prospects/${encodeURIComponent(prospect.id)}`} onClick={(event) => followInternalLink(event, `/app/prospects/${encodeURIComponent(prospect.id)}`)}><Building2 size={16} /><strong>{prospect.internal_alias}</strong></a>
           <small>Priorité {prospect.priority}/5</small>
           {nextActions[prospect.id] && <small className="next-action-summary">Prochaine action : {nextActions[prospect.id].title}</small>}
+          {opportunitySummaries[prospect.id] && <small className="next-action-summary">{opportunitySummaries[prospect.id].open_count} opportunité(s) ouverte(s) · {opportunitySummaries[prospect.id].aggregates_by_currency.map((aggregate) => formatMoney(aggregate.weighted_amount_total, aggregate.currency_code, session.active_organization?.locale)).join(' · ')}</small>}
           {canMove && stage.code !== 'lost' && stage.code !== 'won' && <div className="pipeline-move-actions">
             {index > 0 && <button type="button" disabled={moving === prospect.id} onClick={() => move(prospect, board.stages[index - 1])}>← {stageLabel(board.stages[index - 1])}</button>}
             {index < board.stages.length - 1 && <button type="button" disabled={moving === prospect.id} onClick={() => move(prospect, board.stages[index + 1])}>{stageLabel(board.stages[index + 1])} →</button>}

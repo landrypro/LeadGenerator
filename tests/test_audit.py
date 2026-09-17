@@ -47,6 +47,26 @@ def test_audit_event_is_normalized_and_immutable() -> None:
         event.metadata["secret"] = "forbidden"  # type: ignore[index]
 
 
+def test_opportunity_terminal_transition_audit_accepts_closed_at_as_a_minimized_field_name() -> None:
+    event = _draft(
+        action=AuditAction.OPPORTUNITY_STAGE_CHANGED,
+        entity_type="opportunity",
+        metadata={
+            "resulting_version": 4,
+            "stage_code": "won",
+            "from_stage": "proposal",
+            "changed_fields": ["stage_code", "probability", "closed_at"],
+        },
+    )
+
+    assert event.metadata == {
+        "changed_fields": ("closed_at", "probability", "stage_code"),
+        "from_stage": "proposal",
+        "resulting_version": 4,
+        "stage_code": "won",
+    }
+
+
 @pytest.mark.parametrize(
     ("overrides", "message"),
     [

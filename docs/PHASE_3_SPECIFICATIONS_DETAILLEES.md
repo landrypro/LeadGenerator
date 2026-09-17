@@ -4,9 +4,9 @@
 | --- | --- |
 | Produit | Marketteo CRM |
 | Phase | 3 — Cœur CRM |
-| Version | 1.6 — 3.3 clôturé avec réserves, passage autorisé à l’incrément suivant |
+| Version | 2.5 — contrats 3.4-C détaillés |
 | Prérequis | Phase 2.5 livrée ; verrou qualité local 2.6 vert ; recette multi-instance 2.6 différée au staging |
-| Statut | 3.1, 3.2 et 3.3 clôturés avec réserves — contrôles transversaux regroupés pour la recette finale 3.6 |
+| Statut | 3.1, 3.2 et 3.3 clôturés avec réserves — 3.4-A, 3.4-B et 3.4-C validés ; verrou qualité local vert |
 | Date | 10 septembre 2026 |
 
 ## 1. Objet
@@ -162,10 +162,31 @@ fiche, la liste et le Kanban complètent 3.3-D. Les rapports correspondants sont
 [`PHASE_3_3_A_RAPPORT_IMPLEMENTATION.md`](PHASE_3_3_A_RAPPORT_IMPLEMENTATION.md),
 [`PHASE_3_3_B_RAPPORT_IMPLEMENTATION.md`](PHASE_3_3_B_RAPPORT_IMPLEMENTATION.md) et
 [`PHASE_3_3_C_RAPPORT_IMPLEMENTATION.md`](PHASE_3_3_C_RAPPORT_IMPLEMENTATION.md), ainsi que
-[`PHASE_3_3_D_RAPPORT_IMPLEMENTATION.md`](PHASE_3_3_D_RAPPORT_IMPLEMENTATION.md). Reste la recette regroupée et le
-verrou final (3.3-E).
+[`PHASE_3_3_D_RAPPORT_IMPLEMENTATION.md`](PHASE_3_3_D_RAPPORT_IMPLEMENTATION.md). La recette regroupée et le verrou
+final ont ensuite été exécutés dans 3.3-E.
 
 Le lot **3.3-E** est terminé : migrations `20260905_0016` à `20260905_0019`, recette fonctionnelle unique,
 documentation utilisateur et attentes CI sont alignées. Le verrou qualité global du 10 septembre 2026 est vert avec
 274 tests backend et 162 tests frontend, sans échec ni skip. La clôture avec réserves de 3.3 est prononcée ; les
 scénarios fonctionnels restants et les contrôles transversaux sont regroupés dans la recette finale 3.6.
+
+Le responsable produit a donné son accord le 10 septembre 2026 pour la rédaction des spécifications détaillées de
+**3.4 — Opportunités**, puis a validé explicitement les seize décisions de leur section 17. Le document
+[`PHASE_3_4_SPECIFICATIONS_DETAILLEES.md`](PHASE_3_4_SPECIFICATIONS_DETAILLEES.md) stabilise montants décimaux, devises,
+probabilités, échéances, responsables, issues, historique et lien explicite avec le pipeline. Le sous-lot de socle est
+précisé dans [`PHASE_3_4_A_SPECIFICATIONS_DETAILLEES.md`](PHASE_3_4_A_SPECIFICATIONS_DETAILLEES.md). Le GO explicite du
+10 septembre 2026 a permis le lot **3.4-A — Domaine et persistance** : domaine Opportunité, capacités, migration
+`20260910_0020`, modèles, RLS, privilèges, ports, dépôts et tests ont été déposés. Le rapport est
+[`PHASE_3_4_A_RAPPORT_IMPLEMENTATION.md`](PHASE_3_4_A_RAPPORT_IMPLEMENTATION.md). Le verrou local 3.4-A est vert avec
+289 tests backend et 162 tests frontend sans skip.
+
+Le GO explicite du 10 septembre 2026 a permis d’implémenter **3.4-B — Cas d’utilisation et API** dans
+[`PHASE_3_4_B_SPECIFICATIONS_DETAILLEES.md`](PHASE_3_4_B_SPECIFICATIONS_DETAILLEES.md) : commandes, transitions, issues,
+réouverture, portefeuille, agrégats par devise, concurrence, idempotence, audit et métriques sont branchés. Les
+le verrou qualité local est vert, conformément au rapport
+[`PHASE_3_4_B_RAPPORT_IMPLEMENTATION.md`](PHASE_3_4_B_RAPPORT_IMPLEMENTATION.md).
+
+Le GO documentaire du 10 septembre 2026 a ensuite permis de détailler **3.4-C — Interface et intégrations CRM** dans
+[`PHASE_3_4_C_SPECIFICATIONS_DETAILLEES.md`](PHASE_3_4_C_SPECIFICATIONS_DETAILLEES.md). La fiche prospect, le
+portefeuille, la chronologie, les synthèses liste/Kanban, l’alignement pipeline explicite, le bilinguisme et
+l’accessibilité y sont spécifiés. L’implémentation exige un GO explicite distinct.

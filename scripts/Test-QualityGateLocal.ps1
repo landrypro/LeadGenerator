@@ -6,7 +6,8 @@ param(
     [int]$TestPostgresPort = 55432,
     [int]$TestRedisPort = 56379,
     [int]$TestMailpitSmtpPort = 51026,
-    [int]$TestMailpitApiPort = 58026
+    [int]$TestMailpitApiPort = 58026,
+    [string]$QualityTempRoot = ''
 )
 
 $ErrorActionPreference = 'Stop'
@@ -26,17 +27,24 @@ $composeFile = Join-Path $workspace 'compose.test.yaml'
 $python = Join-Path $workspace '.venv\Scripts\python.exe'
 $client = Join-Path $workspace 'client'
 $testResults = Join-Path $workspace 'test-results'
-$pytestTemp = Join-Path $testResults 'pytest-quality-tmp'
-$qualityRoot = Join-Path ([System.IO.Path]::GetTempPath()) ("marketteo-quality-{0}" -f ([guid]::NewGuid().ToString('N')))
+$qualityBase = if ([string]::IsNullOrWhiteSpace($QualityTempRoot)) {
+    [System.IO.Path]::GetTempPath()
+} else {
+    [System.IO.Path]::GetFullPath($QualityTempRoot)
+}
+$qualityRoot = Join-Path $qualityBase ("marketteo-quality-{0}" -f ([guid]::NewGuid().ToString('N')))
+$pytestTemp = Join-Path $qualityRoot 'pytest-tmp'
 $qualityClient = Join-Path $qualityRoot 'client'
 $qualityNpmCache = Join-Path $qualityRoot 'npm-cache'
 $vitestReport = Join-Path $testResults 'vitest.xml'
 $projectName = 'prospect-crm-quality'
-# Le socle 3.3-A ajoute activités et tâches et déplace la tête de référence.
-$expectedAlembicRevision = '20260905_0019'
+# Le socle 3.4-A ajoute les opportunités et déplace la tête de référence.
+$expectedAlembicRevision = '20260910_0020'
 $script:resolvedDockerMode = $null
 $script:wslWorkspace = $null
 $script:wslDistribution = $null
+$script:testBindAddress = '127.0.0.1'
+$script:testDependencyHost = '127.0.0.1'
 
 function Invoke-QualityStep {
     param([string]$Name, [scriptblock]$Action)
@@ -44,6 +52,78 @@ function Invoke-QualityStep {
     & $Action
     if ($LASTEXITCODE -ne 0) {
         throw "Le contrôle '$Name' a échoué avec le code $LASTEXITCODE."
+    }
+}
+
+function Invoke-VitestWithWorkerStartupRetry {
+    param(
+        [string]$VitestCommand,
+        [string[]]$Arguments
+    )
+
+    # Vitest 4 is volontairement isolé fichier par fichier dans ce projet. Sous Windows chargé,
+    # un thread peut exceptionnellement ne pas terminer son amorçage dans le délai interne de Vitest.
+    # Une seule reprise est autorisée, et uniquement pour cette panne du lanceur : un échec de test,
+    # une erreur applicative ou une seconde panne laisse le verrou rouge.
+    $attempt = 1
+    while ($true) {
+        $vitestOutput = @()
+        & $VitestCommand @Arguments 2>&1 | Tee-Object -Variable vitestOutput
+        $vitestExitCode = $LASTEXITCODE
+        if ($vitestExitCode -eq 0) {
+            $global:LASTEXITCODE = 0
+            return
+        }
+
+        $outputText = $vitestOutput | Out-String
+        $isWorkerStartupTimeout = (
+            ($outputText -match '\[vitest-pool\]: Failed to start (threads|forks) worker') -and
+            ($outputText -match '\[vitest-pool-runner\]: Timeout waiting for worker to respond')
+        )
+        if ($attempt -ge 2 -or -not $isWorkerStartupTimeout) {
+            $global:LASTEXITCODE = $vitestExitCode
+            return
+        }
+
+        Write-Warning "Vitest n’a pas démarré un worker dans son délai interne. Reprise unique de la suite isolée."
+        $attempt++
+    }
+}
+
+function Invoke-PytestWithTransientDatabaseConnectionRetry {
+    param(
+        [string]$PythonCommand,
+        [string[]]$Arguments
+    )
+
+    # Les tests d'integration ouvrent et ferment de nombreuses connexions reelles.
+    # Le relais Docker/WSL peut exceptionnellement expirer lors de l'amorcage TCP
+    # d'asyncpg, alors que PostgreSQL est sain et que les migrations viennent de passer.
+    # Une seule reprise est reservee a cette signature de transport tres precise.
+    # Toute assertion, erreur SQL, timeout de requete, ou seconde panne conserve le verrou rouge.
+    $attempt = 1
+    while ($true) {
+        $pytestOutput = @()
+        & $PythonCommand -m pytest @Arguments 2>&1 | Tee-Object -Variable pytestOutput
+        $pytestExitCode = $LASTEXITCODE
+        if ($pytestExitCode -eq 0) {
+            $global:LASTEXITCODE = 0
+            return
+        }
+
+        $outputText = $pytestOutput | Out-String
+        $isAsyncpgConnectionStartupTimeout = (
+            ($outputText -match 'asyncpg[\\/]connect_utils\.py') -and
+            ($outputText -match 'asyncio\.exceptions\.CancelledError') -and
+            ($outputText -match 'asyncio[\\/]timeouts\.py.*TimeoutError')
+        )
+        if ($attempt -ge 2 -or -not $isAsyncpgConnectionStartupTimeout) {
+            $global:LASTEXITCODE = $pytestExitCode
+            return
+        }
+
+        Write-Warning "PostgreSQL est devenu injoignable pendant l'amorcage TCP asyncpg. Reprise unique de pytest."
+        $attempt++
     }
 }
 
@@ -68,6 +148,7 @@ function Invoke-DockerCli {
             "TEST_REDIS_PORT=$TestRedisPort" `
             "TEST_MAILPIT_SMTP_PORT=$TestMailpitSmtpPort" `
             "TEST_MAILPIT_API_PORT=$TestMailpitApiPort" `
+            "TEST_BIND_ADDRESS=$script:testBindAddress" `
             docker @Arguments
         return
     }
@@ -81,6 +162,60 @@ function Get-ComposeFileArgument {
     }
 
     return $composeFile
+}
+
+function Resolve-WslIpv4Address {
+    $rawAddresses = & wsl.exe -d $script:wslDistribution hostname -I
+    if ($LASTEXITCODE -ne 0) {
+        throw "Impossible de déterminer l'adresse réseau de la distribution WSL '$script:wslDistribution'."
+    }
+
+    $address = (($rawAddresses -join ' ') -replace "`0", '') -split '\s+' |
+        Where-Object { $_ -match '^(?:\d{1,3}\.){3}\d{1,3}$' } |
+        Select-Object -First 1
+    if (-not $address) {
+        throw "Aucune adresse IPv4 n'a été trouvée pour la distribution WSL '$script:wslDistribution'."
+    }
+
+    return $address
+}
+
+function Set-TestDependencyUrls {
+    param([string]$HostName)
+
+    $env:TEST_DATABASE_URL = "postgresql+asyncpg://prospect_app:prospect-app-test-only@${HostName}:$TestPostgresPort/prospect_test"
+    $env:TEST_MIGRATION_DATABASE_URL = "postgresql+asyncpg://prospect_test:prospect-test-only@${HostName}:$TestPostgresPort/prospect_test"
+    $env:TEST_REDIS_URL = "redis://${HostName}:$TestRedisPort/0"
+    $env:TEST_MAILPIT_SMTP_HOST = $HostName
+    $env:TEST_MAILPIT_API_URL = "http://${HostName}:$TestMailpitApiPort"
+    $env:MIGRATION_DATABASE_URL = $env:TEST_MIGRATION_DATABASE_URL
+}
+
+function Wait-TestTcpPort {
+    param(
+        [string]$HostName,
+        [int]$Port,
+        [int]$Attempts = 30
+    )
+
+    for ($attempt = 1; $attempt -le $Attempts; $attempt++) {
+        $client = [System.Net.Sockets.TcpClient]::new()
+        try {
+            $connection = $client.ConnectAsync($HostName, $Port)
+            if ($connection.Wait(1000) -and $client.Connected) {
+                return
+            }
+        }
+        catch {
+            # Le service peut être sain dans Docker avant que la publication du port soit prête.
+        }
+        finally {
+            $client.Dispose()
+        }
+        Start-Sleep -Milliseconds 500
+    }
+
+    throw "PostgreSQL est sain dans Docker mais reste inaccessible depuis Windows sur ${HostName}:$Port."
 }
 
 function Initialize-QualityClient {
@@ -97,7 +232,7 @@ function Remove-QualityClient {
         return
     }
 
-    $temporaryRoot = [System.IO.Path]::GetFullPath([System.IO.Path]::GetTempPath()).TrimEnd('\')
+    $temporaryRoot = [System.IO.Path]::GetFullPath($qualityBase).TrimEnd('\')
     $resolvedQualityRoot = [System.IO.Path]::GetFullPath($qualityRoot)
     $qualityRootParent = [System.IO.Path]::GetDirectoryName($resolvedQualityRoot)
     $qualityRootName = [System.IO.Path]::GetFileName($resolvedQualityRoot)
@@ -118,6 +253,8 @@ function Initialize-DockerCli {
         $script:resolvedDockerMode = 'wsl'
         $script:wslWorkspace = Convert-ToWslPath $workspace
         $script:wslDistribution = Resolve-WslDistribution
+        $script:testBindAddress = Resolve-WslIpv4Address
+        $script:testDependencyHost = $script:testBindAddress
         return
     }
 
@@ -133,6 +270,8 @@ function Initialize-DockerCli {
         if ($LASTEXITCODE -eq 0) {
             $script:resolvedDockerMode = 'wsl'
             $script:wslDistribution = $distribution
+            $script:testBindAddress = Resolve-WslIpv4Address
+            $script:testDependencyHost = $script:testBindAddress
             return
         }
     }
@@ -172,17 +311,15 @@ if (-not (Test-Path -LiteralPath $python)) {
     throw 'Environnement Python .venv introuvable.'
 }
 New-Item -ItemType Directory -Force -Path $testResults | Out-Null
+New-Item -ItemType Directory -Force -Path $qualityBase | Out-Null
+New-Item -ItemType Directory -Force -Path $qualityRoot | Out-Null
 
 $env:TEST_POSTGRES_PORT = [string]$TestPostgresPort
 $env:TEST_REDIS_PORT = [string]$TestRedisPort
 $env:TEST_MAILPIT_SMTP_PORT = [string]$TestMailpitSmtpPort
 $env:TEST_MAILPIT_API_PORT = [string]$TestMailpitApiPort
-$env:TEST_DATABASE_URL = "postgresql+asyncpg://prospect_app:prospect-app-test-only@127.0.0.1:$TestPostgresPort/prospect_test"
-$env:TEST_MIGRATION_DATABASE_URL = "postgresql+asyncpg://prospect_test:prospect-test-only@127.0.0.1:$TestPostgresPort/prospect_test"
-$env:TEST_REDIS_URL = "redis://127.0.0.1:$TestRedisPort/0"
-$env:TEST_MAILPIT_API_URL = "http://127.0.0.1:$TestMailpitApiPort"
 $env:REQUIRE_INFRASTRUCTURE_TESTS = 'true'
-$env:MIGRATION_DATABASE_URL = $env:TEST_MIGRATION_DATABASE_URL
+Set-TestDependencyUrls -HostName $script:testDependencyHost
 
 try {
     Invoke-QualityStep 'Docker disponible' {
@@ -191,7 +328,9 @@ try {
         if ($script:resolvedDockerMode -eq 'wsl') {
             Write-Host "Répertoire WSL : $script:wslWorkspace"
             Write-Host "Distribution WSL : $script:wslDistribution"
+            Write-Host "Adresse des dépendances : $script:testDependencyHost"
         }
+        Set-TestDependencyUrls -HostName $script:testDependencyHost
         Invoke-DockerCli version
     }
     Invoke-QualityStep 'Nettoyage de la composition de test' {
@@ -202,6 +341,9 @@ try {
     }
     Invoke-QualityStep 'Rôle PostgreSQL applicatif' {
         Invoke-DockerCli -Arguments @('compose', '-p', $projectName, '-f', (Get-ComposeFileArgument), 'run', '--rm', 'database-role-provisioner')
+    }
+    Invoke-QualityStep 'Accessibilité PostgreSQL' {
+        Wait-TestTcpPort -HostName $script:testDependencyHost -Port $TestPostgresPort
     }
     Invoke-QualityStep 'Alembic upgrade' { & $python -m alembic -c (Join-Path $workspace 'backend\alembic.ini') upgrade head }
     Invoke-QualityStep 'Alembic reconstruction' {
@@ -224,7 +366,9 @@ try {
     Invoke-QualityStep 'pytest réel' {
         Push-Location $workspace
         try {
-            & $python -m pytest -p no:cacheprovider "--basetemp=$pytestTemp" --junitxml=test-results/pytest-quality.xml
+            Invoke-PytestWithTransientDatabaseConnectionRetry `
+                -PythonCommand $python `
+                -Arguments @('-p', 'no:cacheprovider', "--basetemp=$pytestTemp", '--junitxml=test-results/pytest-quality.xml')
         }
         finally {
             Pop-Location
@@ -249,7 +393,9 @@ try {
     Invoke-QualityStep 'Vitest avec axe' {
         Push-Location $qualityClient
         try {
-            & (Join-Path $qualityClient 'node_modules\.bin\vitest.cmd') run --reporter=default --reporter=junit "--outputFile.junit=$vitestReport"
+            Invoke-VitestWithWorkerStartupRetry `
+                -VitestCommand (Join-Path $qualityClient 'node_modules\.bin\vitest.cmd') `
+                -Arguments @('run', '--reporter=default', '--reporter=junit', "--outputFile.junit=$vitestReport")
         }
         finally {
             Pop-Location
@@ -261,7 +407,7 @@ try {
     Invoke-QualityStep 'Artefact Vite' { & $python (Join-Path $workspace 'scripts\quality_gate.py') artifact (Join-Path $qualityClient 'dist') }
     Invoke-QualityStep 'Diff Git' { Push-Location $workspace; try { git --no-pager diff --check } finally { Pop-Location } }
     $summary = @(
-        '# Rapport du verrou qualité local 3.3'
+        '# Rapport du verrou qualité local 3.4'
         ''
         "- Date UTC : $([DateTime]::UtcNow.ToString('u'))"
         "- Mode Docker : $script:resolvedDockerMode"
@@ -270,7 +416,7 @@ try {
         '- Rapports : `pytest-quality.xml`, `vitest.xml`, `alembic-current.txt`'
     )
     Set-Content -LiteralPath (Join-Path $testResults 'quality-summary.md') -Value $summary -Encoding utf8
-    Write-Host "`nVerrou qualité local 3.3 : VERT" -ForegroundColor Green
+    Write-Host "`nVerrou qualité local 3.4 : VERT" -ForegroundColor Green
 }
 finally {
     if ($script:resolvedDockerMode) {

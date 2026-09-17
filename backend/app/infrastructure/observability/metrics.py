@@ -5,6 +5,7 @@ from collections.abc import Mapping
 from threading import Lock
 
 from ...application.ports.metrics import (
+    CrmOpportunityAction,
     CrmTaskAction,
     GoogleApi,
     GrantAction,
@@ -60,6 +61,18 @@ class PrometheusMetricsRecorder:
 
     def record_crm_timeline_request(self, result: MetricsOutcome) -> None:
         self._increment("marketteo_crm_timeline_request_total", {"result": result})
+
+    def record_crm_opportunity_command(self, action: CrmOpportunityAction, result: MetricsOutcome) -> None:
+        self._increment("marketteo_opportunity_command_total", {"operation": action, "result": result})
+
+    def record_crm_opportunity_transition(self, from_stage: str, to_stage: str, result: MetricsOutcome) -> None:
+        self._increment(
+            "marketteo_opportunity_transition_total",
+            {"from_stage": from_stage, "to_stage": to_stage, "result": result},
+        )
+
+    def record_crm_opportunity_version_conflict(self, action: CrmOpportunityAction) -> None:
+        self._increment("marketteo_opportunity_conflict_total", {"operation": action})
 
     def render(self) -> bytes:
         with self._lock:

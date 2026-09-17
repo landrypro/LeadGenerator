@@ -149,6 +149,11 @@ CAPABILITIES_BY_ROLE: dict[MembershipRole, tuple[str, ...]] = {
         "tasks:create",
         "tasks:update:assigned",
         "tasks:manage",
+        "opportunities:read",
+        "opportunities:create",
+        "opportunities:update",
+        "opportunities:close",
+        "opportunities:reopen",
     ),
     MembershipRole.MANAGER: (
         "organization:read",
@@ -184,6 +189,11 @@ CAPABILITIES_BY_ROLE: dict[MembershipRole, tuple[str, ...]] = {
         "tasks:create",
         "tasks:update:assigned",
         "tasks:manage",
+        "opportunities:read",
+        "opportunities:create",
+        "opportunities:update",
+        "opportunities:close",
+        "opportunities:reopen",
     ),
     MembershipRole.SALES: (
         "organization:read",
@@ -204,6 +214,10 @@ CAPABILITIES_BY_ROLE: dict[MembershipRole, tuple[str, ...]] = {
         "tasks:read",
         "tasks:create",
         "tasks:update:assigned",
+        "opportunities:read",
+        "opportunities:create",
+        "opportunities:update",
+        "opportunities:close",
     ),
 }
 

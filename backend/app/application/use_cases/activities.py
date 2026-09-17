@@ -22,6 +22,7 @@ from ...domain.activity import (
     validate_task_draft,
 )
 from ...domain.audit import AuditAction
+from ...domain.opportunity import OpportunityEventView
 from ...domain.pipeline import ProspectStageTransitionView
 from ...domain.prospect import ContactPermissionStatus
 from ..audit_events import tenant_audit_event
@@ -46,6 +47,7 @@ class TimelinePage:
     tasks: tuple[ProspectTaskView, ...]
     task_events: tuple[ProspectTaskEventView, ...]
     transitions: tuple[ProspectStageTransitionView, ...]
+    opportunity_events: tuple[OpportunityEventView, ...] = ()
 
 
 class CreateActivityUseCase:
@@ -302,7 +304,13 @@ class ListProspectTimelineUseCase:
         self._metrics = metrics or NullMetricsRecorder()
 
     async def execute(
-        self, *, context: TenantContext, prospect_id: UUID, limit: int, has_capability: bool
+        self,
+        *,
+        context: TenantContext,
+        prospect_id: UUID,
+        limit: int,
+        has_capability: bool,
+        has_opportunity_capability: bool = False,
     ) -> TimelinePage:
         _require(has_capability)
         if not 1 <= limit <= 100:
@@ -316,6 +324,11 @@ class ListProspectTimelineUseCase:
                     tasks=await unit_of_work.tasks.list_for_prospect(prospect_id, limit=limit),
                     task_events=await unit_of_work.task_events.list_for_prospect(prospect_id, limit=limit),
                     transitions=await unit_of_work.pipeline.list_transitions(prospect_id, limit=limit),
+                    opportunity_events=(
+                        await unit_of_work.opportunity_events.list_for_prospect(prospect_id, limit=limit)
+                        if has_opportunity_capability
+                        else ()
+                    ),
                 )
             self._metrics.record_crm_timeline_request("accepted")
             return result

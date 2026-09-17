@@ -46,6 +46,7 @@ from .application.use_cases import (
     CreateContactUseCase,
     CreateManualProspectUseCase,
     CreateMemberInvitationUseCase,
+    CreateOpportunityUseCase,
     CreateOrganizationUseCase,
     CreateRetentionPolicyUseCase,
     CreateSourceProviderUseCase,
@@ -60,6 +61,7 @@ from .application.use_cases import (
     GetCurrentSessionUseCase,
     GetImportDeclarationUseCase,
     GetMapSnapshotUseCase,
+    GetOpportunityUseCase,
     GetOrganizationUseCase,
     GetPipelineBoardUseCase,
     GetProspectUseCase,
@@ -74,6 +76,9 @@ from .application.use_cases import (
     ListMemberInvitationsUseCase,
     ListMembersUseCase,
     ListNextActionsUseCase,
+    ListOpportunitiesUseCase,
+    ListOpportunityEventsUseCase,
+    ListOpportunitySummariesUseCase,
     ListPipelineColumnUseCase,
     ListPipelineStagesUseCase,
     ListPlatformAuditEventsUseCase,
@@ -95,6 +100,7 @@ from .application.use_cases import (
     PlaceRetentionHoldUseCase,
     PreviewInvitationUseCase,
     ReleaseRetentionHoldUseCase,
+    ReopenOpportunityUseCase,
     ReopenProspectUseCase,
     ResendInitialInvitationUseCase,
     ResendMemberInvitationUseCase,
@@ -102,7 +108,9 @@ from .application.use_cases import (
     RevokeMemberInvitationUseCase,
     SearchGooglePlacesUseCase,
     SwitchOrganizationUseCase,
+    TransitionOpportunityUseCase,
     UpdateMembershipUseCase,
+    UpdateOpportunityUseCase,
     UpdateOrganizationUseCase,
     UpdatePipelineStageUseCase,
     UpdateProspectProfileUseCase,
@@ -131,6 +139,7 @@ from .infrastructure.invitations import (
     SecureInvitationTokenGenerator,
 )
 from .infrastructure.observability import PrometheusMetricsRecorder, TechnicalEventLogger, configure_application_logging
+from .infrastructure.opportunity_pagination import HmacOpportunityCursorCodec
 from .infrastructure.pagination import HmacCursorCodec
 from .infrastructure.postgres import (
     PostgresDatabase,
@@ -160,6 +169,7 @@ from .presentation.api.routers import (
     health_router,
     invitations_router,
     maps_router,
+    opportunities_router,
     organization_router,
     platform_router,
     prospect_compliance_router,
@@ -265,6 +275,14 @@ def build_container(settings: Settings) -> AppContainer:
     update_prospect_profile: UpdateProspectProfileUseCase | None = None
     create_activity: CreateActivityUseCase | None = None
     create_task: CreateTaskUseCase | None = None
+    create_opportunity: CreateOpportunityUseCase | None = None
+    update_opportunity: UpdateOpportunityUseCase | None = None
+    transition_opportunity: TransitionOpportunityUseCase | None = None
+    reopen_opportunity: ReopenOpportunityUseCase | None = None
+    get_opportunity: GetOpportunityUseCase | None = None
+    list_opportunities: ListOpportunitiesUseCase | None = None
+    list_opportunity_events: ListOpportunityEventsUseCase | None = None
+    list_opportunity_summaries: ListOpportunitySummariesUseCase | None = None
     update_task: UpdateTaskUseCase | None = None
     list_prospect_timeline: ListProspectTimelineUseCase | None = None
     list_tasks: ListTasksUseCase | None = None
@@ -336,6 +354,7 @@ def build_container(settings: Settings) -> AppContainer:
         cursor_codec = HmacCursorCodec(rate_limit_key)
         audit_cursor_codec = HmacAuditCursorCodec(rate_limit_key)
         prospect_cursor_codec = HmacCursorCodec(rate_limit_key)
+        opportunity_cursor_codec = HmacOpportunityCursorCodec(rate_limit_key)
         session_store = RedisSessionStore(
             redis.client,
             environment=settings.app_env,
@@ -488,6 +507,16 @@ def build_container(settings: Settings) -> AppContainer:
         update_prospect_profile = UpdateProspectProfileUseCase(database.tenant_prospect_unit_of_work, clock)
         create_activity = CreateActivityUseCase(database.tenant_prospect_unit_of_work, clock, metrics)
         create_task = CreateTaskUseCase(database.tenant_prospect_unit_of_work, clock, metrics)
+        create_opportunity = CreateOpportunityUseCase(database.tenant_prospect_unit_of_work, clock, metrics)
+        update_opportunity = UpdateOpportunityUseCase(database.tenant_prospect_unit_of_work, clock, metrics)
+        transition_opportunity = TransitionOpportunityUseCase(database.tenant_prospect_unit_of_work, clock, metrics)
+        reopen_opportunity = ReopenOpportunityUseCase(database.tenant_prospect_unit_of_work, clock, metrics)
+        get_opportunity = GetOpportunityUseCase(database.tenant_prospect_unit_of_work)
+        list_opportunities = ListOpportunitiesUseCase(
+            database.tenant_prospect_unit_of_work, clock, opportunity_cursor_codec, metrics
+        )
+        list_opportunity_events = ListOpportunityEventsUseCase(database.tenant_prospect_unit_of_work)
+        list_opportunity_summaries = ListOpportunitySummariesUseCase(database.tenant_prospect_unit_of_work, clock)
         update_task = UpdateTaskUseCase(database.tenant_prospect_unit_of_work, clock, metrics)
         list_prospect_timeline = ListProspectTimelineUseCase(database.tenant_prospect_unit_of_work, metrics)
         list_tasks = ListTasksUseCase(database.tenant_prospect_unit_of_work)
@@ -580,6 +609,14 @@ def build_container(settings: Settings) -> AppContainer:
         update_prospect_profile=update_prospect_profile,
         create_activity=create_activity,
         create_task=create_task,
+        create_opportunity=create_opportunity,
+        update_opportunity=update_opportunity,
+        transition_opportunity=transition_opportunity,
+        reopen_opportunity=reopen_opportunity,
+        get_opportunity=get_opportunity,
+        list_opportunities=list_opportunities,
+        list_opportunity_events=list_opportunity_events,
+        list_opportunity_summaries=list_opportunity_summaries,
         update_task=update_task,
         list_prospect_timeline=list_prospect_timeline,
         list_tasks=list_tasks,
@@ -704,6 +741,7 @@ def create_app(
                 "/api/audit-events",
                 "/api/platform/audit-events",
                 "/api/prospects",
+                "/api/opportunities",
                 "/api/source-providers",
                 "/api/acquisitions",
                 "/api/contact-channels",
@@ -721,6 +759,7 @@ def create_app(
                 "/api/google/",
                 "/api/map/",
                 "/api/prospects",
+                "/api/opportunities",
                 "/api/source-providers",
                 "/api/acquisitions",
                 "/api/contact-channels",
@@ -753,7 +792,23 @@ def create_app(
                 },
                 headers={"Cache-Control": "no-store, max-age=0"},
             )
-        fields = {str(item["loc"][-1]): "Valeur invalide." for item in error.errors() if item.get("loc")}
+        is_opportunity_path = "/opportunities" in request.url.path
+        opportunity_field_messages = {
+            "name": "Saisissez un nom d’opportunité.",
+            "amount": "Saisissez un montant supérieur à zéro, avec au plus quatre décimales.",
+            "currency_code": "Saisissez un code de devise ISO à trois lettres, par exemple CAD ou USD.",
+            "probability": "Saisissez une probabilité entière entre 0 et 100.",
+            "expected_close_on": "Choisissez une échéance égale ou postérieure à aujourd’hui.",
+        }
+        fields = {
+            str(item["loc"][-1]): (
+                opportunity_field_messages.get(str(item["loc"][-1]), "Valeur invalide.")
+                if is_opportunity_path
+                else "Valeur invalide."
+            )
+            for item in error.errors()
+            if item.get("loc")
+        }
         if request.url.path.startswith(("/api/audit-events", "/api/platform/audit-events")):
             message = "Les filtres d’audit sont invalides."
         elif request.url.path.startswith(("/api/google/", "/api/map/")):
@@ -761,6 +816,7 @@ def create_app(
         elif request.url.path.startswith(
             (
                 "/api/prospects",
+                "/api/opportunities",
                 "/api/source-providers",
                 "/api/acquisitions",
                 "/api/contact-channels",
@@ -771,7 +827,9 @@ def create_app(
                 "/api/contacts",
             )
         ):
-            message = "La commande prospect est invalide."
+            message = (
+                "La commande opportunité est invalide." if is_opportunity_path else "La commande prospect est invalide."
+            )
         else:
             message = "La requête d’authentification est invalide."
         return api_error(
@@ -790,6 +848,7 @@ def create_app(
     app.include_router(platform_router)
     app.include_router(organization_router)
     app.include_router(google_places_router)
+    app.include_router(opportunities_router)
     app.include_router(prospects_router)
     app.include_router(prospect_compliance_router)
     app.include_router(retention_router)
