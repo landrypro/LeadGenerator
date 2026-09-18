@@ -10,8 +10,10 @@ La première édition couvre l'état fonctionnel observé dans le dépôt au 25 
 
 - `MANUEL_UTILISATEUR.md` : source éditoriale versionnée ;
 - `MATRICE_COUVERTURE.md` : couverture des écrans, rôles et captures ;
-- `Marketteo_CRM_Manuel_Utilisateur_v0.1.docx` : édition Word générée et vérifiée ;
-- `scripts/build_user_manual.py` : générateur reproductible du document Word.
+- `Marketteo_CRM_Manuel_Utilisateur_v0.10.docx` : édition Word illustrée ;
+- `Marketteo_CRM_Manuel_Utilisateur_v0.10.html` : édition HTML publiée dans l'application ;
+- `scripts/build_user_manual.py` : générateur reproductible du document Word ;
+- `scripts/build_user_manual_html.py` : générateur reproductible de l'édition HTML.
 
 ## Ligne éditoriale
 
@@ -35,7 +37,7 @@ En cas de divergence, appliquer cet ordre :
 
 Les principales sources actuelles sont `client/src/app/routes.js`, les composants sous `client/src/features`, `backend/app/domain/identity.py` et `docs/SPECIFICATION_CRM_V1.md`.
 
-## Périmètre de l'édition 0.1
+## Périmètre de l'édition 0.10
 
 Sont documentés :
 
@@ -47,9 +49,11 @@ Sont documentés :
 - politiques de conservation, holds, déclarations et import CSV réel ;
 - organisation, membres, invitations et journal d'activité ;
 - administration des organisations et audit de plateforme ;
+- pipeline commercial, activités, tâches et rappels internes ;
+- portefeuille, création, édition, clôture, réouverture et alignement des opportunités de la phase 3.4 ;
 - limites actuelles et dépannage de premier niveau.
 
-Ne sont pas décrits comme disponibles : export des contenus Google, pipeline commercial complet, tâches/rappels, opportunités, facturation et automatisations futures.
+Ne sont pas décrits comme disponibles : export des contenus Google, facturation, conversion de devises, notifications externes et automatisations futures.
 
 ## Cycle de mise à jour
 
@@ -78,6 +82,5 @@ Une édition est publiable lorsque :
 
 - régénérer les captures et le DOCX après la migration des libellés visibles vers « Marketteo CRM » ;
 - fournir l'URL de production et le canal officiel de soutien ;
-- choisir un jeu de données de démonstration et produire les captures d'écran ;
 - faire valider les consignes de conformité par la personne responsable ;
 - confirmer si l'administration de plateforme doit rester dans le même manuel ou devenir un guide séparé.

@@ -70,7 +70,7 @@ describe('AuthenticatedLayout', () => {
     ><main>Contenu</main></AuthenticatedLayout>)
 
     const manual = screen.getByRole('link', { name: 'Manuel' })
-    expect(manual).toHaveAttribute('href', '/manuel-utilisateur/')
+    expect(manual).toHaveAttribute('href', '/manuel-utilisateur/index.html')
     expect(manual).toHaveAttribute('target', '_blank')
     expect(manual).toHaveAttribute('rel', 'noopener noreferrer')
   })

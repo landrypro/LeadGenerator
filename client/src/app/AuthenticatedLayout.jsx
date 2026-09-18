@@ -107,7 +107,7 @@ export function AuthenticatedLayout({
         >{session.user.display_name}</a>
         <a
           className="authenticated-manual-link"
-          href="/manuel-utilisateur/"
+          href="/manuel-utilisateur/index.html"
           target="_blank"
           rel="noopener noreferrer"
         ><ExternalLink size={15} /><span>Manuel</span></a>
