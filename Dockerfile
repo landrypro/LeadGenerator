@@ -6,6 +6,7 @@ COPY client/package.json client/package-lock.json ./
 RUN npm ci
 
 COPY client/ ./
+COPY docs/manuel-utilisateur/ /app/docs/manuel-utilisateur/
 RUN npm run build
 
 
