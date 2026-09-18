@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 
-import { Building2, LogOut, Menu, X } from '../icons'
+import { Building2, ExternalLink, LogOut, Menu, X } from '../icons'
 import { OrganizationSwitcher } from '../features/organizations/OrganizationSwitcher'
 import { followInternalLink } from './navigation'
 import { CRM_PATHS, navigationRoutes } from './routes'
@@ -105,6 +105,12 @@ export function AuthenticatedLayout({
           aria-current={currentRoute?.id === 'account' ? 'page' : undefined}
           onClick={(event) => followInternalLink(event, CRM_PATHS.account)}
         >{session.user.display_name}</a>
+        <a
+          className="authenticated-manual-link"
+          href="/manuel-utilisateur/"
+          target="_blank"
+          rel="noopener noreferrer"
+        ><ExternalLink size={15} /><span>Manuel</span></a>
         <button className="authenticated-logout" type="button" onClick={onLogout} aria-label="Se déconnecter">
           <LogOut size={17} />
         </button>

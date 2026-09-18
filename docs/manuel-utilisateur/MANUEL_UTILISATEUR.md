@@ -1,8 +1,8 @@
 # Marketteo CRM - Manuel utilisateur
 
-**Version :** 0.8
-**État :** édition 3.4 préparée pour recette fonctionnelle
-**Date de référence :** 10 septembre 2026
+**Version :** 0.9
+**État :** édition 3.4 mise à jour pour recette fonctionnelle
+**Date de référence :** 18 septembre 2026
 **Public :** commerciaux, gestionnaires, administrateurs d'organisation et administrateurs de plateforme
 
 > Les libellés visibles de l'application utilisent désormais la marque Marketteo CRM. Les identifiants techniques historiques peuvent encore contenir `prospect` ou `LeadGenerator` afin de préserver les installations existantes.
@@ -17,7 +17,7 @@ Le parcours quotidien le plus courant est le suivant :
 2. rechercher, importer ou créer un prospect manuellement ;
 3. compléter le profil CRM, les personnes et les canaux obtenus indépendamment ;
 4. consigner les interactions déjà réalisées dans la chronologie commerciale ;
-5. suivre le prospect dans le pipeline, sans contourner la permission de contact.
+5. suivre les tâches, le pipeline et les opportunités, sans contourner la permission de contact.
 
 ### 1.1 Règle essentielle sur les données Google
 
@@ -32,7 +32,7 @@ Lorsqu'un résultat est ajouté au CRM, Marketteo conserve la référence Google
 - Le bouton « Exporter Excel » des résultats Google est désactivé.
 - L'import accepte uniquement un CSV UTF-8 de 10 Mio ou moins. Les formats Excel, PDF, ZIP et les connecteurs externes ne sont pas pris en charge.
 - Les tâches et rappels sont internes à Marketteo : ils n’envoient aucune notification externe. Les automatisations
-  commerciales et la facturation ne font pas partie de cette édition.
+  commerciales, la facturation et la conversion de devises ne font pas partie de cette édition.
 - Les métriques et journaux techniques sont réservés à l’exploitation : ils ne sont pas visibles dans le CRM et ne
   changent ni les droits commerciaux ni les limites affichées.
 
@@ -92,6 +92,8 @@ Le menu affiche uniquement les pages autorisées pour votre rôle. L'absence d'u
 | Enregistrer « Ne pas contacter » ou une opposition | Oui | Oui | Oui | Selon appartenance |
 | Pipeline commercial | Consulter et déplacer | Consulter, déplacer et réouvrir | Consulter, déplacer et réouvrir | Selon appartenance |
 | Chronologie commerciale | Consulter, créer et corriger ses saisies | Consulter, créer et corriger les saisies | Consulter, créer et corriger les saisies | Selon appartenance |
+| Tâches et rappels | Gérer les tâches assignées | Gérer les tâches de l'organisation | Gérer les tâches de l'organisation | Selon appartenance |
+| Opportunités | Voir et gérer ses opportunités | Gestion complète | Gestion complète | Selon appartenance |
 | Sources et acquisitions | Non | Consultation et déclaration | Gestion et revue | Selon appartenance |
 | Conservation et imports CSV | Consultation du rapport | Déclarer, téléverser, mapper, valider et confirmer | Gestion complète | Selon appartenance |
 | Membres et journal d'activité | Non | Consultation | Gestion | Selon appartenance |
@@ -258,6 +260,16 @@ un gestionnaire pour décider de la suite : aucune réaffectation n’est faite 
 La « prochaine action » affichée sur la fiche, dans la liste des prospects et sur une carte Kanban est calculée à partir
 de la première tâche ouverte. Elle ne modifie jamais l’étape commerciale du prospect.
 
+### 5.4 Gérer les opportunités
+
+Une opportunité représente une affaire commerciale interne liée à un prospect. Elle ne crée ni facture, ni client, ni permission de contact. Ouvrez la fiche du prospect, puis la section « Opportunités » pour créer une affaire avec un nom, un montant, une devise ISO, une probabilité et une échéance. La devise proposée est `CAD` ; modifiez-la seulement lorsque le montant est bien exprimé dans la nouvelle devise, car Marketteo n'applique aucune conversion.
+
+Les étapes sont : Découverte, Qualification, Proposition, Négociation, Gagnée et Perdue. Les étapes ouvertes se font progresser ou reculent d'un cran. Une affaire ne peut être marquée « Gagnée » qu'à partir de Proposition ou de Négociation. Pour la marquer « Perdue », choisissez un motif ; « Autre motif » exige une précision. Gagnée et Perdue sont terminales. Seul un gestionnaire ou un administrateur peut réouvrir une affaire, avec un motif.
+
+Ouvrez « Opportunités » dans le menu pour rechercher une affaire ou un prospect, filtrer par étape, devise ou retard et consulter les totaux. Les montants et valeurs pondérées sont toujours regroupés par devise : ne les additionnez pas entre CAD, USD ou toute autre devise.
+
+L'étape de l'opportunité est indépendante de l'étape Kanban du prospect. Lorsque l'interface propose « Aligner le pipeline », cette action est une seconde confirmation. Si la transition n'est pas autorisée, déplacez le prospect étape par étape dans le pipeline. En cas de conflit de version ou de responsable désactivé, rechargez la fiche avant toute nouvelle modification.
+
 ## 6. Documenter les sources et acquisitions
 
 Ouvrez « Sources et acquisitions ». Une acquisition approuvée documente la provenance des données, mais ne crée jamais automatiquement une permission de contact.
@@ -411,20 +423,6 @@ Ouvrez « Audit plateforme ». Utilisez les filtres de période, action, type d'
 
 ## 11. Dépannage de premier niveau
 
-### Gérer une opportunité
-
-Ouvrez un prospect puis la section « Opportunités » pour créer une affaire avec nom, montant, devise, probabilité et
-échéance. Le portefeuille « Opportunités » permet de filtrer les affaires et affiche les totaux séparément par devise.
-Une valeur pondérée est informative : elle correspond au montant multiplié par la probabilité.
-
-Les étapes d’une opportunité et celles du prospect dans le Kanban sont indépendantes. Après une transition d’affaire,
-« Aligner le pipeline » déclenche une seconde confirmation ; un alignement impossible doit être réalisé étape par étape
-dans le Kanban. Une affaire gagnée ou perdue est en lecture seule jusqu’à sa réouverture par un administrateur ou un
-gestionnaire. Une perte et une réouverture exigent un motif compréhensible.
-
-Ne combinez jamais des montants de devises différentes. Si une affaire change pendant votre saisie, rechargez-la et
-vérifiez sa nouvelle version avant de recommencer.
-
 ### Une page n'apparaît pas dans le menu
 
 Votre rôle ne possède probablement pas la capacité requise, ou aucune organisation active n'est sélectionnée. Vérifiez « Mon compte » et l'organisation active, puis contactez un administrateur.
@@ -477,6 +475,8 @@ Vérifiez que le prospect n'est pas archivé, que l'étape cible est proposée p
 
 **Étape commerciale** : position actuelle d'un prospect dans le pipeline, distincte de son archivage et de la permission de contact.
 
+**Opportunité** : affaire commerciale interne liée à un prospect, avec un montant, une devise, une probabilité, une échéance et une étape propre.
+
 **Hold** : protection temporaire empêchant l'application normale d'une politique de conservation sur une ressource.
 
 **Organisation active** : espace de données dans lequel l'utilisateur travaille actuellement.
@@ -493,6 +493,7 @@ Vérifiez que le prospect n'est pas archivé, que l'étape cible est proposée p
 
 | Version | Date | État | Résumé |
 |---|---|---|---|
+| 0.9 | 18 septembre 2026 | À valider | Consolidation des opportunités 3.4, des droits associés et des limites de devise, avec édition HTML du manuel |
 | 0.8 | 10 septembre 2026 | À valider | Ajout du portefeuille, du cycle de vie et de l’alignement explicite des opportunités 3.4 |
 | 0.7 | 5 septembre 2026 | À valider | Ajout des tâches, rappels internes et prochaine action 3.3-D |
 | 0.6 | 5 septembre 2026 | À valider | Ajout du pipeline commercial, de la chronologie d'activités et du parcours réel d'import CSV ; limites mises à jour |

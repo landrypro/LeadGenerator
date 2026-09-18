@@ -61,4 +61,17 @@ describe('AuthenticatedLayout', () => {
 
     expect(screen.getByRole('link', { name: 'Aller au contenu principal' })).toHaveAttribute('href', '#route-content')
   })
+
+  it('donne accès au manuel utilisateur dans un nouvel onglet', () => {
+    render(<AuthenticatedLayout
+      currentRoute={findRoute('/app/account')}
+      session={session}
+      onLogout={vi.fn()}
+    ><main>Contenu</main></AuthenticatedLayout>)
+
+    const manual = screen.getByRole('link', { name: 'Manuel' })
+    expect(manual).toHaveAttribute('href', '/manuel-utilisateur/')
+    expect(manual).toHaveAttribute('target', '_blank')
+    expect(manual).toHaveAttribute('rel', 'noopener noreferrer')
+  })
 })

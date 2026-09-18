@@ -496,6 +496,8 @@ footer a:hover { color: #147da5; text-decoration: underline; }
 .active-organization { max-width: 190px; overflow: hidden; padding-right: 12px; color: #53707c; border-right: 1px solid #dce9ed; font-size: 10.5px; font-weight: 700; text-overflow: ellipsis; white-space: nowrap; }
 .authenticated-user { max-width: 150px; overflow: hidden; color: #41616f; font-size: 10.5px; font-weight: 700; text-decoration: none; text-overflow: ellipsis; white-space: nowrap; }
 .authenticated-user:hover, .authenticated-user[aria-current='page'] { color: #147ca5; text-decoration: underline; text-underline-offset: 3px; }
+.authenticated-manual-link { display: inline-flex; align-items: center; gap: 5px; padding: 7px 9px; color: #155f7b; border: 1px solid #c8e0e8; border-radius: 9px; background: #f8fcfd; font-size: 10.5px; font-weight: 800; text-decoration: none; white-space: nowrap; }
+.authenticated-manual-link:hover, .authenticated-manual-link:focus-visible { color: #0e536e; border-color: #82c6df; background: #edf9fd; outline: none; }
 .authenticated-logout, .authenticated-menu-button, .authenticated-navigation-mobile-heading button { width: 35px; height: 35px; display: grid; place-items: center; flex: 0 0 auto; color: #125d79; background: white; border: 1px solid #d5e5ea; border-radius: 10px; }
 .authenticated-logout:hover, .authenticated-menu-button:hover { background: #eef9fc; border-color: #a9d2df; }
 .authenticated-menu-button, .authenticated-navigation-mobile-heading, .authenticated-navigation-backdrop { display: none; }
@@ -634,7 +636,8 @@ footer a:hover { color: #147da5; text-decoration: underline; }
 }
 
 @media (max-width: 480px) {
-  .authenticated-brand > span:last-child, .authenticated-user { display: none; }
+  .authenticated-brand > span:last-child, .authenticated-user, .authenticated-manual-link span { display: none; }
+  .authenticated-manual-link { width: 35px; height: 35px; justify-content: center; padding: 0; }
   .authenticated-context { gap: 6px; }
   .authenticated-menu-button { margin-right: auto; }
   .administration-card, .route-status-card { padding: 20px; }
