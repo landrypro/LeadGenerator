@@ -190,6 +190,8 @@ class UpdateOpportunityUseCase:
         current_membership_id: UUID | None,
     ) -> OpportunityView:
         _require(can_update)
+        if "owner_membership_id" in changes and not can_manage:
+            raise InsufficientCapability
         return await _mutate_opportunity(
             unit_of_work_factory=self._unit_of_work_factory,
             clock=self._clock,

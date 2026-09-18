@@ -51,6 +51,38 @@ describe('OpportunitySection', () => {
     expect(onTransition).toHaveBeenCalledWith(opportunity, 'lost', expect.objectContaining({ reason_code: 'competitor' }))
   })
 
+  it('exige la confirmation du montant avant un changement de devise', async () => {
+    const onUpdate = vi.fn().mockResolvedValue(true)
+    render(<OpportunitySection opportunities={[opportunity]} canUpdate submitting={false} onCreate={vi.fn()} onUpdate={onUpdate} onTransition={vi.fn()} onReopen={vi.fn()} />)
+
+    fireEvent.click(screen.getByRole('button', { name: 'Modifier' }))
+    fireEvent.change(screen.getByLabelText('Devise'), { target: { value: 'USD' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Enregistrer' }))
+
+    expect(onUpdate).not.toHaveBeenCalled()
+    expect(screen.getByText('Confirmez le montant avant de modifier la devise.')).toBeInTheDocument()
+
+    fireEvent.click(screen.getByLabelText('J’ai confirmé le montant dans la nouvelle devise. Aucune conversion n’est appliquée.'))
+    fireEvent.click(screen.getByRole('button', { name: 'Enregistrer' }))
+
+    await waitFor(() => expect(onUpdate).toHaveBeenCalledWith(opportunity, expect.objectContaining({
+      amount: '12500.5000', currency_code: 'USD',
+    })))
+  })
+
+  it('ne permet qu’une réaffectation isolée lorsque le responsable est désactivé', async () => {
+    const inactiveOpportunity = { ...opportunity, owner_membership_id: 'disabled-member', owner_membership_is_active: false }
+    const onUpdate = vi.fn().mockResolvedValue(true)
+    render(<OpportunitySection opportunities={[inactiveOpportunity]} members={[{ membership_id: 'active-member', status: 'active', user: { display_name: 'Alex Gestionnaire' } }]} canUpdate canReassign submitting={false} onCreate={vi.fn()} onUpdate={onUpdate} onTransition={vi.fn()} onReopen={vi.fn()} />)
+
+    fireEvent.click(screen.getByRole('button', { name: 'Réaffecter le responsable' }))
+    expect(screen.getByText('Le responsable est désactivé. Seule une réaffectation vers un membre actif est permise.')).toBeInTheDocument()
+    fireEvent.change(screen.getByLabelText('Responsable'), { target: { value: 'active-member' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Enregistrer' }))
+
+    await waitFor(() => expect(onUpdate).toHaveBeenCalledWith(inactiveOpportunity, { owner_membership_id: 'active-member' }))
+  })
+
   it('ne présente aucune violation axe', async () => {
     const { container } = render(<OpportunitySection opportunities={[opportunity]} canCreate canClose canUpdate canReopen submitting={false} onCreate={vi.fn()} onTransition={vi.fn()} onReopen={vi.fn()} />)
     expect(formatViolations(await axeViolations(container))).toEqual([])

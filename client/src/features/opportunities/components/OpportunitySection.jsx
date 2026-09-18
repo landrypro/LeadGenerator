@@ -56,6 +56,31 @@ function validateCreateForm(form, timezone) {
   return errors
 }
 
+function initialEditForm(opportunity) {
+  return {
+    name: opportunity.name,
+    amount: String(opportunity.amount),
+    currency_code: opportunity.currency_code,
+    probability: String(opportunity.probability),
+    expected_close_on: opportunity.expected_close_on,
+    owner_membership_id: opportunity.owner_membership_id,
+    currencyConfirmed: false,
+  }
+}
+
+function validateEditForm(form, initial, timezone) {
+  const errors = validateCreateForm(form, timezone)
+  if (form.expected_close_on === initial.expected_close_on) delete errors.expected_close_on
+  if (form.currency_code !== initial.currency_code && !form.currencyConfirmed) {
+    errors.currency_code = 'Confirmez le montant avant de modifier la devise.'
+  }
+  return errors
+}
+
+function memberLabel(member) {
+  return member.user?.display_name || member.user?.email || 'Membre sans nom'
+}
+
 function inlineErrors(fields = {}) {
   return Object.fromEntries(
     Object.keys(fields)
@@ -68,7 +93,7 @@ function FieldError({ id, message }) {
   return message ? <p id={id} className="field-error" role="alert">{message}</p> : null
 }
 
-export function OpportunitySection({ prospect, opportunities = [], aggregates = [], locale = 'fr-CA', timezone, canCreate, canUpdate, canClose, canReopen, canAlign, submitting, onCreate, onTransition, onReopen, onAlign }) {
+export function OpportunitySection({ prospect, opportunities = [], aggregates = [], members = [], locale = 'fr-CA', timezone, canCreate, canUpdate, canReassign, canClose, canReopen, canAlign, submitting, onCreate, onUpdate, onTransition, onReopen, onAlign }) {
   const [form, setForm] = useState(initialForm)
   const [formErrors, setFormErrors] = useState({})
   const fieldRefs = useRef({})
@@ -79,6 +104,10 @@ export function OpportunitySection({ prospect, opportunities = [], aggregates = 
   const [reopenReason, setReopenReason] = useState('customer_reengaged')
   const [reopenNote, setReopenNote] = useState('')
   const [alignIntent, setAlignIntent] = useState(null)
+  const [editIntent, setEditIntent] = useState(null)
+  const [editForm, setEditForm] = useState(null)
+  const [editErrors, setEditErrors] = useState({})
+  const activeMembers = members.filter((member) => member.status === 'active')
 
   async function submit(event) {
     event.preventDefault()
@@ -108,6 +137,54 @@ export function OpportunitySection({ prospect, opportunities = [], aggregates = 
     })
   }
 
+  function startEdit(opportunity) {
+    setEditIntent(opportunity)
+    setEditForm(initialEditForm(opportunity))
+    setEditErrors({})
+  }
+
+  function updateEditForm(field, value) {
+    setEditForm((current) => ({ ...current, [field]: value }))
+    setEditErrors((current) => {
+      if (!current[field]) return current
+      const { [field]: _removed, ...remaining } = current
+      return remaining
+    })
+  }
+
+  async function submitEdit(event, opportunity) {
+    event.preventDefault()
+    if (!editForm) return
+    const inactiveOwner = opportunity.owner_membership_is_active === false
+    const errors = inactiveOwner
+      ? (editForm.owner_membership_id ? {} : { owner_membership_id: 'Choisissez un responsable actif.' })
+      : validateEditForm(editForm, opportunity, timezone)
+    if (Object.keys(errors).length) {
+      setEditErrors(errors)
+      return
+    }
+    const changes = inactiveOwner
+      ? { owner_membership_id: editForm.owner_membership_id }
+      : Object.fromEntries(Object.entries({
+        name: editForm.name.trim(),
+        amount: editForm.amount.trim(),
+        currency_code: editForm.currency_code,
+        probability: Number(editForm.probability),
+        expected_close_on: editForm.expected_close_on,
+        ...(canReassign ? { owner_membership_id: editForm.owner_membership_id } : {}),
+      }).filter(([field, value]) => field === 'amount' && editForm.currency_code !== opportunity.currency_code
+        || value !== opportunity[field]))
+    if (Object.keys(changes).length === 0) {
+      setEditErrors({ form: 'Aucune modification à enregistrer.' })
+      return
+    }
+    if (await onUpdate(opportunity, changes)) {
+      setEditIntent(null)
+      setEditForm(null)
+      setEditErrors({})
+    }
+  }
+
   return <section className="administration-card opportunity-section" aria-labelledby="prospect-opportunities-title">
     <h2 id="prospect-opportunities-title">Opportunités</h2>
     {aggregates.length > 0 && <div className="opportunity-aggregates" aria-label="Valeur des opportunités">
@@ -127,15 +204,45 @@ export function OpportunitySection({ prospect, opportunities = [], aggregates = 
     </form>}
     {opportunities.length ? <ul className="opportunity-list">{opportunities.map((opportunity) => <li key={opportunity.id}>
       <div><strong>{opportunity.name}</strong><span>{stageLabel(opportunity.stage_code, locale)} · {formatMoney(opportunity.amount, opportunity.currency_code, locale)} · {opportunity.probability}%</span><small>Échéance : {formatDate(opportunity.expected_close_on, locale)}{opportunity.overdue ? ' · En retard' : ''}</small></div>
-      {canUpdate && OPEN_STAGES.includes(opportunity.stage_code) && <select aria-label={`Étape ${opportunity.name}`} value={opportunity.stage_code} disabled={submitting} onChange={(event) => onTransition(opportunity, event.target.value)}><option value={opportunity.stage_code}>{stageLabel(opportunity.stage_code, locale)}</option>{nextOpenStages(opportunity.stage_code).map((code) => <option value={code} key={code}>{stageLabel(code, locale)}</option>)}</select>}
-      {canClose && OPEN_STAGES.includes(opportunity.stage_code) && <div className="opportunity-actions">{['proposal', 'negotiation'].includes(opportunity.stage_code) && <button type="button" className="secondary-button" disabled={submitting} onClick={() => onTransition(opportunity, 'won')}>Gagnée</button>}<button type="button" className="secondary-button" disabled={submitting} onClick={() => { setLossIntent(opportunity); setLossReason('no_need'); setLossNote('') }}>Perdue</button></div>}
-      {canReopen && ['won', 'lost'].includes(opportunity.stage_code) && <div className="opportunity-actions"><button type="button" className="secondary-button" disabled={submitting} onClick={() => { setReopenIntent(opportunity); setReopenReason('customer_reengaged'); setReopenNote('') }}>Réouvrir</button></div>}
+      {canUpdate && OPEN_STAGES.includes(opportunity.stage_code) && (opportunity.owner_membership_is_active !== false || canReassign) && <div className="opportunity-actions"><button type="button" className="secondary-button" disabled={submitting} onClick={() => startEdit(opportunity)}>{opportunity.owner_membership_is_active === false ? 'Réaffecter le responsable' : 'Modifier'}</button></div>}
+      {canUpdate && OPEN_STAGES.includes(opportunity.stage_code) && opportunity.owner_membership_is_active === false && !canReassign && <p className="opportunity-owner-warning">Le responsable est désactivé. Un Administrateur ou un Gestionnaire doit réaffecter cette opportunité.</p>}
+      {canUpdate && OPEN_STAGES.includes(opportunity.stage_code) && <select aria-label={`Étape ${opportunity.name}`} value={opportunity.stage_code} disabled={submitting || opportunity.owner_membership_is_active === false} onChange={(event) => onTransition(opportunity, event.target.value)}><option value={opportunity.stage_code}>{stageLabel(opportunity.stage_code, locale)}</option>{nextOpenStages(opportunity.stage_code).map((code) => <option value={code} key={code}>{stageLabel(code, locale)}</option>)}</select>}
+      {canClose && OPEN_STAGES.includes(opportunity.stage_code) && <div className="opportunity-actions">{['proposal', 'negotiation'].includes(opportunity.stage_code) && <button type="button" className="secondary-button" disabled={submitting || opportunity.owner_membership_is_active === false} onClick={() => onTransition(opportunity, 'won')}>Gagnée</button>}<button type="button" className="secondary-button" disabled={submitting || opportunity.owner_membership_is_active === false} onClick={() => { setLossIntent(opportunity); setLossReason('no_need'); setLossNote('') }}>Perdue</button></div>}
+      {canReopen && ['won', 'lost'].includes(opportunity.stage_code) && <div className="opportunity-actions"><button type="button" className="secondary-button" disabled={submitting || opportunity.owner_membership_is_active === false} onClick={() => { setReopenIntent(opportunity); setReopenReason('customer_reengaged'); setReopenNote('') }}>Réouvrir</button></div>}
       {canAlign && prospect && PIPELINE_BY_OPPORTUNITY_STAGE[opportunity.stage_code] !== prospect.stage_code && <div className="opportunity-actions"><button type="button" className="secondary-button" disabled={submitting} onClick={() => setAlignIntent(opportunity)}>Aligner le pipeline</button></div>}
+      {editIntent?.id === opportunity.id && editForm && <OpportunityEditForm opportunity={opportunity} form={editForm} errors={editErrors} activeMembers={activeMembers} canReassign={canReassign} submitting={submitting} onChange={updateEditForm} onCancel={() => { setEditIntent(null); setEditForm(null); setEditErrors({}) }} onSubmit={(event) => submitEdit(event, opportunity)} />}
       {lossIntent?.id === opportunity.id && <form className="opportunity-reason-form" onSubmit={async (event) => { event.preventDefault(); await onTransition(opportunity, 'lost', { reason_code: lossReason, reason_note: lossNote.trim() || undefined }); setLossIntent(null) }}><label htmlFor={`loss-reason-${opportunity.id}`}>Motif de perte<select id={`loss-reason-${opportunity.id}`} value={lossReason} onChange={(event) => setLossReason(event.target.value)}>{LOSS_REASONS.map(([code, label]) => <option key={code} value={code}>{label}</option>)}</select></label>{lossReason === 'other' && <label htmlFor={`loss-note-${opportunity.id}`}>Précisez le motif<input id={`loss-note-${opportunity.id}`} value={lossNote} required maxLength="500" onChange={(event) => setLossNote(event.target.value)} /></label>}<button className="secondary-button" type="submit" disabled={submitting}>Confirmer la perte</button><button className="link-button" type="button" onClick={() => setLossIntent(null)}>Annuler</button></form>}
       {reopenIntent?.id === opportunity.id && <form className="opportunity-reason-form" onSubmit={async (event) => { event.preventDefault(); await onReopen(opportunity, { reason_code: reopenReason, reason_note: reopenNote.trim() || undefined }); setReopenIntent(null) }}><label htmlFor={`reopen-reason-${opportunity.id}`}>Motif de réouverture<select id={`reopen-reason-${opportunity.id}`} value={reopenReason} onChange={(event) => setReopenReason(event.target.value)}>{REOPEN_REASONS.map(([code, label]) => <option key={code} value={code}>{label}</option>)}</select></label>{reopenReason === 'other' && <label htmlFor={`reopen-note-${opportunity.id}`}>Précisez le motif<input id={`reopen-note-${opportunity.id}`} value={reopenNote} required maxLength="500" onChange={(event) => setReopenNote(event.target.value)} /></label>}<button className="secondary-button" type="submit" disabled={submitting}>Confirmer la réouverture</button><button className="link-button" type="button" onClick={() => setReopenIntent(null)}>Annuler</button></form>}
       {alignIntent?.id === opportunity.id && <PipelineAlignment prospect={prospect} opportunity={opportunity} submitting={submitting} onCancel={() => setAlignIntent(null)} onConfirm={async () => { await onAlign(opportunity, PIPELINE_BY_OPPORTUNITY_STAGE[opportunity.stage_code]); setAlignIntent(null) }} />}
     </li>)}</ul> : <p className="form-help">Aucune opportunité n’est encore enregistrée.</p>}
   </section>
+}
+
+function OpportunityEditForm({ opportunity, form, errors, activeMembers, canReassign, submitting, onChange, onCancel, onSubmit }) {
+  const inactiveOwner = opportunity.owner_membership_is_active === false
+  const prefix = `opportunity-edit-${opportunity.id}`
+  return <form className="opportunity-edit-form" noValidate onSubmit={onSubmit} aria-label={`Modifier ${opportunity.name}`}>
+    <h3>{inactiveOwner ? 'Réaffecter le responsable' : 'Modifier l’opportunité'}</h3>
+    {inactiveOwner && <p className="opportunity-owner-warning" role="alert">Le responsable est désactivé. Seule une réaffectation vers un membre actif est permise.</p>}
+    {errors.form && <p className="field-error" role="alert">{errors.form}</p>}
+    {inactiveOwner ? <OwnerSelect id={`${prefix}-owner`} form={form} errors={errors} activeMembers={activeMembers} disabled={submitting || !canReassign} onChange={onChange} /> : <>
+      <label htmlFor={`${prefix}-name`}>Nom<input id={`${prefix}-name`} value={form.name} maxLength="160" required disabled={submitting} aria-invalid={Boolean(errors.name)} onChange={(event) => onChange('name', event.target.value)} /></label><FieldError id={`${prefix}-name-error`} message={errors.name} />
+      <div className="opportunity-form-grid">
+        <div><label htmlFor={`${prefix}-amount`}>Montant<input id={`${prefix}-amount`} inputMode="decimal" value={form.amount} disabled={submitting} aria-invalid={Boolean(errors.amount)} onChange={(event) => onChange('amount', event.target.value)} /></label><FieldError id={`${prefix}-amount-error`} message={errors.amount} /></div>
+        <div><label htmlFor={`${prefix}-currency`}>Devise<input id={`${prefix}-currency`} value={form.currency_code} minLength="3" maxLength="3" disabled={submitting} aria-invalid={Boolean(errors.currency_code)} onChange={(event) => onChange('currency_code', event.target.value.toUpperCase())} /></label><FieldError id={`${prefix}-currency-error`} message={errors.currency_code} /></div>
+        <div><label htmlFor={`${prefix}-probability`}>Probabilité (%)<input id={`${prefix}-probability`} type="number" value={form.probability} disabled={submitting} aria-invalid={Boolean(errors.probability)} onChange={(event) => onChange('probability', event.target.value)} /></label><FieldError id={`${prefix}-probability-error`} message={errors.probability} /></div>
+        <div><label htmlFor={`${prefix}-date`}>Échéance<input id={`${prefix}-date`} type="date" value={form.expected_close_on} disabled={submitting} aria-invalid={Boolean(errors.expected_close_on)} onChange={(event) => onChange('expected_close_on', event.target.value)} /></label><FieldError id={`${prefix}-date-error`} message={errors.expected_close_on} /></div>
+      </div>
+      {form.currency_code !== opportunity.currency_code && <label className="opportunity-currency-confirmation"><input type="checkbox" checked={form.currencyConfirmed} disabled={submitting} onChange={(event) => onChange('currencyConfirmed', event.target.checked)} /> J’ai confirmé le montant dans la nouvelle devise. Aucune conversion n’est appliquée.</label>}
+      {canReassign && <OwnerSelect id={`${prefix}-owner`} form={form} errors={errors} activeMembers={activeMembers} disabled={submitting} onChange={onChange} />}
+    </>}
+    {!canReassign && inactiveOwner && <p className="form-help">Seul un Administrateur ou un Gestionnaire peut réaffecter cette opportunité.</p>}
+    <div className="opportunity-edit-actions"><button className="secondary-button" type="submit" disabled={submitting || (inactiveOwner && !canReassign)}>Enregistrer</button><button className="link-button" type="button" disabled={submitting} onClick={onCancel}>Annuler</button></div>
+  </form>
+}
+
+function OwnerSelect({ id, form, errors, activeMembers, disabled, onChange }) {
+  return <label htmlFor={id}>Responsable<select id={id} value={form.owner_membership_id || ''} disabled={disabled} aria-invalid={Boolean(errors.owner_membership_id)} onChange={(event) => onChange('owner_membership_id', event.target.value)}><option value="">Choisissez un membre actif</option>{activeMembers.map((member) => <option key={member.membership_id} value={member.membership_id}>{memberLabel(member)}</option>)}</select><FieldError id={`${id}-error`} message={errors.owner_membership_id} /></label>
 }
 
 function PipelineAlignment({ prospect, opportunity, submitting, onCancel, onConfirm }) {

@@ -6,7 +6,7 @@ from uuid import UUID, uuid4
 
 import pytest
 
-from backend.app.application.errors import OpportunityVersionConflict
+from backend.app.application.errors import InsufficientCapability, OpportunityVersionConflict
 from backend.app.application.tenancy import TenantContext
 from backend.app.application.use_cases.opportunities import TransitionOpportunityUseCase, UpdateOpportunityUseCase
 from backend.app.domain.opportunity import (
@@ -157,6 +157,28 @@ async def test_update_rejects_a_stale_version_before_writing() -> None:
         )
 
     assert error.value.current_version == 2
+    assert unit_of_work.committed is False
+
+
+@pytest.mark.asyncio
+async def test_update_rejects_reassignment_by_a_sales_member() -> None:
+    context = _context()
+    owner_id = uuid4()
+    unit_of_work = _UnitOfWork(_Opportunities(_opportunity(context, owner_id)), _Events(), _Audit())
+    use_case = UpdateOpportunityUseCase(lambda _context: unit_of_work, _FixedClock())  # type: ignore[arg-type]
+
+    with pytest.raises(InsufficientCapability):
+        await use_case.execute(
+            context=context,
+            opportunity_id=unit_of_work.opportunities.item.id,
+            expected_version=1,
+            changes={"owner_membership_id": uuid4()},
+            idempotency_key="opportunity-reassign-forbidden",
+            can_update=True,
+            can_manage=False,
+            current_membership_id=owner_id,
+        )
+
     assert unit_of_work.committed is False
 
 

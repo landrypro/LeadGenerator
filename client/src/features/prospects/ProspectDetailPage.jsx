@@ -4,6 +4,7 @@ import { Building2, Check, LoaderCircle, UsersRound } from '../../icons'
 import { toUserMessage } from '../../shared/api/errors'
 import { createRequestId } from '../../shared/ids/requestId'
 import { ErrorBanner } from '../../shared/ui/Feedback'
+import { organizationApi } from '../organizations/api/organizationApi'
 import { opportunityApi } from '../opportunities/api/opportunityApi'
 import { OpportunitySection } from '../opportunities/components/OpportunitySection'
 import { prospectApi } from './api/prospectApi'
@@ -29,6 +30,7 @@ export function ProspectDetailPage({ routeParams, session }) {
   const [transitions, setTransitions] = useState([])
   const [opportunityEvents, setOpportunityEvents] = useState([])
   const [opportunityPage, setOpportunityPage] = useState({ items: [], aggregates_by_currency: [] })
+  const [opportunityMembers, setOpportunityMembers] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [success, setSuccess] = useState('')
@@ -43,6 +45,8 @@ export function ProspectDetailPage({ routeParams, session }) {
   const canUpdate = session.capabilities.includes('prospects:update')
   const canWriteContacts = session.capabilities.includes('contacts:write')
   const canReadOpportunities = session.capabilities.includes('opportunities:read')
+  const activeMembership = (session.memberships ?? []).find((membership) => membership.organization?.id === session.active_organization?.id)
+  const canManageOpportunities = ['admin', 'manager'].includes(activeMembership?.role)
 
   const load = useCallback(async () => {
     if (!prospectId) return
@@ -62,6 +66,9 @@ export function ProspectDetailPage({ routeParams, session }) {
       const nextOpportunityPage = canReadOpportunities
         ? await opportunityApi.listForProspect(prospectId, {}, controller.signal)
         : { items: [], aggregates_by_currency: [] }
+      const nextOpportunityMembers = canManageOpportunities
+        ? await organizationApi.listMembers('', 100, controller.signal)
+        : { items: [] }
       const nextContactChannels = Object.fromEntries(await Promise.all((contactsPage.items ?? []).map(async (contact) => [
         contact.id,
         await prospectApi.listContactChannels(contact.id, controller.signal),
@@ -79,13 +86,14 @@ export function ProspectDetailPage({ routeParams, session }) {
       setTransitions(timeline?.transitions ?? [])
       setOpportunityEvents(timeline?.opportunity_events ?? [])
       setOpportunityPage(nextOpportunityPage)
+      setOpportunityMembers(nextOpportunityMembers.items ?? [])
     } catch (requestError) {
       if (requestError?.name !== 'AbortError') setError(toUserMessage(requestError, 'Impossible de charger le prospect.'))
     } finally {
       if (controllerRef.current === controller) controllerRef.current = null
       setLoading(false)
     }
-  }, [canReadOpportunities, prospectId, session.capabilities])
+  }, [canManageOpportunities, canReadOpportunities, prospectId, session.capabilities])
 
   useEffect(() => { load(); return () => controllerRef.current?.abort() }, [load])
 
@@ -239,6 +247,28 @@ export function ProspectDetailPage({ routeParams, session }) {
     }
   }
 
+  async function updateOpportunity(opportunity, changes) {
+    setOpportunitySubmitting(true)
+    setError('')
+    setSuccess('')
+    try {
+      const updated = await opportunityApi.update(opportunity.id, {
+        version: opportunity.version,
+        idempotency_key: createRequestId(),
+        ...changes,
+      })
+      setOpportunityPage((current) => ({ ...current, items: (current.items ?? []).map((item) => item.id === updated.id ? updated : item) }))
+      setSuccess('L’opportunité a été modifiée.')
+      await load()
+      return true
+    } catch (requestError) {
+      setError(toUserMessage(requestError, 'Impossible de modifier l’opportunité.'))
+      return false
+    } finally {
+      setOpportunitySubmitting(false)
+    }
+  }
+
   async function transitionOpportunity(opportunity, toStage, extra = {}) {
     if (toStage === opportunity.stage_code) return
     setOpportunitySubmitting(true)
@@ -310,7 +340,7 @@ export function ProspectDetailPage({ routeParams, session }) {
         <button className="primary-button" type="submit">Enregistrer le profil</button></form> : <p>Vous pouvez consulter ce profil, mais votre rôle ne permet pas de le modifier.</p>}</section>
       <section className="administration-card"><div className="administration-card-icon"><UsersRound size={21} /></div><h2>Contacts</h2>{contacts.length ? <ul className="prospect-contact-list">{contacts.map((contact) => <li key={contact.id}><strong>{contact.display_name}</strong>{contact.role_label && <span>{contact.role_label}</span>}{(contactChannels[contact.id] ?? []).map((channel) => <small key={channel.id}>{channel.channel_type} · {channel.value} · {permissionLabel(permissions[channel.id]?.status || 'unknown')}</small>)}</li>)}</ul> : <p className="form-help">Aucune personne de contact n’est enregistrée.</p>}{canWriteContacts && <form className="prospect-inline-form" onSubmit={addContact}><label htmlFor="contact-name">Ajouter une personne</label><input id="contact-name" value={contactName} onChange={(event) => setContactName(event.target.value)} maxLength="160" required /><button className="secondary-button" type="submit">Ajouter</button></form>}</section>
       <section className="administration-card prospect-channels-card"><h2>Canaux et permissions</h2>{channels.length ? <ul className="prospect-channel-list">{channels.map((channel) => { const permission = permissions[channel.id]; return <li key={channel.id}><div><strong>{channel.channel_type === 'email' ? 'Courriel' : channel.channel_type === 'phone' ? 'Téléphone' : channel.channel_type}</strong><span>{channel.value}</span><small>{permissionLabel(permission?.status || 'unknown')}</small></div>{permission && (session.capabilities.includes('permissions:allow') || session.capabilities.includes('permissions:restrict')) && <select aria-label={`Permission ${channel.value}`} value={permission.status} onChange={(event) => changePermission(channel, event.target.value)}><option value="unknown" disabled>Non déterminée</option>{session.capabilities.includes('permissions:allow') && <option value="allowed">Autorisé</option>}{session.capabilities.includes('permissions:restrict') && <><option value="do_not_contact">Ne pas contacter</option><option value="opted_out">Opposition</option></>}</select>}</li> })}</ul> : <p className="form-help">Aucun canal direct n’est enregistré.</p>}{canWriteContacts && <form className="prospect-inline-form" onSubmit={addChannel}><label htmlFor="channel-target">Associer le canal à</label><select id="channel-target" value={channelTarget} onChange={(event) => setChannelTarget(event.target.value)}><option value="prospect">L’établissement</option>{contacts.map((contact) => <option key={contact.id} value={contact.id}>{contact.display_name}</option>)}</select><label htmlFor="channel-value">Ajouter un canal</label><div><select value={channelType} onChange={(event) => setChannelType(event.target.value)} aria-label="Type de canal"><option value="email">Courriel</option><option value="phone">Téléphone</option><option value="linkedin">LinkedIn</option><option value="facebook">Facebook</option><option value="other">Autre</option></select><input id="channel-value" value={channelValue} onChange={(event) => setChannelValue(event.target.value)} maxLength="512" required /><button className="secondary-button" type="submit">Ajouter</button></div></form>}</section>
-      {canReadOpportunities && <OpportunitySection prospect={prospect} opportunities={opportunityPage.items} aggregates={opportunityPage.aggregates_by_currency} locale={session.active_organization?.locale} timezone={session.active_organization?.timezone} canCreate={session.capabilities.includes('opportunities:create')} canUpdate={session.capabilities.includes('opportunities:update')} canClose={session.capabilities.includes('opportunities:close')} canReopen={session.capabilities.includes('opportunities:reopen')} canAlign={session.capabilities.includes('pipeline:move')} submitting={opportunitySubmitting} onCreate={createOpportunity} onTransition={transitionOpportunity} onReopen={reopenOpportunity} onAlign={alignPipeline} />}
+      {canReadOpportunities && <OpportunitySection prospect={prospect} opportunities={opportunityPage.items} aggregates={opportunityPage.aggregates_by_currency} members={opportunityMembers} locale={session.active_organization?.locale} timezone={session.active_organization?.timezone} canCreate={session.capabilities.includes('opportunities:create')} canUpdate={session.capabilities.includes('opportunities:update')} canReassign={canManageOpportunities} canClose={session.capabilities.includes('opportunities:close')} canReopen={session.capabilities.includes('opportunities:reopen')} canAlign={session.capabilities.includes('pipeline:move')} submitting={opportunitySubmitting} onCreate={createOpportunity} onUpdate={updateOpportunity} onTransition={transitionOpportunity} onReopen={reopenOpportunity} onAlign={alignPipeline} />}
       {session.capabilities.includes('activities:read') && <ActivityTimeline activities={activities} taskEvents={taskEvents} tasks={tasks} transitions={transitions} opportunityEvents={opportunityEvents} channels={[...channels, ...Object.values(contactChannels).flat()].map((channel) => ({ ...channel, permission: permissions[channel.id] }))} locale={session.active_organization?.locale} timezone={session.active_organization?.timezone} canCreate={session.capabilities.includes('activities:create')} canCorrectAny={session.capabilities.includes('activities:correct:any')} canCorrectSelf={session.capabilities.includes('activities:correct:self')} currentUserId={session.user?.id} submitting={activitySubmitting} onCreate={createActivity} onCorrect={correctActivity} />}
       {session.capabilities.includes('tasks:read') && <TaskPanel tasks={tasks} locale={session.active_organization?.locale} timezone={session.active_organization?.timezone} canCreate={session.capabilities.includes('tasks:create')} submitting={taskSubmitting} onCreate={createTask} onAction={updateTask} />}
     </div>
