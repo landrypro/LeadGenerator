@@ -10,6 +10,42 @@ const opportunity = {
 }
 
 describe('OpportunitySection', () => {
+  it('normalise la virgule décimale fr-CA avant la création', async () => {
+    const onCreate = vi.fn().mockResolvedValue(true)
+    render(<OpportunitySection locale="fr-CA" canCreate submitting={false} onCreate={onCreate} onTransition={vi.fn()} onReopen={vi.fn()} />)
+
+    fireEvent.change(screen.getByLabelText('Nom'), { target: { value: 'OPP-17 FR' } })
+    fireEvent.change(screen.getByLabelText('Montant'), { target: { value: '1250,50' } })
+    fireEvent.change(screen.getByLabelText('Échéance'), { target: { value: '2099-10-15' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Créer l’opportunité' }))
+
+    await waitFor(() => expect(onCreate).toHaveBeenCalledWith(expect.objectContaining({
+      amount: '1250.50',
+    })))
+  })
+
+  it('accepte le point décimal en-CA et refuse une virgule ambiguë', async () => {
+    const onCreate = vi.fn().mockResolvedValue(true)
+    const { rerender } = render(<OpportunitySection locale="en-CA" canCreate submitting={false} onCreate={onCreate} onTransition={vi.fn()} onReopen={vi.fn()} />)
+
+    fireEvent.change(screen.getByLabelText('Nom'), { target: { value: 'OPP-17 EN' } })
+    fireEvent.change(screen.getByLabelText('Montant'), { target: { value: '1250.50' } })
+    fireEvent.change(screen.getByLabelText('Échéance'), { target: { value: '2099-10-15' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Créer l’opportunité' }))
+
+    await waitFor(() => expect(onCreate).toHaveBeenCalledWith(expect.objectContaining({ amount: '1250.50' })))
+
+    onCreate.mockClear()
+    rerender(<OpportunitySection locale="en-CA" canCreate submitting={false} onCreate={onCreate} onTransition={vi.fn()} onReopen={vi.fn()} />)
+    fireEvent.change(screen.getByLabelText('Nom'), { target: { value: 'OPP-17 EN' } })
+    fireEvent.change(screen.getByLabelText('Montant'), { target: { value: '1250,50' } })
+    fireEvent.change(screen.getByLabelText('Échéance'), { target: { value: '2099-10-15' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Créer l’opportunité' }))
+
+    expect(onCreate).not.toHaveBeenCalled()
+    expect(screen.getByLabelText('Montant')).toHaveAttribute('aria-invalid', 'true')
+  })
+
   it('signale précisément un montant invalide sans envoyer de commande', () => {
     const onCreate = vi.fn()
     render(<OpportunitySection canCreate submitting={false} onCreate={onCreate} onTransition={vi.fn()} onReopen={vi.fn()} />)
@@ -67,6 +103,20 @@ describe('OpportunitySection', () => {
 
     await waitFor(() => expect(onUpdate).toHaveBeenCalledWith(opportunity, expect.objectContaining({
       amount: '12500.5000', currency_code: 'USD',
+    })))
+  })
+
+  it('normalise la virgule décimale fr-CA lors d’une modification', async () => {
+    const onUpdate = vi.fn().mockResolvedValue(true)
+    render(<OpportunitySection locale="fr-CA" opportunities={[opportunity]} canUpdate submitting={false} onCreate={vi.fn()} onUpdate={onUpdate} onTransition={vi.fn()} onReopen={vi.fn()} />)
+
+    fireEvent.click(screen.getByRole('button', { name: 'Modifier' }))
+    expect(screen.getByLabelText('Montant')).toHaveValue('12500,5000')
+    fireEvent.change(screen.getByLabelText('Montant'), { target: { value: '1250,50' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Enregistrer' }))
+
+    await waitFor(() => expect(onUpdate).toHaveBeenCalledWith(opportunity, expect.objectContaining({
+      amount: '1250.50',
     })))
   })
 

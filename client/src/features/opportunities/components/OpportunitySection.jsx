@@ -43,23 +43,39 @@ function organizationToday(timezone) {
   }
 }
 
-function validateCreateForm(form, timezone) {
+function normalizeAmountInput(value, locale) {
+  const amount = String(value).trim()
+  const decimalSeparator = locale === 'fr-CA' ? ',' : '.'
+  const validFormat = locale === 'fr-CA'
+    ? /^\d+(?:,\d+)?$/
+    : /^\d+(?:\.\d+)?$/
+  if (!validFormat.test(amount) || !/[1-9]/.test(amount)) return null
+  const [integer, decimals = ''] = amount.split(decimalSeparator)
+  if (decimals.length > 4) return null
+  return decimals ? `${integer}.${decimals}` : integer
+}
+
+function localizeAmountInput(value, locale) {
+  const amount = String(value)
+  return locale === 'fr-CA' ? amount.replace('.', ',') : amount
+}
+
+function validateCreateForm(form, timezone, locale) {
   const errors = {}
-  const amount = form.amount.trim()
   const probability = Number(form.probability)
   const today = organizationToday(timezone)
   if (!form.name.trim()) errors.name = CREATE_FIELD_MESSAGES.name
-  if (!/^\d+(?:\.\d+)?$/.test(amount) || !/[1-9]/.test(amount) || (amount.split('.')[1]?.length ?? 0) > 4) errors.amount = CREATE_FIELD_MESSAGES.amount
+  if (normalizeAmountInput(form.amount, locale) === null) errors.amount = CREATE_FIELD_MESSAGES.amount
   if (!/^[A-Z]{3}$/.test(form.currency_code)) errors.currency_code = CREATE_FIELD_MESSAGES.currency_code
   if (!/^\d+$/.test(form.probability) || !Number.isInteger(probability) || probability < 0 || probability > 100) errors.probability = CREATE_FIELD_MESSAGES.probability
   if (!form.expected_close_on || form.expected_close_on < today) errors.expected_close_on = CREATE_FIELD_MESSAGES.expected_close_on
   return errors
 }
 
-function initialEditForm(opportunity) {
+function initialEditForm(opportunity, locale) {
   return {
     name: opportunity.name,
-    amount: String(opportunity.amount),
+    amount: localizeAmountInput(opportunity.amount, locale),
     currency_code: opportunity.currency_code,
     probability: String(opportunity.probability),
     expected_close_on: opportunity.expected_close_on,
@@ -68,8 +84,8 @@ function initialEditForm(opportunity) {
   }
 }
 
-function validateEditForm(form, initial, timezone) {
-  const errors = validateCreateForm(form, timezone)
+function validateEditForm(form, initial, timezone, locale) {
+  const errors = validateCreateForm(form, timezone, locale)
   if (form.expected_close_on === initial.expected_close_on) delete errors.expected_close_on
   if (form.currency_code !== initial.currency_code && !form.currencyConfirmed) {
     errors.currency_code = 'Confirmez le montant avant de modifier la devise.'
@@ -111,14 +127,18 @@ export function OpportunitySection({ prospect, opportunities = [], aggregates = 
 
   async function submit(event) {
     event.preventDefault()
-    const errors = validateCreateForm(form, timezone)
+    const errors = validateCreateForm(form, timezone, locale)
     if (Object.keys(errors).length) {
       setFormErrors(errors)
       fieldRefs.current[Object.keys(errors)[0]]?.focus()
       return
     }
     setFormErrors({})
-    const result = await onCreate({ ...form, probability: Number(form.probability) })
+    const result = await onCreate({
+      ...form,
+      amount: normalizeAmountInput(form.amount, locale),
+      probability: Number(form.probability),
+    })
     if (result === true) {
       setForm(initialForm())
     } else if (result?.fieldErrors) {
@@ -139,7 +159,7 @@ export function OpportunitySection({ prospect, opportunities = [], aggregates = 
 
   function startEdit(opportunity) {
     setEditIntent(opportunity)
-    setEditForm(initialEditForm(opportunity))
+    setEditForm(initialEditForm(opportunity, locale))
     setEditErrors({})
   }
 
@@ -158,7 +178,7 @@ export function OpportunitySection({ prospect, opportunities = [], aggregates = 
     const inactiveOwner = opportunity.owner_membership_is_active === false
     const errors = inactiveOwner
       ? (editForm.owner_membership_id ? {} : { owner_membership_id: 'Choisissez un responsable actif.' })
-      : validateEditForm(editForm, opportunity, timezone)
+      : validateEditForm(editForm, opportunity, timezone, locale)
     if (Object.keys(errors).length) {
       setEditErrors(errors)
       return
@@ -167,7 +187,7 @@ export function OpportunitySection({ prospect, opportunities = [], aggregates = 
       ? { owner_membership_id: editForm.owner_membership_id }
       : Object.fromEntries(Object.entries({
         name: editForm.name.trim(),
-        amount: editForm.amount.trim(),
+        amount: normalizeAmountInput(editForm.amount, locale),
         currency_code: editForm.currency_code,
         probability: Number(editForm.probability),
         expected_close_on: editForm.expected_close_on,
