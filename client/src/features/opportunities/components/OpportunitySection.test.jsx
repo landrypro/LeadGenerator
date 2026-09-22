@@ -87,6 +87,55 @@ describe('OpportunitySection', () => {
     expect(onTransition).toHaveBeenCalledWith(opportunity, 'lost', expect.objectContaining({ reason_code: 'competitor' }))
   })
 
+  it('ferme le formulaire de perte avec Échap et restaure le focus sans mutation', async () => {
+    const onTransition = vi.fn()
+    render(<OpportunitySection opportunities={[opportunity]} canClose canUpdate submitting={false} onCreate={vi.fn()} onTransition={onTransition} onReopen={vi.fn()} />)
+
+    const lossButton = screen.getByRole('button', { name: 'Perdue' })
+    lossButton.focus()
+    fireEvent.click(lossButton)
+    expect(screen.getByLabelText('Motif de perte')).toHaveFocus()
+
+    fireEvent.keyDown(window, { key: 'Escape' })
+
+    await waitFor(() => expect(screen.queryByLabelText('Motif de perte')).not.toBeInTheDocument())
+    await waitFor(() => expect(lossButton).toHaveFocus())
+    expect(onTransition).not.toHaveBeenCalled()
+  })
+
+  it('ferme le formulaire de réouverture avec Échap et restaure le focus sans mutation', async () => {
+    const closedOpportunity = { ...opportunity, stage_code: 'lost', probability: 0 }
+    const onReopen = vi.fn()
+    render(<OpportunitySection opportunities={[closedOpportunity]} canReopen submitting={false} onCreate={vi.fn()} onTransition={vi.fn()} onReopen={onReopen} />)
+
+    const reopenButton = screen.getByRole('button', { name: 'Réouvrir' })
+    reopenButton.focus()
+    fireEvent.click(reopenButton)
+    expect(screen.getByLabelText('Motif de réouverture')).toHaveFocus()
+
+    fireEvent.keyDown(window, { key: 'Escape' })
+
+    await waitFor(() => expect(screen.queryByLabelText('Motif de réouverture')).not.toBeInTheDocument())
+    await waitFor(() => expect(reopenButton).toHaveFocus())
+    expect(onReopen).not.toHaveBeenCalled()
+  })
+
+  it('ferme l’alignement avec Échap et restaure le focus sans mutation', async () => {
+    const onAlign = vi.fn()
+    render(<OpportunitySection prospect={{ stage_code: 'new' }} opportunities={[opportunity]} canAlign submitting={false} onCreate={vi.fn()} onTransition={vi.fn()} onReopen={vi.fn()} onAlign={onAlign} />)
+
+    const alignButton = screen.getByRole('button', { name: 'Aligner le pipeline' })
+    alignButton.focus()
+    fireEvent.click(alignButton)
+    expect(screen.getByRole('button', { name: 'Fermer' })).toHaveFocus()
+
+    fireEvent.keyDown(window, { key: 'Escape' })
+
+    await waitFor(() => expect(screen.queryByLabelText('Alignement du pipeline')).not.toBeInTheDocument())
+    await waitFor(() => expect(alignButton).toHaveFocus())
+    expect(onAlign).not.toHaveBeenCalled()
+  })
+
   it('exige la confirmation du montant avant un changement de devise', async () => {
     const onUpdate = vi.fn().mockResolvedValue(true)
     render(<OpportunitySection opportunities={[opportunity]} canUpdate submitting={false} onCreate={vi.fn()} onUpdate={onUpdate} onTransition={vi.fn()} onReopen={vi.fn()} />)

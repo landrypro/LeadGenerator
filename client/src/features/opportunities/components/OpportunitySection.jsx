@@ -1,5 +1,6 @@
 import { useRef, useState } from 'react'
 
+import { useEscapeKey } from '../../../shared/hooks/useEscapeKey'
 import { formatDate, formatMoney, OPPORTUNITY_STAGES, stageLabel } from '../opportunityPresentation'
 
 function initialForm() {
@@ -123,7 +124,36 @@ export function OpportunitySection({ prospect, opportunities = [], aggregates = 
   const [editIntent, setEditIntent] = useState(null)
   const [editForm, setEditForm] = useState(null)
   const [editErrors, setEditErrors] = useState({})
+  const lossTriggerRefs = useRef({})
+  const reopenTriggerRefs = useRef({})
+  const alignTriggerRefs = useRef({})
   const activeMembers = members.filter((member) => member.status === 'active')
+
+  useEscapeKey(Boolean(lossIntent) && !submitting, closeLossIntent)
+  useEscapeKey(Boolean(reopenIntent) && !submitting, closeReopenIntent)
+  useEscapeKey(Boolean(alignIntent) && !submitting, closeAlignIntent)
+
+  function restoreActionFocus(refs, opportunityId) {
+    window.setTimeout(() => refs.current[opportunityId]?.focus(), 0)
+  }
+
+  function closeLossIntent() {
+    const opportunityId = lossIntent?.id
+    setLossIntent(null)
+    if (opportunityId) restoreActionFocus(lossTriggerRefs, opportunityId)
+  }
+
+  function closeReopenIntent() {
+    const opportunityId = reopenIntent?.id
+    setReopenIntent(null)
+    if (opportunityId) restoreActionFocus(reopenTriggerRefs, opportunityId)
+  }
+
+  function closeAlignIntent() {
+    const opportunityId = alignIntent?.id
+    setAlignIntent(null)
+    if (opportunityId) restoreActionFocus(alignTriggerRefs, opportunityId)
+  }
 
   async function submit(event) {
     event.preventDefault()
@@ -227,13 +257,13 @@ export function OpportunitySection({ prospect, opportunities = [], aggregates = 
       {canUpdate && OPEN_STAGES.includes(opportunity.stage_code) && (opportunity.owner_membership_is_active !== false || canReassign) && <div className="opportunity-actions"><button type="button" className="secondary-button" disabled={submitting} onClick={() => startEdit(opportunity)}>{opportunity.owner_membership_is_active === false ? 'Réaffecter le responsable' : 'Modifier'}</button></div>}
       {canUpdate && OPEN_STAGES.includes(opportunity.stage_code) && opportunity.owner_membership_is_active === false && !canReassign && <p className="opportunity-owner-warning">Le responsable est désactivé. Un Administrateur ou un Gestionnaire doit réaffecter cette opportunité.</p>}
       {canUpdate && OPEN_STAGES.includes(opportunity.stage_code) && <select aria-label={`Étape ${opportunity.name}`} value={opportunity.stage_code} disabled={submitting || opportunity.owner_membership_is_active === false} onChange={(event) => onTransition(opportunity, event.target.value)}><option value={opportunity.stage_code}>{stageLabel(opportunity.stage_code, locale)}</option>{nextOpenStages(opportunity.stage_code).map((code) => <option value={code} key={code}>{stageLabel(code, locale)}</option>)}</select>}
-      {canClose && OPEN_STAGES.includes(opportunity.stage_code) && <div className="opportunity-actions">{['proposal', 'negotiation'].includes(opportunity.stage_code) && <button type="button" className="secondary-button" disabled={submitting || opportunity.owner_membership_is_active === false} onClick={() => onTransition(opportunity, 'won')}>Gagnée</button>}<button type="button" className="secondary-button" disabled={submitting || opportunity.owner_membership_is_active === false} onClick={() => { setLossIntent(opportunity); setLossReason('no_need'); setLossNote('') }}>Perdue</button></div>}
-      {canReopen && ['won', 'lost'].includes(opportunity.stage_code) && <div className="opportunity-actions"><button type="button" className="secondary-button" disabled={submitting || opportunity.owner_membership_is_active === false} onClick={() => { setReopenIntent(opportunity); setReopenReason('customer_reengaged'); setReopenNote('') }}>Réouvrir</button></div>}
-      {canAlign && prospect && PIPELINE_BY_OPPORTUNITY_STAGE[opportunity.stage_code] !== prospect.stage_code && <div className="opportunity-actions"><button type="button" className="secondary-button" disabled={submitting} onClick={() => setAlignIntent(opportunity)}>Aligner le pipeline</button></div>}
+      {canClose && OPEN_STAGES.includes(opportunity.stage_code) && <div className="opportunity-actions">{['proposal', 'negotiation'].includes(opportunity.stage_code) && <button type="button" className="secondary-button" disabled={submitting || opportunity.owner_membership_is_active === false} onClick={() => onTransition(opportunity, 'won')}>Gagnée</button>}<button ref={(node) => { lossTriggerRefs.current[opportunity.id] = node }} type="button" className="secondary-button" disabled={submitting || opportunity.owner_membership_is_active === false} onClick={() => { setLossIntent(opportunity); setLossReason('no_need'); setLossNote('') }}>Perdue</button></div>}
+      {canReopen && ['won', 'lost'].includes(opportunity.stage_code) && <div className="opportunity-actions"><button ref={(node) => { reopenTriggerRefs.current[opportunity.id] = node }} type="button" className="secondary-button" disabled={submitting || opportunity.owner_membership_is_active === false} onClick={() => { setReopenIntent(opportunity); setReopenReason('customer_reengaged'); setReopenNote('') }}>Réouvrir</button></div>}
+      {canAlign && prospect && PIPELINE_BY_OPPORTUNITY_STAGE[opportunity.stage_code] !== prospect.stage_code && <div className="opportunity-actions"><button ref={(node) => { alignTriggerRefs.current[opportunity.id] = node }} type="button" className="secondary-button" disabled={submitting} onClick={() => setAlignIntent(opportunity)}>Aligner le pipeline</button></div>}
       {editIntent?.id === opportunity.id && editForm && <OpportunityEditForm opportunity={opportunity} form={editForm} errors={editErrors} activeMembers={activeMembers} canReassign={canReassign} submitting={submitting} onChange={updateEditForm} onCancel={() => { setEditIntent(null); setEditForm(null); setEditErrors({}) }} onSubmit={(event) => submitEdit(event, opportunity)} />}
-      {lossIntent?.id === opportunity.id && <form className="opportunity-reason-form" onSubmit={async (event) => { event.preventDefault(); await onTransition(opportunity, 'lost', { reason_code: lossReason, reason_note: lossNote.trim() || undefined }); setLossIntent(null) }}><label htmlFor={`loss-reason-${opportunity.id}`}>Motif de perte<select id={`loss-reason-${opportunity.id}`} value={lossReason} onChange={(event) => setLossReason(event.target.value)}>{LOSS_REASONS.map(([code, label]) => <option key={code} value={code}>{label}</option>)}</select></label>{lossReason === 'other' && <label htmlFor={`loss-note-${opportunity.id}`}>Précisez le motif<input id={`loss-note-${opportunity.id}`} value={lossNote} required maxLength="500" onChange={(event) => setLossNote(event.target.value)} /></label>}<button className="secondary-button" type="submit" disabled={submitting}>Confirmer la perte</button><button className="link-button" type="button" onClick={() => setLossIntent(null)}>Annuler</button></form>}
-      {reopenIntent?.id === opportunity.id && <form className="opportunity-reason-form" onSubmit={async (event) => { event.preventDefault(); await onReopen(opportunity, { reason_code: reopenReason, reason_note: reopenNote.trim() || undefined }); setReopenIntent(null) }}><label htmlFor={`reopen-reason-${opportunity.id}`}>Motif de réouverture<select id={`reopen-reason-${opportunity.id}`} value={reopenReason} onChange={(event) => setReopenReason(event.target.value)}>{REOPEN_REASONS.map(([code, label]) => <option key={code} value={code}>{label}</option>)}</select></label>{reopenReason === 'other' && <label htmlFor={`reopen-note-${opportunity.id}`}>Précisez le motif<input id={`reopen-note-${opportunity.id}`} value={reopenNote} required maxLength="500" onChange={(event) => setReopenNote(event.target.value)} /></label>}<button className="secondary-button" type="submit" disabled={submitting}>Confirmer la réouverture</button><button className="link-button" type="button" onClick={() => setReopenIntent(null)}>Annuler</button></form>}
-      {alignIntent?.id === opportunity.id && <PipelineAlignment prospect={prospect} opportunity={opportunity} submitting={submitting} onCancel={() => setAlignIntent(null)} onConfirm={async () => { await onAlign(opportunity, PIPELINE_BY_OPPORTUNITY_STAGE[opportunity.stage_code]); setAlignIntent(null) }} />}
+      {lossIntent?.id === opportunity.id && <form className="opportunity-reason-form" onSubmit={async (event) => { event.preventDefault(); await onTransition(opportunity, 'lost', { reason_code: lossReason, reason_note: lossNote.trim() || undefined }); setLossIntent(null) }}><label htmlFor={`loss-reason-${opportunity.id}`}>Motif de perte<select autoFocus id={`loss-reason-${opportunity.id}`} value={lossReason} onChange={(event) => setLossReason(event.target.value)}>{LOSS_REASONS.map(([code, label]) => <option key={code} value={code}>{label}</option>)}</select></label>{lossReason === 'other' && <label htmlFor={`loss-note-${opportunity.id}`}>Précisez le motif<input id={`loss-note-${opportunity.id}`} value={lossNote} required maxLength="500" onChange={(event) => setLossNote(event.target.value)} /></label>}<button className="secondary-button" type="submit" disabled={submitting}>Confirmer la perte</button><button className="link-button" type="button" onClick={closeLossIntent}>Annuler</button></form>}
+      {reopenIntent?.id === opportunity.id && <form className="opportunity-reason-form" onSubmit={async (event) => { event.preventDefault(); await onReopen(opportunity, { reason_code: reopenReason, reason_note: reopenNote.trim() || undefined }); setReopenIntent(null) }}><label htmlFor={`reopen-reason-${opportunity.id}`}>Motif de réouverture<select autoFocus id={`reopen-reason-${opportunity.id}`} value={reopenReason} onChange={(event) => setReopenReason(event.target.value)}>{REOPEN_REASONS.map(([code, label]) => <option key={code} value={code}>{label}</option>)}</select></label>{reopenReason === 'other' && <label htmlFor={`reopen-note-${opportunity.id}`}>Précisez le motif<input id={`reopen-note-${opportunity.id}`} value={reopenNote} required maxLength="500" onChange={(event) => setReopenNote(event.target.value)} /></label>}<button className="secondary-button" type="submit" disabled={submitting}>Confirmer la réouverture</button><button className="link-button" type="button" onClick={closeReopenIntent}>Annuler</button></form>}
+      {alignIntent?.id === opportunity.id && <PipelineAlignment prospect={prospect} opportunity={opportunity} submitting={submitting} onCancel={closeAlignIntent} onConfirm={async () => { await onAlign(opportunity, PIPELINE_BY_OPPORTUNITY_STAGE[opportunity.stage_code]); setAlignIntent(null) }} />}
     </li>)}</ul> : <p className="form-help">Aucune opportunité n’est encore enregistrée.</p>}
   </section>
 }
@@ -272,6 +302,6 @@ function PipelineAlignment({ prospect, opportunity, submitting, onCancel, onConf
   const possible = currentIndex >= 0 && targetIndex >= 0 && Math.abs(currentIndex - targetIndex) === 1
   return <aside className="opportunity-reason-form" aria-label="Alignement du pipeline">
     <p>Le prospect est à l’étape <strong>{PIPELINE_LABELS[prospect.stage_code] ?? 'Étape indisponible'}</strong> ; l’opportunité suggère <strong>{PIPELINE_LABELS[target] ?? 'Étape indisponible'}</strong>. Les deux parcours restent indépendants.</p>
-    {possible ? <><button className="secondary-button" type="button" onClick={onConfirm} disabled={submitting}>Confirmer l’alignement</button><button className="link-button" type="button" onClick={onCancel}>Annuler</button></> : <><p className="form-help">Cette transition n’est pas permise directement. Déplacez le prospect étape par étape dans le Kanban.</p><button className="link-button" type="button" onClick={onCancel}>Fermer</button></>}
+    {possible ? <><button autoFocus className="secondary-button" type="button" onClick={onConfirm} disabled={submitting}>Confirmer l’alignement</button><button className="link-button" type="button" onClick={onCancel}>Annuler</button></> : <><p className="form-help">Cette transition n’est pas permise directement. Déplacez le prospect étape par étape dans le Kanban.</p><button autoFocus className="link-button" type="button" onClick={onCancel}>Fermer</button></>}
   </aside>
 }
