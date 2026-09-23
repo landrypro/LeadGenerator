@@ -249,6 +249,27 @@ class GooglePlaceSearchRequest(GooglePlaceSearchParameters):
     model_config = ConfigDict(extra="forbid")
 
 
+class GoogleLocationSuggestRequest(StrictCommand):
+    text: str = Field(min_length=3, max_length=80)
+    area: str = Field(default="", max_length=120)
+    scope: Literal["area", "locality"]
+    language: Literal["fr", "en"] = "fr"
+    country_code: str = Field(default="", pattern=r"^$|^[A-Z]{2}$")
+    session_token: UUID
+
+    @field_validator("text")
+    @classmethod
+    def validate_text(cls, value: str) -> str:
+        value = " ".join(value.split())
+        if len(value) < 3:
+            raise ValueError("Saisissez au moins trois caractères pour le lieu.")
+        return value
+
+
+class GoogleLocationResolveRequest(StrictCommand):
+    selection_token: str = Field(min_length=20, max_length=2048)
+
+
 class GooglePlaceSummary(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 

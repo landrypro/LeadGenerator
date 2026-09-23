@@ -100,7 +100,9 @@ from .application.use_cases import (
     UploadCsvImportUseCase,
     ValidateCsvImportUseCase,
 )
+from .application.use_cases.dashboard import GetDashboardSummaryUseCase
 from .config import Settings
+from .infrastructure.google.location import GoogleLocationResolver
 
 
 @dataclass(frozen=True, slots=True)
@@ -108,6 +110,7 @@ class AppContainer:
     settings: Settings
     search_google_places: SearchGooglePlacesUseCase
     get_map_snapshot: GetMapSnapshotUseCase
+    location_resolver: GoogleLocationResolver | None = None
     metrics: MetricsRecorder = field(default_factory=NullMetricsRecorder)
     metrics_exporter: object | None = None
     readiness: CheckReadinessUseCase = field(default_factory=CheckReadinessUseCase)
@@ -120,6 +123,7 @@ class AppContainer:
     reactivate_organization: ChangeOrganizationStatusUseCase | None = None
     list_tenant_audit_events: ListTenantAuditEventsUseCase | None = None
     list_platform_audit_events: ListPlatformAuditEventsUseCase | None = None
+    get_dashboard_summary: GetDashboardSummaryUseCase | None = None
     create_manual_prospect: CreateManualProspectUseCase | None = None
     add_google_prospects: AddGoogleProspectsUseCase | None = None
     list_prospects: ListProspectsUseCase | None = None

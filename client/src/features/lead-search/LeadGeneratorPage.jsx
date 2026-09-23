@@ -18,6 +18,8 @@ export function PlaceSearchPage({ session = null }) {
   const locale = session?.active_organization?.locale === 'en-CA' ? 'en-CA' : 'fr-CA'
   const copy = leadSearchMessages[locale]
   const [form, setForm] = useState(initialForm)
+  const [location, setLocation] = useState({ area: '', locality: '', areaCountry: '', areaSelected: false, localitySelected: false })
+  const [manualMode, setManualMode] = useState(false)
   const [mobilePanelOpen, setMobilePanelOpen] = useState(false)
   const { error, clearError, reportError } = useErrorNotice()
   const { result, loading, runSearch } = useLeadSearch({ clearError, reportError })
@@ -32,12 +34,31 @@ export function PlaceSearchPage({ session = null }) {
 
   const places = result?.places ?? []
   const resultForm = result?.search_parameters ?? form
-  const updateForm = (key, value) => setForm((current) => ({ ...current, [key]: value }))
+  const updateForm = (key, value) => {
+    setForm((current) => ({ ...current, [key]: value }))
+    if (key === 'center_latitude' || key === 'center_longitude') {
+      setLocation((current) => ({ ...current, localitySelected: false }))
+    }
+  }
+  const updateLocation = (key, value) => setLocation((current) => ({
+    ...current, [key]: value,
+    ...(key === 'area' ? { areaCountry: '', areaSelected: false, locality: '', localitySelected: false } : { localitySelected: false }),
+  }))
+  const selectLocation = (key, value) => {
+    setLocation((current) => key === 'area'
+      ? { area: value.label, areaCountry: value.region_code, areaSelected: true, locality: '', localitySelected: false }
+      : { ...current, locality: value.label, localitySelected: true })
+    if (key === 'locality') setForm((current) => ({
+      ...current, center_latitude: value.latitude, center_longitude: value.longitude,
+      region_code: value.region_code || current.region_code,
+    }))
+  }
 
   async function submitSearch(event) {
     event.preventDefault()
     setMobilePanelOpen(false)
-    await runSearch(form)
+    if (!manualMode && !(location.areaSelected && location.localitySelected)) return
+    await runSearch({ ...form, language_code: locale === 'en-CA' ? 'en' : 'fr' })
   }
 
   return <div className="app-shell">
@@ -49,6 +70,12 @@ export function PlaceSearchPage({ session = null }) {
       onSubmit={submitSearch}
       onUpdate={updateForm}
       copy={copy}
+      locale={locale}
+      location={location}
+      onLocationChange={updateLocation}
+      onLocationSelect={selectLocation}
+      manualMode={manualMode}
+      onManualMode={setManualMode}
     />
 
     <main className="main-content">

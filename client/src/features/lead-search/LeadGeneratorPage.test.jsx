@@ -7,6 +7,8 @@ import { leadSearchApi } from './api/leadSearchApi'
 vi.mock('./api/leadSearchApi', () => ({
     leadSearchApi: {
       health: vi.fn(),
+      suggestLocation: vi.fn(),
+      resolveLocation: vi.fn(),
       search: vi.fn(),
       mapSnapshot: vi.fn(),
       addGoogleProspects: vi.fn(),
@@ -15,6 +17,7 @@ vi.mock('./api/leadSearchApi', () => ({
 
 
 function submitSearch() {
+  fireEvent.click(screen.getByRole('button', { name: /Coordonnées avancées/i }))
   fireEvent.click(screen.getByRole('button', { name: /Rechercher des établissements/i }))
 }
 
@@ -71,6 +74,46 @@ describe('PlaceSearchPage', () => {
         },
       }],
     })
+  })
+
+  it('résout un pays puis une ville avant de chercher, sans requête sur une simple saisie', async () => {
+    leadSearchApi.suggestLocation.mockImplementation(async ({ scope }) => ({ items: [{
+      label: scope === 'area' ? 'Canada' : 'Montréal, Québec, Canada',
+      selection_token: scope === 'area' ? 'area-token' : 'city-token',
+    }] }))
+    leadSearchApi.resolveLocation.mockImplementation(async ({ selection_token }) => ({
+      label: selection_token === 'area-token' ? 'Canada' : 'Montréal, Québec, Canada',
+      scope: selection_token === 'area-token' ? 'area' : 'locality',
+      latitude: 45.5017, longitude: -73.5673, region_code: 'CA',
+    }))
+    leadSearchApi.search.mockResolvedValue(successfulResult())
+    render(<PlaceSearchPage />)
+
+    fireEvent.change(screen.getByRole('combobox', { name: 'Pays ou région' }), { target: { value: 'Cana' } })
+    expect(screen.getByRole('button', { name: /Rechercher des établissements/i })).toBeDisabled()
+    expect(leadSearchApi.search).not.toHaveBeenCalled()
+    fireEvent.click(await screen.findByRole('option', { name: 'Canada' }))
+    await waitFor(() => expect(screen.getByRole('combobox', { name: 'Pays ou région' })).toHaveValue('Canada'))
+
+    fireEvent.change(screen.getByRole('combobox', { name: 'Ville ou quartier' }), { target: { value: 'Montr' } })
+    fireEvent.click(await screen.findByRole('option', { name: /Montréal/i }))
+    await waitFor(() => expect(screen.getByRole('button', { name: /Rechercher des établissements/i })).toBeEnabled())
+    fireEvent.click(screen.getByRole('button', { name: /Rechercher des établissements/i }))
+    await waitFor(() => expect(leadSearchApi.search).toHaveBeenCalledWith(expect.objectContaining({
+      center_latitude: 45.5017, center_longitude: -73.5673, region_code: 'CA',
+    }), expect.any(AbortSignal)))
+  })
+
+  it('utilise en-CA pour les libellés et la recherche', async () => {
+    leadSearchApi.search.mockResolvedValue(successfulResult())
+    render(<PlaceSearchPage session={{ active_organization: { locale: 'en-CA' } }} />)
+    expect(screen.getByRole('combobox', { name: 'Country or region' })).toBeInTheDocument()
+    expect(screen.getByRole('combobox', { name: 'City or neighbourhood' })).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: /Advanced coordinates/i }))
+    fireEvent.click(screen.getByRole('button', { name: /Search businesses/i }))
+    await waitFor(() => expect(leadSearchApi.search).toHaveBeenCalledWith(expect.objectContaining({
+      language_code: 'en',
+    }), expect.any(AbortSignal)))
   })
 
   it('soumet uniquement les paramètres de la recherche limitée et affiche le résultat', async () => {
@@ -148,6 +191,7 @@ describe('PlaceSearchPage', () => {
     leadSearchApi.search.mockReturnValue(new Promise(() => {}))
     render(<PlaceSearchPage />)
 
+    fireEvent.click(screen.getByRole('button', { name: /Coordonnées avancées/i }))
     const submit = screen.getByRole('button', { name: /Rechercher des établissements/i })
     fireEvent.click(submit)
     fireEvent.click(submit)

@@ -120,10 +120,12 @@ from .application.use_cases import (
     UploadCsvImportUseCase,
     ValidateCsvImportUseCase,
 )
+from .application.use_cases.dashboard import GetDashboardSummaryUseCase
 from .config import Settings
 from .container import AppContainer
 from .infrastructure.audit_pagination import HmacAuditCursorCodec
 from .infrastructure.clock import SystemClock
+from .infrastructure.google.location import GoogleLocationResolver
 from .infrastructure.google.places import (
     GooglePlacesClient,
     GooglePlacesGateway,
@@ -146,6 +148,7 @@ from .infrastructure.postgres import (
     SqlAlchemyOrganizationAdministrationGateway,
     SqlAlchemyProvisioningGateway,
 )
+from .infrastructure.postgres.dashboard_reader import PostgresDashboardReader
 from .infrastructure.redis import (
     RedisGenerationGuard,
     RedisGoogleSearchQuota,
@@ -165,6 +168,7 @@ from .presentation.api.responses import api_error
 from .presentation.api.routers import (
     audit_router,
     auth_router,
+    dashboard_router,
     google_places_router,
     health_router,
     invitations_router,
@@ -348,8 +352,10 @@ def build_container(settings: Settings) -> AppContainer:
     resend_member_invitation: ResendMemberInvitationUseCase | None = None
     revoke_member_invitation: RevokeMemberInvitationUseCase | None = None
     switch_organization: SwitchOrganizationUseCase | None = None
+    get_dashboard_summary: GetDashboardSummaryUseCase | None = None
     if database is not None and redis is not None:
         clock = SystemClock()
+        get_dashboard_summary = GetDashboardSummaryUseCase(PostgresDashboardReader(database.session_factory), clock)
         rate_limit_key = settings.rate_limit_hmac_key.encode("utf-8") or DEVELOPMENT_RATE_LIMIT_KEY
         cursor_codec = HmacCursorCodec(rate_limit_key)
         audit_cursor_codec = HmacAuditCursorCodec(rate_limit_key)
@@ -579,6 +585,11 @@ def build_container(settings: Settings) -> AppContainer:
 
     return AppContainer(
         settings=settings,
+        location_resolver=GoogleLocationResolver(
+            GooglePlacesSettings(settings.google_maps_api_key, settings.places_timeout_seconds),
+            settings.rate_limit_hmac_key.encode("utf-8") or DEVELOPMENT_RATE_LIMIT_KEY,
+            redis.client if redis is not None else None,
+        ),
         search_google_places=SearchGooglePlacesUseCase(
             places_gateway,
             generation_guard,
@@ -602,6 +613,7 @@ def build_container(settings: Settings) -> AppContainer:
         reactivate_organization=reactivate_organization,
         list_tenant_audit_events=list_tenant_audit_events,
         list_platform_audit_events=list_platform_audit_events,
+        get_dashboard_summary=get_dashboard_summary,
         create_manual_prospect=create_manual_prospect,
         add_google_prospects=add_google_prospects,
         list_prospects=list_prospects,
@@ -843,6 +855,7 @@ def create_app(
     app.include_router(health_router)
     app.include_router(metrics_router)
     app.include_router(auth_router)
+    app.include_router(dashboard_router)
     app.include_router(audit_router)
     app.include_router(invitations_router)
     app.include_router(platform_router)
