@@ -1,8 +1,8 @@
 # Recette fonctionnelle QA — Phase 3.4 Opportunités
 
 **Version :** 1.0  
-**Statut :** prête à exécuter  
-**Tête Alembic attendue :** `20260910_0020 (head)`
+**Statut :** phase 3.4 clôturée avec réserves transférées à la recette finale de la phase 4 ; verrou qualité vert et GO produit reçu le 23 septembre 2026 (UTC)
+**Tête Alembic attendue :** `20260922_0021 (head)`
 
 Utiliser uniquement des organisations, utilisateurs et prospects fictifs. Ne saisir aucun secret ni contenu descriptif
 Google. Pour chaque scénario, consigner compte, organisation, identifiants techniques utiles, résultat et capture.
@@ -77,9 +77,12 @@ tentative sans note a été refusée côté interface, sans requête de transiti
 Avec Admin A puis Manager A, rouvrir une gagnée et une perdue avec motif et probabilité ouverte. Attendu : réouverture
 autorisée et historisée. Avec Sales A, l’action est absente et l’API répond 403.
 
-**Verdict : OK avec réserve —** la réouverture autorisée remet l'affaire à une étape ouverte, à `50 %`, sans clôture ni
-motif de perte ; la carte Sales ne propose pas l'action « Réouvrir ». La preuve API du refus `403
-opportunity_action_forbidden` pour Sales reste à rejouer avant la recette finale.
+**Verdict : OK —** la réouverture autorisée remet l'affaire à une étape ouverte, à `50 %`, sans clôture ni motif de
+perte ; la carte Sales ne propose pas l'action « Réouvrir ». Le 22 septembre 2026, avec la session Sales propriétaire
+de `OPP-07 Sales refus` (`f7d3f706-41b2-4287-8e86-62287f5d222b`), alors terminale en `lost`, version `6`, le
+`POST /api/opportunities/{id}/reopen` a répondu `403 opportunity_action_forbidden`. Les lectures avant/après ont
+confirmé l'étape, la probabilité, la clôture et la version `6` inchangées ; les événements sont restés au nombre de
+`6`, sans événement `reopened` supplémentaire.
 
 ### OPP-08 — Modification et responsable
 
@@ -605,6 +608,14 @@ souris uniquement pour prendre les captures ou lancer l’outil axe ; toutes les
 3. Restaurer la locale initiale de l’organisation et vérifier une dernière fois la fiche et le portefeuille. Conserver
    les captures `fr-CA`, `en-CA`, les deux affaires de test, le résultat axe et toute anomalie de langue ou de focus.
 
+**Verdict OPP-17 : OK avec réserve —** le 22 septembre 2026, les parcours `fr-CA` et `en-CA` ont été rejoués au
+clavier avec `OPP-17 FR` et `OPP-17 EN`. La virgule française et le point anglais sont normalisés, les montants et
+dates suivent la locale, les transitions, la perte, la réouverture, `Tab` et `Échap` sont conformes, et les contenus
+Opportunités et Pipeline ne mélangent plus le français et l’anglais. Les vues restent utilisables à 200 % et le
+contrôle ciblé `OpportunitySection.test.jsx` réussit ses 14 tests, dont l’analyse axe. La locale initiale `fr-CA` a
+été restaurée. Réserve `OPP-17-C-R1` : aucun rapport axe exhaustif exporté pour chacune des vues dans les deux
+locales n’a été fourni ; ces exports restent à conserver lors de la recette finale globale.
+
 ## 3. Régression 3.1 à 3.3
 
 | ID | Contrôle minimal | Verdict |
@@ -617,26 +628,26 @@ souris uniquement pour prendre les captures ou lancer l’outil axe ; toutes les
 
 | Élément | Résultat |
 | --- | --- |
-| Migration reconstruite | Conforme — `20260910_0020 (head)`, aucune dérive Alembic |
+| Migration reconstruite | OK — reconstruction isolée sur `20260922_0021 (head)` validée par le verrou global du 23 septembre 2026 |
 | OPP-01 | OK — création, montant exact et valeur pondérée validés par capture |
 | OPP-02 | OK — agrégats CAD et USD séparés, sans total multidevise |
 | OPP-03 | Partiellement OK — devise invalide à confirmer isolément en recette finale |
 | OPP-04 | OK — transitions voisines, chronologie, version et refus d’un saut validés |
 | OPP-05 | OK — transition Gagnée, probabilité 100, clôture, terminalité et version validées |
 | OPP-06 | OK — perte avec motifs, note obligatoire pour « Autre » et terminalité validées |
-| OPP-07 | OK avec réserve — action absente pour Sales ; refus API `403` à rejouer avant recette finale |
+| OPP-07 | OK — action absente pour Sales ; refus API `403 opportunity_action_forbidden` et absence d’écriture validés |
 | Pré-OPP-08 | OK — éditeur, confirmation montant/devise et réaffectation validés |
 | OPP-08 | OK — responsable désactivé, accès retiré, réaffectation isolée et retour contrôlé validés |
 | OPP-09 | OK — conflit de version affiché ; seconde écriture refusée avant relecture |
 | OPP-10 | OK — rejeu identique sans doublon, conflit `409` pour commande divergente et unique événement `created` |
-| OPP-11 | OK avec réserve — pagination et filtres validés ; requêtes `415` durant la saisie partielle d’une devise à corriger |
+| OPP-11 | OK avec réserve transférée — pagination et filtres validés ; contrôle des requêtes `415` durant la saisie partielle d’une devise reporté à la recette finale phase 4 |
 | OPP-12 | OK — chronologie, versions, valeur pondérée, portefeuille et indépendance du prospect dans le Kanban validés |
 | OPP-13 | OK — garde-fou contre les sauts interdits et alignement explicite d’un cran validés |
-| OPP-14 | OK avec réserve — visibilité et lecture API non autorisée validées ; mutation interdite à rejouer avant recette finale |
+| OPP-14 | OK avec réserve transférée — visibilité et lecture API non autorisée validées ; mutations Sales interdites à rejouer lors de la recette finale phase 4 |
 | OPP-15 | OK — isolation bidirectionnelle des lectures, mutations et événements, sans écriture croisée |
 | OPP-16 | OK — `no-store`, refus CSRF sans écriture et absence de stockage navigateur validés |
-| OPP-17 | À exécuter |
-| REG-31 à REG-33 | À renseigner |
-| Verrou global sans skip | Conforme — `Verrou qualité local 3.4 : VERT` le 17 septembre 2026 |
-| Réserves transférées | À renseigner |
-| GO de clôture produit | À renseigner |
+| OPP-17 | OK avec réserve transférée — parcours `fr-CA`/`en-CA`, clavier, zoom 200 % et 14 tests ciblés axe conformes ; rapports axe exhaustifs reportés à la recette finale phase 4 |
+| REG-31 à REG-33 | Transférés — import CSV, Kanban et chronologie/tâches à rejouer lors de la recette finale phase 4 |
+| Verrou global sans skip | OK — Docker via WSL, Alembic, 303 tests backend sans skip, tests frontend sans skip, build Vite, sources navigateur, artefact et diff Git conformes le 23 septembre 2026 |
+| Réserves transférées | Acceptées pour la recette finale phase 4 : OPP-03-R1, OPP-11-R1, OPP-14-R1, OPP-17-C-R1 et REG-31-33-R1 |
+| GO de clôture produit | Reçu le 23 septembre 2026 (UTC) ; phase 3.4 clôturée avec les cinq réserves ci-dessus transférées à la recette finale de la phase 4 |
