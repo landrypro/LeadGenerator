@@ -58,6 +58,10 @@ def upgrade() -> None:
         """
     )
     op.execute("ALTER FUNCTION app_private.identity_memberships() OWNER TO prospect_rls_definer")
+    # CREATE FUNCTION rétablit le privilège EXECUTE implicite de PUBLIC. Le
+    # contrat RLS impose que seul le rôle applicatif puisse appeler cette
+    # fonction SECURITY DEFINER.
+    op.execute("REVOKE EXECUTE ON FUNCTION app_private.identity_memberships() FROM PUBLIC")
     op.execute("GRANT EXECUTE ON FUNCTION app_private.identity_memberships() TO prospect_app")
 
 
@@ -97,4 +101,5 @@ def downgrade() -> None:
         """
     )
     op.execute("ALTER FUNCTION app_private.identity_memberships() OWNER TO prospect_rls_definer")
+    op.execute("REVOKE EXECUTE ON FUNCTION app_private.identity_memberships() FROM PUBLIC")
     op.execute("GRANT EXECUTE ON FUNCTION app_private.identity_memberships() TO prospect_app")
