@@ -1,7 +1,7 @@
-# Marketteo CRM - Manuel utilisateur
+# Manuel utilisateur Marketteo CRM
 
-**Version :** 0.9
-**État :** édition 3.4 mise à jour pour recette fonctionnelle
+**Version :** 0.10
+**État :** édition complète de la phase 3.4 à valider
 **Date de référence :** 18 septembre 2026
 **Public :** commerciaux, gestionnaires, administrateurs d'organisation et administrateurs de plateforme
 
@@ -93,7 +93,7 @@ Le menu affiche uniquement les pages autorisées pour votre rôle. L'absence d'u
 | Pipeline commercial | Consulter et déplacer | Consulter, déplacer et réouvrir | Consulter, déplacer et réouvrir | Selon appartenance |
 | Chronologie commerciale | Consulter, créer et corriger ses saisies | Consulter, créer et corriger les saisies | Consulter, créer et corriger les saisies | Selon appartenance |
 | Tâches et rappels | Gérer les tâches assignées | Gérer les tâches de l'organisation | Gérer les tâches de l'organisation | Selon appartenance |
-| Opportunités | Voir et gérer ses opportunités | Gestion complète | Gestion complète | Selon appartenance |
+| Opportunités | Voir, créer, modifier et conclure ses opportunités ; aucune réouverture ni réaffectation | Voir, créer, modifier, conclure, réouvrir et réaffecter toutes les opportunités | Voir, créer, modifier, conclure, réouvrir et réaffecter toutes les opportunités | Selon appartenance |
 | Sources et acquisitions | Non | Consultation et déclaration | Gestion et revue | Selon appartenance |
 | Conservation et imports CSV | Consultation du rapport | Déclarer, téléverser, mapper, valider et confirmer | Gestion complète | Selon appartenance |
 | Membres et journal d'activité | Non | Consultation | Gestion | Selon appartenance |
@@ -260,15 +260,90 @@ un gestionnaire pour décider de la suite : aucune réaffectation n’est faite 
 La « prochaine action » affichée sur la fiche, dans la liste des prospects et sur une carte Kanban est calculée à partir
 de la première tâche ouverte. Elle ne modifie jamais l’étape commerciale du prospect.
 
-### 5.4 Gérer les opportunités
+### 5.4 Comprendre une opportunité
 
-Une opportunité représente une affaire commerciale interne liée à un prospect. Elle ne crée ni facture, ni client, ni permission de contact. Ouvrez la fiche du prospect, puis la section « Opportunités » pour créer une affaire avec un nom, un montant, une devise ISO, une probabilité et une échéance. La devise proposée est `CAD` ; modifiez-la seulement lorsque le montant est bien exprimé dans la nouvelle devise, car Marketteo n'applique aucune conversion.
+Une opportunité représente une affaire commerciale interne liée à un prospect. Elle possède son propre nom, son montant, sa devise, sa probabilité, son échéance, son responsable et son étape. La valeur pondérée correspond au montant multiplié par la probabilité. Une opportunité ne crée ni facture, ni client, ni permission de contact, ni tâche ou notification.
 
-Les étapes sont : Découverte, Qualification, Proposition, Négociation, Gagnée et Perdue. Les étapes ouvertes se font progresser ou reculent d'un cran. Une affaire ne peut être marquée « Gagnée » qu'à partir de Proposition ou de Négociation. Pour la marquer « Perdue », choisissez un motif ; « Autre motif » exige une précision. Gagnée et Perdue sont terminales. Seul un gestionnaire ou un administrateur peut réouvrir une affaire, avec un motif.
+Les étapes sont : Découverte, Qualification, Proposition, Négociation, Gagnée et Perdue. Elles sont indépendantes de l'étape Kanban du prospect. Les montants sont conservés tels qu'ils ont été saisis : Marketteo n'effectue aucune conversion de devise.
 
-Ouvrez « Opportunités » dans le menu pour rechercher une affaire ou un prospect, filtrer par étape, devise ou retard et consulter les totaux. Les montants et valeurs pondérées sont toujours regroupés par devise : ne les additionnez pas entre CAD, USD ou toute autre devise.
+### 5.5 Consulter le portefeuille des opportunités
 
-L'étape de l'opportunité est indépendante de l'étape Kanban du prospect. Lorsque l'interface propose « Aligner le pipeline », cette action est une seconde confirmation. Si la transition n'est pas autorisée, déplacez le prospect étape par étape dans le pipeline. En cas de conflit de version ou de responsable désactivé, rechargez la fiche avant toute nouvelle modification.
+Ouvrez « Opportunités » dans le menu. Le portefeuille présente les affaires auxquelles votre rôle donne accès, avec leur étape, leur montant, leur valeur pondérée, leur échéance et l'indication « En retard » lorsqu'elle s'applique.
+
+1. saisissez un nom d'opportunité ou de prospect dans la zone de recherche ;
+2. filtrez au besoin par étape, par code de devise ou par retard ;
+3. sélectionnez « Filtrer » ;
+4. consultez les totaux et valeurs pondérées, regroupés séparément par devise ;
+5. sélectionnez « Voir le prospect » pour ouvrir la fiche associée ;
+6. utilisez « Charger plus » lorsqu'une page suivante est disponible.
+
+Ne calculez jamais un total général en additionnant des montants CAD, USD ou exprimés dans d'autres devises. L'état « En retard » ne change pas automatiquement l'étape et ne crée aucun rappel.
+
+![Portefeuille des opportunités avec filtres et totaux par devise](images/portefeuille-opportunites.png)
+*Figure 5 — Portefeuille des opportunités : recherche, filtres, totaux distincts par devise et principales données commerciales.*
+
+### 5.6 Créer une opportunité
+
+Ouvrez la fiche d'un prospect, puis la section « Opportunités ».
+
+1. saisissez un nom explicite, d'au plus 160 caractères ;
+2. saisissez un montant supérieur à zéro, avec au plus quatre décimales ;
+3. vérifiez le code de devise ISO à trois lettres, proposé à `CAD` ;
+4. saisissez une probabilité entière de 0 à 100 ;
+5. choisissez une échéance égale ou postérieure à la date courante de l'organisation ;
+6. sélectionnez « Créer l'opportunité ».
+
+L'opportunité est attribuée au membre qui la crée. Un commercial ne voit et ne modifie que ses propres opportunités ; un gestionnaire ou un administrateur peut gérer celles de toute l'organisation. La création est refusée lorsque le prospect est archivé ou lorsque son étape Kanban est déjà Gagné ou Perdu. Réouvrez d'abord le prospect si le suivi doit reprendre.
+
+![Création et cycle de vie des opportunités dans une fiche prospect](images/fiche-prospect-opportunites.png)
+*Figure 6 — Fiche prospect : création, valeurs pondérées par devise, étapes ouvertes, clôture, réouverture et alignement explicite du pipeline.*
+
+### 5.7 Modifier une opportunité ou son responsable
+
+Sur une opportunité ouverte, sélectionnez « Modifier ». Vous pouvez ajuster le nom, le montant, la devise, la probabilité, l'échéance et, selon votre rôle, le responsable.
+
+Si vous changez de devise, vérifiez d'abord que le montant saisi est bien exprimé dans la nouvelle devise, puis cochez « J'ai confirmé le montant dans la nouvelle devise ». Marketteo conserve le nombre saisi sans conversion automatique.
+
+Le responsable choisi doit être un membre actif. Lorsqu'un responsable est désactivé, l'opportunité reste lisible mais ses actions commerciales sont bloquées. Un gestionnaire ou un administrateur doit alors sélectionner « Réaffecter le responsable » et choisir un membre actif ; seule cette réaffectation est permise tant qu'elle n'est pas terminée.
+
+![Modification d'une opportunité et confirmation de la nouvelle devise](images/modifier-opportunite.png)
+*Figure 7 — Modification d'une opportunité : montant, devise, probabilité, échéance, confirmation sans conversion et responsable actif.*
+
+### 5.8 Faire progresser ou conclure une opportunité
+
+Pour une opportunité ouverte, le sélecteur d'étape propose uniquement l'étape voisine précédente ou suivante. Un saut direct est refusé.
+
+- « Gagnée » est disponible depuis Proposition ou Négociation. La probabilité devient 100 % et l'affaire passe en lecture seule.
+- « Perdue » est disponible depuis toute étape ouverte. Choisissez un motif dans la liste ; « Autre motif » exige une précision. La probabilité devient 0 % et l'affaire passe en lecture seule.
+- « Réouvrir » est réservé aux gestionnaires et administrateurs. Un motif est obligatoire. L'affaire revient à une étape ouverte et la probabilité proposée est 50 %.
+
+Un commercial peut conclure ses propres affaires, mais ne peut ni les réouvrir ni les réaffecter. La clôture d'une opportunité ne crée aucun client, document de vente ou automatisation.
+
+![Motif de perte et actions terminales d'une opportunité](images/cycle-opportunite.png)
+*Figure 8 — Cycle de vie : motif de perte, confirmation, affaire gagnée en lecture seule et action de réouverture selon le rôle.*
+
+### 5.9 Aligner explicitement le pipeline du prospect
+
+L'étape de l'opportunité et celle du prospect restent indépendantes. Lorsque « Aligner le pipeline » apparaît :
+
+1. sélectionnez l'action ;
+2. comparez l'étape actuelle du prospect et l'étape suggérée par l'opportunité ;
+3. confirmez seulement si la transition Kanban proposée est pertinente et voisine ;
+4. si l'interface refuse le saut, fermez le message et déplacez le prospect étape par étape dans « Pipeline ».
+
+Fermer ou déplacer une opportunité ne modifie jamais silencieusement le Kanban. L'alignement constitue une seconde intention explicite.
+
+![Alignement explicite entre l'opportunité et le pipeline du prospect](images/alignement-opportunite.png)
+*Figure 9 — Alignement du pipeline : les deux parcours restent indépendants et un saut Kanban interdit doit être effectué étape par étape.*
+
+### 5.10 Lire l'historique et résoudre un conflit
+
+La « Chronologie commerciale » de la fiche rassemble les événements « Opportunité créée », « Opportunité modifiée », « Étape de l'opportunité modifiée » et « Opportunité réouverte ». Les changements d'étape affichent le passage effectué et l'heure de l'organisation.
+
+Chaque modification vérifie la version de l'opportunité. Si une autre fenêtre ou un autre membre a enregistré un changement entre-temps, le message « L'opportunité a changé depuis sa lecture. » s'affiche. Rechargez la fiche, examinez les nouvelles valeurs, puis réappliquez uniquement les changements encore nécessaires. Ne renvoyez pas aveuglément l'ancienne saisie.
+
+![Événements d'opportunité dans la chronologie commerciale](images/chronologie-opportunites.png)
+*Figure 10 — Chronologie commerciale : créations, modifications et changements d'étape des opportunités, avec date et heure.*
 
 ## 6. Documenter les sources et acquisitions
 
@@ -465,6 +540,14 @@ C'est l'état normal après sa création. Un gestionnaire ou administrateur doit
 
 Vérifiez que le prospect n'est pas archivé, que l'étape cible est proposée par l'application et que votre rôle permet l'action. En cas de conflit de version, rechargez le pipeline avant de décider si le déplacement doit être repris.
 
+### Une opportunité ne peut pas être créée ou modifiée
+
+Vérifiez que le prospect n'est ni archivé ni dans une étape Kanban terminale. Vérifiez ensuite que le responsable est actif et que votre rôle autorise l'action. Si le message signale une version plus récente, rechargez la fiche avant de reprendre. Un commercial ne peut intervenir que sur ses propres opportunités.
+
+### La valeur pondérée ou la devise semble incorrecte
+
+La valeur pondérée est calculée à partir du montant et de la probabilité. Les totaux restent séparés par devise et aucune conversion n'est appliquée. Si la devise a changé, confirmez que le montant était déjà exprimé dans la nouvelle devise ; corrigez-le manuellement au besoin.
+
 ## 12. Glossaire
 
 **Activité commerciale** : note ou interaction déjà réalisée, inscrite volontairement dans la chronologie du prospect. Elle n'envoie aucun message et ne crée pas de permission.
@@ -476,6 +559,10 @@ Vérifiez que le prospect n'est pas archivé, que l'étape cible est proposée p
 **Étape commerciale** : position actuelle d'un prospect dans le pipeline, distincte de son archivage et de la permission de contact.
 
 **Opportunité** : affaire commerciale interne liée à un prospect, avec un montant, une devise, une probabilité, une échéance et une étape propre.
+
+**Responsable d'opportunité** : membre actif auquel une affaire est attribuée. Un commercial ne consulte que les affaires dont il est responsable.
+
+**Valeur pondérée** : montant d'une opportunité multiplié par sa probabilité, présenté sans conversion et regroupé par devise.
 
 **Hold** : protection temporaire empêchant l'application normale d'une politique de conservation sur une ressource.
 
@@ -493,6 +580,7 @@ Vérifiez que le prospect n'est pas archivé, que l'étape cible est proposée p
 
 | Version | Date | État | Résumé |
 |---|---|---|---|
+| 0.10 | 18 septembre 2026 | À valider | Couverture complète de la phase 3.4 : portefeuille, création, édition, responsable, cycle de vie, alignement, conflits et six nouvelles captures d'écran |
 | 0.9 | 18 septembre 2026 | À valider | Consolidation des opportunités 3.4, des droits associés et des limites de devise, avec édition HTML du manuel |
 | 0.8 | 10 septembre 2026 | À valider | Ajout du portefeuille, du cycle de vie et de l’alignement explicite des opportunités 3.4 |
 | 0.7 | 5 septembre 2026 | À valider | Ajout des tâches, rappels internes et prochaine action 3.3-D |
