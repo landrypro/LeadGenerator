@@ -225,6 +225,14 @@ function Initialize-QualityClient {
         ForEach-Object {
             Copy-Item -LiteralPath $_.FullName -Destination $qualityClient -Recurse -Force -ErrorAction Stop
         }
+
+    # Le pré-build Vite publie le manuel depuis ../docs. La copie isolée du
+    # client doit donc conserver cette dépendance déclarée, sans réutiliser le
+    # répertoire de travail ni masquer une erreur de publication.
+    $manualSource = Join-Path $workspace 'docs\manuel-utilisateur'
+    $manualDestination = Join-Path $qualityRoot 'docs\manuel-utilisateur'
+    New-Item -ItemType Directory -Path (Split-Path -Parent $manualDestination) -Force -ErrorAction Stop | Out-Null
+    Copy-Item -LiteralPath $manualSource -Destination $manualDestination -Recurse -Force -ErrorAction Stop
 }
 
 function Remove-QualityClient {
