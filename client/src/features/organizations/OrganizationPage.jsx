@@ -8,10 +8,9 @@ import { organizationApi } from './api/organizationApi'
 import { useOrganization } from './hooks/useOrganization'
 
 
-const STATUS_LABELS = Object.freeze({
-  active: 'Active',
-  provisioning: 'En cours d’activation',
-  suspended: 'Suspendue',
+const ORGANIZATION_MESSAGES = Object.freeze({
+  'fr-CA': Object.freeze({ administration: 'Administration', unavailable: 'Organisation indisponible', load: 'Chargement de l’organisation…', unavailableText: 'Impossible de charger l’organisation.', retry: 'Réessayer', title: 'Organisation', description: 'Consultez les informations de l’organisation active', descriptionEditable: ' et mettez-les à jour.', newer: 'Une version plus récente existe', currentVersion: 'Votre saisie est conservée. Version chargée : {version}. Version actuelle signalée : {conflictVersion}.', reload: 'Recharger la version actuelle', reloading: 'Rechargement…', summary: 'Informations actuelles', name: 'Nom', language: 'Langue', timezone: 'Fuseau horaire', status: 'État', created: 'Créée le', updated: 'Mise à jour le', edit: 'Modifier l’organisation', timezoneIana: 'Fuseau horaire IANA', timezoneHelp: 'Commencez à saisir un continent ou une ville pour afficher les fuseaux proposés.', save: 'Enregistrer les modifications', saving: 'Enregistrement…', saved: 'Les informations de l’organisation ont été enregistrées.', reloaded: 'La version actuelle a été chargée. Vérifiez vos modifications avant de les saisir à nouveau.', updateError: 'Impossible de modifier l’organisation.', statuses: Object.freeze({ active: 'Active', provisioning: 'En cours d’activation', suspended: 'Suspendue' }) }),
+  'en-CA': Object.freeze({ administration: 'Administration', unavailable: 'Organization unavailable', load: 'Loading organization…', unavailableText: 'Unable to load the organization.', retry: 'Try again', title: 'Organization', description: 'View the active organization’s information', descriptionEditable: ' and update it.', newer: 'A newer version is available', currentVersion: 'Your entry was kept. Loaded version: {version}. Reported current version: {conflictVersion}.', reload: 'Reload current version', reloading: 'Reloading…', summary: 'Current information', name: 'Name', language: 'Language', timezone: 'Time zone', status: 'Status', created: 'Created', updated: 'Updated', edit: 'Edit organization', timezoneIana: 'IANA time zone', timezoneHelp: 'Start typing a continent or city to see suggested time zones.', save: 'Save changes', saving: 'Saving…', saved: 'Organization information was saved.', reloaded: 'The current version was loaded. Review your changes before entering them again.', updateError: 'Unable to update the organization.', statuses: Object.freeze({ active: 'Active', provisioning: 'Being activated', suspended: 'Suspended' }) }),
 })
 
 function formatDate(value, locale, timezone) {
@@ -32,6 +31,8 @@ function formatDate(value, locale, timezone) {
 
 
 export function OrganizationPage({ session, onOrganizationUpdated }) {
+  const locale = session.active_organization?.locale === 'en-CA' ? 'en-CA' : 'fr-CA'
+  const copy = ORGANIZATION_MESSAGES[locale]
   const { organization, setOrganization, loading, error: loadError, load } = useOrganization()
   const [draft, setDraft] = useState({ name: '', locale: 'fr-CA', timezone: 'America/Toronto' })
   const [submitting, setSubmitting] = useState(false)
@@ -92,13 +93,13 @@ export function OrganizationPage({ session, onOrganizationUpdated }) {
       if (mutationSequenceRef.current !== sequence) return
       setOrganization(updated)
       onOrganizationUpdated?.(updated)
-      setSuccess('Les informations de l’organisation ont été enregistrées.')
+      setSuccess(copy.saved)
     } catch (updateError) {
       if (updateError?.name === 'AbortError' || mutationSequenceRef.current !== sequence) return
       if (updateError?.code === 'organization_version_conflict') {
         setConflictVersion(updateError.fields?.version ?? 'inconnue')
       } else {
-        setMutationError(toUserMessage(updateError, 'Impossible de modifier l’organisation.'))
+        setMutationError(toUserMessage(updateError, copy.updateError))
       }
     } finally {
       if (mutationSequenceRef.current === sequence) {
@@ -113,82 +114,82 @@ export function OrganizationPage({ session, onOrganizationUpdated }) {
     if (reloaded) {
       setMutationError('')
       setConflictVersion('')
-      setSuccess('La version actuelle a été chargée. Vérifiez vos modifications avant de les saisir à nouveau.')
+      setSuccess(copy.reloaded)
     }
   }
 
   if (loading && !organization) {
     return <main className="administration-page organization-page" aria-live="polite">
-      <div className="administration-loading"><LoaderCircle className="spin" size={20} /> Chargement de l’organisation…</div>
+      <div className="administration-loading"><LoaderCircle className="spin" size={20} /> {copy.load}</div>
     </main>
   }
 
   if (!organization) {
     return <main className="administration-page organization-page" aria-labelledby="organization-error-title">
       <section className="route-status-card">
-        <p className="eyebrow">Administration</p>
-        <h1 id="organization-error-title">Organisation indisponible</h1>
-        <p>{loadError || 'Impossible de charger l’organisation.'}</p>
-        <button className="secondary-button" type="button" onClick={load}>Réessayer</button>
+        <p className="eyebrow">{copy.administration}</p>
+        <h1 id="organization-error-title">{copy.unavailable}</h1>
+        <p>{loadError || copy.unavailableText}</p>
+        <button className="secondary-button" type="button" onClick={load}>{copy.retry}</button>
       </section>
     </main>
   }
 
   return <main className="administration-page organization-page" aria-labelledby="organization-title">
     <header className="administration-page-heading">
-      <p className="eyebrow">Administration</p>
-      <h1 id="organization-title">Organisation</h1>
-      <p>Consultez les informations de l’organisation active{canUpdate ? ' et mettez-les à jour.' : '.'}</p>
+      <p className="eyebrow">{copy.administration}</p>
+      <h1 id="organization-title">{copy.title}</h1>
+      <p>{copy.description}{canUpdate ? copy.descriptionEditable : '.'}</p>
     </header>
 
     {loadError && <ErrorBanner><span>{loadError}</span></ErrorBanner>}
     {mutationError && <ErrorBanner><span>{mutationError}</span></ErrorBanner>}
     {success && <div className="success-banner" role="status"><Check size={18} /><span>{success}</span></div>}
     {conflictVersion && <section className="conflict-banner" role="alert" aria-labelledby="organization-conflict-title">
-      <h2 id="organization-conflict-title">Une version plus récente existe</h2>
+      <h2 id="organization-conflict-title">{copy.newer}</h2>
       <p>
-        Votre saisie est conservée. Version chargée : {organization.version}. Version actuelle signalée : {conflictVersion}.
+        {copy.currentVersion.replace('{version}', organization.version).replace('{conflictVersion}', conflictVersion)}
       </p>
       <button className="secondary-button" type="button" onClick={reloadAfterConflict} disabled={loading}>
-        {loading ? 'Rechargement…' : 'Recharger la version actuelle'}
+        {loading ? copy.reloading : copy.reload}
       </button>
     </section>}
 
     <div className="organization-grid">
       <section className="administration-card" aria-labelledby="organization-summary-title">
         <div className="administration-card-icon" aria-hidden="true"><Building2 size={22} /></div>
-        <h2 id="organization-summary-title">Informations actuelles</h2>
+        <h2 id="organization-summary-title">{copy.summary}</h2>
         <dl className="account-details organization-details">
-          <div><dt>Nom</dt><dd>{organization.name}</dd></div>
-          <div><dt>Langue</dt><dd>{organization.locale === 'fr-CA' ? 'Français (Canada)' : 'English (Canada)'}</dd></div>
-          <div><dt>Fuseau horaire</dt><dd>{organization.timezone}</dd></div>
-          <div><dt>État</dt><dd><span className={`organization-status ${organization.status}`}>{STATUS_LABELS[organization.status] ?? organization.status}</span></dd></div>
-          <div><dt>Créée le</dt><dd><time dateTime={organization.created_at}>{formatDate(organization.created_at, organization.locale, organization.timezone)}</time></dd></div>
-          <div><dt>Mise à jour le</dt><dd><time dateTime={organization.updated_at}>{formatDate(organization.updated_at, organization.locale, organization.timezone)}</time></dd></div>
+          <div><dt>{copy.name}</dt><dd>{organization.name}</dd></div>
+          <div><dt>{copy.language}</dt><dd>{organization.locale === 'fr-CA' ? 'Français (Canada)' : 'English (Canada)'}</dd></div>
+          <div><dt>{copy.timezone}</dt><dd>{organization.timezone}</dd></div>
+          <div><dt>{copy.status}</dt><dd><span className={`organization-status ${organization.status}`}>{copy.statuses[organization.status] ?? organization.status}</span></dd></div>
+          <div><dt>{copy.created}</dt><dd><time dateTime={organization.created_at}>{formatDate(organization.created_at, locale, organization.timezone)}</time></dd></div>
+          <div><dt>{copy.updated}</dt><dd><time dateTime={organization.updated_at}>{formatDate(organization.updated_at, locale, organization.timezone)}</time></dd></div>
         </dl>
       </section>
 
       {canUpdate && <section className="administration-card" aria-labelledby="organization-edit-title">
-        <h2 id="organization-edit-title">Modifier l’organisation</h2>
+        <h2 id="organization-edit-title">{copy.edit}</h2>
         <form className="organization-form" onSubmit={submit}>
-          <label htmlFor="organization-name">Nom</label>
+          <label htmlFor="organization-name">{copy.name}</label>
           <input id="organization-name" value={draft.name} onChange={(event) => updateDraft('name', event.target.value)} minLength="1" maxLength="160" required />
 
-          <label htmlFor="organization-locale">Langue</label>
+          <label htmlFor="organization-locale">{copy.language}</label>
           <select id="organization-locale" value={draft.locale} onChange={(event) => updateDraft('locale', event.target.value)}>
             <option value="fr-CA">Français (Canada)</option>
             <option value="en-CA">English (Canada)</option>
           </select>
 
-          <label htmlFor="organization-timezone">Fuseau horaire IANA</label>
+          <label htmlFor="organization-timezone">{copy.timezoneIana}</label>
           <input id="organization-timezone" list="organization-timezones" value={draft.timezone} onFocus={() => setTimezoneSuggestionsVisible(true)} onChange={(event) => updateDraft('timezone', event.target.value)} minLength="1" maxLength="64" required />
           <datalist id="organization-timezones">
             {timezoneSuggestionsVisible && IANA_TIMEZONES.map((timezone) => <option key={timezone} value={timezone} />)}
           </datalist>
-          <p className="form-help">Commencez à saisir un continent ou une ville pour afficher les fuseaux proposés.</p>
+          <p className="form-help">{copy.timezoneHelp}</p>
 
           <button className="primary-button organization-submit" type="submit" disabled={!hasChanges || submitting || !draft.name.trim() || !draft.timezone.trim()}>
-            {submitting ? <><LoaderCircle className="spin" size={18} /> Enregistrement…</> : 'Enregistrer les modifications'}
+            {submitting ? <><LoaderCircle className="spin" size={18} /> {copy.saving}</> : copy.save}
           </button>
         </form>
       </section>}

@@ -1,8 +1,9 @@
 import { fireEvent, render, screen } from '@testing-library/react'
-import { describe, expect, it, vi } from 'vitest'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { AuthContext } from '../features/auth/context'
 import { AppRouter } from './AppRouter'
+import { PUBLIC_LOCALE_STORAGE_KEY } from './publicLocale'
 
 
 vi.mock('../features/lead-search/LeadGeneratorPage', () => ({
@@ -23,6 +24,7 @@ vi.mock('../features/platform/PlatformOrganizationsPage', () => ({
 
 
 describe('AppRouter', () => {
+  beforeEach(() => window.localStorage.setItem(PUBLIC_LOCALE_STORAGE_KEY, 'fr-CA'))
   it('redirige une visite anonyme vers la route de connexion', async () => {
     window.history.replaceState({}, '', '/')
     renderRouter(anonymousAuth())

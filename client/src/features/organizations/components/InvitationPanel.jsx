@@ -12,7 +12,8 @@ const STATE_LABELS = { active: 'Active', expired: 'Expirée', accepted: 'Accept�
 const DELIVERY_LABELS = { pending: 'En attente', sent: 'Envoyée', failed: 'Échec de livraison' }
 
 
-export function InvitationPanel({ canManage = true, createId = createRequestId, invitations }) {
+export function InvitationPanel({ canManage = true, createId = createRequestId, invitations, locale = 'fr-CA' }) {
+  const copy = locale === 'en-CA' ? { invite: 'Invite someone', inviteHelp: 'The link is sent by the configured service. No token is displayed in the browser.', email: 'Email address', role: 'Proposed role', creating: 'Creating…', create: 'Create invitation', revokeTitle: 'Revoke this invitation?', revoke: 'Revoke invitation', revokeAction: 'Revoke', expiry: 'will stop working immediately.', loading: 'Loading invitations…', history: 'Invitation history', allHistory: 'Complete member invitation history.', openHistory: 'Current and expired invitations.', refresh: 'Refresh', filter: 'Filter invitations', open: 'Open', all: 'All history', empty: 'No pending or expired invitation.', expires: 'Expires', resendBusy: 'Processing…', resend: 'Resend', noAction: 'No action available', loadingMore: 'Loading…', loadMore: 'Load more', created: 'The invitation was created and sent to the delivery service.', createdFailed: 'The invitation exists, but delivery failed. You can resend it.', resent: 'A new invitation link was generated and sent to the delivery service.', revoked: 'The invitation was revoked.' } : { invite: 'Inviter une personne', inviteHelp: 'Le lien est envoyé par le service configuré. Aucun jeton n’est affiché dans le navigateur.', email: 'Adresse courriel', role: 'Rôle proposé', creating: 'Création…', create: 'Créer l’invitation', revokeTitle: 'Révoquer cette invitation ?', revoke: 'Révoquer l’invitation', revokeAction: 'Révoquer', expiry: 'cessera immédiatement d’être utilisable.', loading: 'Chargement des invitations…', history: 'Invitations', allHistory: 'Historique complet des invitations membre.', openHistory: 'Invitations en cours et expirées.', refresh: 'Actualiser', filter: 'Filtrer les invitations', open: 'En cours', all: 'Tout l’historique', empty: 'Aucune invitation en attente ou expirée.', expires: 'Expire le', resendBusy: 'Traitement…', resend: 'Renvoyer', noAction: 'Aucune action disponible', loadingMore: 'Chargement…', loadMore: 'Charger la suite', created: 'L’invitation a été créée et confiée au service de livraison.', createdFailed: 'L’invitation existe, mais sa livraison a échoué. Vous pouvez la renvoyer.', resent: 'Un nouveau lien d’invitation a été généré et confié au service de livraison.', revoked: 'L’invitation a été révoquée.' }
   const [form, setForm] = useState({ email: '', role: 'sales' })
   const [creationIntent, setCreationIntent] = useState(null)
   const [submitting, setSubmitting] = useState(false)
@@ -66,8 +67,7 @@ export function InvitationPanel({ canManage = true, createId = createRequestId, 
       setForm({ email: '', role: 'sales' })
       setCreationIntent(null)
       setSuccess(invitation.delivery_status === 'failed'
-        ? 'L’invitation existe, mais sa livraison a échoué. Vous pouvez la renvoyer.'
-        : 'L’invitation a été créée et confiée au service de livraison.')
+        ? copy.createdFailed : copy.created)
     } catch (invitationError) {
       if (invitationError?.name !== 'AbortError' && mountedRef.current) setError(invitationErrorMessage(invitationError))
     } finally {
@@ -96,7 +96,7 @@ export function InvitationPanel({ canManage = true, createId = createRequestId, 
       if (controller.signal.aborted || !mountedRef.current) return
       invitations.upsert(replacement, invitation.id)
       setResendIntents((current) => withoutKey(current, invitation.id))
-      setSuccess('Un nouveau lien d’invitation a été généré et confié au service de livraison.')
+      setSuccess(copy.resent)
     } catch (resendError) {
       if (resendError?.name !== 'AbortError' && mountedRef.current) setError(invitationErrorMessage(resendError))
     } finally {
@@ -117,7 +117,7 @@ export function InvitationPanel({ canManage = true, createId = createRequestId, 
       if (controller.signal.aborted || !mountedRef.current) return
       invitations.remove(invitation.id)
       setRevoking(null)
-      setSuccess('L’invitation a été révoquée.')
+      setSuccess(copy.revoked)
     } catch (revokeError) {
       if (revokeError?.name !== 'AbortError' && mountedRef.current) setError(invitationErrorMessage(revokeError))
     } finally {
@@ -128,17 +128,17 @@ export function InvitationPanel({ canManage = true, createId = createRequestId, 
 
   return <div className="invitation-panel">
     {canManage && <section className="administration-card invitation-form-card" aria-labelledby="invite-member-title">
-      <h2 id="invite-member-title">Inviter une personne</h2>
-      <p>Le lien est envoyé par le service configuré. Aucun jeton n’est affiché dans le navigateur.</p>
+      <h2 id="invite-member-title">{copy.invite}</h2>
+      <p>{copy.inviteHelp}</p>
       <form className="invitation-form" onSubmit={createInvitation}>
-        <label htmlFor="invitation-email">Adresse courriel</label>
+        <label htmlFor="invitation-email">{copy.email}</label>
         <input id="invitation-email" type="email" autoComplete="email" value={form.email} onChange={(event) => updateForm('email', event.target.value)} maxLength="254" required />
-        <label htmlFor="invitation-role">Rôle proposé</label>
+        <label htmlFor="invitation-role">{copy.role}</label>
         <select id="invitation-role" value={form.role} onChange={(event) => updateForm('role', event.target.value)}>
-          {Object.entries(ROLE_LABELS).map(([value, label]) => <option key={value} value={value}>{label}</option>)}
+          {Object.entries(ROLE_LABELS).map(([value, labels]) => <option key={value} value={value}>{labels[locale]}</option>)}
         </select>
         <button className="primary-button" type="submit" disabled={submitting || !form.email.trim()}>
-          {submitting ? 'Création…' : 'Créer l’invitation'}
+          {submitting ? copy.creating : copy.create}
         </button>
       </form>
     </section>}
@@ -152,55 +152,57 @@ export function InvitationPanel({ canManage = true, createId = createRequestId, 
       busyInvitationIds={busyInvitationIds}
       onResend={resend}
       onRevoke={setRevoking}
+      copy={copy}
+      locale={locale}
     />
 
     {revoking && <ConfirmationDialog
-      title="Révoquer cette invitation ?"
-      confirmLabel="Révoquer l’invitation"
+      title={copy.revokeTitle}
+      confirmLabel={copy.revoke}
       busy={busyInvitationIds.has(revoking.id)}
       onCancel={() => setRevoking(null)}
       onConfirm={revoke}
     >
-      <p>Le lien envoyé à <strong>{revoking.recipient_email}</strong> cessera immédiatement d’être utilisable.</p>
+      <p>{locale === 'en-CA' ? 'The link sent to ' : 'Le lien envoyé à '}<strong>{revoking.recipient_email}</strong> {copy.expiry}</p>
     </ConfirmationDialog>}
   </div>
 }
 
 
-function InvitationList({ busyInvitationIds, canManage, invitations, onResend, onRevoke }) {
-  if (invitations.loading) return <div className="administration-loading">Chargement des invitations…</div>
+function InvitationList({ busyInvitationIds, canManage, copy, invitations, locale, onResend, onRevoke }) {
+  if (invitations.loading) return <div className="administration-loading">{copy.loading}</div>
   return <section className="administration-card resource-list-card" aria-labelledby="invitation-list-title">
     <div className="resource-list-heading">
-      <div><h2 id="invitation-list-title">Invitations</h2><p>{invitations.state === 'all' ? 'Historique complet des invitations membre.' : 'Invitations en cours et expirées.'}</p></div>
-      <button className="text-button" type="button" onClick={invitations.refresh} disabled={invitations.refreshing}>Actualiser</button>
+      <div><h2 id="invitation-list-title">{copy.history}</h2><p>{invitations.state === 'all' ? copy.allHistory : copy.openHistory}</p></div>
+      <button className="text-button" type="button" onClick={invitations.refresh} disabled={invitations.refreshing}>{copy.refresh}</button>
     </div>
-    <div className="invitation-history-filter" role="group" aria-label="Filtrer les invitations">
-      <button type="button" className={invitations.state === 'open' ? 'selected' : ''} onClick={() => invitations.setState('open')} disabled={invitations.refreshing}>En cours</button>
-      <button type="button" className={invitations.state === 'all' ? 'selected' : ''} onClick={() => invitations.setState('all')} disabled={invitations.refreshing}>Tout l’historique</button>
+    <div className="invitation-history-filter" role="group" aria-label={copy.filter}>
+      <button type="button" className={invitations.state === 'open' ? 'selected' : ''} onClick={() => invitations.setState('open')} disabled={invitations.refreshing}>{copy.open}</button>
+      <button type="button" className={invitations.state === 'all' ? 'selected' : ''} onClick={() => invitations.setState('all')} disabled={invitations.refreshing}>{copy.all}</button>
     </div>
     {invitations.error && <ErrorBanner compact><span>{invitations.error}</span></ErrorBanner>}
-    {!invitations.items.length ? <p className="administration-empty">Aucune invitation en attente ou expirée.</p> : <ul className="invitation-list">
+    {!invitations.items.length ? <p className="administration-empty">{copy.empty}</p> : <ul className="invitation-list">
       {invitations.items.map((invitation) => <li key={invitation.id}>
         <div className="invitation-identity">
           <strong>{invitation.recipient_email}</strong>
-          <span>{ROLE_LABELS[invitation.role] ?? invitation.role}</span>
+          <span>{ROLE_LABELS[invitation.role]?.[locale] ?? invitation.role}</span>
         </div>
         <div className="invitation-state">
           <span className={`resource-status ${invitation.state}`}>{STATE_LABELS[invitation.state] ?? invitation.state}</span>
           <span className={`delivery-status ${invitation.delivery_status}`}>{DELIVERY_LABELS[invitation.delivery_status] ?? invitation.delivery_status}</span>
-          <small>Expire le <time dateTime={invitation.expires_at}>{formatDate(invitation.expires_at)}</time></small>
+          <small>{copy.expires} <time dateTime={invitation.expires_at}>{formatDate(invitation.expires_at, locale)}</time></small>
         </div>
         {canManage && isActionable(invitation) && <div className="resource-actions">
           <button className="secondary-button" type="button" onClick={() => onResend(invitation)} disabled={busyInvitationIds.has(invitation.id)}>
-            {busyInvitationIds.has(invitation.id) ? 'Traitement…' : 'Renvoyer'}
+            {busyInvitationIds.has(invitation.id) ? copy.resendBusy : copy.resend}
           </button>
-          <button className="danger-link" type="button" onClick={() => onRevoke(invitation)} disabled={busyInvitationIds.has(invitation.id)}>Révoquer</button>
+          <button className="danger-link" type="button" onClick={() => onRevoke(invitation)} disabled={busyInvitationIds.has(invitation.id)}>{copy.revokeAction}</button>
         </div>}
-        {canManage && !isActionable(invitation) && <div className="resource-actions terminal-action"><small>Aucune action disponible</small></div>}
+        {canManage && !isActionable(invitation) && <div className="resource-actions terminal-action"><small>{copy.noAction}</small></div>}
       </li>)}
     </ul>}
     {invitations.nextCursor && <button className="secondary-button load-more-button" type="button" onClick={invitations.loadMore} disabled={invitations.loadingMore}>
-      {invitations.loadingMore ? 'Chargement…' : 'Charger la suite'}
+      {invitations.loadingMore ? copy.loadingMore : copy.loadMore}
     </button>}
   </section>
 }
@@ -222,8 +224,8 @@ function invitationErrorMessage(error) {
 }
 
 
-function formatDate(value) {
-  return new Intl.DateTimeFormat('fr-CA', { dateStyle: 'medium', timeStyle: 'short' }).format(new Date(value))
+function formatDate(value, locale) {
+  return new Intl.DateTimeFormat(locale, { dateStyle: 'medium', timeStyle: 'short' }).format(new Date(value))
 }
 
 

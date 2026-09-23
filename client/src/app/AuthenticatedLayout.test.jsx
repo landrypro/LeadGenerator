@@ -74,4 +74,19 @@ describe('AuthenticatedLayout', () => {
     expect(manual).toHaveAttribute('target', '_blank')
     expect(manual).toHaveAttribute('rel', 'noopener noreferrer')
   })
+
+  it('traduit la route Opportunités dans la navigation et le fil d’Ariane', () => {
+    render(<AuthenticatedLayout
+      currentRoute={findRoute('/app/opportunities')}
+      session={{
+        ...session,
+        active_organization: { ...session.active_organization, locale: 'en-CA' },
+        capabilities: ['opportunities:read'],
+      }}
+      onLogout={vi.fn()}
+    ><main>Content</main></AuthenticatedLayout>)
+
+    expect(screen.getByRole('link', { name: 'Opportunities' })).toHaveAttribute('aria-current', 'page')
+    expect(screen.getByRole('navigation', { name: 'Breadcrumb' })).toHaveTextContent('Opportunities')
+  })
 })

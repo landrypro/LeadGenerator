@@ -8,7 +8,7 @@ function Metric({ icon, label, value, detail, tone }) {
 }
 
 
-export function SearchOverview({ places, result, resultForm, loading, mapEnabled }) {
+export function SearchOverview({ copy, places, result, resultForm, loading, mapEnabled }) {
   return <section className="overview-grid">
     <CoverageMap
       places={places}
@@ -17,11 +17,12 @@ export function SearchOverview({ places, result, resultForm, loading, mapEnabled
       searchedAt={result?.searched_at}
       resultToken={result?.map_snapshot_token}
       mapEnabled={mapEnabled}
+      copy={copy}
     />
     <div className="metric-stack">
-      <Metric icon={<UsersRound />} label="Résultats Google" value={places.length} detail="20 maximum par recherche" tone="green" />
-      <Metric icon={<Map />} label="Zone interrogée" value={result ? 1 : 0} detail={`rayon de ${resultForm.radius_km} km`} tone="blue" />
-      <Metric icon={<Clock3 />} label="Appels effectués" value={result?.stats.api_calls ?? 0} detail="un seul appel Text Search" tone="gold" />
+      <Metric icon={<UsersRound />} label={copy.googleResults} value={places.length} detail={copy.maxResults} tone="green" />
+      <Metric icon={<Map />} label={copy.searchedArea} value={result ? 1 : 0} detail={copy.radiusDetail.replace('{radius}', resultForm.radius_km)} tone="blue" />
+      <Metric icon={<Clock3 />} label={copy.calls} value={result?.stats.api_calls ?? 0} detail={copy.oneTextSearch} tone="gold" />
     </div>
   </section>
 }

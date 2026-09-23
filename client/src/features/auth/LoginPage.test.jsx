@@ -31,4 +31,14 @@ describe('LoginPage', () => {
 
     expect(await screen.findByRole('alert')).toHaveTextContent('Courriel ou mot de passe incorrect.')
   })
+
+  it('affiche le formulaire anglais et mémorise uniquement le choix de langue', () => {
+    const onLocaleChange = vi.fn()
+    render(<LoginPage locale="en-CA" onLocaleChange={onLocaleChange} onLogin={vi.fn()} />)
+
+    expect(screen.getByRole('heading', { name: 'Sign in' })).toBeInTheDocument()
+    expect(screen.getByLabelText('Email address')).toHaveAttribute('autocomplete', 'username')
+    fireEvent.change(screen.getByLabelText('Language'), { target: { value: 'fr-CA' } })
+    expect(onLocaleChange).toHaveBeenCalledWith('fr-CA')
+  })
 })

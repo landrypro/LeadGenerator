@@ -8,12 +8,15 @@ import { SearchOverview } from './components/SearchOverview'
 import { SearchSidebar } from './components/SearchSidebar'
 import { TopBar } from './components/TopBar'
 import { initialForm } from './config'
+import { leadSearchMessages } from './messages'
 import { useApiHealth } from './hooks/useApiHealth'
 import { useLeadSearch } from './hooks/useLeadSearch'
 import { useProspectAdds } from './hooks/useProspectAdds'
 
 
 export function PlaceSearchPage({ session = null }) {
+  const locale = session?.active_organization?.locale === 'en-CA' ? 'en-CA' : 'fr-CA'
+  const copy = leadSearchMessages[locale]
   const [form, setForm] = useState(initialForm)
   const [mobilePanelOpen, setMobilePanelOpen] = useState(false)
   const { error, clearError, reportError } = useErrorNotice()
@@ -45,6 +48,7 @@ export function PlaceSearchPage({ session = null }) {
       onClose={() => setMobilePanelOpen(false)}
       onSubmit={submitSearch}
       onUpdate={updateForm}
+      copy={copy}
     />
 
     <main className="main-content">
@@ -52,14 +56,16 @@ export function PlaceSearchPage({ session = null }) {
         keyReady={keyReady}
         mobilePanelOpen={mobilePanelOpen}
         onOpenSettings={() => setMobilePanelOpen(true)}
+        copy={copy}
       />
-      <Notices error={error} keyReady={keyReady} onClearError={clearError} />
+      <Notices error={error} keyReady={keyReady} onClearError={clearError} copy={copy} />
       <SearchOverview
         places={places}
         result={result}
         resultForm={resultForm}
         loading={loading}
         mapEnabled={session?.capabilities?.includes('google:map') ?? false}
+        copy={copy}
       />
       <ResultsCard
         places={places}
@@ -67,8 +73,9 @@ export function PlaceSearchPage({ session = null }) {
         loading={loading}
         canCreateProspects={session?.capabilities?.includes('prospects:create') ?? false}
         prospectAdds={prospectAdds}
+        copy={copy}
       />
-      <footer><span>Données temporaires — Google Maps</span><span>•</span><a href="/conditions.html">Conditions d’utilisation</a><span>•</span><a href="/confidentialite.html">Politique de confidentialité</a></footer>
+      <footer><span>{copy.footerData}</span><span>•</span><a href="/conditions.html">{copy.terms}</a><span>•</span><a href="/confidentialite.html">{copy.privacy}</a></footer>
     </main>
 
   </div>

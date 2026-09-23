@@ -33,7 +33,16 @@ export const ENTITY_TYPES = Object.freeze([
   ['pipeline_stage_setting', 'Paramètre d’étape'],
 ])
 
+const TENANT_ACTIONS_EN = Object.freeze([
+  ['organization.updated', 'Organization updated'], ['account.organization_preference_changed', 'Active organization changed'], ['membership.role_changed', 'Member role changed'], ['membership.status_changed', 'Member status changed'], ['invitation.created', 'Invitation created'], ['invitation.resend_requested', 'Invitation resend requested'], ['invitation.delivery_completed', 'Invitation delivery completed'], ['invitation.revoked', 'Invitation revoked'], ['invitation.accepted', 'Invitation accepted'], ['organization.activated', 'Organization activated'], ['prospect.created', 'Prospect created'], ['prospect.updated', 'Prospect updated'], ['prospect.archived', 'Prospect archived'], ['prospect.stage_changed', 'Sales stage changed'], ['pipeline.stage_settings_updated', 'Stage settings updated'],
+])
+const PLATFORM_ACTIONS_EN = Object.freeze([
+  ['organization.provisioned', 'Organization provisioned'], ['organization.initial_invitation.created', 'Initial invitation created'], ['organization.initial_invitation.resend_requested', 'Initial resend requested'], ['organization.initial_invitation.delivery_completed', 'Initial invitation delivery completed'], ['organization.initial_invitation.revoked', 'Initial invitation revoked'],
+])
+const ENTITY_TYPES_EN = Object.freeze([['organization', 'Organization'], ['membership', 'Membership'], ['invitation', 'Invitation'], ['user', 'Account'], ['prospect', 'Prospect'], ['pipeline_stage_setting', 'Stage setting']])
+
 const ACTION_LABELS = Object.freeze(Object.fromEntries([...TENANT_ACTIONS, ...PLATFORM_ACTIONS]))
+const ACTION_LABELS_EN = Object.freeze(Object.fromEntries([...TENANT_ACTIONS_EN, ...PLATFORM_ACTIONS_EN]))
 const ROLE_LABELS = Object.freeze({ admin: 'Administrateur', manager: 'Gestionnaire', sales: 'Commercial' })
 const STATUS_LABELS = Object.freeze({
   active: 'Actif',
@@ -91,8 +100,17 @@ const LOSS_REASON_LABELS = Object.freeze({
 const DELIVERY_KIND_LABELS = Object.freeze({ initial: 'Initiale', resend: 'Renvoi' })
 
 
-export function actionLabel(action) {
-  return ACTION_LABELS[action] ?? 'Événement non pris en charge'
+export function tenantActions(locale = 'fr-CA') {
+  return locale === 'en-CA' ? TENANT_ACTIONS_EN : TENANT_ACTIONS
+}
+
+export function entityTypes(locale = 'fr-CA') {
+  return locale === 'en-CA' ? ENTITY_TYPES_EN : ENTITY_TYPES
+}
+
+export function actionLabel(action, locale = 'fr-CA') {
+  const labels = locale === 'en-CA' ? ACTION_LABELS_EN : ACTION_LABELS
+  return labels[action] ?? (locale === 'en-CA' ? 'Unsupported event' : 'Événement non pris en charge')
 }
 
 
@@ -162,8 +180,8 @@ export function metadataRows(event) {
 }
 
 
-export function entityTypeLabel(entityType) {
-  return Object.fromEntries(ENTITY_TYPES)[entityType] ?? 'Entité'
+export function entityTypeLabel(entityType, locale = 'fr-CA') {
+  return Object.fromEntries(entityTypes(locale))[entityType] ?? (locale === 'en-CA' ? 'Entity' : 'Entité')
 }
 
 

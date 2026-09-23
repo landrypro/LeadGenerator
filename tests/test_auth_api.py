@@ -11,6 +11,10 @@ from backend.app.container import AppContainer
 from backend.app.domain.identity import (
     AuthenticatedIdentity,
     CreatedSession,
+    MembershipIdentity,
+    MembershipRole,
+    MembershipStatus,
+    OrganizationStatus,
     PlatformRole,
     SessionRecord,
     UserIdentity,
@@ -137,6 +141,53 @@ async def test_login_me_and_logout_use_secure_session_contract() -> None:
     assert logout_response.status_code == 204
     assert logout.called
     assert "Max-Age=0" in logout_response.headers["set-cookie"]
+
+
+async def test_authenticated_session_exposes_organization_locale_and_timezone() -> None:
+    organization_id = uuid4()
+    membership = MembershipIdentity(
+        id=uuid4(),
+        organization_id=organization_id,
+        organization_name="Northwind",
+        role=MembershipRole.ADMIN,
+        status=MembershipStatus.ACTIVE,
+        organization_status=OrganizationStatus.ACTIVE,
+        created_at=NOW,
+        organization_locale="en-CA",
+        organization_timezone="America/Vancouver",
+    )
+    user = UserIdentity(
+        id=uuid4(),
+        email="admin@example.ca",
+        display_name="Administrator",
+        password_hash="never-serialized",
+        status=UserStatus.ACTIVE,
+        platform_role=None,
+        last_active_organization_id=organization_id,
+        version=1,
+        memberships=(membership,),
+    )
+    authenticated_identity = AuthenticatedIdentity(
+        user=user, active_membership=membership, csrf_token="csrf-response-token"
+    )
+    settings = Settings(cors_allowed_origins=("http://test",))
+    app, _ = auth_app(settings, SuccessfulLogin(authenticated_identity))
+
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+        response = await client.post(
+            "/api/auth/login",
+            json={"email": "admin@example.ca", "password": "mot-de-passe-confidentiel"},
+            headers={"Origin": "http://test"},
+        )
+
+    assert response.status_code == 200
+    assert response.json()["active_organization"] == {
+        "id": str(organization_id),
+        "name": "Northwind",
+        "locale": "en-CA",
+        "timezone": "America/Vancouver",
+    }
+    assert response.json()["memberships"][0]["organization"] == response.json()["active_organization"]
 
 
 async def test_login_failure_is_generic_and_contains_request_id_without_credentials() -> None:

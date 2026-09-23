@@ -4,6 +4,7 @@ import unicodedata
 from dataclasses import dataclass
 from datetime import datetime
 from enum import StrEnum
+from typing import Literal
 from uuid import UUID
 
 
@@ -42,6 +43,9 @@ class PlatformRole(StrEnum):
     PLATFORM_ADMIN = "platform_admin"
 
 
+OrganizationLocale = Literal["fr-CA", "en-CA"]
+
+
 @dataclass(frozen=True, slots=True)
 class NormalizedEmail:
     display: str
@@ -57,6 +61,8 @@ class MembershipIdentity:
     status: MembershipStatus
     organization_status: OrganizationStatus
     created_at: datetime
+    organization_locale: OrganizationLocale = "fr-CA"
+    organization_timezone: str = "America/Toronto"
 
     @property
     def is_active(self) -> bool:

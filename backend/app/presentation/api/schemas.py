@@ -27,6 +27,8 @@ class AuthenticatedUserResponse(BaseModel):
 class OrganizationSummaryResponse(BaseModel):
     id: UUID
     name: str
+    locale: Literal["fr-CA", "en-CA"]
+    timezone: str
 
 
 class MembershipSummaryResponse(BaseModel):

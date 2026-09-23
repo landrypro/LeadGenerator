@@ -3,11 +3,13 @@ import { useMembers } from '../organizations/hooks/useMembers'
 import { useOrganization } from '../organizations/hooks/useOrganization'
 import { AuditFilters } from './components/AuditFilters'
 import { AuditTimeline } from './components/AuditTimeline'
-import { TENANT_ACTIONS } from './catalog'
+import { tenantActions } from './catalog'
 import { useAuditEvents } from './hooks/useAuditEvents'
 
 
 export function TenantAuditPage({ session }) {
+  const locale = session.active_organization?.locale === 'en-CA' ? 'en-CA' : 'fr-CA'
+  const copy = locale === 'en-CA' ? { eyebrow: 'Administration', title: 'Activity log', description: `Review confirmed changes for ${session.active_organization?.name ?? 'the active organization'}.` } : { eyebrow: 'Administration', title: 'Journal d’activité', description: `Consultez les changements validés de ${session.active_organization?.name ?? 'l’organisation active'}.` }
   const audit = useAuditEvents('tenant')
   const members = useMembers()
   const organization = useOrganization()
@@ -15,13 +17,14 @@ export function TenantAuditPage({ session }) {
 
   return <main className="administration-page audit-page" aria-labelledby="tenant-audit-title">
     <AuditHeading
-      eyebrow="Administration"
+      eyebrow={copy.eyebrow}
       id="tenant-audit-title"
-      title="Journal d’activité"
-      description={`Consultez les changements validés de ${session.active_organization?.name ?? 'l’organisation active'}.`}
+      title={copy.title}
+      description={copy.description}
     />
     <AuditFilters
-      actions={TENANT_ACTIONS}
+      actions={tenantActions(locale)}
+      locale={locale}
       actors={actors}
       filters={audit.filters}
       loadingActors={members.loadingMore}
@@ -30,7 +33,7 @@ export function TenantAuditPage({ session }) {
       onLoadMoreActors={members.loadMore}
       onReset={audit.resetFilters}
     />
-    <AuditTimeline audit={audit} timezone={organization.organization?.timezone ?? 'UTC'} />
+    <AuditTimeline audit={audit} locale={locale} timezone={organization.organization?.timezone ?? 'UTC'} />
   </main>
 }
 

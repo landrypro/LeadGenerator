@@ -7,6 +7,7 @@ import { ErrorBanner } from '../../shared/ui/Feedback'
 import { organizationApi } from '../organizations/api/organizationApi'
 import { opportunityApi } from '../opportunities/api/opportunityApi'
 import { OpportunitySection } from '../opportunities/components/OpportunitySection'
+import { getOpportunityMessages } from '../opportunities/opportunityMessages'
 import { prospectApi } from './api/prospectApi'
 import { ActivityTimeline } from './components/ActivityTimeline'
 import { TaskPanel } from './components/TaskPanel'
@@ -45,6 +46,7 @@ export function ProspectDetailPage({ routeParams, session }) {
   const canUpdate = session.capabilities.includes('prospects:update')
   const canWriteContacts = session.capabilities.includes('contacts:write')
   const canReadOpportunities = session.capabilities.includes('opportunities:read')
+  const opportunityStrings = getOpportunityMessages(session.active_organization?.locale)
   const activeMembership = (session.memberships ?? []).find((membership) => membership.organization?.id === session.active_organization?.id)
   const canManageOpportunities = ['admin', 'manager'].includes(activeMembership?.role)
 
@@ -233,14 +235,14 @@ export function ProspectDetailPage({ routeParams, session }) {
     try {
       const created = await opportunityApi.create(prospect.id, { ...payload, idempotency_key: createRequestId() })
       setOpportunityPage((current) => ({ ...current, items: [created, ...(current.items ?? [])] }))
-      setSuccess('L’opportunité a été créée.')
+      setSuccess(opportunityStrings.created)
       await load()
       return true
     } catch (requestError) {
       if (requestError?.fields && ['opportunity_command_invalid', 'validation_failed'].includes(requestError.code)) {
         return { fieldErrors: requestError.fields }
       }
-      setError(toUserMessage(requestError, 'Impossible de créer l’opportunité.'))
+      setError(toUserMessage(requestError, opportunityStrings.createError))
       return false
     } finally {
       setOpportunitySubmitting(false)
@@ -258,11 +260,11 @@ export function ProspectDetailPage({ routeParams, session }) {
         ...changes,
       })
       setOpportunityPage((current) => ({ ...current, items: (current.items ?? []).map((item) => item.id === updated.id ? updated : item) }))
-      setSuccess('L’opportunité a été modifiée.')
+      setSuccess(opportunityStrings.updated)
       await load()
       return true
     } catch (requestError) {
-      setError(toUserMessage(requestError, 'Impossible de modifier l’opportunité.'))
+      setError(toUserMessage(requestError, opportunityStrings.updateError))
       return false
     } finally {
       setOpportunitySubmitting(false)
@@ -282,10 +284,10 @@ export function ProspectDetailPage({ routeParams, session }) {
         ...extra,
       })
       setOpportunityPage((current) => ({ ...current, items: (current.items ?? []).map((item) => item.id === updated.id ? updated : item) }))
-      setSuccess('L’étape de l’opportunité a été mise à jour.')
+      setSuccess(opportunityStrings.stageUpdated)
       await load()
     } catch (requestError) {
-      setError(toUserMessage(requestError, 'Impossible de changer l’étape de l’opportunité.'))
+      setError(toUserMessage(requestError, opportunityStrings.stageUpdateError))
     } finally {
       setOpportunitySubmitting(false)
     }
@@ -297,10 +299,10 @@ export function ProspectDetailPage({ routeParams, session }) {
     setSuccess('')
     try {
       await opportunityApi.reopen(opportunity.id, { version: opportunity.version, probability: 50, idempotency_key: createRequestId(), ...extra })
-      setSuccess('L’opportunité a été réouverte.')
+      setSuccess(opportunityStrings.reopened)
       await load()
     } catch (requestError) {
-      setError(toUserMessage(requestError, 'Impossible de réouvrir l’opportunité.'))
+      setError(toUserMessage(requestError, opportunityStrings.reopenError))
     } finally {
       setOpportunitySubmitting(false)
     }
@@ -313,10 +315,10 @@ export function ProspectDetailPage({ routeParams, session }) {
     setSuccess('')
     try {
       await prospectApi.moveStage(prospect.id, { version: prospect.version, to_stage: stageCode, idempotency_key: createRequestId() })
-      setSuccess('Le pipeline du prospect a été aligné.')
+      setSuccess(opportunityStrings.pipelineAligned)
       await load()
     } catch (requestError) {
-      setError(toUserMessage(requestError, 'Impossible d’aligner le pipeline. Déplacez le prospect étape par étape.'))
+      setError(toUserMessage(requestError, opportunityStrings.pipelineAlignmentError))
     } finally {
       setOpportunitySubmitting(false)
     }

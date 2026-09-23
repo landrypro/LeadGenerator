@@ -3,7 +3,7 @@ import { useEffect, useRef, useState } from 'react'
 import { Building2, ExternalLink, LogOut, Menu, X } from '../icons'
 import { OrganizationSwitcher } from '../features/organizations/OrganizationSwitcher'
 import { followInternalLink } from './navigation'
-import { CRM_PATHS, navigationRoutes } from './routes'
+import { CRM_PATHS, localizedRouteLabel, localizedRouteTitle, navigationRoutes } from './routes'
 
 
 export function AuthenticatedLayout({
@@ -18,6 +18,8 @@ export function AuthenticatedLayout({
   const menuButtonRef = useRef(null)
   const closeButtonRef = useRef(null)
   const availableRoutes = navigationRoutes(session)
+  const locale = session.active_organization?.locale ?? 'fr-CA'
+  const copy = locale === 'en-CA' ? { skip: 'Skip to main content', home: 'Marketteo CRM — Home', crm: 'Sales CRM', navigation: 'Navigation', closeNavigation: 'Close navigation', mainNavigation: 'Main navigation', manual: 'Manual', signOut: 'Sign out', breadcrumb: 'Breadcrumb' } : { skip: 'Aller au contenu principal', home: 'Marketteo CRM — Accueil', crm: 'CRM commercial', navigation: 'Navigation', closeNavigation: 'Fermer la navigation', mainNavigation: 'Navigation principale', manual: 'Manuel', signOut: 'Se déconnecter', breadcrumb: 'Fil d’Ariane' }
 
   useEffect(() => {
     if (!mobileNavigationOpen) return undefined
@@ -42,16 +44,16 @@ export function AuthenticatedLayout({
   }
 
   return <div className="authenticated-app">
-    <a className="skip-link" href="#route-content">Aller au contenu principal</a>
+    <a className="skip-link" href="#route-content">{copy.skip}</a>
     <header className="authenticated-header">
       <a
         className="authenticated-brand"
         href={availableRoutes[0]?.path ?? CRM_PATHS.account}
         onClick={(event) => followInternalLink(event, availableRoutes[0]?.path ?? CRM_PATHS.account)}
-        aria-label="Marketteo CRM — Accueil"
+        aria-label={copy.home}
       >
         <span className="authenticated-brand-mark" aria-hidden="true"><Building2 size={20} /></span>
-        <span><strong>Marketteo</strong><small>CRM commercial</small></span>
+        <span><strong>Marketteo</strong><small>{copy.crm}</small></span>
       </a>
 
       <button
@@ -75,12 +77,12 @@ export function AuthenticatedLayout({
 
       <div id="primary-navigation" className={`authenticated-navigation-panel ${mobileNavigationOpen ? 'open' : ''}`}>
         <div className="authenticated-navigation-mobile-heading">
-          <strong>Navigation</strong>
-          <button ref={closeButtonRef} type="button" onClick={closeNavigationAndRestoreFocus} aria-label="Fermer la navigation">
+          <strong>{copy.navigation}</strong>
+          <button ref={closeButtonRef} type="button" onClick={closeNavigationAndRestoreFocus} aria-label={copy.closeNavigation}>
             <X size={18} />
           </button>
         </div>
-        <nav className="authenticated-navigation" aria-label="Navigation principale">
+        <nav className="authenticated-navigation" aria-label={copy.mainNavigation}>
           {availableRoutes.map((route) => <a
             key={route.id}
             href={route.path}
@@ -89,7 +91,7 @@ export function AuthenticatedLayout({
               followInternalLink(event, route.path)
               closeNavigation()
             }}
-          >{route.label}</a>)}
+          >{localizedRouteLabel(route, locale)}</a>)}
         </nav>
       </div>
 
@@ -110,15 +112,15 @@ export function AuthenticatedLayout({
           href="/manuel-utilisateur/index.html"
           target="_blank"
           rel="noopener noreferrer"
-        ><ExternalLink size={15} /><span>Manuel</span></a>
-        <button className="authenticated-logout" type="button" onClick={onLogout} aria-label="Se déconnecter">
+        ><ExternalLink size={15} /><span>{copy.manual}</span></a>
+        <button className="authenticated-logout" type="button" onClick={onLogout} aria-label={copy.signOut}>
           <LogOut size={17} />
         </button>
       </div>
     </header>
 
-    <nav className="route-breadcrumb" aria-label="Fil d’Ariane">
-      <span>Marketteo CRM</span><span aria-hidden="true">/</span><strong>{currentRoute?.title ?? 'Page introuvable'}</strong>
+    <nav className="route-breadcrumb" aria-label={copy.breadcrumb}>
+      <span>Marketteo CRM</span><span aria-hidden="true">/</span><strong>{localizedRouteTitle(currentRoute, locale) || (locale === 'en-CA' ? 'Page not found' : 'Page introuvable')}</strong>
     </nav>
     <div id="route-content" className="route-content" tabIndex="-1">{children}</div>
   </div>

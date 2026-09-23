@@ -8,8 +8,9 @@ import { SessionLoadingPage } from '../features/auth/SessionLoadingPage'
 import { NoOrganizationPage } from '../features/auth/NoOrganizationPage'
 import { InvitationPage } from '../features/invitations/InvitationPage'
 import { AuthenticatedLayout } from './AuthenticatedLayout'
+import { resolvePublicLocale, savePublicLocale } from './publicLocale'
 import { currentPath, navigate, NAVIGATION_EVENT } from './navigation'
-import { canAccessRoute, CRM_PATHS, findRoute, landingPath } from './routes'
+import { canAccessRoute, CRM_PATHS, findRoute, landingPath, localizedRouteTitle } from './routes'
 
 
 function Redirect({ to, onRedirect }) {
@@ -24,6 +25,9 @@ function Redirect({ to, onRedirect }) {
 export function AppRouter({ invitationToken = '' }) {
   const auth = useContext(AuthContext)
   const [pathname, setPathname] = useState(currentPath)
+  const [publicLocale, setPublicLocale] = useState(resolvePublicLocale)
+
+  const updatePublicLocale = (locale) => setPublicLocale(savePublicLocale(locale))
 
   useEffect(() => {
     const synchronizePath = () => setPathname(currentPath())
@@ -36,14 +40,16 @@ export function AppRouter({ invitationToken = '' }) {
   }, [])
 
   useEffect(() => {
-    const routeTitle = findRoute(pathname)?.title
+    const locale = auth?.session?.active_organization?.locale ?? publicLocale
+    const routeTitle = localizedRouteTitle(findRoute(pathname), locale)
     const pageTitle = pathname === CRM_PATHS.login
-      ? 'Connexion'
+      ? (locale === 'en-CA' ? 'Sign in' : 'Connexion')
       : pathname === CRM_PATHS.acceptInvitation
         ? 'Invitation'
         : routeTitle ?? (pathname === CRM_PATHS.home ? 'Accueil' : 'Page introuvable')
     document.title = `${pageTitle} — Marketteo CRM`
-  }, [pathname])
+    document.documentElement.lang = locale.startsWith('en') ? 'en' : 'fr'
+  }, [auth?.session?.active_organization?.locale, pathname, publicLocale])
 
   if (pathname === CRM_PATHS.acceptInvitation) {
     return <InvitationPage initialToken={invitationToken} auth={auth} />
@@ -51,13 +57,13 @@ export function AppRouter({ invitationToken = '' }) {
   if (!auth || auth.status === 'loading') return <SessionLoadingPage />
   if (!auth.session) {
     if (pathname !== CRM_PATHS.login) return <Redirect to={CRM_PATHS.login} onRedirect={setPathname} />
-    return <LoginPage onLogin={auth.login} />
+    return <LoginPage locale={publicLocale} onLocaleChange={updatePublicLocale} onLogin={(email, password) => auth.login(email, password, publicLocale)} />
   }
 
   const homePath = landingPath(auth.session)
   if (pathname === CRM_PATHS.home || pathname === CRM_PATHS.login) {
     if (!auth.session.active_organization && !auth.session.user.platform_role && pathname === CRM_PATHS.home) {
-      return <NoOrganizationPage onLogout={auth.logout} />
+      return <NoOrganizationPage locale={publicLocale} onLogout={auth.logout} />
     }
     return <Redirect to={homePath} onRedirect={setPathname} />
   }

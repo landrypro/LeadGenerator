@@ -36,6 +36,25 @@ export const CRM_PATHS = Object.freeze({
   platformAudit: '/app/platform/audit',
 })
 
+
+const ROUTE_MESSAGES = Object.freeze({
+  'retention-imports': Object.freeze({ 'fr-CA': Object.freeze({ label: 'Conservation et imports', title: 'Conservation des données' }), 'en-CA': Object.freeze({ label: 'Retention and imports', title: 'Data retention' }) }),
+  'compliance-sources': Object.freeze({ 'fr-CA': Object.freeze({ label: 'Sources et acquisitions', title: 'Fournisseurs et acquisitions' }), 'en-CA': Object.freeze({ label: 'Sources and acquisitions', title: 'Providers and acquisitions' }) }),
+  pipeline: Object.freeze({ 'fr-CA': Object.freeze({ label: 'Pipeline', title: 'Pipeline commercial' }), 'en-CA': Object.freeze({ label: 'Pipeline', title: 'Sales pipeline' }) }),
+  opportunities: Object.freeze({ 'fr-CA': Object.freeze({ label: 'Opportunités', title: 'Opportunités' }), 'en-CA': Object.freeze({ label: 'Opportunities', title: 'Opportunities' }) }),
+  tasks: Object.freeze({ 'fr-CA': Object.freeze({ label: 'Mes tâches', title: 'Mes tâches' }), 'en-CA': Object.freeze({ label: 'My tasks', title: 'My tasks' }) }),
+  prospects: Object.freeze({ 'fr-CA': Object.freeze({ label: 'Prospects', title: 'Prospects' }), 'en-CA': Object.freeze({ label: 'Prospects', title: 'Prospects' }) }),
+  'prospect-new': Object.freeze({ 'fr-CA': Object.freeze({ label: 'Ajouter un prospect', title: 'Ajouter un prospect' }), 'en-CA': Object.freeze({ label: 'Add a prospect', title: 'Add a prospect' }) }),
+  'prospect-detail': Object.freeze({ 'fr-CA': Object.freeze({ label: 'Fiche prospect', title: 'Fiche prospect' }), 'en-CA': Object.freeze({ label: 'Prospect record', title: 'Prospect record' }) }),
+  'google-place-search': Object.freeze({ 'fr-CA': Object.freeze({ label: 'Recherche Google', title: 'Recherche d’établissements' }), 'en-CA': Object.freeze({ label: 'Google search', title: 'Business search' }) }),
+  organization: Object.freeze({ 'fr-CA': Object.freeze({ label: 'Organisation', title: 'Organisation' }), 'en-CA': Object.freeze({ label: 'Organization', title: 'Organization' }) }),
+  members: Object.freeze({ 'fr-CA': Object.freeze({ label: 'Membres', title: 'Membres et invitations' }), 'en-CA': Object.freeze({ label: 'Members', title: 'Members and invitations' }) }),
+  'tenant-audit': Object.freeze({ 'fr-CA': Object.freeze({ label: 'Journal d’activité', title: 'Journal d’activité' }), 'en-CA': Object.freeze({ label: 'Activity log', title: 'Activity log' }) }),
+  'platform-organizations': Object.freeze({ 'fr-CA': Object.freeze({ label: 'Plateforme', title: 'Organisations de la plateforme' }), 'en-CA': Object.freeze({ label: 'Platform', title: 'Platform organizations' }) }),
+  'platform-audit': Object.freeze({ 'fr-CA': Object.freeze({ label: 'Audit plateforme', title: 'Audit plateforme' }), 'en-CA': Object.freeze({ label: 'Platform audit', title: 'Platform audit' }) }),
+  account: Object.freeze({ 'fr-CA': Object.freeze({ label: 'Compte', title: 'Mon compte' }), 'en-CA': Object.freeze({ label: 'Account', title: 'My account' }) }),
+})
+
 // Seules les pages terminées sont enregistrées. Les chemins réservés ne sont
 // rendus routables qu’avec leurs écrans, leurs capacités et leurs tests.
 export const routes = Object.freeze([
@@ -65,6 +84,8 @@ export const routes = Object.freeze([
     path: CRM_PATHS.opportunities,
     label: 'Opportunités',
     title: 'Opportunités',
+    labels: Object.freeze({ 'fr-CA': 'Opportunités', 'en-CA': 'Opportunities' }),
+    titles: Object.freeze({ 'fr-CA': 'Opportunités', 'en-CA': 'Opportunities' }),
     requiredCapability: 'opportunities:read',
     requiresActiveOrganization: true,
     Component: OpportunitiesPage,
@@ -200,6 +221,16 @@ export function canAccessRoute(route, session) {
 
 export function navigationRoutes(session) {
   return routes.filter((route) => route.navigation !== false && canAccessRoute(route, session))
+}
+
+
+export function localizedRouteLabel(route, locale = 'fr-CA') {
+  return ROUTE_MESSAGES[route?.id]?.[locale]?.label ?? route?.labels?.[locale] ?? route?.label ?? ''
+}
+
+
+export function localizedRouteTitle(route, locale = 'fr-CA') {
+  return ROUTE_MESSAGES[route?.id]?.[locale]?.title ?? route?.titles?.[locale] ?? route?.title ?? ''
 }
 
 

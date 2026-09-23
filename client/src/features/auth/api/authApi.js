@@ -2,10 +2,11 @@ import { postJson, request } from '../../../shared/api/httpClient'
 
 
 export const authApi = {
-  login(email, password, signal) {
+  login(email, password, locale = 'fr-CA', signal) {
     return postJson('/api/auth/login', { email, password }, {
       signal,
-      fallbackMessage: 'La connexion a échoué.',
+      headers: { 'Accept-Language': locale },
+      fallbackMessage: locale === 'en-CA' ? 'Sign-in failed.' : 'La connexion a échoué.',
     })
   },
 

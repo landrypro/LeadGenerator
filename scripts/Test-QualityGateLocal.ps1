@@ -38,8 +38,8 @@ $qualityClient = Join-Path $qualityRoot 'client'
 $qualityNpmCache = Join-Path $qualityRoot 'npm-cache'
 $vitestReport = Join-Path $testResults 'vitest.xml'
 $projectName = 'prospect-crm-quality'
-# Le socle 3.4-A ajoute les opportunités et déplace la tête de référence.
-$expectedAlembicRevision = '20260910_0020'
+# Le correctif de locale 3.4 expose la langue et le fuseau horaire dans la session.
+$expectedAlembicRevision = '20260922_0021'
 $script:resolvedDockerMode = $null
 $script:wslWorkspace = $null
 $script:wslDistribution = $null

@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 
 import {
-  canAccessRoute, CRM_PATHS, findRoute, landingPath, navigationRoutes, routes,
+  canAccessRoute, CRM_PATHS, findRoute, landingPath, localizedRouteLabel, localizedRouteTitle, navigationRoutes, routes,
 } from './routes'
 
 
@@ -112,6 +112,13 @@ describe('routes CRM', () => {
       activeOrganization: { id: 'org-1', name: 'Entreprise' },
       capabilities: ['organization:read', 'platform:organizations:read'],
     }))).toBe('/app/admin/organization')
+  })
+
+  it('localise le libellé et le titre de la route Opportunités', () => {
+    const route = findRoute('/app/opportunities')
+    expect(localizedRouteLabel(route, 'fr-CA')).toBe('Opportunités')
+    expect(localizedRouteLabel(route, 'en-CA')).toBe('Opportunities')
+    expect(localizedRouteTitle(route, 'en-CA')).toBe('Opportunities')
   })
 })
 

@@ -28,22 +28,69 @@ describe('OpportunitySection', () => {
     const onCreate = vi.fn().mockResolvedValue(true)
     const { rerender } = render(<OpportunitySection locale="en-CA" canCreate submitting={false} onCreate={onCreate} onTransition={vi.fn()} onReopen={vi.fn()} />)
 
-    fireEvent.change(screen.getByLabelText('Nom'), { target: { value: 'OPP-17 EN' } })
-    fireEvent.change(screen.getByLabelText('Montant'), { target: { value: '1250.50' } })
-    fireEvent.change(screen.getByLabelText('Échéance'), { target: { value: '2099-10-15' } })
-    fireEvent.click(screen.getByRole('button', { name: 'Créer l’opportunité' }))
+    fireEvent.change(screen.getByLabelText('Name'), { target: { value: 'OPP-17 EN' } })
+    fireEvent.change(screen.getByLabelText('Amount'), { target: { value: '1250.50' } })
+    fireEvent.change(screen.getByLabelText('Due date'), { target: { value: '2099-10-15' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Create opportunity' }))
 
     await waitFor(() => expect(onCreate).toHaveBeenCalledWith(expect.objectContaining({ amount: '1250.50' })))
 
     onCreate.mockClear()
     rerender(<OpportunitySection locale="en-CA" canCreate submitting={false} onCreate={onCreate} onTransition={vi.fn()} onReopen={vi.fn()} />)
-    fireEvent.change(screen.getByLabelText('Nom'), { target: { value: 'OPP-17 EN' } })
-    fireEvent.change(screen.getByLabelText('Montant'), { target: { value: '1250,50' } })
-    fireEvent.change(screen.getByLabelText('Échéance'), { target: { value: '2099-10-15' } })
-    fireEvent.click(screen.getByRole('button', { name: 'Créer l’opportunité' }))
+    fireEvent.change(screen.getByLabelText('Name'), { target: { value: 'OPP-17 EN' } })
+    fireEvent.change(screen.getByLabelText('Amount'), { target: { value: '1250,50' } })
+    fireEvent.change(screen.getByLabelText('Due date'), { target: { value: '2099-10-15' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Create opportunity' }))
 
     expect(onCreate).not.toHaveBeenCalled()
-    expect(screen.getByLabelText('Montant')).toHaveAttribute('aria-invalid', 'true')
+    expect(screen.getByLabelText('Amount')).toHaveAttribute('aria-invalid', 'true')
+    expect(screen.getByText('Enter an amount greater than zero, with no more than four decimal places.')).toBeInTheDocument()
+  })
+
+  it('traduit tout le parcours opportunité en en-CA', () => {
+    const onTransition = vi.fn()
+    render(<OpportunitySection locale="en-CA" prospect={{ stage_code: 'new' }} opportunities={[opportunity]} canCreate canUpdate canClose canAlign submitting={false} onCreate={vi.fn()} onUpdate={vi.fn()} onTransition={onTransition} onReopen={vi.fn()} onAlign={vi.fn()} />)
+
+    expect(screen.getByRole('heading', { name: 'Opportunities' })).toBeInTheDocument()
+    expect(screen.getByRole('heading', { name: 'Add an opportunity' })).toBeInTheDocument()
+    expect(screen.getByLabelText('Name')).toBeInTheDocument()
+    expect(screen.getByLabelText('Amount')).toBeInTheDocument()
+    expect(screen.getByLabelText('Currency')).toBeInTheDocument()
+    expect(screen.getByLabelText('Probability (%)')).toBeInTheDocument()
+    expect(screen.getByLabelText('Due date')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Edit' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Won' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Lost' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Align pipeline' })).toBeInTheDocument()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Edit' }))
+    expect(screen.getByRole('heading', { name: 'Edit opportunity' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Save' })).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'Cancel' }))
+
+    fireEvent.click(screen.getByRole('button', { name: 'Align pipeline' }))
+    expect(screen.getByLabelText('Pipeline alignment')).toBeInTheDocument()
+    expect(screen.getByText('This transition is not allowed directly. Move the prospect one stage at a time in the Kanban.')).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'Close' }))
+
+    fireEvent.click(screen.getByRole('button', { name: 'Lost' }))
+    expect(screen.getByLabelText('Loss reason')).toBeInTheDocument()
+    expect(screen.getByRole('option', { name: 'A competitor’s offer was selected' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Confirm loss' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Cancel' })).toBeInTheDocument()
+    expect(screen.queryByText('Perdue')).not.toBeInTheDocument()
+    expect(screen.queryByText('Motif de perte')).not.toBeInTheDocument()
+  })
+
+  it('traduit la réouverture en en-CA', () => {
+    const closedOpportunity = { ...opportunity, stage_code: 'lost', probability: 0 }
+    render(<OpportunitySection locale="en-CA" opportunities={[closedOpportunity]} canReopen submitting={false} onCreate={vi.fn()} onTransition={vi.fn()} onReopen={vi.fn()} />)
+
+    fireEvent.click(screen.getByRole('button', { name: 'Reopen' }))
+    expect(screen.getByLabelText('Reopen reason')).toBeInTheDocument()
+    expect(screen.getByRole('option', { name: 'New information is available' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Confirm reopening' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Cancel' })).toBeInTheDocument()
   })
 
   it('signale précisément un montant invalide sans envoyer de commande', () => {

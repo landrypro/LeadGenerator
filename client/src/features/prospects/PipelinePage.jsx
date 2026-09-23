@@ -10,8 +10,8 @@ import { opportunityApi } from '../opportunities/api/opportunityApi'
 import { formatMoney } from '../opportunities/opportunityPresentation'
 
 
-function stageLabel(stage) {
-  return stage.labels?.['fr-CA'] ?? stage.labels?.['en-CA'] ?? stage.code
+function stageLabel(stage, locale) {
+  return stage.labels?.[locale] ?? stage.labels?.['fr-CA'] ?? stage.labels?.['en-CA'] ?? stage.code
 }
 
 const reopenReasons = [
@@ -34,6 +34,12 @@ const lossReasons = [
 
 
 export function PipelinePage({ session }) {
+  const locale = session.active_organization?.locale === 'en-CA' ? 'en-CA' : 'fr-CA'
+  const copy = locale === 'en-CA' ? {
+    eyebrow: 'CRM portfolio', title: 'Sales pipeline', description: 'Follow prospects by stage. Every move is controlled and recorded in the activity log.', filter: 'Filter pipeline', filterPlaceholder: 'Filter by name, business type, or city', apply: 'Filter', retry: 'Try again', loading: 'Loading pipeline…', priority: 'Priority', nextAction: 'Next action:', openOpportunities: 'open opportunity(s)', markLost: 'Mark as lost', reopen: 'Reopen', loadingMore: 'Loading…', loadMore: 'Load more', lossTitle: 'Mark prospect as lost', lossHelp: 'Select the business reason that explains why follow-up is stopping.', lossReason: 'Loss reason', reopenTitle: 'Reopen prospect', reopenHelp: 'Select the business reason that explains resuming follow-up.', reopenReason: 'Reopening reason', specify: 'Specify reason', cancel: 'Cancel', confirmingLoss: 'Updating…', confirmLoss: 'Confirm loss', reopening: 'Reopening…', confirmReopen: 'Confirm reopening', lossRequired: 'Specify the loss reason.', reopenRequired: 'Specify the reopening reason.', pipelineError: 'Unable to load the pipeline.', moveError: 'Unable to move the prospect.', moreError: 'Unable to load more prospects.', reopenError: 'Unable to reopen the prospect.', lostReasons: ['The need does not match our offer', 'The budget is unavailable', 'No response after follow-ups', 'A competitor was selected', 'The project is postponed or timing is not right', 'The prospect is outside our coverage area', 'The prospect is invalid or duplicated', 'Other reason'], reopenReasons: ['The prospect got back in touch', 'New information justifies resuming', 'The status was assigned in error', 'Other reason']
+  } : {
+    eyebrow: 'Portefeuille CRM', title: 'Pipeline commercial', description: 'Suivez les prospects par étape. Chaque déplacement est contrôlé et inscrit au journal d’activité.', filter: 'Filtrer le pipeline', filterPlaceholder: 'Filtrer un nom, un secteur ou une ville', apply: 'Filtrer', retry: 'Réessayer', loading: 'Chargement du pipeline…', priority: 'Priorité', nextAction: 'Prochaine action :', openOpportunities: 'opportunité(s) ouverte(s)', markLost: 'Marquer perdu', reopen: 'Réouvrir', loadingMore: 'Chargement…', loadMore: 'Charger plus', lossTitle: 'Marquer le prospect comme perdu', lossHelp: 'Choisissez le motif commercial qui explique l’arrêt du suivi.', lossReason: 'Motif de perte', reopenTitle: 'Réouvrir le prospect', reopenHelp: 'Choisissez le motif commercial qui explique la reprise du suivi.', reopenReason: 'Motif de réouverture', specify: 'Précisez le motif', cancel: 'Annuler', confirmingLoss: 'Mise à jour…', confirmLoss: 'Confirmer la perte', reopening: 'Réouverture…', confirmReopen: 'Confirmer la réouverture', lossRequired: 'Précisez le motif de perte.', reopenRequired: 'Précisez le motif de réouverture.', pipelineError: 'Impossible de charger le pipeline.', moveError: 'Impossible de déplacer le prospect.', moreError: 'Impossible de charger davantage de prospects.', reopenError: 'Impossible de réouvrir le prospect.', lostReasons: lossReasons.map((reason) => reason.label), reopenReasons: reopenReasons.map((reason) => reason.label)
+  }
   const [board, setBoard] = useState({ stages: [], columns: {}, next_cursors: {} })
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
@@ -74,12 +80,12 @@ export function PipelinePage({ session }) {
       setOpportunitySummaries(Object.fromEntries((summariesPage.items ?? []).map((summary) => [summary.prospect_id, summary])))
       setBoard(nextBoard)
     } catch (requestError) {
-      if (requestError?.name !== 'AbortError') setError(toUserMessage(requestError, 'Impossible de charger le pipeline.'))
+      if (requestError?.name !== 'AbortError') setError(toUserMessage(requestError, copy.pipelineError))
     } finally {
       if (requestRef.current === controller) requestRef.current = null
       setLoading(false)
     }
-  }, [canReadOpportunities, canReadTasks, submittedSearch])
+  }, [canReadOpportunities, canReadTasks, copy.pipelineError, submittedSearch])
 
   useEffect(() => {
     load()
@@ -105,7 +111,7 @@ export function PipelinePage({ session }) {
       })
       await load()
     } catch (requestError) {
-      setError(toUserMessage(requestError, 'Impossible de déplacer le prospect.'))
+      setError(toUserMessage(requestError, copy.moveError))
     } finally {
       setMoving('')
     }
@@ -129,7 +135,7 @@ export function PipelinePage({ session }) {
         }
       })
     } catch (requestError) {
-      setError(toUserMessage(requestError, 'Impossible de charger davantage de prospects.'))
+      setError(toUserMessage(requestError, copy.moreError))
     } finally {
       setLoadingColumns((current) => ({ ...current, [stageCode]: false }))
     }
@@ -153,7 +159,7 @@ export function PipelinePage({ session }) {
     if (!lossIntent || moving) return
     const reasonNote = lossReasonNote.trim()
     if (lossReasonCode === 'other' && !reasonNote) {
-      setLossFormError('Précisez le motif de perte.')
+      setLossFormError(copy.lossRequired)
       return
     }
     await performMove(lossIntent.prospect, lossIntent.stage, lossReasonCode, reasonNote || undefined)
@@ -179,7 +185,7 @@ export function PipelinePage({ session }) {
     if (!reopenIntent || moving) return
     const reasonNote = reopenReasonNote.trim()
     if (reopenReasonCode === 'other' && !reasonNote) {
-      setReopenFormError('Précisez le motif de réouverture.')
+      setReopenFormError(copy.reopenRequired)
       return
     }
     setMoving(reopenIntent.id)
@@ -194,7 +200,7 @@ export function PipelinePage({ session }) {
       setReopenIntent(null)
       await load()
     } catch (requestError) {
-      setError(toUserMessage(requestError, 'Impossible de réouvrir le prospect.'))
+      setError(toUserMessage(requestError, copy.reopenError))
     } finally {
       setMoving('')
     }
@@ -207,55 +213,55 @@ export function PipelinePage({ session }) {
 
   return <main className="administration-page pipeline-page" aria-labelledby="pipeline-title">
     <header className="administration-page-heading prospects-heading">
-      <div><p className="eyebrow">Portefeuille CRM</p><h1 id="pipeline-title">Pipeline commercial</h1><p>Suivez les prospects par étape. Chaque déplacement est contrôlé et inscrit au journal d’activité.</p></div>
+      <div><p className="eyebrow">{copy.eyebrow}</p><h1 id="pipeline-title">{copy.title}</h1><p>{copy.description}</p></div>
     </header>
-    <form onSubmit={submit} className="prospect-search-form pipeline-search"><label className="sr-only" htmlFor="pipeline-search">Filtrer le pipeline</label><Search size={18} /><input id="pipeline-search" value={searchText} onChange={(event) => setSearchText(event.target.value)} placeholder="Filtrer un nom, un secteur ou une ville" /><button className="secondary-button" type="submit">Filtrer</button></form>
-    {error && <ErrorBanner><span>{error}</span><button className="link-button" type="button" onClick={load}>Réessayer</button></ErrorBanner>}
-    {loading ? <div className="administration-loading" role="status"><LoaderCircle className="spin" size={20} /> Chargement du pipeline…</div> : <section className="pipeline-board" aria-label="Pipeline commercial">
+    <form onSubmit={submit} className="prospect-search-form pipeline-search"><label className="sr-only" htmlFor="pipeline-search">{copy.filter}</label><Search size={18} /><input id="pipeline-search" value={searchText} onChange={(event) => setSearchText(event.target.value)} placeholder={copy.filterPlaceholder} /><button className="secondary-button" type="submit">{copy.apply}</button></form>
+    {error && <ErrorBanner><span>{error}</span><button className="link-button" type="button" onClick={load}>{copy.retry}</button></ErrorBanner>}
+    {loading ? <div className="administration-loading" role="status"><LoaderCircle className="spin" size={20} /> {copy.loading}</div> : <section className="pipeline-board" aria-label={copy.title}>
       {board.stages.map((stage, index) => <section className={`pipeline-column pipeline-${stage.color_token}`} key={stage.code} aria-labelledby={`stage-${stage.code}`}>
-        <header><h2 id={`stage-${stage.code}`}>{stageLabel(stage)}</h2><span>{(board.columns?.[stage.code] ?? []).length}</span></header>
+        <header><h2 id={`stage-${stage.code}`}>{stageLabel(stage, locale)}</h2><span>{(board.columns?.[stage.code] ?? []).length}</span></header>
         <div className="pipeline-cards">{(board.columns?.[stage.code] ?? []).map((prospect) => <article className="pipeline-card" key={prospect.id}>
           <a href={`/app/prospects/${encodeURIComponent(prospect.id)}`} onClick={(event) => followInternalLink(event, `/app/prospects/${encodeURIComponent(prospect.id)}`)}><Building2 size={16} /><strong>{prospect.internal_alias}</strong></a>
-          <small>Priorité {prospect.priority}/5</small>
-          {nextActions[prospect.id] && <small className="next-action-summary">Prochaine action : {nextActions[prospect.id].title}</small>}
-          {opportunitySummaries[prospect.id] && <small className="next-action-summary">{opportunitySummaries[prospect.id].open_count} opportunité(s) ouverte(s) · {opportunitySummaries[prospect.id].aggregates_by_currency.map((aggregate) => formatMoney(aggregate.weighted_amount_total, aggregate.currency_code, session.active_organization?.locale)).join(' · ')}</small>}
+          <small>{copy.priority} {prospect.priority}/5</small>
+          {nextActions[prospect.id] && <small className="next-action-summary">{`${copy.nextAction} ${nextActions[prospect.id].title}`}</small>}
+          {opportunitySummaries[prospect.id] && <small className="next-action-summary">{opportunitySummaries[prospect.id].open_count} {copy.openOpportunities} · {opportunitySummaries[prospect.id].aggregates_by_currency.map((aggregate) => formatMoney(aggregate.weighted_amount_total, aggregate.currency_code, locale)).join(' · ')}</small>}
           {canMove && stage.code !== 'lost' && stage.code !== 'won' && <div className="pipeline-move-actions">
-            {index > 0 && <button type="button" disabled={moving === prospect.id} onClick={() => move(prospect, board.stages[index - 1])}>← {stageLabel(board.stages[index - 1])}</button>}
-            {index < board.stages.length - 1 && <button type="button" disabled={moving === prospect.id} onClick={() => move(prospect, board.stages[index + 1])}>{stageLabel(board.stages[index + 1])} →</button>}
-            <button type="button" disabled={moving === prospect.id} onClick={() => move(prospect, board.stages.find((candidate) => candidate.code === 'lost'))}>Marquer perdu</button>
+            {index > 0 && <button type="button" disabled={moving === prospect.id} onClick={() => move(prospect, board.stages[index - 1])}>← {stageLabel(board.stages[index - 1], locale)}</button>}
+            {index < board.stages.length - 1 && <button type="button" disabled={moving === prospect.id} onClick={() => move(prospect, board.stages[index + 1])}>{stageLabel(board.stages[index + 1], locale)} →</button>}
+            <button type="button" disabled={moving === prospect.id} onClick={() => move(prospect, board.stages.find((candidate) => candidate.code === 'lost'))}>{copy.markLost}</button>
           </div>}
-          {canReopen && (stage.code === 'lost' || stage.code === 'won') && <div className="pipeline-move-actions"><button type="button" disabled={moving === prospect.id} onClick={() => requestReopen(prospect)}>Réouvrir</button></div>}
+          {canReopen && (stage.code === 'lost' || stage.code === 'won') && <div className="pipeline-move-actions"><button type="button" disabled={moving === prospect.id} onClick={() => requestReopen(prospect)}>{copy.reopen}</button></div>}
         </article>)}</div>
-        {board.next_cursors?.[stage.code] && (board.columns?.[stage.code] ?? []).length < 50 && <button className="secondary-button pipeline-load-more" type="button" disabled={loadingColumns[stage.code]} onClick={() => loadMore(stage.code)}>{loadingColumns[stage.code] ? 'Chargement…' : 'Charger plus'}</button>}
+        {board.next_cursors?.[stage.code] && (board.columns?.[stage.code] ?? []).length < 50 && <button className="secondary-button pipeline-load-more" type="button" disabled={loadingColumns[stage.code]} onClick={() => loadMore(stage.code)}>{loadingColumns[stage.code] ? copy.loadingMore : copy.loadMore}</button>}
       </section>)}
     </section>}
     {reopenIntent && <div className="confirmation-overlay" onMouseDown={closeReopenDialog}>
       <section className="confirmation-dialog" role="dialog" aria-modal="true" aria-labelledby="reopen-prospect-title" onMouseDown={(event) => event.stopPropagation()}>
-        <h2 id="reopen-prospect-title">Réouvrir le prospect</h2>
-        <p>Choisissez le motif commercial qui explique la reprise du suivi.</p>
+        <h2 id="reopen-prospect-title">{copy.reopenTitle}</h2>
+        <p>{copy.reopenHelp}</p>
         <form className="status-operation-form" onSubmit={reopen}>
-          <label htmlFor="reopen-reason">Motif de réouverture</label>
+          <label htmlFor="reopen-reason">{copy.reopenReason}</label>
           <select id="reopen-reason" value={reopenReasonCode} autoFocus onChange={(event) => { setReopenReasonCode(event.target.value); setReopenFormError('') }}>
-            {reopenReasons.map((reason) => <option key={reason.value} value={reason.value}>{reason.label}</option>)}
+            {reopenReasons.map((reason, index) => <option key={reason.value} value={reason.value}>{copy.reopenReasons[index]}</option>)}
           </select>
-          {reopenReasonCode === 'other' && <><label htmlFor="reopen-reason-note">Précisez le motif</label><input id="reopen-reason-note" value={reopenReasonNote} maxLength={500} onChange={(event) => { setReopenReasonNote(event.target.value); setReopenFormError('') }} /></>}
+          {reopenReasonCode === 'other' && <><label htmlFor="reopen-reason-note">{copy.specify}</label><input id="reopen-reason-note" value={reopenReasonNote} maxLength={500} onChange={(event) => { setReopenReasonNote(event.target.value); setReopenFormError('') }} /></>}
           {reopenFormError && <p className="form-help" role="alert">{reopenFormError}</p>}
-          <div className="confirmation-actions"><button className="secondary-button" type="button" onClick={closeReopenDialog} disabled={Boolean(moving)}>Annuler</button><button className="primary-button" type="submit" disabled={Boolean(moving)}>{moving ? 'Réouverture…' : 'Confirmer la réouverture'}</button></div>
+          <div className="confirmation-actions"><button className="secondary-button" type="button" onClick={closeReopenDialog} disabled={Boolean(moving)}>{copy.cancel}</button><button className="primary-button" type="submit" disabled={Boolean(moving)}>{moving ? copy.reopening : copy.confirmReopen}</button></div>
         </form>
       </section>
     </div>}
     {lossIntent && <div className="confirmation-overlay" onMouseDown={closeLossDialog}>
       <section className="confirmation-dialog" role="dialog" aria-modal="true" aria-labelledby="loss-prospect-title" onMouseDown={(event) => event.stopPropagation()}>
-        <h2 id="loss-prospect-title">Marquer le prospect comme perdu</h2>
-        <p>Choisissez le motif commercial qui explique l’arrêt du suivi.</p>
+        <h2 id="loss-prospect-title">{copy.lossTitle}</h2>
+        <p>{copy.lossHelp}</p>
         <form className="status-operation-form" onSubmit={confirmLoss}>
-          <label htmlFor="loss-reason">Motif de perte</label>
+          <label htmlFor="loss-reason">{copy.lossReason}</label>
           <select id="loss-reason" value={lossReasonCode} autoFocus onChange={(event) => { setLossReasonCode(event.target.value); setLossFormError('') }}>
-            {lossReasons.map((reason) => <option key={reason.value} value={reason.value}>{reason.label}</option>)}
+            {lossReasons.map((reason, index) => <option key={reason.value} value={reason.value}>{copy.lostReasons[index]}</option>)}
           </select>
-          {lossReasonCode === 'other' && <><label htmlFor="loss-reason-note">Précisez le motif</label><input id="loss-reason-note" value={lossReasonNote} maxLength={500} onChange={(event) => { setLossReasonNote(event.target.value); setLossFormError('') }} /></>}
+          {lossReasonCode === 'other' && <><label htmlFor="loss-reason-note">{copy.specify}</label><input id="loss-reason-note" value={lossReasonNote} maxLength={500} onChange={(event) => { setLossReasonNote(event.target.value); setLossFormError('') }} /></>}
           {lossFormError && <p className="form-help" role="alert">{lossFormError}</p>}
-          <div className="confirmation-actions"><button className="secondary-button" type="button" onClick={closeLossDialog} disabled={Boolean(moving)}>Annuler</button><button className="danger-button" type="submit" disabled={Boolean(moving)}>{moving ? 'Mise à jour…' : 'Confirmer la perte'}</button></div>
+          <div className="confirmation-actions"><button className="secondary-button" type="button" onClick={closeLossDialog} disabled={Boolean(moving)}>{copy.cancel}</button><button className="danger-button" type="submit" disabled={Boolean(moving)}>{moving ? copy.confirmingLoss : copy.confirmLoss}</button></div>
         </form>
       </section>
     </div>}
