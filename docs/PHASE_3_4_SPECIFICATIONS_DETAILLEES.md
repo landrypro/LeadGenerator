@@ -7,7 +7,7 @@
 | Incrément | 3.4 — Opportunités |
 | Version | 1.8 — contrats 3.4-C détaillés |
 | Prérequis | 3.2 et 3.3 clôturés avec réserves ; tête Alembic `20260910_0020` ; verrou local 3.4-A vert |
-| Statut | Décisions validées ; 3.4-A, 3.4-B et 3.4-C techniquement validés ; verrou qualité local vert |
+| Statut | Phase 3.4 clôturée avec réserves transférées à la recette finale de la phase 4 ; GO produit du 23 septembre 2026 (UTC) |
 | Date | 10 septembre 2026 |
 | Résultat visé | Opportunités internes avec montant, devise, probabilité, échéance, responsable, issue et lien explicite avec le pipeline |
 
@@ -495,4 +495,10 @@ additionnelle. Le verrou qualité local est vert ; voir
 Le GO documentaire du 10 septembre 2026 a ensuite permis de détailler **3.4-C — Interface et intégrations CRM** dans
 [`PHASE_3_4_C_SPECIFICATIONS_DETAILLEES.md`](PHASE_3_4_C_SPECIFICATIONS_DETAILLEES.md). Les parcours de la fiche, du
 portefeuille, de la chronologie, de la liste, du Kanban et de l’alignement explicite y sont stabilisés, avec leurs
-contrats bilingues, clavier, axe et tests React. L’implémentation reste soumise à un GO explicite distinct.
+contrats bilingues, clavier, axe et tests React. L’implémentation et la recette sont retracées dans les rapports 3.4-C
+et 3.4-D.
+
+Le verrou global sur `20260922_0021` est vert et le responsable produit a donné le GO de clôture de 3.4 le
+23 septembre 2026 (UTC). Les preuves et réserves transférées figurent dans
+[`PHASE_3_4_D_RAPPORT_IMPLEMENTATION.md`](PHASE_3_4_D_RAPPORT_IMPLEMENTATION.md). La spécification de la phase 4 est
+ouverte dans [`PHASE_4_SPECIFICATIONS_DETAILLEES.md`](PHASE_4_SPECIFICATIONS_DETAILLEES.md).

@@ -6,7 +6,7 @@
 | Phase | 3 — Cœur CRM |
 | Version | 2.5 — contrats 3.4-C détaillés |
 | Prérequis | Phase 2.5 livrée ; verrou qualité local 2.6 vert ; recette multi-instance 2.6 différée au staging |
-| Statut | 3.1, 3.2 et 3.3 clôturés avec réserves — 3.4-A, 3.4-B et 3.4-C validés ; verrou qualité local vert |
+| Statut | 3.1 à 3.4 clôturés avec réserves suivies ; 3.5 et 3.6 restent à statuer selon leurs propres critères |
 | Date | 10 septembre 2026 |
 
 ## 1. Objet
@@ -189,4 +189,6 @@ le verrou qualité local est vert, conformément au rapport
 Le GO documentaire du 10 septembre 2026 a ensuite permis de détailler **3.4-C — Interface et intégrations CRM** dans
 [`PHASE_3_4_C_SPECIFICATIONS_DETAILLEES.md`](PHASE_3_4_C_SPECIFICATIONS_DETAILLEES.md). La fiche prospect, le
 portefeuille, la chronologie, les synthèses liste/Kanban, l’alignement pipeline explicite, le bilinguisme et
-l’accessibilité y sont spécifiés. L’implémentation exige un GO explicite distinct.
+l’accessibilité y sont spécifiés. La phase 3.4 a reçu son GO de clôture le 23 septembre 2026 (UTC), avec les preuves
+et réserves suivies dans [`PHASE_3_4_D_RAPPORT_IMPLEMENTATION.md`](PHASE_3_4_D_RAPPORT_IMPLEMENTATION.md). Les lots
+3.5 et 3.6 conservent leur propre validation avant la clôture globale de la phase 3.
