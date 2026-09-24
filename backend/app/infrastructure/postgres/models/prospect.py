@@ -956,9 +956,16 @@ class CsvImportSessionModel(Base):
             ["import_declarations.organization_id", "import_declarations.id"],
             ondelete="RESTRICT",
         ),
+        ForeignKeyConstraint(
+            ["organization_id", "retry_of_run_id"],
+            ["csv_import_runs.organization_id", "csv_import_runs.id"],
+            ondelete="RESTRICT",
+            name="fk_csv_import_sessions_retry_run",
+        ),
         UniqueConstraint("organization_id", "id", name="uq_csv_import_sessions_organization_id_id"),
         Index("ix_csv_import_sessions_organization_declaration", "organization_id", "declaration_id"),
         Index("ix_csv_import_sessions_expiry", "expires_at"),
+        Index("ix_csv_import_sessions_retry_run", "organization_id", "retry_of_run_id"),
         CheckConstraint("content_sha256 ~ '^[a-f0-9]{64}$'", name="sha256"),
         CheckConstraint("byte_size BETWEEN 1 AND 10485760", name="size"),
         CheckConstraint(
@@ -976,6 +983,7 @@ class CsvImportSessionModel(Base):
     id: Mapped[UUID] = mapped_column(primary_key=True, default=uuid4)
     organization_id: Mapped[UUID] = mapped_column(ForeignKey("organizations.id", ondelete="CASCADE"))
     declaration_id: Mapped[UUID] = mapped_column()
+    retry_of_run_id: Mapped[UUID | None] = mapped_column()
     file_ref: Mapped[str] = mapped_column(String(64))
     content_sha256: Mapped[str] = mapped_column(String(64))
     byte_size: Mapped[int] = mapped_column(Integer)

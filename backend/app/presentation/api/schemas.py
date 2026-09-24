@@ -888,6 +888,7 @@ class CsvImportVersionRequest(StrictCommand):
 class CsvImportSessionResponse(BaseModel):
     id: UUID
     declaration_id: UUID
+    retry_of_run_id: UUID | None = None
     content_sha256: str
     byte_size: int
     headers: list[str]

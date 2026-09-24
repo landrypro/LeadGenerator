@@ -158,6 +158,19 @@ def _entity_type(action: AuditAction) -> str:
         AuditAction.IMPORT_MAPPING_SAVED,
         AuditAction.IMPORT_VALIDATED,
         AuditAction.IMPORT_CONFIRMED,
+        AuditAction.IMPORT_RETRY_STARTED,
     }:
         return "csv_import_session"
+    if action is AuditAction.IMPORT_REPORT_VIEWED:
+        return "csv_import_run"
+    if action is AuditAction.EXPORT_RULE_CHANGED:
+        return "source_export_rule"
+    if action in {
+        AuditAction.EXPORT_REQUESTED,
+        AuditAction.EXPORT_READY,
+        AuditAction.EXPORT_FAILED,
+        AuditAction.EXPORT_DOWNLOADED,
+        AuditAction.EXPORT_EXPIRED,
+    }:
+        return "export_request"
     return "invitation"

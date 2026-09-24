@@ -355,6 +355,7 @@ class CsvImportRepository(Protocol):
         headers: tuple[str, ...],
         now: datetime,
         expires_at: datetime,
+        retry_of_run_id: UUID | None = None,
     ) -> CsvImportSessionView: ...
 
     async def get_session(self, session_id: UUID) -> CsvImportSessionView | None: ...

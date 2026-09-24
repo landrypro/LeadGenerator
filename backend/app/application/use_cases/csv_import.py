@@ -91,8 +91,12 @@ class UploadCsvImportUseCase:
         declaration_id: UUID,
         chunks: AsyncIterator[bytes],
         has_capability: bool,
+        retry_of_run_id: UUID | None = None,
+        has_retry_capability: bool = False,
     ) -> CsvImportPreview:
         _require(has_capability)
+        if retry_of_run_id is not None:
+            _require(has_retry_capability)
         await self._file_store.cleanup_expired(max_age_seconds=int(FILE_TTL.total_seconds()))
         file_ref, digest, byte_size = await self._file_store.save(chunks)
         try:
@@ -112,15 +116,41 @@ class UploadCsvImportUseCase:
                     raise AcquisitionNotApproved
                 if declaration.status.value != "declared":
                     raise ValueError("La déclaration d’import ne permet plus de téléversement.")
-                session = await uow.csv_imports.add_session(
-                    declaration_id=declaration_id,
-                    file_ref=file_ref,
-                    content_sha256=digest,
-                    byte_size=byte_size,
-                    headers=headers,
-                    now=now,
-                    expires_at=now + FILE_TTL,
-                )
+                if declaration.declared_content_sha256 and declaration.declared_content_sha256 != digest:
+                    raise ValueError("L’empreinte du fichier ne correspond pas à la déclaration.")
+                if retry_of_run_id is not None:
+                    old_run = await uow.csv_imports.get_run(retry_of_run_id)
+                    if old_run is None:
+                        raise ProspectComplianceResourceNotFound
+                    old_session = await uow.csv_imports.get_session(old_run.session_id)
+                    if old_session is None:
+                        raise ProspectComplianceResourceNotFound
+                    old_declaration = await uow.import_declarations.get(old_session.declaration_id)
+                    if (
+                        old_declaration is None
+                        or old_declaration.acquisition_record_id != declaration.acquisition_record_id
+                    ):
+                        raise ValueError("La correction doit conserver une acquisition approuvée identique.")
+                    session = await uow.csv_imports.add_session(
+                        declaration_id=declaration_id,
+                        file_ref=file_ref,
+                        content_sha256=digest,
+                        byte_size=byte_size,
+                        headers=headers,
+                        now=now,
+                        expires_at=now + FILE_TTL,
+                        retry_of_run_id=retry_of_run_id,
+                    )
+                else:
+                    session = await uow.csv_imports.add_session(
+                        declaration_id=declaration_id,
+                        file_ref=file_ref,
+                        content_sha256=digest,
+                        byte_size=byte_size,
+                        headers=headers,
+                        now=now,
+                        expires_at=now + FILE_TTL,
+                    )
                 await uow.audit.record(
                     tenant_audit_event(
                         context,
@@ -129,6 +159,15 @@ class UploadCsvImportUseCase:
                         {"byte_size": byte_size, "header_count": len(headers)},
                     )
                 )
+                if retry_of_run_id is not None:
+                    await uow.audit.record(
+                        tenant_audit_event(
+                            context,
+                            AuditAction.IMPORT_RETRY_STARTED,
+                            session.id,
+                            {"retry_of_run_id": retry_of_run_id},
+                        )
+                    )
                 await uow.commit()
             return CsvImportPreview(session=session, rows=tuple(rows[:PREVIEW_ROWS]))
         except BaseException:
@@ -267,13 +306,15 @@ class ConfirmCsvImportUseCase:
         now = self._clock.now()
         async with self._unit_of_work_factory(context) as uow:
             session = await uow.csv_imports.get_session(session_id)
-            session = _ensure_available(session, now)
+            if session is None:
+                raise ProspectComplianceResourceNotFound
             fingerprint = _confirmation_fingerprint(session_id, session.content_sha256, session.mapping)
             replay = await uow.csv_imports.get_run_by_idempotency_key(idempotency_key)
             if replay is not None:
                 if replay.command_fingerprint != fingerprint:
                     raise IdempotencyKeyReused
                 return replay
+            session = _ensure_available(session, now)
             if session.status is not CsvImportStatus.VALIDATED:
                 raise ValueError("La validation doit être confirmée avant l’import.")
             if session.version != expected_version:
@@ -355,7 +396,7 @@ class GetCsvImportReportUseCase:
             run = await uow.csv_imports.get_run(run_id)
             if run is None:
                 raise ProspectComplianceResourceNotFound
-            return await uow.csv_imports.list_quarantines(run.id, limit=500)
+            return await uow.csv_imports.list_quarantines(run.id, limit=5_000)
 
 
 def _parse_csv(content: bytes) -> tuple[tuple[str, ...], list[dict[str, str]]]:

@@ -82,6 +82,14 @@ class AuditAction(StrEnum):
     IMPORT_MAPPING_SAVED = "import.mapping_saved"
     IMPORT_VALIDATED = "import.validated"
     IMPORT_CONFIRMED = "import.confirmed"
+    IMPORT_RETRY_STARTED = "import.retry_started"
+    IMPORT_REPORT_VIEWED = "import.report_viewed"
+    EXPORT_REQUESTED = "export.requested"
+    EXPORT_READY = "export.ready"
+    EXPORT_FAILED = "export.failed"
+    EXPORT_DOWNLOADED = "export.downloaded"
+    EXPORT_EXPIRED = "export.expired"
+    EXPORT_RULE_CHANGED = "export.rule_changed"
     CONTACT_ARCHIVED = "contact.archived"
     CONTACT_CHANNEL_ARCHIVED = "contact_channel.archived"
     PROSPECT_ACTIVITY_CREATED = "prospect.activity_created"
@@ -126,6 +134,36 @@ _RETENTION_RELEASE_REASONS = frozenset({"entered_in_error", "expired", "other", 
 _IMPORT_DECLARATION_STATUSES = frozenset({"archived", "cancelled", "declared", "quarantined"})
 _IMPORT_DECLARATION_REASON_CODES = frozenset(
     {"category_not_acquired", "field_not_allowed", "high_risk_free_text", "provider_history_incomplete"}
+)
+_EXPORT_DATASETS = frozenset({"prospects", "contacts", "contact_channels", "activities", "tasks", "opportunities"})
+_EXPORT_SCOPES = frozenset({"self", "organization"})
+_EXPORT_ERRORS = frozenset(
+    {
+        "authorization_revoked",
+        "subject_missing",
+        "invalid_contract",
+        "limit_exceeded",
+        "dependency_unavailable",
+        "timeout",
+    }
+)
+_EXPORT_FILTERS = frozenset(
+    {
+        "created_from",
+        "created_to",
+        "obtained_from",
+        "obtained_to",
+        "occurred_from",
+        "occurred_to",
+        "due_from",
+        "due_to",
+        "expected_close_from",
+        "expected_close_to",
+        "stage_code",
+        "status",
+        "priority",
+        "owner_membership_id",
+    }
 )
 _ARCHIVE_REASON_CODES = frozenset(
     {"duplicate", "import_cancelled", "invalid_data", "no_longer_relevant", "other", "relationship_ended"}
@@ -183,6 +221,14 @@ _TENANT_ACTIONS = frozenset(
         AuditAction.IMPORT_MAPPING_SAVED,
         AuditAction.IMPORT_VALIDATED,
         AuditAction.IMPORT_CONFIRMED,
+        AuditAction.IMPORT_RETRY_STARTED,
+        AuditAction.IMPORT_REPORT_VIEWED,
+        AuditAction.EXPORT_REQUESTED,
+        AuditAction.EXPORT_READY,
+        AuditAction.EXPORT_FAILED,
+        AuditAction.EXPORT_DOWNLOADED,
+        AuditAction.EXPORT_EXPIRED,
+        AuditAction.EXPORT_RULE_CHANGED,
         AuditAction.CONTACT_ARCHIVED,
         AuditAction.CONTACT_CHANNEL_ARCHIVED,
         AuditAction.PROSPECT_ACTIVITY_CREATED,
@@ -247,6 +293,14 @@ _ACTION_ENTITY_TYPES = {
     AuditAction.IMPORT_MAPPING_SAVED: "csv_import_session",
     AuditAction.IMPORT_VALIDATED: "csv_import_session",
     AuditAction.IMPORT_CONFIRMED: "csv_import_session",
+    AuditAction.IMPORT_RETRY_STARTED: "csv_import_session",
+    AuditAction.IMPORT_REPORT_VIEWED: "csv_import_run",
+    AuditAction.EXPORT_REQUESTED: "export_request",
+    AuditAction.EXPORT_READY: "export_request",
+    AuditAction.EXPORT_FAILED: "export_request",
+    AuditAction.EXPORT_DOWNLOADED: "export_request",
+    AuditAction.EXPORT_EXPIRED: "export_request",
+    AuditAction.EXPORT_RULE_CHANGED: "source_export_rule",
     AuditAction.CONTACT_ARCHIVED: "contact",
     AuditAction.CONTACT_CHANNEL_ARCHIVED: "contact_channel",
     AuditAction.PROSPECT_ACTIVITY_CREATED: "prospect_activity",
@@ -753,6 +807,78 @@ class AuditMetadataPolicy:
             if not all(isinstance(value, int) and value >= 0 for value in values.values()):
                 raise InvalidAuditMetadata("Les compteurs d’import sont invalides.")
             return dict(values)
+
+        if action is AuditAction.IMPORT_RETRY_STARTED:
+            cls._require_keys(values, {"retry_of_run_id"})
+            return {"retry_of_run_id": cls._uuid(values["retry_of_run_id"], "retry_of_run_id")}
+
+        if action is AuditAction.IMPORT_REPORT_VIEWED:
+            cls._require_keys(values, set(), {"kind"})
+            return {"kind": cls._choice(values["kind"], frozenset({"quarantine"}), "kind")} if values else {}
+
+        if action is AuditAction.EXPORT_REQUESTED:
+            cls._require_keys(values, {"dataset", "scope", "filters", "column_count"})
+            filters = values["filters"]
+            if (
+                not isinstance(filters, Mapping)
+                or len(filters) > 8
+                or any(
+                    key not in _EXPORT_FILTERS
+                    or not isinstance(value, str)
+                    or len(value) > 64
+                    or re.fullmatch(r"[A-Za-z0-9_-]+", value) is None
+                    for key, value in filters.items()
+                )
+            ):
+                raise InvalidAuditMetadata("Filtres d’export invalides.")
+            count = values["column_count"]
+            if not isinstance(count, int) or not 1 <= count <= 32:
+                raise InvalidAuditMetadata("Nombre de colonnes d’export invalide.")
+            return {
+                "dataset": cls._choice(values["dataset"], _EXPORT_DATASETS, "dataset"),
+                "scope": cls._choice(values["scope"], _EXPORT_SCOPES, "scope"),
+                "filters": dict(sorted(filters.items())),
+                "column_count": count,
+            }
+
+        if action in {AuditAction.EXPORT_READY, AuditAction.EXPORT_DOWNLOADED}:
+            required = (
+                {"row_count", "byte_size", "omitted_count"}
+                if action is AuditAction.EXPORT_READY
+                else {"dataset", "byte_size"}
+            )
+            cls._require_keys(values, required)
+            counts = required - {"dataset"}
+            if any(not isinstance(value, int) or value < 0 for key, value in values.items() if key in counts):
+                raise InvalidAuditMetadata("Compteurs d’export invalides.")
+            result = {key: values[key] for key in counts}
+            if "dataset" in required:
+                result["dataset"] = cls._choice(values["dataset"], _EXPORT_DATASETS, "dataset")
+            return result
+
+        if action is AuditAction.EXPORT_FAILED:
+            cls._require_keys(values, {"dataset", "error_code"})
+            return {
+                "dataset": cls._choice(values["dataset"], _EXPORT_DATASETS, "dataset"),
+                "error_code": cls._choice(values["error_code"], _EXPORT_ERRORS, "error_code"),
+            }
+
+        if action is AuditAction.EXPORT_EXPIRED:
+            cls._require_keys(values, {"dataset"})
+            return {"dataset": cls._choice(values["dataset"], _EXPORT_DATASETS, "dataset")}
+
+        if action is AuditAction.EXPORT_RULE_CHANGED:
+            cls._require_keys(values, {"category", "status", "field_count"})
+            count = values["field_count"]
+            if not isinstance(count, int) or not 0 <= count <= 32:
+                raise InvalidAuditMetadata("Nombre de champs invalide.")
+            return {
+                "category": cls._choice(
+                    values["category"], frozenset({"prospect_profile", "person_identity", "channel"}), "category"
+                ),
+                "status": cls._choice(values["status"], frozenset({"allowed", "denied", "unknown"}), "status"),
+                "field_count": count,
+            }
 
         if action in {AuditAction.CONTACT_ARCHIVED, AuditAction.CONTACT_CHANNEL_ARCHIVED}:
             cls._require_keys(values, {"previous_version", "archive_reason_code"}, {"channels_archived"})

@@ -57,6 +57,7 @@ class CsvImportSessionView:
     expires_at: datetime
     confirmed_at: datetime | None
     version: int
+    retry_of_run_id: UUID | None = None
 
 
 @dataclass(frozen=True, slots=True)
