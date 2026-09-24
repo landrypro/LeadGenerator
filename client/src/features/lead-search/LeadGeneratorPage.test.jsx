@@ -104,6 +104,18 @@ describe('PlaceSearchPage', () => {
     }), expect.any(AbortSignal)))
   })
 
+  it('ne sollicite pas Google pour moins de trois caractères et indique une absence de proposition', async () => {
+    leadSearchApi.suggestLocation.mockResolvedValue({ items: [] })
+    render(<PlaceSearchPage />)
+    const area = screen.getByRole('combobox', { name: 'Pays ou région' })
+    fireEvent.change(area, { target: { value: 'Ca' } })
+    expect(leadSearchApi.suggestLocation).not.toHaveBeenCalled()
+    fireEvent.change(area, { target: { value: 'Cana' } })
+    expect(await screen.findByText('Aucun lieu correspondant. Précisez votre saisie.')).toBeInTheDocument()
+    expect(leadSearchApi.suggestLocation).toHaveBeenCalledTimes(1)
+    expect(leadSearchApi.search).not.toHaveBeenCalled()
+  })
+
   it('utilise en-CA pour les libellés et la recherche', async () => {
     leadSearchApi.search.mockResolvedValue(successfulResult())
     render(<PlaceSearchPage session={{ active_organization: { locale: 'en-CA' } }} />)

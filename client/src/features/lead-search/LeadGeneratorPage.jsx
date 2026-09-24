@@ -37,7 +37,7 @@ export function PlaceSearchPage({ session = null }) {
   const updateForm = (key, value) => {
     setForm((current) => ({ ...current, [key]: value }))
     if (key === 'center_latitude' || key === 'center_longitude') {
-      setLocation((current) => ({ ...current, localitySelected: false }))
+      setLocation((current) => ({ ...current, locality: '', localitySelected: false }))
     }
   }
   const updateLocation = (key, value) => setLocation((current) => ({

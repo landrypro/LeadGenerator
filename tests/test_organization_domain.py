@@ -61,6 +61,8 @@ def user(*memberships: MembershipIdentity, platform: bool = False) -> UserIdenti
         (
             MembershipRole.ADMIN,
             (
+                "dashboard:read:self",
+                "dashboard:read:organization",
                 "organization:read",
                 "organization:update",
                 "members:read",
@@ -93,7 +95,13 @@ def user(*memberships: MembershipIdentity, platform: bool = False) -> UserIdenti
                 "retention:hold:release",
                 "imports:read",
                 "imports:declare",
+                "imports:correct",
+                "imports:confirm",
+                "imports:retry",
                 "imports:archive",
+                "exports:create:self",
+                "exports:create:organization",
+                "exports:rules:manage",
                 "prospects:archive",
                 "contacts:archive",
                 "activities:read",
@@ -114,6 +122,8 @@ def user(*memberships: MembershipIdentity, platform: bool = False) -> UserIdenti
         (
             MembershipRole.MANAGER,
             (
+                "dashboard:read:self",
+                "dashboard:read:organization",
                 "organization:read",
                 "members:read",
                 "audit:read",
@@ -137,6 +147,11 @@ def user(*memberships: MembershipIdentity, platform: bool = False) -> UserIdenti
                 "retention:hold:create",
                 "imports:read",
                 "imports:declare",
+                "imports:correct",
+                "imports:confirm",
+                "imports:retry",
+                "exports:create:self",
+                "exports:create:organization",
                 "prospects:archive",
                 "contacts:archive",
                 "activities:read",
@@ -157,6 +172,7 @@ def user(*memberships: MembershipIdentity, platform: bool = False) -> UserIdenti
         (
             MembershipRole.SALES,
             (
+                "dashboard:read:self",
                 "organization:read",
                 "google:search",
                 "google:map",
@@ -179,6 +195,7 @@ def user(*memberships: MembershipIdentity, platform: bool = False) -> UserIdenti
                 "opportunities:create",
                 "opportunities:update",
                 "opportunities:close",
+                "exports:create:self",
             ),
         ),
     ],

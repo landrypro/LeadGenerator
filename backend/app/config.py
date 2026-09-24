@@ -66,6 +66,7 @@ class Settings:
     google_selection_grant_max_entries: int = 1_000
     import_temp_directory: str = ".runtime/imports"
     import_temp_max_bytes: int = 10 * 1024 * 1024
+    job_idempotency_hmac_key: str = field(default="", repr=False)
     log_format: str = "text"
     instance_id: str = ""
     metrics_enabled: bool = False
@@ -144,6 +145,8 @@ class Settings:
             raise ValueError("La configuration des jetons de sélection Google doit être positive.")
         if not self.import_temp_directory.strip() or self.import_temp_max_bytes != 10 * 1024 * 1024:
             raise ValueError("La configuration du stockage temporaire CSV est invalide.")
+        if self.job_idempotency_hmac_key and len(self.job_idempotency_hmac_key.encode("utf-8")) < 32:
+            raise ValueError("JOB_IDEMPOTENCY_HMAC_KEY doit contenir au moins 32 octets.")
         if self.app_env != "test" and self.map_grant_ttl_seconds > 300:
             raise ValueError("MAP_SNAPSHOT_GRANT_TTL_SECONDS ne peut pas dépasser 300 hors test.")
         if self.app_env in {"staging", "production"} and self.google_selection_grant_ttl_seconds > 900:
@@ -240,6 +243,7 @@ class Settings:
             google_selection_grant_max_entries=int(values.get("GOOGLE_SELECTION_GRANT_MAX_ENTRIES", "1000")),
             import_temp_directory=values.get("IMPORT_TEMP_DIRECTORY", ".runtime/imports").strip(),
             import_temp_max_bytes=int(values.get("IMPORT_TEMP_MAX_BYTES", str(10 * 1024 * 1024))),
+            job_idempotency_hmac_key=values.get("JOB_IDEMPOTENCY_HMAC_KEY", "").strip(),
             log_format=values.get("LOG_FORMAT", "json" if app_env in {"staging", "production"} else "text")
             .strip()
             .lower(),

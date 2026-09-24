@@ -165,6 +165,11 @@ async def test_location_suggestions_require_google_access_and_do_not_store_respo
     async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
         client.cookies.set(settings.session_cookie_name, "current-session")
         denied = await client.post("/api/google/places/locations/suggest", json=payload)
+        blank = await client.post(
+            "/api/google/places/locations/suggest",
+            json={**payload, "text": "   "},
+            headers={"Origin": "http://test", "X-CSRF-Token": "csrf-test"},
+        )
         allowed = await client.post(
             "/api/google/places/locations/suggest",
             json=payload,
@@ -172,6 +177,7 @@ async def test_location_suggestions_require_google_access_and_do_not_store_respo
         )
 
     assert denied.status_code == 403
+    assert blank.status_code == 422
     assert allowed.status_code == 200
     assert allowed.headers["cache-control"] == "no-store, max-age=0"
     assert allowed.json() == {"items": [{"label": "Canada", "selection_token": "signed-selection"}]}

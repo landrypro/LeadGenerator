@@ -3,11 +3,19 @@ import { useEffect, useRef, useState } from 'react'
 import { leadSearchApi } from '../api/leadSearchApi'
 
 
+function errorMessage(error, copy) {
+  if (error?.code === 'google_location_rate_limited') return copy.locationRateLimit
+  if (error?.code === 'invalid_location_selection') return copy.locationExpired
+  return copy.locationError
+}
+
+
 export function LocationAutocomplete({ id, label, hint, value, area = '', countryCode = '', disabled = false, selected = false, scope, locale, copy, onChange, onSelect }) {
   const [items, setItems] = useState([])
   const [open, setOpen] = useState(false)
   const [active, setActive] = useState(-1)
   const [busy, setBusy] = useState(false)
+  const [searched, setSearched] = useState(false)
   const [error, setError] = useState('')
   const sessionRef = useRef(null)
   const sequenceRef = useRef(0)
@@ -19,6 +27,7 @@ export function LocationAutocomplete({ id, label, hint, value, area = '', countr
     const text = value.trim()
     if (text.length < 3 || !open) {
       setItems([])
+      setSearched(false)
       return undefined
     }
     const controller = new AbortController()
@@ -26,24 +35,28 @@ export function LocationAutocomplete({ id, label, hint, value, area = '', countr
     const timer = setTimeout(async () => {
       setBusy(true)
       setError('')
+      setSearched(false)
       try {
         sessionRef.current ||= crypto.randomUUID()
         const response = await leadSearchApi.suggestLocation({
           text, area: area.slice(0, 120), scope, language: locale === 'en-CA' ? 'en' : 'fr', country_code: countryCode,
           session_token: sessionRef.current,
         }, controller.signal)
-        if (sequence === sequenceRef.current) setItems(response.items || [])
+        if (sequence === sequenceRef.current) {
+          setItems(response.items || [])
+          setSearched(true)
+        }
       } catch (cause) {
         if (cause?.name !== 'AbortError' && sequence === sequenceRef.current) {
           setItems([])
-          setError(cause?.message || copy.locationError)
+          setError(errorMessage(cause, copy))
         }
       } finally {
         if (sequence === sequenceRef.current) setBusy(false)
       }
     }, 400)
     return () => { clearTimeout(timer); controller.abort() }
-  }, [value, area, countryCode, scope, locale, open, copy.locationError])
+  }, [value, area, countryCode, scope, locale, open, copy])
 
   async function choose(item) {
     const sequence = sequenceRef.current
@@ -61,7 +74,7 @@ export function LocationAutocomplete({ id, label, hint, value, area = '', countr
         sessionRef.current = null
       }
     } catch (cause) {
-      if (cause?.name !== 'AbortError' && sequence === sequenceRef.current) setError(cause?.message || copy.locationError)
+      if (cause?.name !== 'AbortError' && sequence === sequenceRef.current) setError(errorMessage(cause, copy))
     } finally {
       if (sequence === sequenceRef.current) setBusy(false)
     }
@@ -90,11 +103,13 @@ export function LocationAutocomplete({ id, label, hint, value, area = '', countr
         setOpen(true)
         setActive(-1)
         setItems([])
+        setSearched(false)
       }} onFocus={() => setOpen(!selected)} onKeyDown={handleKeyDown}
     />
     {hint && <small>{hint}</small>}
     {busy && <small role="status">{copy.locationLoading}</small>}
     {error && <small role="alert" className="location-error">{error}</small>}
+    {open && searched && !busy && !error && items.length === 0 && <small role="status">{copy.noLocationMatches}</small>}
     {open && items.length > 0 && <div id={`${id}-suggestions`} role="listbox" className="location-suggestions">
       {items.map((item, index) => <button
         id={`${id}-option-${index}`} key={item.selection_token} type="button" role="option"

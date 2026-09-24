@@ -256,6 +256,17 @@ async def test_prospect_tables_are_rls_protected_and_privileges_are_narrow() -> 
         "prospect_activities_tenant_isolation",
         "prospect_tasks_tenant_isolation",
         "prospect_task_events_tenant_isolation",
+        "source_providers_worker_export",
+        "acquisition_records_worker_export",
+        "provenance_records_worker_export",
+        "prospects_worker_export",
+        "contacts_worker_export",
+        "contact_channels_worker_export",
+        "contact_permissions_worker_export",
+        "prospect_activities_worker_export",
+        "prospect_tasks_worker_export",
+        "source_providers_claim_owner",
+        "acquisition_records_claim_owner",
     }
     assert public_grants == 0
     assert not any(delete_privileges.values())

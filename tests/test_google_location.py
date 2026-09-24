@@ -7,7 +7,7 @@ import pytest
 
 from backend.app.application.models import GoogleAccessContext
 from backend.app.infrastructure.google.location import GoogleLocationResolver, InvalidLocationSelection
-from backend.app.infrastructure.google.places import GooglePlacesSettings
+from backend.app.infrastructure.google.places import GooglePlacesError, GooglePlacesSettings
 
 
 class FakeRedis:
@@ -125,3 +125,27 @@ async def test_location_rejects_tampered_selection_without_google_call() -> None
         with pytest.raises(InvalidLocationSelection):
             await resolver.resolve(selection_token=("A" if token[0] != "A" else "B") + token[1:], access=access)
     assert len(calls) == 1
+
+
+@pytest.mark.asyncio
+async def test_location_requests_stop_before_provider_when_rate_limit_is_reached() -> None:
+    requests: list[httpx.Request] = []
+
+    def google(request: httpx.Request) -> httpx.Response:
+        requests.append(request)
+        return httpx.Response(200, json={"suggestions": []})
+
+    async with httpx.AsyncClient(transport=httpx.MockTransport(google)) as client:
+        resolver = GoogleLocationResolver(GooglePlacesSettings("secret-key"), b"a" * 32, FakeRedis(), client)
+        access = GoogleAccessContext(uuid4(), uuid4(), uuid4())
+        for _ in range(30):
+            await resolver.suggest(
+                text="Cana", area="", scope="area", language="fr", session_token=uuid4(), access=access
+            )
+        with pytest.raises(GooglePlacesError) as captured:
+            await resolver.suggest(
+                text="Cana", area="", scope="area", language="fr", session_token=uuid4(), access=access
+            )
+
+    assert captured.value.status_code == 429
+    assert len(requests) == 30

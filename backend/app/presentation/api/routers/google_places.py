@@ -49,6 +49,14 @@ async def suggest_google_locations(
             return response
         if isinstance(error, GooglePlacesError):
             status = 429 if error.status_code == 429 else 503 if error.status_code is None else 502
+            if status == 429:
+                return api_error(
+                    request,
+                    status,
+                    "google_location_rate_limited",
+                    "Trop de recherches de lieux.",
+                    headers={"Retry-After": "60"},
+                )
             return api_error(request, status, "google_location_unavailable", str(error))
         raise
     return JSONResponse({"items": items}, headers=NO_STORE_HEADERS)
@@ -76,6 +84,14 @@ async def resolve_google_location(
             return api_error(request, 400, "invalid_location_selection", str(error))
         if isinstance(error, GooglePlacesError):
             status = 429 if error.status_code == 429 else 503 if error.status_code is None else 502
+            if status == 429:
+                return api_error(
+                    request,
+                    status,
+                    "google_location_rate_limited",
+                    "Trop de recherches de lieux.",
+                    headers={"Retry-After": "60"},
+                )
             return api_error(request, status, "google_location_unavailable", str(error))
         raise
     return JSONResponse(place, headers=NO_STORE_HEADERS)

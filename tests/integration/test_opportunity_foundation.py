@@ -262,7 +262,11 @@ async def test_opportunity_tables_are_rls_protected_and_privileges_are_minimal()
 
     assert len(rls_rows) == 2
     assert all(row["relrowsecurity"] and row["relforcerowsecurity"] for row in rls_rows)
-    assert policies == {"opportunities_tenant_isolation", "opportunity_events_tenant_isolation"}
+    assert policies == {
+        "opportunities_tenant_isolation",
+        "opportunities_worker_export",
+        "opportunity_events_tenant_isolation",
+    }
     assert public_grants == 0
     assert not any(privileges.values())
 

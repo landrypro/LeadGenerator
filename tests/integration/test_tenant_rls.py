@@ -293,6 +293,20 @@ async def test_application_role_and_rls_metadata_are_locked_down() -> None:
                     )
                 ).all()
             )
+            worker_policies = (
+                (
+                    await connection.execute(
+                        text("""
+                            SELECT policyname, tablename, cmd, roles, qual, with_check
+                            FROM pg_policies
+                            WHERE schemaname = 'public'
+                              AND policyname IN ('organizations_worker_tenant', 'memberships_worker_tenant')
+                        """)
+                    )
+                )
+                .mappings()
+                .all()
+            )
             function_security = (
                 (
                     await connection.execute(
@@ -385,10 +399,19 @@ async def test_application_role_and_rls_metadata_are_locked_down() -> None:
     assert all(row["relrowsecurity"] and row["relforcerowsecurity"] for row in rls_rows)
     assert policies == {
         "organizations_tenant_isolation",
+        "organizations_worker_tenant",
         "memberships_tenant_isolation",
+        "memberships_worker_tenant",
         "user_invitations_tenant_isolation",
         "invitation_delivery_attempts_tenant_isolation",
     }
+    assert {row["policyname"]: row["tablename"] for row in worker_policies} == {
+        "organizations_worker_tenant": "organizations",
+        "memberships_worker_tenant": "memberships",
+    }
+    assert all(row["cmd"] == "SELECT" and tuple(row["roles"]) == ("prospect_worker",) for row in worker_policies)
+    assert all("app_private.current_organization_id()" in row["qual"] for row in worker_policies)
+    assert all(row["with_check"] is None for row in worker_policies)
     assert function_security["owner_name"] == "prospect_rls_definer"
     assert function_security["prosecdef"] is True
     assert "search_path=pg_catalog, public, pg_temp" in function_security["proconfig"]
