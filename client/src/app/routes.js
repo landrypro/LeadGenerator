@@ -7,12 +7,15 @@ import { MembersPage } from '../features/organizations/MembersPage'
 import { PlatformOrganizationsPage } from '../features/platform/PlatformOrganizationsPage'
 import { ProvidersAcquisitionsPage } from '../features/compliance/ProvidersAcquisitionsPage'
 import { RetentionImportsPage } from '../features/retention/RetentionImportsPage'
+import { ImportHistoryPage } from '../features/retention/ImportHistoryPage'
+import { ExportsPage } from '../features/exports/ExportsPage'
 import { CreateProspectPage } from '../features/prospects/CreateProspectPage'
 import { ProspectDetailPage } from '../features/prospects/ProspectDetailPage'
 import { ProspectsPage } from '../features/prospects/ProspectsPage'
 import { PipelinePage } from '../features/prospects/PipelinePage'
 import { TasksPage } from '../features/prospects/TasksPage'
 import { OpportunitiesPage } from '../features/opportunities/OpportunitiesPage'
+import { DashboardPage } from '../features/dashboard/DashboardPage'
 
 
 export const CRM_PATHS = Object.freeze({
@@ -20,6 +23,7 @@ export const CRM_PATHS = Object.freeze({
   login: '/login',
   acceptInvitation: '/accept-invitation',
   search: '/app/search',
+  dashboard: '/app/dashboard',
   prospects: '/app/prospects',
   prospectNew: '/app/prospects/new',
   prospectDetail: '/app/prospects/:prospectId',
@@ -28,6 +32,8 @@ export const CRM_PATHS = Object.freeze({
   tasks: '/app/tasks',
   compliance: '/app/compliance/sources',
   retention: '/app/compliance/retention',
+  importHistory: '/app/imports/history',
+  exports: '/app/exports',
   account: '/app/account',
   organization: '/app/admin/organization',
   users: '/app/admin/users',
@@ -38,7 +44,10 @@ export const CRM_PATHS = Object.freeze({
 
 
 const ROUTE_MESSAGES = Object.freeze({
+  dashboard: Object.freeze({ 'fr-CA': Object.freeze({ label: 'Tableau de bord', title: 'Tableau de bord' }), 'en-CA': Object.freeze({ label: 'Dashboard', title: 'Dashboard' }) }),
   'retention-imports': Object.freeze({ 'fr-CA': Object.freeze({ label: 'Conservation et imports', title: 'Conservation des données' }), 'en-CA': Object.freeze({ label: 'Retention and imports', title: 'Data retention' }) }),
+  'import-history': Object.freeze({ 'fr-CA': Object.freeze({ label: 'Historique des imports', title: 'Historique des imports' }), 'en-CA': Object.freeze({ label: 'Import history', title: 'Import history' }) }),
+  exports: Object.freeze({ 'fr-CA': Object.freeze({ label: 'Exports', title: 'Exports CSV' }), 'en-CA': Object.freeze({ label: 'Exports', title: 'CSV exports' }) }),
   'compliance-sources': Object.freeze({ 'fr-CA': Object.freeze({ label: 'Sources et acquisitions', title: 'Fournisseurs et acquisitions' }), 'en-CA': Object.freeze({ label: 'Sources and acquisitions', title: 'Providers and acquisitions' }) }),
   pipeline: Object.freeze({ 'fr-CA': Object.freeze({ label: 'Pipeline', title: 'Pipeline commercial' }), 'en-CA': Object.freeze({ label: 'Pipeline', title: 'Sales pipeline' }) }),
   opportunities: Object.freeze({ 'fr-CA': Object.freeze({ label: 'Opportunités', title: 'Opportunités' }), 'en-CA': Object.freeze({ label: 'Opportunities', title: 'Opportunities' }) }),
@@ -59,7 +68,17 @@ const ROUTE_MESSAGES = Object.freeze({
 // rendus routables qu’avec leurs écrans, leurs capacités et leurs tests.
 export const routes = Object.freeze([
   Object.freeze({
+    id: 'dashboard', path: CRM_PATHS.dashboard, label: 'Tableau de bord', title: 'Tableau de bord',
+    requiredCapability: 'dashboard:read:self', requiresActiveOrganization: true, Component: DashboardPage,
+  }),
+  Object.freeze({
     id: 'retention-imports', path: CRM_PATHS.retention, label: 'Conservation et imports', title: 'Conservation des données', requiredCapability: 'retention:read', requiresActiveOrganization: true, Component: RetentionImportsPage,
+  }),
+  Object.freeze({
+    id: 'import-history', path: CRM_PATHS.importHistory, label: 'Historique des imports', title: 'Historique des imports', requiredCapability: 'imports:read', requiresActiveOrganization: true, Component: ImportHistoryPage,
+  }),
+  Object.freeze({
+    id: 'exports', path: CRM_PATHS.exports, label: 'Exports', title: 'Exports CSV', requiredCapability: 'exports:create:self', requiresActiveOrganization: true, Component: ExportsPage,
   }),
   Object.freeze({
     id: 'compliance-sources',

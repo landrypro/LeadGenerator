@@ -1,6 +1,8 @@
 from .audit import AuditEventModel
 from .base import NAMING_CONVENTION, Base
+from .export import ExportArtifactModel, ExportRequestModel, SourceExportRuleModel
 from .identity import InvitationDeliveryAttemptModel, MembershipModel, OrganizationModel, UserInvitationModel, UserModel
+from .job import JobAttemptModel, JobEventModel, JobModel, JobSchedulerStateModel, WorkerHeartbeatModel
 from .prospect import (
     AcquisitionRecordModel,
     ContactChannelModel,
@@ -34,7 +36,13 @@ __all__ = [
     "CsvImportQuarantineModel",
     "CsvImportRunModel",
     "CsvImportSessionModel",
+    "ExportArtifactModel",
+    "ExportRequestModel",
     "InvitationDeliveryAttemptModel",
+    "JobAttemptModel",
+    "JobEventModel",
+    "JobModel",
+    "JobSchedulerStateModel",
     "MembershipModel",
     "OpportunityEventModel",
     "OpportunityModel",
@@ -46,7 +54,9 @@ __all__ = [
     "ProspectTaskEventModel",
     "ProspectTaskModel",
     "ProvenanceRecordModel",
+    "SourceExportRuleModel",
     "SourceProviderModel",
     "UserInvitationModel",
     "UserModel",
+    "WorkerHeartbeatModel",
 ]

@@ -6,12 +6,13 @@ import {
 
 
 describe('routes CRM', () => {
-  it('déclare les routes canoniques jusqu’aux opportunités 3.4-C', () => {
+  it('déclare les routes canoniques dont le tableau de bord 4.1', () => {
     expect(CRM_PATHS).toEqual({
       home: '/',
       login: '/login',
       acceptInvitation: '/accept-invitation',
       search: '/app/search',
+      dashboard: '/app/dashboard',
       prospects: '/app/prospects',
       prospectNew: '/app/prospects/new',
       prospectDetail: '/app/prospects/:prospectId',
@@ -20,6 +21,8 @@ describe('routes CRM', () => {
       tasks: '/app/tasks',
       compliance: '/app/compliance/sources',
       retention: '/app/compliance/retention',
+      importHistory: '/app/imports/history',
+      exports: '/app/exports',
       account: '/app/account',
       organization: '/app/admin/organization',
       users: '/app/admin/users',
@@ -29,9 +32,12 @@ describe('routes CRM', () => {
     })
   })
 
-  it('active les pages terminées jusqu’aux opportunités 3.4-C', () => {
+  it('active les pages terminées dont le tableau de bord 4.1', () => {
     expect(routes.map((route) => route.path)).toEqual([
+      '/app/dashboard',
       '/app/compliance/retention',
+      '/app/imports/history',
+      '/app/exports',
       '/app/compliance/sources',
       '/app/pipeline',
       '/app/opportunities',
@@ -54,6 +60,8 @@ describe('routes CRM', () => {
     expect(findRoute('/app/opportunities')?.requiredCapability).toBe('opportunities:read')
     expect(findRoute('/app/compliance/sources')?.requiredCapability).toBe('providers:read')
     expect(findRoute('/app/compliance/retention')?.requiredCapability).toBe('retention:read')
+    expect(findRoute('/app/imports/history')?.requiredCapability).toBe('imports:read')
+    expect(findRoute('/app/exports')?.requiredCapability).toBe('exports:create:self')
     expect(findRoute('/app/prospects/11111111-1111-1111-1111-111111111111')?.params).toEqual({
       prospectId: '11111111-1111-1111-1111-111111111111',
     })

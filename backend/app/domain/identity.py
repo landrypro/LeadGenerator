@@ -112,6 +112,8 @@ class AuthenticatedIdentity:
 
 CAPABILITIES_BY_ROLE: dict[MembershipRole, tuple[str, ...]] = {
     MembershipRole.ADMIN: (
+        "dashboard:read:self",
+        "dashboard:read:organization",
         "organization:read",
         "organization:update",
         "members:read",
@@ -144,7 +146,13 @@ CAPABILITIES_BY_ROLE: dict[MembershipRole, tuple[str, ...]] = {
         "retention:hold:release",
         "imports:read",
         "imports:declare",
+        "imports:correct",
+        "imports:confirm",
+        "imports:retry",
         "imports:archive",
+        "exports:create:self",
+        "exports:create:organization",
+        "exports:rules:manage",
         "prospects:archive",
         "contacts:archive",
         "activities:read",
@@ -162,6 +170,8 @@ CAPABILITIES_BY_ROLE: dict[MembershipRole, tuple[str, ...]] = {
         "opportunities:reopen",
     ),
     MembershipRole.MANAGER: (
+        "dashboard:read:self",
+        "dashboard:read:organization",
         "organization:read",
         "members:read",
         "audit:read",
@@ -185,6 +195,11 @@ CAPABILITIES_BY_ROLE: dict[MembershipRole, tuple[str, ...]] = {
         "retention:hold:create",
         "imports:read",
         "imports:declare",
+        "imports:correct",
+        "imports:confirm",
+        "imports:retry",
+        "exports:create:self",
+        "exports:create:organization",
         "prospects:archive",
         "contacts:archive",
         "activities:read",
@@ -202,6 +217,7 @@ CAPABILITIES_BY_ROLE: dict[MembershipRole, tuple[str, ...]] = {
         "opportunities:reopen",
     ),
     MembershipRole.SALES: (
+        "dashboard:read:self",
         "organization:read",
         "google:search",
         "google:map",
@@ -224,6 +240,7 @@ CAPABILITIES_BY_ROLE: dict[MembershipRole, tuple[str, ...]] = {
         "opportunities:create",
         "opportunities:update",
         "opportunities:close",
+        "exports:create:self",
     ),
 }
 

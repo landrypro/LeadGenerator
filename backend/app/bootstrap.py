@@ -149,6 +149,8 @@ from .infrastructure.postgres import (
     SqlAlchemyProvisioningGateway,
 )
 from .infrastructure.postgres.dashboard_reader import PostgresDashboardReader
+from .infrastructure.postgres.export_service import ExportService
+from .infrastructure.postgres.import_history import ImportHistoryReader
 from .infrastructure.redis import (
     RedisGenerationGuard,
     RedisGoogleSearchQuota,
@@ -169,8 +171,10 @@ from .presentation.api.routers import (
     audit_router,
     auth_router,
     dashboard_router,
+    exports_router,
     google_places_router,
     health_router,
+    import_history_router,
     invitations_router,
     maps_router,
     opportunities_router,
@@ -336,6 +340,8 @@ def build_container(settings: Settings) -> AppContainer:
     confirm_csv_import: ConfirmCsvImportUseCase | None = None
     get_csv_import_report: GetCsvImportReportUseCase | None = None
     csv_file_store: TemporaryCsvFileStore | None = None
+    import_history: ImportHistoryReader | None = None
+    exports: ExportService | None = None
     archive_prospect: ArchiveProspectUseCase | None = None
     archive_contact: ArchiveContactUseCase | None = None
     archive_contact_channel: ArchiveContactChannelUseCase | None = None
@@ -579,6 +585,13 @@ def build_container(settings: Settings) -> AppContainer:
         validate_csv_import = ValidateCsvImportUseCase(database.tenant_prospect_unit_of_work, csv_file_store, clock)
         confirm_csv_import = ConfirmCsvImportUseCase(database.tenant_prospect_unit_of_work, csv_file_store, clock)
         get_csv_import_report = GetCsvImportReportUseCase(database.tenant_prospect_unit_of_work)
+        import_history = ImportHistoryReader(database.session_factory)
+        if settings.job_idempotency_hmac_key:
+            exports = ExportService(
+                database.session_factory,
+                settings.import_temp_directory,
+                settings.job_idempotency_hmac_key.encode("utf-8"),
+            )
         archive_prospect = ArchiveProspectUseCase(database.tenant_prospect_unit_of_work, clock)
         archive_contact = ArchiveContactUseCase(database.tenant_prospect_unit_of_work, clock)
         archive_contact_channel = ArchiveContactChannelUseCase(database.tenant_prospect_unit_of_work, clock)
@@ -678,6 +691,8 @@ def build_container(settings: Settings) -> AppContainer:
         confirm_csv_import=confirm_csv_import,
         get_csv_import_report=get_csv_import_report,
         csv_import_file_store=csv_file_store,
+        import_history=import_history,
+        exports=exports,
         archive_prospect=archive_prospect,
         archive_contact=archive_contact,
         archive_contact_channel=archive_contact_channel,
@@ -856,6 +871,8 @@ def create_app(
     app.include_router(metrics_router)
     app.include_router(auth_router)
     app.include_router(dashboard_router)
+    app.include_router(import_history_router)
+    app.include_router(exports_router)
     app.include_router(audit_router)
     app.include_router(invitations_router)
     app.include_router(platform_router)

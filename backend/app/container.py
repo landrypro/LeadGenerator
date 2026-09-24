@@ -103,6 +103,8 @@ from .application.use_cases import (
 from .application.use_cases.dashboard import GetDashboardSummaryUseCase
 from .config import Settings
 from .infrastructure.google.location import GoogleLocationResolver
+from .infrastructure.postgres.export_service import ExportService
+from .infrastructure.postgres.import_history import ImportHistoryReader
 
 
 @dataclass(frozen=True, slots=True)
@@ -188,6 +190,8 @@ class AppContainer:
     confirm_csv_import: ConfirmCsvImportUseCase | None = None
     get_csv_import_report: GetCsvImportReportUseCase | None = None
     csv_import_file_store: TemporaryCsvFileStore | None = None
+    import_history: ImportHistoryReader | None = None
+    exports: ExportService | None = None
     archive_prospect: ArchiveProspectUseCase | None = None
     archive_contact: ArchiveContactUseCase | None = None
     archive_contact_channel: ArchiveContactChannelUseCase | None = None
