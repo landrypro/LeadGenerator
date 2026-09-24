@@ -29,6 +29,7 @@ services:
       POSTGRES_PASSWORD: prospect-test-only
       POSTGRES_APP_USER: prospect_app
       POSTGRES_APP_PASSWORD: prospect-app-test-only
+      POSTGRES_WORKER_PASSWORD: prospect-worker-test-only
     volumes:
       - ./backend/database/provision-postgres-roles.sh:/provision-postgres-roles.sh:ro
     command: ["sh", "/provision-postgres-roles.sh"]

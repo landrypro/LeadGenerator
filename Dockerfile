@@ -19,7 +19,9 @@ ENV PYTHONPATH=/app
 WORKDIR /app
 
 RUN addgroup --system prospect \
-    && adduser --system --ingroup prospect prospect
+    && adduser --system --ingroup prospect prospect \
+    && mkdir -p /app/.runtime/imports \
+    && chown -R prospect:prospect /app/.runtime
 
 COPY backend/requirements.txt /app/backend/requirements.txt
 RUN pip install --no-cache-dir --upgrade pip \

@@ -12,10 +12,11 @@ variables:
   nodeVersion: '22.x'
   testDatabaseUrl: 'postgresql+asyncpg://prospect_app:prospect-app-test-only@127.0.0.1:55432/prospect_test'
   testMigrationDatabaseUrl: 'postgresql+asyncpg://prospect_test:prospect-test-only@127.0.0.1:55432/prospect_test'
+  testWorkerDatabaseUrl: 'postgresql+asyncpg://prospect_worker:prospect-worker-test-only@127.0.0.1:55432/prospect_test'
   testRedisUrl: 'redis://127.0.0.1:56379/0'
   testMailpitApiUrl: 'http://127.0.0.1:58025'
   testMailpitSmtpPort: '51025'
-  expectedAlembicRevision: '20260910_0020'
+  expectedAlembicRevision: '20260923_0022'
 
 steps:
   - task: UsePythonVersion@0
@@ -75,6 +76,7 @@ steps:
     env:
       TEST_DATABASE_URL: $(testDatabaseUrl)
       TEST_MIGRATION_DATABASE_URL: $(testMigrationDatabaseUrl)
+      TEST_WORKER_DATABASE_URL: $(testWorkerDatabaseUrl)
       TEST_REDIS_URL: $(testRedisUrl)
       TEST_MAILPIT_API_URL: $(testMailpitApiUrl)
       TEST_MAILPIT_SMTP_PORT: $(testMailpitSmtpPort)
