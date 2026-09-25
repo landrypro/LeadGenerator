@@ -118,6 +118,37 @@ def test_metadata_policy_rejects_free_text_and_non_internal_identifiers() -> Non
         )
 
 
+def test_usage_report_audit_accepts_only_minimized_period_metadata() -> None:
+    event = _draft(
+        action=AuditAction.USAGE_REPORT_VIEWED,
+        entity_type="usage_report",
+        metadata={
+            "scope": "organization",
+            "start_on": "2026-09-01",
+            "end_on": "2026-09-24",
+            "group_by": "day",
+        },
+    )
+    assert event.metadata == {
+        "scope": "organization",
+        "start_on": "2026-09-01",
+        "end_on": "2026-09-24",
+        "group_by": "day",
+    }
+    with pytest.raises(InvalidAuditMetadata, match="clés"):
+        _draft(
+            action=AuditAction.USAGE_REPORT_VIEWED,
+            entity_type="usage_report",
+            metadata={
+                "scope": "organization",
+                "start_on": "2026-09-01",
+                "end_on": "2026-09-24",
+                "group_by": "day",
+                "member_name": "Sensitive",
+            },
+        )
+
+
 class _StubSession:
     def __init__(self, result: object) -> None:
         self.result = result

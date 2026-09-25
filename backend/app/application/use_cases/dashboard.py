@@ -9,6 +9,7 @@ from uuid import UUID
 from zoneinfo import ZoneInfo
 
 from ..ports.clock import Clock
+from ..ports.usage import UsageStore
 from ..tenancy import TenantContext
 
 STAGES = ("new", "qualifying", "qualified", "contacted", "opportunity", "proposal_sent", "negotiation", "won", "lost")
@@ -174,9 +175,10 @@ def _fold(rows: dict[str, list[dict[str, Any]]], owner: str | None, observed: st
 
 
 class GetDashboardSummaryUseCase:
-    def __init__(self, reader: DashboardReader, clock: Clock) -> None:
+    def __init__(self, reader: DashboardReader, clock: Clock, usage: UsageStore | None = None) -> None:
         self._reader = reader
         self._clock = clock
+        self._usage = usage
 
     async def execute(
         self,
@@ -217,6 +219,33 @@ class GetDashboardSummaryUseCase:
             context, scope, target, target_user, start_at, end_at, min(now, end_at), today_start, today_end, now
         )
         rows = await self._reader.read(query)
+        google_usage: dict[str, Any] = {
+            "status": "unavailable",
+            "reason": "source_not_qualified",
+            "used": None,
+            "unit": None,
+            "start_at_utc": None,
+            "end_at_utc_exclusive": None,
+            "timezone": None,
+            "source": None,
+        }
+        if self._usage is not None:
+            usage = await self._usage.report(context, start_on=start, end_on=end, user_id=target_user)
+            used = sum(
+                int(row["unit_count"])
+                for row in usage["rows"]
+                if row["usage_code"] == "google.places_text_search.quota" and row["outcome"] == "accepted"
+            )
+            google_usage = {
+                "status": "available",
+                "reason": None,
+                "used": used,
+                "unit": "reservation",
+                "start_at_utc": _utc(start_at),
+                "end_at_utc_exclusive": _utc(end_at),
+                "timezone": "UTC",
+                "source": "usage_quota_v1",
+            }
         observed = _utc(query.observed_until)
         complete = end_at <= now
         if scope == "organization":
@@ -252,18 +281,9 @@ class GetDashboardSummaryUseCase:
                 "stage_losses": "prospects.owner_id_current",
                 "opportunities": "opportunities.owner_membership_id",
                 "pipeline_by_currency": "opportunities.owner_membership_id",
-                "google_usage": "unavailable",
+                "google_usage": "usage_daily_counters",
             },
             **total,
             "owner_breakdown": breakdown,
-            "google_usage": {
-                "status": "unavailable",
-                "reason": "source_not_qualified",
-                "used": None,
-                "unit": None,
-                "start_at_utc": None,
-                "end_at_utc_exclusive": None,
-                "timezone": None,
-                "source": None,
-            },
+            "google_usage": google_usage,
         }

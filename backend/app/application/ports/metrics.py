@@ -9,10 +9,19 @@ RedisOperation = Literal[
     "selection_issue",
     "selection_resolve",
 ]
-MetricsOutcome = Literal["accepted", "rejected", "failed", "expired", "contended", "unavailable"]
+MetricsOutcome = Literal["accepted", "rejected", "failed", "expired", "contended", "unavailable", "warning"]
 QuotaScope = Literal["user", "organization"]
 GrantAction = Literal["issued", "claimed", "rejected", "resolved"]
-GoogleApi = Literal["places_text_search", "maps_static"]
+GoogleApi = Literal["places_text_search", "places_autocomplete", "places_details", "maps_static"]
+UsageApi = Literal[
+    "places_text_search_quota",
+    "places_text_search",
+    "places_autocomplete",
+    "places_details",
+    "maps_static",
+    "csv_export",
+    "csv_import",
+]
 CrmCommand = Literal["activity", "task"]
 CrmTaskAction = Literal["created", "updated", "completed", "cancelled", "reopened", "reminder_changed"]
 CrmOpportunityAction = Literal["created", "updated", "stage_changed", "reopened", "portfolio"]
@@ -47,6 +56,8 @@ class MetricsRecorder(Protocol):
         outcome: MetricsOutcome,
         duration_seconds: float,
     ) -> None: ...
+
+    def record_usage_registry_write(self, api: UsageApi, outcome: MetricsOutcome, policy_code: str) -> None: ...
 
     def record_crm_activity_command(self, activity_type: str, result: MetricsOutcome) -> None: ...
 
@@ -88,6 +99,9 @@ class NullMetricsRecorder:
 
     def record_google_upstream(self, api: GoogleApi, outcome: MetricsOutcome, duration_seconds: float) -> None:
         del api, outcome, duration_seconds
+
+    def record_usage_registry_write(self, api: UsageApi, outcome: MetricsOutcome, policy_code: str) -> None:
+        del api, outcome, policy_code
 
     def record_crm_activity_command(self, activity_type: str, result: MetricsOutcome) -> None:
         del activity_type, result

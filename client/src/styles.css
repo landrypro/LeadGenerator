@@ -938,6 +938,13 @@ footer a:hover { color: #147da5; text-decoration: underline; }
 .dashboard-panel th, .dashboard-panel td { padding: 8px; border-bottom: 1px solid #e3ecee; vertical-align: top; }
 .dashboard-panel td:not(:first-child) { text-align: right; font-variant-numeric: tabular-nums; }
 .dashboard-panel th { font-weight: 700; }
+
+.usage-warning { color: #8a4b08; font-weight: 700; }
+.usage-volumes { display: grid; gap: 1rem; margin: 0; }
+.usage-volumes div { border-bottom: 1px solid #d8dee8; padding-bottom: 0.75rem; }
+.usage-volumes dt { font-weight: 700; }
+.usage-volumes dd { margin: 0.35rem 0 0; }
+.usage-page table small { display: block; font-weight: 400; }
 .dashboard-breakdown { margin-top: 24px; }
 .dashboard-breakdown > p { color: #5f7882; }
 .dashboard-breakdown details { margin: 10px 0; padding: 12px; border: 1px solid #dce8eb; border-radius: 10px; }

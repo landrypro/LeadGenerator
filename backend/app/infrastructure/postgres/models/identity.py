@@ -39,7 +39,7 @@ class OrganizationModel(Base):
             name="creation_request_fingerprint_length",
         ),
         UniqueConstraint("creation_request_id"),
-        CheckConstraint("google_search_daily_limit > 0", name="google_search_daily_limit_positive"),
+        CheckConstraint("google_search_daily_limit_legacy > 0", name="google_search_daily_limit_legacy_positive"),
         CheckConstraint("version > 0", name="version_positive"),
     )
 
@@ -48,7 +48,7 @@ class OrganizationModel(Base):
     locale: Mapped[str] = mapped_column(String(16), server_default=text("'fr-CA'"))
     timezone: Mapped[str] = mapped_column(String(64))
     status: Mapped[str] = mapped_column(String(16), server_default=text("'provisioning'"))
-    google_search_daily_limit: Mapped[int] = mapped_column(Integer, server_default=text("100"))
+    google_search_daily_limit_legacy: Mapped[int] = mapped_column(Integer, server_default=text("100"))
     created_by: Mapped[UUID] = mapped_column(ForeignKey("users.id", ondelete="RESTRICT", use_alter=True))
     creation_request_id: Mapped[UUID | None] = mapped_column()
     creation_request_fingerprint: Mapped[str | None] = mapped_column(String(64))

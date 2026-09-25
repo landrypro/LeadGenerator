@@ -208,14 +208,26 @@ class Worker:
     async def run_forever(self) -> None:
         file_store = LocalTemporaryCsvFileStore(self._config.import_temp_directory, max_bytes=10 * 1024 * 1024)
         last_cleanup = 0.0
+        last_usage_purge = 0.0
         last_alert_check = 0.0
         loop = asyncio.get_running_loop()
         while not self._stop.is_set():
             await self._queue.touch_worker(self._worker_id)
             if loop.time() - last_cleanup >= 300:
                 await self._queue.purge_expired(batch_size=100)
+                reconciled = await self._queue.reconcile_usage(batch_size=100)
+                if reconciled:
+                    LOGGER.warning("usage_attempts_reconciled count=%s", reconciled)
                 await file_store.cleanup_expired(max_age_seconds=24 * 3600)
                 await self._exports.cleanup(batch_size=100)
+                if loop.time() - last_usage_purge >= 24 * 3600:
+                    purged = await self._queue.purge_usage(batch_size=1000)
+                    LOGGER.info(
+                        "usage_retention_purged events=%s counters=%s",
+                        purged.get("events", 0),
+                        purged.get("counters", 0),
+                    )
+                    last_usage_purge = loop.time()
                 await self._queue.touch_worker(self._worker_id, cleanup_done=True)
                 last_cleanup = loop.time()
             if loop.time() - last_alert_check >= 60:

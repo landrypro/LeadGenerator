@@ -90,6 +90,7 @@ class AuditAction(StrEnum):
     EXPORT_DOWNLOADED = "export.downloaded"
     EXPORT_EXPIRED = "export.expired"
     EXPORT_RULE_CHANGED = "export.rule_changed"
+    USAGE_REPORT_VIEWED = "usage.report_viewed"
     CONTACT_ARCHIVED = "contact.archived"
     CONTACT_CHANNEL_ARCHIVED = "contact_channel.archived"
     PROSPECT_ACTIVITY_CREATED = "prospect.activity_created"
@@ -229,6 +230,7 @@ _TENANT_ACTIONS = frozenset(
         AuditAction.EXPORT_DOWNLOADED,
         AuditAction.EXPORT_EXPIRED,
         AuditAction.EXPORT_RULE_CHANGED,
+        AuditAction.USAGE_REPORT_VIEWED,
         AuditAction.CONTACT_ARCHIVED,
         AuditAction.CONTACT_CHANNEL_ARCHIVED,
         AuditAction.PROSPECT_ACTIVITY_CREATED,
@@ -301,6 +303,7 @@ _ACTION_ENTITY_TYPES = {
     AuditAction.EXPORT_DOWNLOADED: "export_request",
     AuditAction.EXPORT_EXPIRED: "export_request",
     AuditAction.EXPORT_RULE_CHANGED: "source_export_rule",
+    AuditAction.USAGE_REPORT_VIEWED: "usage_report",
     AuditAction.CONTACT_ARCHIVED: "contact",
     AuditAction.CONTACT_CHANNEL_ARCHIVED: "contact_channel",
     AuditAction.PROSPECT_ACTIVITY_CREATED: "prospect_activity",
@@ -815,6 +818,22 @@ class AuditMetadataPolicy:
         if action is AuditAction.IMPORT_REPORT_VIEWED:
             cls._require_keys(values, set(), {"kind"})
             return {"kind": cls._choice(values["kind"], frozenset({"quarantine"}), "kind")} if values else {}
+
+        if action is AuditAction.USAGE_REPORT_VIEWED:
+            cls._require_keys(values, {"scope", "start_on", "end_on", "group_by"})
+            start_on = cls._short_text(values["start_on"], "start_on", 10)
+            end_on = cls._short_text(values["end_on"], "end_on", 10)
+            if (
+                re.fullmatch(r"\d{4}-\d{2}-\d{2}", start_on) is None
+                or re.fullmatch(r"\d{4}-\d{2}-\d{2}", end_on) is None
+            ):
+                raise InvalidAuditMetadata("La période du rapport d’usage est invalide.")
+            return {
+                "scope": cls._choice(values["scope"], frozenset({"organization", "owner"}), "scope"),
+                "start_on": start_on,
+                "end_on": end_on,
+                "group_by": cls._choice(values["group_by"], frozenset({"day"}), "group_by"),
+            }
 
         if action is AuditAction.EXPORT_REQUESTED:
             cls._require_keys(values, {"dataset", "scope", "filters", "column_count"})

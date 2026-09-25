@@ -370,6 +370,23 @@ class PostgresJobQueue:
                 ).scalar_one()
             )
 
+    async def reconcile_usage(self, *, batch_size: int = 100) -> int:
+        async with self._sessions.begin() as session:
+            return int(
+                (
+                    await session.execute(
+                        text("SELECT app_private.reconcile_usage_events(:batch)"), {"batch": batch_size}
+                    )
+                ).scalar_one()
+            )
+
+    async def purge_usage(self, *, batch_size: int = 100) -> dict[str, int]:
+        async with self._sessions.begin() as session:
+            value = (
+                await session.execute(text("SELECT app_private.purge_usage_data(:batch)"), {"batch": batch_size})
+            ).scalar_one()
+            return dict(json.loads(value) if isinstance(value, str) else value)
+
     async def touch_worker(self, worker_id: str, *, cleanup_done: bool = False) -> None:
         if not 1 <= len(worker_id) <= 128:
             raise ValueError("Identifiant worker invalide.")

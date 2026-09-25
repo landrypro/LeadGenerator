@@ -13,6 +13,7 @@ describe('routes CRM', () => {
       acceptInvitation: '/accept-invitation',
       search: '/app/search',
       dashboard: '/app/dashboard',
+      usage: '/app/usage',
       prospects: '/app/prospects',
       prospectNew: '/app/prospects/new',
       prospectDetail: '/app/prospects/:prospectId',
@@ -35,6 +36,7 @@ describe('routes CRM', () => {
   it('active les pages terminées dont le tableau de bord 4.1', () => {
     expect(routes.map((route) => route.path)).toEqual([
       '/app/dashboard',
+      '/app/usage',
       '/app/compliance/retention',
       '/app/imports/history',
       '/app/exports',
@@ -54,6 +56,7 @@ describe('routes CRM', () => {
       '/app/account',
     ])
     expect(findRoute('/app/platform/organizations')?.requiredCapability).toBe('platform:organizations:read')
+    expect(findRoute('/app/usage')?.requiredCapability).toBe('usage:read:self')
     expect(findRoute('/app/audit')?.requiredCapability).toBe('audit:read')
     expect(findRoute('/app/platform/audit')?.requiredCapability).toBe('platform:audit:read')
     expect(findRoute('/app/prospects')?.requiredCapability).toBe('prospects:read')

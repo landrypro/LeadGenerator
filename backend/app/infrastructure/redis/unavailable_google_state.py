@@ -52,3 +52,13 @@ class UnavailableGoogleSearchQuota:
     ) -> GoogleQuotaReservation:
         del owner, policy, operation_id, now
         raise GoogleProtectionUnavailable
+
+    async def current(
+        self,
+        owner: GoogleAccessOwner,
+        policy: GoogleSearchQuotaPolicy,
+        *,
+        now: datetime,
+    ) -> GoogleQuotaReservation:
+        del owner, policy, now
+        raise GoogleProtectionUnavailable

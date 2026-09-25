@@ -70,4 +70,16 @@ describe('DashboardPage', () => {
     expect(await screen.findByText('You cannot access this scope.')).toBeInTheDocument()
     expect(screen.queryByText('No activity or progress in this period.')).not.toBeInTheDocument()
   })
+
+  it('labels a qualified reservation counter without calling it billing', async () => {
+    dashboardApi.summary.mockResolvedValue({
+      ...summary,
+      google_usage: { status: 'available', used: 8, unit: 'reservation', source: 'usage_quota_v1' },
+    })
+    render(<DashboardPage session={session()} />)
+    const usage = (await screen.findByRole('heading', { name: 'Google usage' })).closest('section')
+    expect(usage).toHaveTextContent('8 Text Search reservations')
+    expect(usage).toHaveTextContent('reservation')
+    expect(screen.queryByText(/billed/i)).not.toBeInTheDocument()
+  })
 })

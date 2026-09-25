@@ -16,6 +16,7 @@ import { PipelinePage } from '../features/prospects/PipelinePage'
 import { TasksPage } from '../features/prospects/TasksPage'
 import { OpportunitiesPage } from '../features/opportunities/OpportunitiesPage'
 import { DashboardPage } from '../features/dashboard/DashboardPage'
+import { UsagePage } from '../features/usage/UsagePage'
 
 
 export const CRM_PATHS = Object.freeze({
@@ -24,6 +25,7 @@ export const CRM_PATHS = Object.freeze({
   acceptInvitation: '/accept-invitation',
   search: '/app/search',
   dashboard: '/app/dashboard',
+  usage: '/app/usage',
   prospects: '/app/prospects',
   prospectNew: '/app/prospects/new',
   prospectDetail: '/app/prospects/:prospectId',
@@ -45,6 +47,7 @@ export const CRM_PATHS = Object.freeze({
 
 const ROUTE_MESSAGES = Object.freeze({
   dashboard: Object.freeze({ 'fr-CA': Object.freeze({ label: 'Tableau de bord', title: 'Tableau de bord' }), 'en-CA': Object.freeze({ label: 'Dashboard', title: 'Dashboard' }) }),
+  usage: Object.freeze({ 'fr-CA': Object.freeze({ label: 'Usage', title: 'Quotas et rapports d’usage' }), 'en-CA': Object.freeze({ label: 'Usage', title: 'Usage quotas and reports' }) }),
   'retention-imports': Object.freeze({ 'fr-CA': Object.freeze({ label: 'Conservation et imports', title: 'Conservation des données' }), 'en-CA': Object.freeze({ label: 'Retention and imports', title: 'Data retention' }) }),
   'import-history': Object.freeze({ 'fr-CA': Object.freeze({ label: 'Historique des imports', title: 'Historique des imports' }), 'en-CA': Object.freeze({ label: 'Import history', title: 'Import history' }) }),
   exports: Object.freeze({ 'fr-CA': Object.freeze({ label: 'Exports', title: 'Exports CSV' }), 'en-CA': Object.freeze({ label: 'Exports', title: 'CSV exports' }) }),
@@ -70,6 +73,10 @@ export const routes = Object.freeze([
   Object.freeze({
     id: 'dashboard', path: CRM_PATHS.dashboard, label: 'Tableau de bord', title: 'Tableau de bord',
     requiredCapability: 'dashboard:read:self', requiresActiveOrganization: true, Component: DashboardPage,
+  }),
+  Object.freeze({
+    id: 'usage', path: CRM_PATHS.usage, label: 'Usage', title: 'Quotas et rapports d’usage',
+    requiredCapability: 'usage:read:self', requiresActiveOrganization: true, Component: UsagePage,
   }),
   Object.freeze({
     id: 'retention-imports', path: CRM_PATHS.retention, label: 'Conservation et imports', title: 'Conservation des données', requiredCapability: 'retention:read', requiresActiveOrganization: true, Component: RetentionImportsPage,

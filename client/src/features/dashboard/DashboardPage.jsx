@@ -24,7 +24,7 @@ const LABELS = {
     pipeline: 'Pipeline par devise', currency: 'Devise', amount: 'Montant ouvert', weighted: 'Valeur pondérée',
     breakdown: 'Ventilation par responsable', unassigned: 'Non assigné',
     attribution: 'Les passages historiques sont attribués au responsable actuel du prospect. Une réaffectation peut modifier cette ventilation.',
-    google: 'Usage Google', unavailable: 'Compteur indisponible : la source d’usage n’est pas encore qualifiée.',
+    google: 'Usage Google', unavailable: 'Compteur indisponible : la source d’usage n’est pas encore qualifiée.', reservations: 'réservations Text Search',
     noData: 'Aucune donnée', invalidDates: 'Choisir une plage valide de 93 jours au plus.',
     noPermission: 'Vous n’avez pas accès à ce périmètre.', ownerNotFound: 'Responsable introuvable dans cette organisation.',
   },
@@ -45,7 +45,7 @@ const LABELS = {
     pipeline: 'Pipeline by currency', currency: 'Currency', amount: 'Open amount', weighted: 'Weighted value',
     breakdown: 'By owner', unassigned: 'Unassigned',
     attribution: 'Historical stage passages use the prospect’s current owner. Reassignment can change this breakdown.',
-    google: 'Google usage', unavailable: 'Metric unavailable: the usage source has not been qualified.',
+    google: 'Google usage', unavailable: 'Metric unavailable: the usage source has not been qualified.', reservations: 'Text Search reservations',
     noData: 'No data', invalidDates: 'Choose a valid range of at most 93 days.',
     noPermission: 'You cannot access this scope.', ownerNotFound: 'Owner not found in this organization.',
   },
@@ -186,7 +186,9 @@ export function DashboardPage({ session }) {
       {periodEmpty && <p className="dashboard-empty" role="status">{labels.noPeriod}</p>}
       <SummarySections data={summary} locale={locale} labels={labels} timezone={timezone} />
       <p className="dashboard-attribution">{labels.attribution}</p>
-      <section className="dashboard-panel"><h2>{labels.google}</h2><p>{labels.unavailable}</p></section>
+      <section className="dashboard-panel"><h2>{labels.google}</h2>{summary.google_usage.status === 'available'
+        ? <p><strong>{number(summary.google_usage.used, locale)}</strong> {labels.reservations} · {summary.google_usage.unit} · UTC · {summary.google_usage.source}</p>
+        : <p>{labels.unavailable}</p>}</section>
       {summary.owner_breakdown !== null && <section className="dashboard-breakdown" aria-label={labels.breakdown}><h2>{labels.breakdown}</h2>
         {summary.owner_breakdown.length === 0 && <p>{labels.noData}</p>}
         {summary.owner_breakdown.map((item) => {

@@ -18,3 +18,11 @@ class GoogleSearchQuota(Protocol):
         *,
         now: datetime,
     ) -> GoogleQuotaReservation: ...
+
+    async def current(
+        self,
+        owner: GoogleAccessOwner,
+        policy: GoogleSearchQuotaPolicy,
+        *,
+        now: datetime,
+    ) -> GoogleQuotaReservation: ...

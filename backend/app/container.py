@@ -6,6 +6,7 @@ from .application.ports import (
     NullMetricsRecorder,
     TenantUnitOfWorkFactory,
     UnitOfWorkFactory,
+    UsageStore,
 )
 from .application.ports.csv_import import TemporaryCsvFileStore
 from .application.use_cases import (
@@ -101,6 +102,7 @@ from .application.use_cases import (
     ValidateCsvImportUseCase,
 )
 from .application.use_cases.dashboard import GetDashboardSummaryUseCase
+from .application.use_cases.usage import GetCurrentUsageUseCase, GetUsageReportUseCase
 from .config import Settings
 from .infrastructure.google.location import GoogleLocationResolver
 from .infrastructure.postgres.export_service import ExportService
@@ -126,6 +128,9 @@ class AppContainer:
     list_tenant_audit_events: ListTenantAuditEventsUseCase | None = None
     list_platform_audit_events: ListPlatformAuditEventsUseCase | None = None
     get_dashboard_summary: GetDashboardSummaryUseCase | None = None
+    get_usage_report: GetUsageReportUseCase | None = None
+    get_current_usage: GetCurrentUsageUseCase | None = None
+    usage_store: UsageStore | None = None
     create_manual_prospect: CreateManualProspectUseCase | None = None
     add_google_prospects: AddGoogleProspectsUseCase | None = None
     list_prospects: ListProspectsUseCase | None = None

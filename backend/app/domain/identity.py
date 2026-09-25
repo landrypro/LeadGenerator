@@ -114,6 +114,8 @@ CAPABILITIES_BY_ROLE: dict[MembershipRole, tuple[str, ...]] = {
     MembershipRole.ADMIN: (
         "dashboard:read:self",
         "dashboard:read:organization",
+        "usage:read:self",
+        "usage:read:organization",
         "organization:read",
         "organization:update",
         "members:read",
@@ -172,6 +174,8 @@ CAPABILITIES_BY_ROLE: dict[MembershipRole, tuple[str, ...]] = {
     MembershipRole.MANAGER: (
         "dashboard:read:self",
         "dashboard:read:organization",
+        "usage:read:self",
+        "usage:read:organization",
         "organization:read",
         "members:read",
         "audit:read",
@@ -218,6 +222,7 @@ CAPABILITIES_BY_ROLE: dict[MembershipRole, tuple[str, ...]] = {
     ),
     MembershipRole.SALES: (
         "dashboard:read:self",
+        "usage:read:self",
         "organization:read",
         "google:search",
         "google:map",

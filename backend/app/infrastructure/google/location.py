@@ -6,6 +6,7 @@ import hashlib
 import hmac
 import json
 import math
+from collections.abc import Awaitable, Callable
 from datetime import UTC, datetime, timedelta
 from typing import TypedDict, cast
 from urllib.parse import quote
@@ -84,6 +85,7 @@ class GoogleLocationResolver:
         session_token: UUID,
         access: GoogleAccessContext,
         country_code: str = "",
+        before_upstream: Callable[[], Awaitable[None]] | None = None,
     ) -> list[dict[str, str]]:
         await self._limit(access)
         body = {
@@ -107,6 +109,8 @@ class GoogleLocationResolver:
         client = self._client or httpx.AsyncClient(timeout=self.settings.timeout_seconds)
         try:
             try:
+                if before_upstream is not None:
+                    await before_upstream()
                 response = await client.post(AUTOCOMPLETE_URL, json=body, headers=headers)
             except (httpx.TimeoutException, httpx.NetworkError) as exc:
                 raise GooglePlacesError("Google Places est temporairement injoignable.") from exc
@@ -148,6 +152,7 @@ class GoogleLocationResolver:
         *,
         selection_token: str,
         access: GoogleAccessContext,
+        before_upstream: Callable[[], Awaitable[None]] | None = None,
     ) -> dict[str, str | float]:
         await self._limit(access)
         payload = self._verify(selection_token, access)
@@ -164,6 +169,8 @@ class GoogleLocationResolver:
         client = self._client or httpx.AsyncClient(timeout=self.settings.timeout_seconds)
         try:
             try:
+                if before_upstream is not None:
+                    await before_upstream()
                 response = await client.get(
                     DETAILS_URL + quote(payload["place_id"], safe=""),
                     params={"languageCode": payload["language"], "sessionToken": payload["session_token"]},

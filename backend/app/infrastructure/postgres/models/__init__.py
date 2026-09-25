@@ -23,6 +23,7 @@ from .prospect import (
     ProvenanceRecordModel,
     SourceProviderModel,
 )
+from .usage import UsageDailyCounterModel, UsageOperationEventModel
 
 __all__ = [
     "NAMING_CONVENTION",
@@ -56,6 +57,8 @@ __all__ = [
     "ProvenanceRecordModel",
     "SourceExportRuleModel",
     "SourceProviderModel",
+    "UsageDailyCounterModel",
+    "UsageOperationEventModel",
     "UserInvitationModel",
     "UserModel",
     "WorkerHeartbeatModel",

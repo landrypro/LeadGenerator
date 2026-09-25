@@ -13,6 +13,7 @@ from .platform import router as platform_router
 from .prospect_compliance import router as prospect_compliance_router
 from .prospects import router as prospects_router
 from .retention import router as retention_router
+from .usage import router as usage_router
 
 __all__ = [
     "audit_router",
@@ -30,4 +31,5 @@ __all__ = [
     "prospect_compliance_router",
     "prospects_router",
     "retention_router",
+    "usage_router",
 ]

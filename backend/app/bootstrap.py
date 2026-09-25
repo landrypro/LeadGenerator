@@ -121,6 +121,7 @@ from .application.use_cases import (
     ValidateCsvImportUseCase,
 )
 from .application.use_cases.dashboard import GetDashboardSummaryUseCase
+from .application.use_cases.usage import GetCurrentUsageUseCase, GetUsageReportUseCase
 from .config import Settings
 from .container import AppContainer
 from .infrastructure.audit_pagination import HmacAuditCursorCodec
@@ -151,6 +152,7 @@ from .infrastructure.postgres import (
 from .infrastructure.postgres.dashboard_reader import PostgresDashboardReader
 from .infrastructure.postgres.export_service import ExportService
 from .infrastructure.postgres.import_history import ImportHistoryReader
+from .infrastructure.postgres.usage_store import PostgresUsageStore
 from .infrastructure.redis import (
     RedisGenerationGuard,
     RedisGoogleSearchQuota,
@@ -183,6 +185,7 @@ from .presentation.api.routers import (
     prospect_compliance_router,
     prospects_router,
     retention_router,
+    usage_router,
 )
 from .presentation.api.routers.metrics import router as metrics_router
 
@@ -359,9 +362,17 @@ def build_container(settings: Settings) -> AppContainer:
     revoke_member_invitation: RevokeMemberInvitationUseCase | None = None
     switch_organization: SwitchOrganizationUseCase | None = None
     get_dashboard_summary: GetDashboardSummaryUseCase | None = None
+    get_usage_report: GetUsageReportUseCase | None = None
+    get_current_usage: GetCurrentUsageUseCase | None = None
+    usage_store = PostgresUsageStore(database.session_factory, metrics) if database is not None else None
     if database is not None and redis is not None:
         clock = SystemClock()
-        get_dashboard_summary = GetDashboardSummaryUseCase(PostgresDashboardReader(database.session_factory), clock)
+        get_dashboard_summary = GetDashboardSummaryUseCase(
+            PostgresDashboardReader(database.session_factory), clock, usage_store
+        )
+        assert usage_store is not None
+        get_usage_report = GetUsageReportUseCase(usage_store, clock)
+        get_current_usage = GetCurrentUsageUseCase(usage_store, google_quota, google_policy, clock)
         rate_limit_key = settings.rate_limit_hmac_key.encode("utf-8") or DEVELOPMENT_RATE_LIMIT_KEY
         cursor_codec = HmacCursorCodec(rate_limit_key)
         audit_cursor_codec = HmacAuditCursorCodec(rate_limit_key)
@@ -612,8 +623,9 @@ def build_container(settings: Settings) -> AppContainer:
             google_quota,
             SystemClock(),
             metrics=metrics,
+            usage=usage_store,
         ),
-        get_map_snapshot=GetMapSnapshotUseCase(map_grants, static_maps, metrics),
+        get_map_snapshot=GetMapSnapshotUseCase(map_grants, static_maps, metrics, usage_store),
         metrics=metrics,
         metrics_exporter=metrics if settings.metrics_enabled else None,
         readiness=CheckReadinessUseCase(probes),
@@ -627,6 +639,9 @@ def build_container(settings: Settings) -> AppContainer:
         list_tenant_audit_events=list_tenant_audit_events,
         list_platform_audit_events=list_platform_audit_events,
         get_dashboard_summary=get_dashboard_summary,
+        get_usage_report=get_usage_report,
+        get_current_usage=get_current_usage,
+        usage_store=usage_store,
         create_manual_prospect=create_manual_prospect,
         add_google_prospects=add_google_prospects,
         list_prospects=list_prospects,
@@ -873,6 +888,7 @@ def create_app(
     app.include_router(dashboard_router)
     app.include_router(import_history_router)
     app.include_router(exports_router)
+    app.include_router(usage_router)
     app.include_router(audit_router)
     app.include_router(invitations_router)
     app.include_router(platform_router)

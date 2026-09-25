@@ -3,6 +3,7 @@ from uuid import uuid4
 
 from httpx import ASGITransport, AsyncClient
 
+from backend.app.application.ports.usage import NullUsageStore
 from backend.app.application.use_cases.search_google_places import SearchGooglePlacesOutcome
 from backend.app.bootstrap import build_container, create_app
 from backend.app.config import Settings
@@ -158,6 +159,7 @@ async def test_location_suggestions_require_google_access_and_do_not_store_respo
         get_map_snapshot=object(),  # type: ignore[arg-type]
         get_current_session=CurrentSession(identity),  # type: ignore[arg-type]
         location_resolver=StubLocations(),  # type: ignore[arg-type]
+        usage_store=NullUsageStore(),
     )
     app = create_app(container=container)
     payload = {"text": "Cana", "scope": "area", "session_token": str(uuid4())}

@@ -125,6 +125,12 @@ async def test_export_is_private_tenant_scoped_and_generated_by_worker(tmp_path:
             assert (await session.execute(text("SELECT count(*) FROM export_requests"))).scalar_one() == 0
     finally:
         async with owner.engine.begin() as connection:
+            await connection.execute(
+                text("DELETE FROM usage_daily_counters WHERE organization_id IN (:org_a, :org_b)"), ids
+            )
+            await connection.execute(
+                text("DELETE FROM usage_operation_events WHERE organization_id IN (:org_a, :org_b)"), ids
+            )
             await connection.execute(text("DELETE FROM audit_events WHERE organization_id IN (:org_a, :org_b)"), ids)
             await connection.execute(
                 text("DELETE FROM export_artifacts WHERE organization_id IN (:org_a, :org_b)"), ids

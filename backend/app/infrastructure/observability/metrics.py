@@ -12,6 +12,7 @@ from ...application.ports.metrics import (
     MetricsOutcome,
     QuotaScope,
     RedisOperation,
+    UsageApi,
 )
 
 
@@ -49,6 +50,12 @@ class PrometheusMetricsRecorder:
         labels = {"api": api, "outcome": outcome}
         self._increment("marketteo_google_upstream_calls_total", labels)
         self._observe("marketteo_google_upstream_duration_seconds", labels, duration_seconds)
+
+    def record_usage_registry_write(self, api: UsageApi, outcome: MetricsOutcome, policy_code: str) -> None:
+        self._increment(
+            "marketteo_usage_registry_write_total",
+            {"api": api, "outcome": outcome, "policy_code": policy_code},
+        )
 
     def record_crm_activity_command(self, activity_type: str, result: MetricsOutcome) -> None:
         self._increment("marketteo_crm_activity_command_total", {"type": activity_type, "result": result})

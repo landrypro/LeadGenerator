@@ -163,6 +163,8 @@ def _entity_type(action: AuditAction) -> str:
         return "csv_import_session"
     if action is AuditAction.IMPORT_REPORT_VIEWED:
         return "csv_import_run"
+    if action is AuditAction.USAGE_REPORT_VIEWED:
+        return "usage_report"
     if action is AuditAction.EXPORT_RULE_CHANGED:
         return "source_export_rule"
     if action in {

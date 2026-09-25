@@ -35,6 +35,7 @@ async def test_internal_metrics_are_private_and_emit_only_bounded_labels() -> No
     recorder = PrometheusMetricsRecorder()
     recorder.record_google_search_lock("accepted")
     recorder.record_google_search_quota("user", "accepted", "server_default_v1")
+    recorder.record_usage_registry_write("places_text_search", "failed", "server_default_v1")
     settings = Settings(
         app_env="test",
         metrics_enabled=True,
@@ -60,6 +61,10 @@ async def test_internal_metrics_are_private_and_emit_only_bounded_labels() -> No
     assert authorized.headers["x-robots-tag"] == "noindex, nofollow"
     assert 'marketteo_google_search_lock_total{outcome="accepted"} 1' in authorized.text
     assert 'policy_code="server_default_v1"' in authorized.text
+    assert (
+        'marketteo_usage_registry_write_total{api="places_text_search",outcome="failed",policy_code="server_default_v1"} 1'
+        in authorized.text
+    )
     assert "request_id" not in authorized.text
     assert "organization_id" not in authorized.text
 

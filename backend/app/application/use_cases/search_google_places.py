@@ -17,6 +17,7 @@ from ..ports.map_grants import MapSnapshotGrantStore
 from ..ports.metrics import MetricsRecorder, NullMetricsRecorder
 from ..ports.places import PlaceCandidate, PlacesGateway
 from ..ports.prospect import GoogleSelectionGrantStore
+from ..ports.usage import NullUsageStore, UsageEvent, UsageStore
 
 MAX_GOOGLE_RESULTS = 20
 
@@ -42,6 +43,7 @@ class SearchGooglePlacesUseCase:
         clock: Clock,
         operation_id_factory: Callable[[], UUID] = uuid4,
         metrics: MetricsRecorder | None = None,
+        usage: UsageStore | None = None,
     ) -> None:
         self._places = places
         self._generation_guard = generation_guard
@@ -52,6 +54,7 @@ class SearchGooglePlacesUseCase:
         self._clock = clock
         self._operation_id_factory = operation_id_factory
         self._metrics = metrics or NullMetricsRecorder()
+        self._usage = usage or NullUsageStore()
 
     async def execute(
         self,
@@ -59,14 +62,31 @@ class SearchGooglePlacesUseCase:
         access: GoogleAccessContext,
     ) -> SearchGooglePlacesOutcome:
         policy = await self._policy_provider.resolve(access.owner)
+        operation_id = self._operation_id_factory()
         try:
             async with self._generation_guard.hold(access.owner):
                 self._metrics.record_google_search_lock("accepted")
                 reservation = await self._quota.reserve(
                     access.owner,
                     policy,
-                    self._operation_id_factory(),
+                    operation_id,
                     now=self._clock.now(),
+                )
+                await self._usage.record(
+                    UsageEvent(
+                        context=_tenant_context(access, operation_id),
+                        membership_id=access.membership_id,
+                        operation_id=operation_id,
+                        usage_code="google.places_text_search.quota",
+                        event_kind="quota_reserved" if reservation.allowed else "quota_rejected",
+                        outcome="accepted" if reservation.allowed else "rejected",
+                        occurred_at=self._clock.now(),
+                        policy_code=policy.policy_code,
+                        user_limit=policy.user_daily_limit,
+                        organization_limit=policy.organization_daily_limit,
+                        warning_threshold_percent=policy.warning_threshold_percent,
+                        reset_at=reservation.reset_at,
+                    )
                 )
                 if not reservation.allowed:
                     self._metrics.record_google_search_quota(
@@ -75,7 +95,23 @@ class SearchGooglePlacesUseCase:
                     raise GoogleQuotaExceeded(reservation.scope or "user", reservation.retry_after_seconds)
                 self._metrics.record_google_search_quota("user", "accepted", policy.policy_code)
                 self._metrics.record_google_search_quota("organization", "accepted", policy.policy_code)
-                candidates = await self._search_places(criteria)
+                if reservation.user_warning_created:
+                    self._metrics.record_google_search_quota("user", "warning", policy.policy_code)
+                if reservation.organization_warning_created:
+                    self._metrics.record_google_search_quota("organization", "warning", policy.policy_code)
+                await self._usage.record(
+                    UsageEvent(
+                        context=_tenant_context(access, operation_id),
+                        membership_id=access.membership_id,
+                        operation_id=operation_id,
+                        usage_code="google.places_text_search.request",
+                        event_kind="upstream_attempted",
+                        outcome="attempted",
+                        occurred_at=self._clock.now(),
+                        policy_code=policy.policy_code,
+                    )
+                )
+                candidates = await self._search_places(criteria, access, operation_id, policy.policy_code)
         except GoogleSearchInProgress:
             self._metrics.record_google_search_lock("contended")
             raise
@@ -106,14 +142,40 @@ class SearchGooglePlacesUseCase:
                 selection_token=selection_token,
             )
 
-    async def _search_places(self, criteria: GooglePlaceSearchCriteria):  # type: ignore[no-untyped-def]
+    async def _search_places(  # type: ignore[no-untyped-def]
+        self, criteria: GooglePlaceSearchCriteria, access: GoogleAccessContext, operation_id: UUID, policy_code: str
+    ):
         started_at = perf_counter()
         try:
             candidates = await self._places.search(criteria)
         except PlacesProviderError:
             self._metrics.record_google_upstream("places_text_search", "failed", perf_counter() - started_at)
+            await self._usage.record(
+                UsageEvent(
+                    context=_tenant_context(access, operation_id),
+                    membership_id=access.membership_id,
+                    operation_id=operation_id,
+                    usage_code="google.places_text_search.request",
+                    event_kind="upstream_failed",
+                    outcome="failed",
+                    occurred_at=self._clock.now(),
+                    policy_code=policy_code,
+                )
+            )
             raise
         self._metrics.record_google_upstream("places_text_search", "accepted", perf_counter() - started_at)
+        await self._usage.record(
+            UsageEvent(
+                context=_tenant_context(access, operation_id),
+                membership_id=access.membership_id,
+                operation_id=operation_id,
+                usage_code="google.places_text_search.request",
+                event_kind="upstream_succeeded",
+                outcome="succeeded",
+                occurred_at=self._clock.now(),
+                policy_code=policy_code,
+            )
+        )
         return candidates
 
     @staticmethod
@@ -193,3 +255,9 @@ class SearchGooglePlacesUseCase:
             distance_km=distance,
             radius_verified=distance is not None,
         )
+
+
+def _tenant_context(access: GoogleAccessContext, operation_id: UUID):  # type: ignore[no-untyped-def]
+    from ..tenancy import TenantContext
+
+    return TenantContext(access.user_id, access.organization_id, f"usage:{operation_id}")

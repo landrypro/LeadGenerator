@@ -112,6 +112,43 @@ class RedisGoogleSearchQuota:
             self._metrics.record_redis_operation("quota_reserve", "rejected", perf_counter() - started_at)
         return reservation
 
+    async def current(
+        self,
+        owner: GoogleAccessOwner,
+        policy: GoogleSearchQuotaPolicy,
+        *,
+        now: datetime,
+    ) -> GoogleQuotaReservation:
+        period, reset_at, ttl_seconds = _quota_window(now)
+        effective_policy = _effective_policy(policy)
+        prefix = f"prospect:{{{self._environment}}}:v1:google:{{{owner.organization_id}}}:quota:{period}:"
+        try:
+            values = await self._client.mget(f"{prefix}user:{owner.user_id}", f"{prefix}organization")
+        except RedisError as error:
+            raise GoogleProtectionUnavailable from error
+        user_used = _counter_value(values[0])
+        organization_used = _counter_value(values[1])
+        return GoogleQuotaReservation(
+            allowed=(
+                user_used < effective_policy.user_daily_limit
+                and organization_used < effective_policy.organization_daily_limit
+            ),
+            scope=(
+                "user"
+                if user_used >= effective_policy.user_daily_limit
+                else "organization"
+                if organization_used >= effective_policy.organization_daily_limit
+                else None
+            ),
+            user_used=user_used,
+            user_remaining=max(effective_policy.user_daily_limit - user_used, 0),
+            organization_used=organization_used,
+            organization_remaining=max(effective_policy.organization_daily_limit - organization_used, 0),
+            reset_at=reset_at,
+            retry_after_seconds=ttl_seconds,
+            policy_code=effective_policy.policy_code,
+        )
+
     async def _resolve_indeterminate(
         self,
         operation_key: str,
@@ -245,3 +282,9 @@ def _non_negative_int(value: object) -> int:
     if result < 0:
         raise ValueError("Entier Redis négatif.")
     return result
+
+
+def _counter_value(value: object) -> int:
+    if value is None:
+        return 0
+    return _non_negative_int(value)
