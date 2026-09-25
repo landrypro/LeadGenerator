@@ -11,9 +11,9 @@ if [ ! -f "$ENV_FILE" ]; then
 fi
 
 docker compose --env-file "$ENV_FILE" -f "$COMPOSE_FILE" build app
-docker compose --env-file "$ENV_FILE" -f "$COMPOSE_FILE" stop app caddy
+docker compose --env-file "$ENV_FILE" -f "$COMPOSE_FILE" stop app worker caddy
 docker compose --env-file "$ENV_FILE" -f "$COMPOSE_FILE" up -d postgresql redis mailpit
 docker compose --env-file "$ENV_FILE" -f "$COMPOSE_FILE" run --rm database-role-provisioner
 docker compose --env-file "$ENV_FILE" -f "$COMPOSE_FILE" run --rm migrations
-docker compose --env-file "$ENV_FILE" -f "$COMPOSE_FILE" up -d app caddy
+docker compose --env-file "$ENV_FILE" -f "$COMPOSE_FILE" up -d --scale worker=2 app worker caddy
 docker compose --env-file "$ENV_FILE" -f "$COMPOSE_FILE" ps
