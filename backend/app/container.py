@@ -105,6 +105,8 @@ from .application.use_cases.dashboard import GetDashboardSummaryUseCase
 from .application.use_cases.usage import GetCurrentUsageUseCase, GetUsageReportUseCase
 from .config import Settings
 from .infrastructure.google.location import GoogleLocationResolver
+from .infrastructure.postgres.connector_management import MetaConnectorManagement
+from .infrastructure.postgres.connector_pilot import MetaLeadWebhookService
 from .infrastructure.postgres.export_service import ExportService
 from .infrastructure.postgres.import_history import ImportHistoryReader
 
@@ -131,6 +133,8 @@ class AppContainer:
     get_usage_report: GetUsageReportUseCase | None = None
     get_current_usage: GetCurrentUsageUseCase | None = None
     usage_store: UsageStore | None = None
+    meta_lead_webhooks: MetaLeadWebhookService | None = None
+    meta_connector_management: MetaConnectorManagement | None = None
     create_manual_prospect: CreateManualProspectUseCase | None = None
     add_google_prospects: AddGoogleProspectsUseCase | None = None
     list_prospects: ListProspectsUseCase | None = None

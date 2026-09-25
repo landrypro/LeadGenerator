@@ -149,6 +149,8 @@ from .infrastructure.postgres import (
     SqlAlchemyOrganizationAdministrationGateway,
     SqlAlchemyProvisioningGateway,
 )
+from .infrastructure.postgres.connector_management import MetaConnectorManagement
+from .infrastructure.postgres.connector_pilot import MetaLeadWebhookService
 from .infrastructure.postgres.dashboard_reader import PostgresDashboardReader
 from .infrastructure.postgres.export_service import ExportService
 from .infrastructure.postgres.import_history import ImportHistoryReader
@@ -172,6 +174,7 @@ from .presentation.api.responses import api_error
 from .presentation.api.routers import (
     audit_router,
     auth_router,
+    connectors_router,
     dashboard_router,
     exports_router,
     google_places_router,
@@ -365,6 +368,10 @@ def build_container(settings: Settings) -> AppContainer:
     get_usage_report: GetUsageReportUseCase | None = None
     get_current_usage: GetCurrentUsageUseCase | None = None
     usage_store = PostgresUsageStore(database.session_factory, metrics) if database is not None else None
+    meta_lead_webhooks = MetaLeadWebhookService(database.session_factory, settings) if database is not None else None
+    meta_connector_management = (
+        MetaConnectorManagement(database.session_factory, settings) if database is not None else None
+    )
     if database is not None and redis is not None:
         clock = SystemClock()
         get_dashboard_summary = GetDashboardSummaryUseCase(
@@ -642,6 +649,8 @@ def build_container(settings: Settings) -> AppContainer:
         get_usage_report=get_usage_report,
         get_current_usage=get_current_usage,
         usage_store=usage_store,
+        meta_lead_webhooks=meta_lead_webhooks,
+        meta_connector_management=meta_connector_management,
         create_manual_prospect=create_manual_prospect,
         add_google_prospects=add_google_prospects,
         list_prospects=list_prospects,
@@ -890,6 +899,7 @@ def create_app(
     app.include_router(exports_router)
     app.include_router(usage_router)
     app.include_router(audit_router)
+    app.include_router(connectors_router)
     app.include_router(invitations_router)
     app.include_router(platform_router)
     app.include_router(organization_router)

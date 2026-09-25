@@ -147,11 +147,12 @@ async def test_durable_jobs_are_tenant_scoped_idempotent_and_claimed_once() -> N
                 .mappings()
                 .one()
             )
-            # Phase 4.3 grants the worker a tenant-filtered read projection for exports.
+            # Phase 4.3 grants a tenant-filtered read projection; Phase 4.5 adds creation
+            # rights for connector admissions without granting modification rights.
             assert (await session.execute(text("SELECT count(*) FROM prospects"))).scalar_one() == 0
         assert dict(crm_privileges) == {
             "can_select": True,
-            "can_insert": False,
+            "can_insert": True,
             "can_update": False,
             "can_delete": False,
         }

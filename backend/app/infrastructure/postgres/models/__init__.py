@@ -1,5 +1,11 @@
 from .audit import AuditEventModel
 from .base import NAMING_CONVENTION, Base
+from .connector import (
+    ConnectorIngestionModel,
+    ConnectorIngestionOutcomeModel,
+    ProviderConnectorBindingModel,
+    ProviderConnectorContractModel,
+)
 from .export import ExportArtifactModel, ExportRequestModel, SourceExportRuleModel
 from .identity import InvitationDeliveryAttemptModel, MembershipModel, OrganizationModel, UserInvitationModel, UserModel
 from .job import JobAttemptModel, JobEventModel, JobModel, JobSchedulerStateModel, WorkerHeartbeatModel
@@ -30,6 +36,8 @@ __all__ = [
     "AcquisitionRecordModel",
     "AuditEventModel",
     "Base",
+    "ConnectorIngestionModel",
+    "ConnectorIngestionOutcomeModel",
     "ContactChannelModel",
     "ContactModel",
     "ContactPermissionModel",
@@ -55,6 +63,8 @@ __all__ = [
     "ProspectTaskEventModel",
     "ProspectTaskModel",
     "ProvenanceRecordModel",
+    "ProviderConnectorBindingModel",
+    "ProviderConnectorContractModel",
     "SourceExportRuleModel",
     "SourceProviderModel",
     "UsageDailyCounterModel",

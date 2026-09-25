@@ -18,8 +18,10 @@ from uuid import UUID, uuid4
 from sqlalchemy import text
 
 from ..application.tenancy import TenantContext
+from ..config import Settings
 from ..infrastructure.imports import LocalTemporaryCsvFileStore
 from ..infrastructure.postgres import PostgresDatabase
+from ..infrastructure.postgres.connector_pilot import MetaLeadProcessor
 from ..infrastructure.postgres.export_service import (
     ExportForbidden,
     ExportLimitExceeded,
@@ -43,6 +45,7 @@ class WorkerConfig:
     idempotency_secret: bytes
     queue_lag_alert_seconds: int = 300
     cleanup_alert_seconds: int = 1800
+    meta_settings: Settings | None = None
 
     @classmethod
     def from_environment(cls) -> WorkerConfig:
@@ -59,7 +62,7 @@ class WorkerConfig:
         cleanup = int(os.environ.get("JOB_CLEANUP_ALERT_SECONDS", "1800"))
         if queue_lag < 1 or cleanup < 1:
             raise ValueError("Les seuils d'alerte doivent être positifs.")
-        return cls(url, directory, secret, queue_lag, cleanup)
+        return cls(url, directory, secret, queue_lag, cleanup, Settings.from_env())
 
 
 async def _probe(claim: ClaimedJob, context: TenantContext, queue: PostgresJobQueue) -> str:
@@ -73,7 +76,7 @@ async def _probe(claim: ClaimedJob, context: TenantContext, queue: PostgresJobQu
 
 
 HANDLERS: dict[str, Handler] = {"internal_probe:1": _probe}
-SUPPORTED_CONTRACTS = ("internal_probe:1", "export_csv:1")
+SUPPORTED_CONTRACTS = ("internal_probe:1", "export_csv:1", "meta_lead_ads_ingest:1")
 
 
 class Worker:
@@ -84,6 +87,7 @@ class Worker:
         self._stop = asyncio.Event()
         self._worker_id = _worker_id()
         self._exports = ExportService(database.session_factory, config.import_temp_directory, config.idempotency_secret)
+        self._meta = MetaLeadProcessor(database.session_factory, config.meta_settings or Settings())
 
     def stop(self) -> None:
         self._stop.set()
@@ -119,6 +123,21 @@ class Worker:
     async def _fail_export_job(self, claim: ClaimedJob, context: TenantContext, error_code: str) -> None:
         if not await self._queue.fail(claim, context, error_code=error_code):
             return
+        if claim.type == "meta_lead_ads_ingest":
+            job = await self._queue.inspect_job(claim.id)
+            if job is not None and job["status"] == "failed":
+                async with self._database.session_factory.begin() as session:
+                    await _set_tenant(session, context)
+                    await session.execute(
+                        text("""
+                            UPDATE connector_ingestions
+                            SET status = 'failed', error_code = :error_code,
+                                finished_at = clock_timestamp(), updated_at = clock_timestamp(), version = version + 1
+                            WHERE id = :id AND status IN ('queued', 'running')
+                        """),
+                        {"id": claim.subject_id, "error_code": str(job["last_error_code"])},
+                    )
+            return
         if claim.type != "export_csv":
             return
         job = await self._queue.inspect_job(claim.id)
@@ -149,7 +168,11 @@ class Worker:
         heartbeat_stop = asyncio.Event()
         heartbeat_task = asyncio.create_task(self._heartbeat(claim, context, heartbeat_stop))
         handler = (
-            self._exports.generate if claim.type == "export_csv" else HANDLERS[f"{claim.type}:{claim.schema_version}"]
+            self._exports.generate
+            if claim.type == "export_csv"
+            else self._meta_ingest
+            if claim.type == "meta_lead_ads_ingest"
+            else HANDLERS[f"{claim.type}:{claim.schema_version}"]
         )
         handler_task = asyncio.create_task(handler(claim, context, self._queue))
         shutdown_task = asyncio.create_task(self._stop.wait())
@@ -205,6 +228,13 @@ class Worker:
             await heartbeat_task
         return True
 
+    async def _meta_ingest(self, claim: ClaimedJob, context: TenantContext, queue: PostgresJobQueue) -> str:
+        """Runs the approved pilot after an authorization check in the processor."""
+        del queue
+        if claim.subject_type != "connector_ingestion":
+            raise ValueError("invalid_contract")
+        return await self._meta.process(claim.subject_id, context)
+
     async def run_forever(self) -> None:
         file_store = LocalTemporaryCsvFileStore(self._config.import_temp_directory, max_bytes=10 * 1024 * 1024)
         last_cleanup = 0.0
@@ -221,11 +251,13 @@ class Worker:
                 await file_store.cleanup_expired(max_age_seconds=24 * 3600)
                 await self._exports.cleanup(batch_size=100)
                 if loop.time() - last_usage_purge >= 24 * 3600:
+                    purged_connectors = await self._queue.purge_connector_ingestions(batch_size=100)
                     purged = await self._queue.purge_usage(batch_size=1000)
                     LOGGER.info(
-                        "usage_retention_purged events=%s counters=%s",
+                        "usage_retention_purged events=%s counters=%s connector_references=%s",
                         purged.get("events", 0),
                         purged.get("counters", 0),
+                        purged_connectors,
                     )
                     last_usage_purge = loop.time()
                 await self._queue.touch_worker(self._worker_id, cleanup_done=True)

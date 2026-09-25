@@ -105,6 +105,8 @@ class AuditAction(StrEnum):
     OPPORTUNITY_UPDATED = "opportunity.updated"
     OPPORTUNITY_STAGE_CHANGED = "opportunity.stage_changed"
     OPPORTUNITY_REOPENED = "opportunity.reopened"
+    CONNECTOR_INGESTION_ADMITTED = "connector.ingestion_admitted"
+    CONNECTOR_INGESTION_COMPLETED = "connector.ingestion_completed"
 
 
 _ENTITY_TYPE_PATTERN = re.compile(r"^[a-z][a-z0-9_]{0,63}$", re.ASCII)
@@ -245,6 +247,8 @@ _TENANT_ACTIONS = frozenset(
         AuditAction.OPPORTUNITY_UPDATED,
         AuditAction.OPPORTUNITY_STAGE_CHANGED,
         AuditAction.OPPORTUNITY_REOPENED,
+        AuditAction.CONNECTOR_INGESTION_ADMITTED,
+        AuditAction.CONNECTOR_INGESTION_COMPLETED,
     }
 )
 _PLATFORM_ACTIONS = frozenset(set(AuditAction) - _TENANT_ACTIONS)
@@ -318,6 +322,8 @@ _ACTION_ENTITY_TYPES = {
     AuditAction.OPPORTUNITY_UPDATED: "opportunity",
     AuditAction.OPPORTUNITY_STAGE_CHANGED: "opportunity",
     AuditAction.OPPORTUNITY_REOPENED: "opportunity",
+    AuditAction.CONNECTOR_INGESTION_ADMITTED: "connector_ingestion",
+    AuditAction.CONNECTOR_INGESTION_COMPLETED: "connector_ingestion",
 }
 
 
@@ -898,6 +904,23 @@ class AuditMetadataPolicy:
                 "status": cls._choice(values["status"], frozenset({"allowed", "denied", "unknown"}), "status"),
                 "field_count": count,
             }
+
+        if action in {AuditAction.CONNECTOR_INGESTION_ADMITTED, AuditAction.CONNECTOR_INGESTION_COMPLETED}:
+            cls._require_keys(values, {"status"}, {"result_code"})
+            result = {
+                "status": cls._choice(
+                    values["status"],
+                    frozenset({"queued", "succeeded", "quarantined", "failed", "revoked"}),
+                    "status",
+                )
+            }
+            if "result_code" in values:
+                result["result_code"] = cls._choice(
+                    values["result_code"],
+                    frozenset({"imported", "quarantined", "failed", "authorization_revoked"}),
+                    "result_code",
+                )
+            return result
 
         if action in {AuditAction.CONTACT_ARCHIVED, AuditAction.CONTACT_CHANNEL_ARCHIVED}:
             cls._require_keys(values, {"previous_version", "archive_reason_code"}, {"channels_archived"})

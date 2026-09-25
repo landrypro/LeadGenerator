@@ -108,6 +108,7 @@ class PostgresJobQueue:
         if (job_type, schema_version, subject_type) not in {
             ("internal_probe", 1, "organization"),
             ("export_csv", 1, "export_request"),
+            ("meta_lead_ads_ingest", 1, "connector_ingestion"),
         }:
             raise ValueError("Type de travail non enregistré.")
         if job_type == "internal_probe" and subject_id != context.organization_id:
@@ -386,6 +387,16 @@ class PostgresJobQueue:
                 await session.execute(text("SELECT app_private.purge_usage_data(:batch)"), {"batch": batch_size})
             ).scalar_one()
             return dict(json.loads(value) if isinstance(value, str) else value)
+
+    async def purge_connector_ingestions(self, *, batch_size: int = 100) -> int:
+        async with self._sessions.begin() as session:
+            return int(
+                (
+                    await session.execute(
+                        text("SELECT app_private.purge_connector_ingestions(:batch)"), {"batch": batch_size}
+                    )
+                ).scalar_one()
+            )
 
     async def touch_worker(self, worker_id: str, *, cleanup_done: bool = False) -> None:
         if not 1 <= len(worker_id) <= 128:

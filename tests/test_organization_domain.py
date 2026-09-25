@@ -89,6 +89,7 @@ def user(*memberships: MembershipIdentity, platform: bool = False) -> UserIdenti
                 "permissions:allow",
                 "providers:read",
                 "providers:manage",
+                "providers:review",
                 "acquisitions:declare",
                 "acquisitions:review",
                 "retention:read",

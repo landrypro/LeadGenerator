@@ -15,6 +15,8 @@ export const TENANT_ACTIONS = Object.freeze([
   ['prospect.stage_changed', 'Étape commerciale modifiée'],
   ['pipeline.stage_settings_updated', 'Paramètres d’étape modifiés'],
   ['usage.report_viewed', 'Rapport d’usage organisationnel consulté'],
+  ['connector.ingestion_admitted', 'Ingestion connecteur admise'],
+  ['connector.ingestion_completed', 'Ingestion connecteur terminée'],
 ])
 
 export const PLATFORM_ACTIONS = Object.freeze([
@@ -33,15 +35,16 @@ export const ENTITY_TYPES = Object.freeze([
   ['prospect', 'Prospect'],
   ['pipeline_stage_setting', 'Paramètre d’étape'],
   ['usage_report', 'Rapport d’usage'],
+  ['connector_ingestion', 'Ingestion connecteur'],
 ])
 
 const TENANT_ACTIONS_EN = Object.freeze([
-  ['organization.updated', 'Organization updated'], ['account.organization_preference_changed', 'Active organization changed'], ['membership.role_changed', 'Member role changed'], ['membership.status_changed', 'Member status changed'], ['invitation.created', 'Invitation created'], ['invitation.resend_requested', 'Invitation resend requested'], ['invitation.delivery_completed', 'Invitation delivery completed'], ['invitation.revoked', 'Invitation revoked'], ['invitation.accepted', 'Invitation accepted'], ['organization.activated', 'Organization activated'], ['prospect.created', 'Prospect created'], ['prospect.updated', 'Prospect updated'], ['prospect.archived', 'Prospect archived'], ['prospect.stage_changed', 'Sales stage changed'], ['pipeline.stage_settings_updated', 'Stage settings updated'], ['usage.report_viewed', 'Organization usage report viewed'],
+  ['organization.updated', 'Organization updated'], ['account.organization_preference_changed', 'Active organization changed'], ['membership.role_changed', 'Member role changed'], ['membership.status_changed', 'Member status changed'], ['invitation.created', 'Invitation created'], ['invitation.resend_requested', 'Invitation resend requested'], ['invitation.delivery_completed', 'Invitation delivery completed'], ['invitation.revoked', 'Invitation revoked'], ['invitation.accepted', 'Invitation accepted'], ['organization.activated', 'Organization activated'], ['prospect.created', 'Prospect created'], ['prospect.updated', 'Prospect updated'], ['prospect.archived', 'Prospect archived'], ['prospect.stage_changed', 'Sales stage changed'], ['pipeline.stage_settings_updated', 'Stage settings updated'], ['usage.report_viewed', 'Organization usage report viewed'], ['connector.ingestion_admitted', 'Connector ingestion admitted'], ['connector.ingestion_completed', 'Connector ingestion completed'],
 ])
 const PLATFORM_ACTIONS_EN = Object.freeze([
   ['organization.provisioned', 'Organization provisioned'], ['organization.initial_invitation.created', 'Initial invitation created'], ['organization.initial_invitation.resend_requested', 'Initial resend requested'], ['organization.initial_invitation.delivery_completed', 'Initial invitation delivery completed'], ['organization.initial_invitation.revoked', 'Initial invitation revoked'],
 ])
-const ENTITY_TYPES_EN = Object.freeze([['organization', 'Organization'], ['membership', 'Membership'], ['invitation', 'Invitation'], ['user', 'Account'], ['prospect', 'Prospect'], ['pipeline_stage_setting', 'Stage setting'], ['usage_report', 'Usage report']])
+const ENTITY_TYPES_EN = Object.freeze([['organization', 'Organization'], ['membership', 'Membership'], ['invitation', 'Invitation'], ['user', 'Account'], ['prospect', 'Prospect'], ['pipeline_stage_setting', 'Stage setting'], ['usage_report', 'Usage report'], ['connector_ingestion', 'Connector ingestion']])
 
 const ACTION_LABELS = Object.freeze(Object.fromEntries([...TENANT_ACTIONS, ...PLATFORM_ACTIONS]))
 const ACTION_LABELS_EN = Object.freeze(Object.fromEntries([...TENANT_ACTIONS_EN, ...PLATFORM_ACTIONS_EN]))

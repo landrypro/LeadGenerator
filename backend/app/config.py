@@ -67,6 +67,13 @@ class Settings:
     import_temp_directory: str = ".runtime/imports"
     import_temp_max_bytes: int = 10 * 1024 * 1024
     job_idempotency_hmac_key: str = field(default="", repr=False)
+    meta_lead_ads_enabled: bool = False
+    meta_webhook_verify_token: str = field(default="", repr=False)
+    meta_webhook_app_secret: str = field(default="", repr=False)
+    meta_reference_hmac_key: str = field(default="", repr=False)
+    meta_lead_reference_encryption_key: str = field(default="", repr=False)
+    meta_graph_access_token: str = field(default="", repr=False)
+    meta_graph_api_base_url: str = "https://graph.facebook.com"
     log_format: str = "text"
     instance_id: str = ""
     metrics_enabled: bool = False
@@ -147,6 +154,19 @@ class Settings:
             raise ValueError("La configuration du stockage temporaire CSV est invalide.")
         if self.job_idempotency_hmac_key and len(self.job_idempotency_hmac_key.encode("utf-8")) < 32:
             raise ValueError("JOB_IDEMPOTENCY_HMAC_KEY doit contenir au moins 32 octets.")
+        meta_secrets = (
+            self.meta_webhook_verify_token,
+            self.meta_webhook_app_secret,
+            self.meta_reference_hmac_key,
+            self.meta_lead_reference_encryption_key,
+            self.meta_graph_access_token,
+        )
+        if self.meta_lead_ads_enabled and any(len(value.encode("utf-8")) < 32 for value in meta_secrets):
+            raise ValueError("Les secrets Meta doivent contenir au moins 32 octets lorsque le pilote est activé.")
+        if self.meta_lead_ads_enabled and len(self.job_idempotency_hmac_key.encode("utf-8")) < 32:
+            raise ValueError("JOB_IDEMPOTENCY_HMAC_KEY est obligatoire lorsque le pilote Meta est activé.")
+        if not _is_public_https_origin(self.meta_graph_api_base_url):
+            raise ValueError("META_GRAPH_API_BASE_URL doit être une origine HTTPS publique.")
         if self.app_env != "test" and self.map_grant_ttl_seconds > 300:
             raise ValueError("MAP_SNAPSHOT_GRANT_TTL_SECONDS ne peut pas dépasser 300 hors test.")
         if self.app_env in {"staging", "production"} and self.google_selection_grant_ttl_seconds > 900:
@@ -244,6 +264,15 @@ class Settings:
             import_temp_directory=values.get("IMPORT_TEMP_DIRECTORY", ".runtime/imports").strip(),
             import_temp_max_bytes=int(values.get("IMPORT_TEMP_MAX_BYTES", str(10 * 1024 * 1024))),
             job_idempotency_hmac_key=values.get("JOB_IDEMPOTENCY_HMAC_KEY", "").strip(),
+            meta_lead_ads_enabled=_parse_bool(values.get("META_LEAD_ADS_ENABLED", "false")),
+            meta_webhook_verify_token=values.get("META_WEBHOOK_VERIFY_TOKEN", "").strip(),
+            meta_webhook_app_secret=values.get("META_WEBHOOK_APP_SECRET", "").strip(),
+            meta_reference_hmac_key=values.get("META_REFERENCE_HMAC_KEY", "").strip(),
+            meta_lead_reference_encryption_key=values.get("META_LEAD_REFERENCE_ENCRYPTION_KEY", "").strip(),
+            meta_graph_access_token=values.get("META_GRAPH_ACCESS_TOKEN", "").strip(),
+            meta_graph_api_base_url=values.get("META_GRAPH_API_BASE_URL", "https://graph.facebook.com")
+            .strip()
+            .rstrip("/"),
             log_format=values.get("LOG_FORMAT", "json" if app_env in {"staging", "production"} else "text")
             .strip()
             .lower(),

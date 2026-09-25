@@ -140,6 +140,7 @@ CAPABILITIES_BY_ROLE: dict[MembershipRole, tuple[str, ...]] = {
         "permissions:allow",
         "providers:read",
         "providers:manage",
+        "providers:review",
         "acquisitions:declare",
         "acquisitions:review",
         "retention:read",
