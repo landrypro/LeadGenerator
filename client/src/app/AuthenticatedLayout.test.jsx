@@ -99,6 +99,22 @@ describe('AuthenticatedLayout', () => {
     historyBack.mockRestore()
   })
 
+  it('déploie les catégories dans le panneau mobile sans exiger un second geste', () => {
+    render(<AuthenticatedLayout
+      currentRoute={findRoute('/app/search')}
+      session={{ ...session, capabilities: ['google:search', 'providers:read', 'usage:read:self', 'retention:read', 'imports:read', 'exports:create:self', 'audit:read', 'organization:read', 'members:read'] }}
+      onLogout={vi.fn()}
+    ><main>Contenu</main></AuthenticatedLayout>)
+
+    fireEvent.click(screen.getByRole('button', { name: 'Plus' }))
+    const dialog = screen.getByRole('dialog', { name: 'Navigation' })
+    expect(within(dialog).getByRole('link', { name: 'Recherche d’établissements' })).toBeVisible()
+    expect(within(dialog).getByRole('link', { name: 'Sources et acquisitions' })).toBeVisible()
+    expect(within(dialog).getByRole('link', { name: 'Quotas et usage' })).toBeVisible()
+    expect(within(dialog).getByRole('link', { name: 'Organisation' })).toBeVisible()
+    expect(within(dialog).getByRole('link', { name: 'Membres' })).toBeVisible()
+  })
+
   it('filtre les raccourcis mobiles par capacités tout en conservant Plus', () => {
     render(<AuthenticatedLayout
       currentRoute={findRoute('/app/tasks')}

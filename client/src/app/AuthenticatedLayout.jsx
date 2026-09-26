@@ -132,6 +132,7 @@ export function AuthenticatedLayout({
     return <nav className="authenticated-navigation" aria-label={copy.mainNavigation}>
       {model.direct.map(route => routeLink(route, keyPrefix))}
       {model.groups.map(group => <NavigationDisclosure key={`${contextKey}:${keyPrefix}:${group.id}`} label={group.label}
+        defaultOpen={keyPrefix === 'dialog'}
         active={group.routes.some(route => route.id === activeNavigationId)}>
         {group.routes.map(route => routeLink(route, keyPrefix))}
       </NavigationDisclosure>)}
@@ -140,6 +141,9 @@ export function AuthenticatedLayout({
 
   function closeDisclosuresOutside(event) {
     appRef.current?.querySelectorAll('.navigation-disclosure[open]').forEach(disclosure => {
+      // The mobile dialog owns its accordions. Moving focus to its close control
+      // must not immediately collapse every category that was opened on entry.
+      if (dialogRef.current?.open && dialogRef.current.contains(disclosure)) return
       if (!disclosure.contains(event.target)) disclosure.removeAttribute('open')
     })
   }
