@@ -35,7 +35,9 @@ class UsageOperationEventModel(Base):
         CheckConstraint(
             "usage_code IN ('google.places_text_search.quota','google.places_text_search.request',"
             "'google.places_autocomplete.request','google.places_details.request','google.maps_static.request',"
-            "'platform.csv_export','platform.csv_import')",
+            "'platform.csv_export','platform.csv_import',"
+            "'meta_lead_ads.webhook_accepted','meta_lead_ads.fetch_attempted','meta_lead_ads.imported',"
+            "'meta_lead_ads.quarantined','meta_lead_ads.failed')",
             name="usage_events_code_allowed",
         ),
         CheckConstraint(
@@ -44,7 +46,7 @@ class UsageOperationEventModel(Base):
             name="usage_events_kind_allowed",
         ),
         CheckConstraint(
-            "outcome IN ('accepted','rejected','attempted','succeeded','failed','indeterminate','expired')",
+            "outcome IN ('accepted','rejected','attempted','succeeded','failed','indeterminate','expired','quarantined')",
             name="usage_events_outcome_allowed",
         ),
         CheckConstraint("unit_count >= 0", name="usage_events_units_nonnegative"),
@@ -108,7 +110,9 @@ class UsageDailyCounterModel(Base):
         CheckConstraint(
             "usage_code IN ('google.places_text_search.quota','google.places_text_search.request',"
             "'google.places_autocomplete.request','google.places_details.request','google.maps_static.request',"
-            "'platform.csv_export','platform.csv_import')",
+            "'platform.csv_export','platform.csv_import',"
+            "'meta_lead_ads.webhook_accepted','meta_lead_ads.fetch_attempted','meta_lead_ads.imported',"
+            "'meta_lead_ads.quarantined','meta_lead_ads.failed')",
             name="usage_daily_code_allowed",
         ),
         CheckConstraint(
@@ -117,7 +121,7 @@ class UsageDailyCounterModel(Base):
             name="usage_daily_kind_allowed",
         ),
         CheckConstraint(
-            "outcome IN ('accepted','rejected','attempted','succeeded','failed','indeterminate','expired')",
+            "outcome IN ('accepted','rejected','attempted','succeeded','failed','indeterminate','expired','quarantined')",
             name="usage_daily_outcome_allowed",
         ),
         CheckConstraint(

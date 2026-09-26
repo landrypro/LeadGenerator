@@ -1,4 +1,5 @@
 import { Building2 } from '../../icons'
+import { followInternalLink } from '../../app/navigation'
 
 
 const NO_ORGANIZATION_MESSAGES = Object.freeze({
@@ -14,6 +15,7 @@ export function NoOrganizationPage({ locale = 'fr-CA', onLogout }) {
       <p className="eyebrow">Marketteo CRM</p>
       <h1 id="no-organization-title">{copy.title}</h1>
       <p className="login-intro">{copy.intro}</p>
+      <a className="secondary-button full-width" href="/app/account" onClick={event => followInternalLink(event, '/app/account')}>{locale === 'en-CA' ? 'Account' : 'Compte'}</a>
       <button className="secondary-button full-width" type="button" onClick={onLogout}>{copy.logout}</button>
     </section>
   </main>

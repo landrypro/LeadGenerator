@@ -40,5 +40,13 @@ export function useLeadSearch({ clearError, reportError }) {
     }
   }, [clearError, reportError])
 
-  return { result, loading, runSearch }
+  const clearSearch = useCallback(() => {
+    requestSequenceRef.current += 1
+    activeRequestRef.current?.abort()
+    activeRequestRef.current = null
+    setLoading(false)
+    setResult(null)
+  }, [])
+
+  return { result, loading, runSearch, clearSearch }
 }

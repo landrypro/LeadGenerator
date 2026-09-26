@@ -61,6 +61,7 @@ describe('AppRouter', () => {
     renderRouter(authenticatedSession({ activeOrganization: null }))
 
     expect(screen.getByRole('heading', { name: 'Aucune organisation accessible' })).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: 'Compte' })).toHaveAttribute('href', '/app/account')
     expect(screen.queryByRole('navigation', { name: 'Navigation principale' })).not.toBeInTheDocument()
     expect(screen.queryByText('Recherche d’établissements')).not.toBeInTheDocument()
   })
@@ -124,7 +125,7 @@ describe('AppRouter', () => {
     }))
 
     expect(screen.getByRole('heading', { name: 'Page introuvable' })).toBeInTheDocument()
-    expect(screen.queryByText('Recherche d’établissements')).not.toBeInTheDocument()
+    expect(screen.queryByRole('heading', { name: 'Recherche d’établissements' })).not.toBeInTheDocument()
     expect(window.location.pathname).toBe('/route-inconnue')
   })
 
@@ -157,8 +158,10 @@ describe('AppRouter', () => {
       capabilities: ['google:search'],
     }))
 
-    expect(screen.getByRole('link', { name: 'Recherche Google' })).toHaveAttribute('aria-current', 'page')
+    fireEvent.click(screen.getByText('Acquisition', { selector: 'summary' }))
+    expect(screen.getByRole('link', { name: 'Recherche d’établissements' })).toHaveAttribute('aria-current', 'page')
     expect(screen.queryByRole('link', { name: /Organisation|Membres|Plateforme/ })).not.toBeInTheDocument()
+    fireEvent.click(screen.getByText('Alex', { selector: 'summary' }))
     fireEvent.click(screen.getByRole('link', { name: 'Compte' }))
 
     expect(await screen.findByRole('heading', { name: 'Mon compte' })).toBeInTheDocument()

@@ -190,6 +190,13 @@ def _format_report(
     series: dict[str, dict[str, Any]] = {}
     exports = {"requested": 0, "ready": 0, "failed": 0, "expired": 0, "rows": 0, "omitted": 0, "bytes": 0}
     imports = {"confirmed_runs": 0, "examined_rows": 0, "created": 0, "duplicates": 0, "review": 0, "quarantined": 0}
+    connector_totals = {
+        "meta_lead_ads.webhook_accepted": 0,
+        "meta_lead_ads.fetch_attempted": 0,
+        "meta_lead_ads.imported": 0,
+        "meta_lead_ads.quarantined": 0,
+        "meta_lead_ads.failed": 0,
+    }
     for row in raw["rows"]:
         code, kind, outcome, count = row["usage_code"], row["event_kind"], row["outcome"], int(row["unit_count"])
         day = row["usage_day"].isoformat()
@@ -218,6 +225,8 @@ def _format_report(
             imports["duplicates"] += int(row["duplicate_count"] or 0)
             imports["review"] += int(row["review_count"] or 0)
             imports["quarantined"] += int(row["quarantined_count"] or 0)
+        elif code in connector_totals:
+            connector_totals[code] += count
     start_at = datetime.combine(start, time.min, tzinfo=UTC)
     end_at = datetime.combine(end + timedelta(days=1), time.min, tzinfo=UTC)
     owners: dict[str, dict[str, Any]] = {}
@@ -250,6 +259,7 @@ def _format_report(
             ],
         },
         "platform": {"csv_export": exports, "csv_import": imports},
+        "connectors": {"meta_lead_ads": connector_totals},
         "series": [series[key] for key in sorted(series)],
         "owner_breakdown": [owners[key] for key in sorted(owners)] if scope == "organization" else None,
     }

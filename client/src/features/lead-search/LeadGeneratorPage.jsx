@@ -1,39 +1,142 @@
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 
 import { useBodyScrollLock } from '../../shared/hooks/useBodyScrollLock'
 import { useErrorNotice } from '../../shared/hooks/useErrorNotice'
+import { MobileSearchSummary } from './components/MobileSearchSummary'
 import { Notices } from './components/Notices'
 import { ResultsCard } from './components/ResultsCard'
 import { SearchOverview } from './components/SearchOverview'
 import { SearchSidebar } from './components/SearchSidebar'
 import { TopBar } from './components/TopBar'
 import { initialForm } from './config'
-import { leadSearchMessages } from './messages'
 import { useApiHealth } from './hooks/useApiHealth'
 import { useLeadSearch } from './hooks/useLeadSearch'
 import { useProspectAdds } from './hooks/useProspectAdds'
+import { leadSearchMessages } from './messages'
 
+
+const SEARCH_SETTINGS_HISTORY_KEY = '__marketteoSearchSettingsOverlay'
+
+function createInitialLocation() {
+  return { area: '', locality: '', areaCountry: '', areaSelected: false, localitySelected: false }
+}
+
+function cloneSearchForm(form) {
+  return { ...form }
+}
+
+function cloneLocation(location) {
+  return { ...location }
+}
+
+function stateWithoutSearchSettingsMarker(state) {
+  if (!state || typeof state !== 'object') return {}
+  const { [SEARCH_SETTINGS_HISTORY_KEY]: _ignored, ...rest } = state
+  return rest
+}
 
 export function PlaceSearchPage({ session = null }) {
   const locale = session?.active_organization?.locale === 'en-CA' ? 'en-CA' : 'fr-CA'
   const copy = leadSearchMessages[locale]
-  const [form, setForm] = useState(initialForm)
-  const [location, setLocation] = useState({ area: '', locality: '', areaCountry: '', areaSelected: false, localitySelected: false })
+  const [form, setForm] = useState(() => cloneSearchForm(initialForm))
+  const [location, setLocation] = useState(createInitialLocation)
   const [manualMode, setManualMode] = useState(false)
   const [mobilePanelOpen, setMobilePanelOpen] = useState(false)
+  const [appliedSearch, setAppliedSearch] = useState(null)
+  const [mobileMapExpanded, setMobileMapExpanded] = useState(false)
+  const settingsTriggerRef = useRef(null)
+  const panelOpenRef = useRef(false)
+  const previousOrganizationRef = useRef(session?.active_organization?.id ?? '')
   const { error, clearError, reportError } = useErrorNotice()
-  const { result, loading, runSearch } = useLeadSearch({ clearError, reportError })
+  const { result, loading, runSearch, clearSearch } = useLeadSearch({ clearError, reportError })
   const prospectAdds = useProspectAdds({
     selectionToken: result?.selection_token ?? '',
     clearError,
     reportError,
   })
   const keyReady = useApiHealth()
+  const activeOrganizationId = session?.active_organization?.id ?? ''
 
+  panelOpenRef.current = mobilePanelOpen
   useBodyScrollLock(mobilePanelOpen)
 
   const places = result?.places ?? []
-  const resultForm = result?.search_parameters ?? form
+  const resultForm = appliedSearch?.form ?? result?.search_parameters ?? form
+
+  function restoreSettingsTriggerFocus() {
+    requestAnimationFrame(() => settingsTriggerRef.current?.focus())
+  }
+
+  function discardSearchSettingsHistoryMarker() {
+    if (!window.history.state?.[SEARCH_SETTINGS_HISTORY_KEY]) return
+    window.history.replaceState(stateWithoutSearchSettingsMarker(window.history.state), '')
+  }
+
+  function openSearchSettings(event) {
+    settingsTriggerRef.current = event?.currentTarget ?? settingsTriggerRef.current
+    if (!window.history.state?.[SEARCH_SETTINGS_HISTORY_KEY]) {
+      window.history.pushState({ ...(window.history.state ?? {}), [SEARCH_SETTINGS_HISTORY_KEY]: true }, '')
+    }
+    setMobilePanelOpen(true)
+  }
+
+  function requestSearchSettingsClose() {
+    const consumedHistoryEntry = Boolean(window.history.state?.[SEARCH_SETTINGS_HISTORY_KEY])
+    setMobilePanelOpen(false)
+    restoreSettingsTriggerFocus()
+    if (consumedHistoryEntry) window.history.back()
+  }
+
+  function cancelSearchSettings() {
+    if (appliedSearch) {
+      setForm(cloneSearchForm(appliedSearch.form))
+      setLocation(cloneLocation(appliedSearch.location))
+      setManualMode(appliedSearch.manualMode)
+    } else {
+      setForm(cloneSearchForm(initialForm))
+      setLocation(createInitialLocation())
+      setManualMode(false)
+    }
+    requestSearchSettingsClose()
+  }
+
+  useEffect(() => {
+    const closeOnHistoryNavigation = () => {
+      if (!panelOpenRef.current) return
+      setMobilePanelOpen(false)
+      restoreSettingsTriggerFocus()
+    }
+    window.addEventListener('popstate', closeOnHistoryNavigation)
+    return () => window.removeEventListener('popstate', closeOnHistoryNavigation)
+  }, [])
+
+  useEffect(() => {
+    if (!mobilePanelOpen || typeof window.matchMedia !== 'function') return undefined
+    const desktop = window.matchMedia('(min-width: 761px)')
+    const closeWhenDesktopReturns = event => {
+      if (!event.matches) return
+      discardSearchSettingsHistoryMarker()
+      setMobilePanelOpen(false)
+      restoreSettingsTriggerFocus()
+    }
+    desktop.addEventListener?.('change', closeWhenDesktopReturns)
+    return () => desktop.removeEventListener?.('change', closeWhenDesktopReturns)
+  }, [mobilePanelOpen])
+
+  useEffect(() => {
+    if (previousOrganizationRef.current === activeOrganizationId) return
+    previousOrganizationRef.current = activeOrganizationId
+    discardSearchSettingsHistoryMarker()
+    setMobilePanelOpen(false)
+    setMobileMapExpanded(false)
+    setAppliedSearch(null)
+    setForm(cloneSearchForm(initialForm))
+    setLocation(createInitialLocation())
+    setManualMode(false)
+    clearSearch()
+    clearError()
+  }, [activeOrganizationId, clearError, clearSearch])
+
   const updateForm = (key, value) => {
     setForm((current) => ({ ...current, [key]: value }))
     if (key === 'center_latitude' || key === 'center_longitude') {
@@ -56,17 +159,31 @@ export function PlaceSearchPage({ session = null }) {
 
   async function submitSearch(event) {
     event.preventDefault()
-    setMobilePanelOpen(false)
     if (!manualMode && !(location.areaSelected && location.localitySelected)) return
-    await runSearch({ ...form, language_code: locale === 'en-CA' ? 'en' : 'fr' })
+    const submittedForm = cloneSearchForm(form)
+    const submittedLocation = cloneLocation(location)
+    const submittedManualMode = manualMode
+    discardSearchSettingsHistoryMarker()
+    setMobilePanelOpen(false)
+    const data = await runSearch({ ...submittedForm, language_code: locale === 'en-CA' ? 'en' : 'fr' })
+    if (!data) return
+    setAppliedSearch({
+      form: { ...submittedForm, ...(data.search_parameters ?? {}) },
+      location: submittedLocation,
+      manualMode: submittedManualMode,
+    })
+    setMobileMapExpanded(false)
+    requestAnimationFrame(() => document.getElementById('search-results-heading')?.focus())
   }
 
   return <div className="app-shell">
     <SearchSidebar
+      appliedSearch={appliedSearch}
       form={form}
       loading={loading}
       mobilePanelOpen={mobilePanelOpen}
-      onClose={() => setMobilePanelOpen(false)}
+      onCancel={cancelSearchSettings}
+      onClose={requestSearchSettingsClose}
       onSubmit={submitSearch}
       onUpdate={updateForm}
       copy={copy}
@@ -78,30 +195,40 @@ export function PlaceSearchPage({ session = null }) {
       onManualMode={setManualMode}
     />
 
-    <main className="main-content">
+    <main className="main-content" inert={mobilePanelOpen || undefined}>
       <TopBar
         keyReady={keyReady}
         mobilePanelOpen={mobilePanelOpen}
-        onOpenSettings={() => setMobilePanelOpen(true)}
+        onOpenSettings={openSearchSettings}
+        settingsButtonRef={settingsTriggerRef}
         copy={copy}
       />
       <Notices error={error} keyReady={keyReady} onClearError={clearError} copy={copy} />
-      <SearchOverview
-        places={places}
-        result={result}
-        resultForm={resultForm}
-        loading={loading}
-        mapEnabled={session?.capabilities?.includes('google:map') ?? false}
+      <MobileSearchSummary
         copy={copy}
+        appliedSearch={appliedSearch}
+        mapExpanded={mobileMapExpanded}
+        onEdit={openSearchSettings}
+        onToggleMap={() => setMobileMapExpanded((current) => !current)}
       />
-      <ResultsCard
-        places={places}
-        result={result}
-        loading={loading}
-        canCreateProspects={session?.capabilities?.includes('prospects:create') ?? false}
-        prospectAdds={prospectAdds}
-        copy={copy}
-      />
+      <div className={`search-workspace ${result ? 'has-search' : ''} ${mobileMapExpanded ? 'mobile-map-expanded' : ''}`}>
+        <SearchOverview
+          places={places}
+          result={result}
+          resultForm={resultForm}
+          loading={loading}
+          mapEnabled={session?.capabilities?.includes('google:map') ?? false}
+          copy={copy}
+        />
+        <ResultsCard
+          places={places}
+          result={result}
+          loading={loading}
+          canCreateProspects={session?.capabilities?.includes('prospects:create') ?? false}
+          prospectAdds={prospectAdds}
+          copy={copy}
+        />
+      </div>
       <footer><span>{copy.footerData}</span><span>•</span><a href="/conditions.html">{copy.terms}</a><span>•</span><a href="/confidentialite.html">{copy.privacy}</a></footer>
     </main>
 

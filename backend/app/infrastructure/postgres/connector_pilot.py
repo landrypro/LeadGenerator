@@ -47,8 +47,13 @@ class MetaLeadProcessor:
         if lead_reference is None:
             return start_result
         if not self._settings.meta_lead_ads_enabled:
-            raise ValueError("external_review_required")
-        fields = await self._fetch(lead_reference)
+            await self._fail(ingestion_id, context, "external_review_required")
+            return "failed"
+        try:
+            fields = await self._fetch(lead_reference)
+        except RuntimeError as error:
+            await self._fail(ingestion_id, context, str(error))
+            return "failed"
         return await self._persist(ingestion_id, context, fields)
 
     async def _start(self, ingestion_id: UUID, context: TenantContext) -> tuple[str | None, str]:
@@ -71,16 +76,23 @@ class MetaLeadProcessor:
                     await _outcome(session, record, "quarantined")
                     await _terminal(session, ingestion_id, "quarantined", "source_event_stale")
                     return None, "quarantined"
-            if record["status"] == "succeeded" or record["status"] == "quarantined":
+            if record["status"] in {"succeeded", "quarantined", "failed", "revoked"}:
                 return None, str(record["status"])
             await session.execute(
                 text("""
                     UPDATE connector_ingestions
                     SET status = 'running', attempt_count = attempt_count + 1,
                         updated_at = clock_timestamp(), version = version + 1
-                    WHERE id = :id AND status IN ('queued', 'running')
+                WHERE id = :id AND status IN ('queued', 'running')
                 """),
                 {"id": ingestion_id},
+            )
+            await _record_connector_usage(
+                session,
+                record,
+                "meta_lead_ads.fetch_attempted",
+                "upstream_attempted",
+                "attempted",
             )
             value = record["lead_reference"]
             return (str(value), "running") if value else (None, "authorization_revoked")
@@ -214,6 +226,14 @@ class MetaLeadProcessor:
             await _terminal(session, ingestion_id, "succeeded", None)
             return "imported"
 
+    async def _fail(self, ingestion_id: UUID, context: TenantContext, error_code: str) -> None:
+        async with self._sessions.begin() as session:
+            await _set_tenant(session, context)
+            record = await self._authorized_ingestion(session, ingestion_id)
+            if record is not None and record["status"] not in {"succeeded", "quarantined", "failed", "revoked"}:
+                await _outcome(session, record, "failed")
+                await _terminal(session, ingestion_id, "failed", error_code)
+
     async def _authorized_ingestion(self, session: AsyncSession, ingestion_id: UUID) -> Mapping[str, object] | None:
         row = (
             (
@@ -224,7 +244,8 @@ class MetaLeadProcessor:
                            b.id AS binding_id, b.allow_full_name, b.allow_email, b.allow_phone,
                            b.email_permission_status, b.phone_permission_status,
                            c.provider_id, c.evidence_ref, a.id AS acquisition_id, a.source_label,
-                           a.purpose, a.territory, i.actor_user_id AS actor_id
+                           a.purpose, a.territory, i.actor_user_id AS actor_id,
+                           i.actor_membership_id AS actor_membership_id
                     FROM connector_ingestions i
                     JOIN provider_connector_bindings b ON b.id = i.binding_id AND b.organization_id = i.organization_id
                     JOIN provider_connector_contracts c ON c.id = b.contract_id AND c.organization_id = b.organization_id
@@ -346,6 +367,13 @@ class MetaLeadWebhookService:
                 text("UPDATE connector_ingestions SET job_id = :job_id WHERE id = :id"),
                 {"job_id": job_id, "id": ingestion_id},
             )
+            await _record_connector_usage(
+                session,
+                {"id": ingestion_id, "actor_membership_id": binding["actor_membership_id"]},
+                "meta_lead_ads.webhook_accepted",
+                "quota_reserved",
+                "accepted",
+            )
         return MetaWebhookAdmission(ingestion_id, False)
 
 
@@ -388,6 +416,38 @@ async def _outcome(
             "contact_id": contact_id,
             "provenance_id": provenance_id,
             "result_code": result_code,
+        },
+    )
+    usage = {
+        "imported": ("meta_lead_ads.imported", "upstream_succeeded", "succeeded"),
+        "quarantined": ("meta_lead_ads.quarantined", "upstream_failed", "quarantined"),
+        "failed": ("meta_lead_ads.failed", "upstream_failed", "failed"),
+    }.get(result_code)
+    if usage is not None:
+        await _record_connector_usage(session, record, *usage)
+
+
+async def _record_connector_usage(
+    session: AsyncSession,
+    record: Mapping[str, object],
+    usage_code: str,
+    event_kind: str,
+    outcome: str,
+) -> None:
+    await session.execute(
+        text("""
+            SELECT app_private.record_usage_event(
+                :membership, :operation, :code, :kind, :outcome, clock_timestamp(),
+                1, NULL, NULL, NULL, NULL, NULL,
+                NULL, NULL, NULL, NULL, NULL, NULL, NULL
+            )
+        """),
+        {
+            "membership": record["actor_membership_id"],
+            "operation": record["id"],
+            "code": usage_code,
+            "kind": event_kind,
+            "outcome": outcome,
         },
     )
 

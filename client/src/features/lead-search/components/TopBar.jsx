@@ -1,10 +1,10 @@
 import { Settings2 } from '../../../icons'
 
 
-export function TopBar({ copy, keyReady, mobilePanelOpen, onOpenSettings }) {
+export function TopBar({ copy, keyReady, mobilePanelOpen, onOpenSettings, settingsButtonRef }) {
   return <header className="topbar">
     <div className="topbar-heading">
-      <button className="mobile-controls-button" type="button" onClick={onOpenSettings} aria-expanded={mobilePanelOpen} aria-controls="search-panel" aria-label={copy.openSettings}><Settings2 size={17} /><span>{copy.settings}</span></button>
+      <button ref={settingsButtonRef} className="mobile-controls-button" type="button" onClick={onOpenSettings} aria-expanded={mobilePanelOpen} aria-controls="search-panel" aria-label={copy.openSettings}><Settings2 size={17} /><span>{copy.settings}</span></button>
       <div><p className="eyebrow">Google Places API (New)</p><h1>{copy.title}</h1></div>
     </div>
     <div className="topbar-actions">

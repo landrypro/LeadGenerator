@@ -37,9 +37,9 @@ export function PlaceTable({ copy, places, canCreateProspects = false, prospectA
       <td className="place-distance-cell">{place.radius_verified ? <span className="distance">{place.distance_km?.toLocaleString('fr-CA')} km</span> : <span className="unverified">{copy.unverified}</span>}</td>
       <td className="place-status-cell"><span className={`status-badge ${place.business_status === 'OPERATIONAL' ? 'active' : ''}`}><i />{place.business_status === 'OPERATIONAL' ? copy.opened : place.business_status || copy.unknown}</span></td>
       {canCreateProspects && <td className="place-crm-cell"><div className="crm-alias-action">
-        <label className="sr-only" htmlFor={`crm-alias-${index}`}>{copy.crmNameFor.replace('{name}', place.name || copy.unnamedPlace)}</label>
+        <label className="sr-only" htmlFor={`crm-alias-${place.place_id || index}`}>{copy.crmNameFor.replace('{name}', place.name || copy.unnamedPlace)}</label>
         <input
-          id={`crm-alias-${index}`}
+          id={`crm-alias-${place.place_id || index}`}
           className="crm-alias-input"
           value={alias}
           onChange={(event) => prospectAdds?.updateInternalAlias(place.place_id, event.target.value)}
@@ -54,7 +54,7 @@ export function PlaceTable({ copy, places, canCreateProspects = false, prospectA
         disabled={adding || added || !alias.trim()}
         onClick={() => prospectAdds?.addOne(place.place_id)}
       >{added && <Check size={13} />}{actionLabel(state, adding, copy)}</button>
-      </div></td>}
+      </div><small className="crm-name-notice">{copy.googleNameNotCopied}</small></td>}
       <td className="place-external-cell">{place.google_maps_url && <a className="open-link" href={place.google_maps_url} target="_blank" rel="noopener noreferrer" aria-label={copy.openInMaps.replace('{name}', place.name || copy.unnamedPlace)}><ExternalLink size={16} /></a>}</td>
     </tr>})}
   </tbody></table></div>

@@ -9,7 +9,7 @@ function Metric({ icon, label, value, detail, tone }) {
 
 
 export function SearchOverview({ copy, places, result, resultForm, loading, mapEnabled }) {
-  return <section className="overview-grid">
+  return <section id="search-overview-secondary" className="overview-grid">
     <CoverageMap
       places={places}
       form={resultForm}

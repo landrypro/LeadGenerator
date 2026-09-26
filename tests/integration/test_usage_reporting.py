@@ -39,7 +39,10 @@ async def test_usage_registry_is_idempotent_aggregated_and_tenant_scoped() -> No
         pytest.skip("Les URL PostgreSQL de test sont requises.")
     app, owner, worker = database(app_url), database(owner_url), database(worker_url)
     ids = {name: uuid4() for name in ("org_a", "org_b", "user_a", "user_b", "member_a", "member_b", "operation")}
-    now = datetime(2026, 9, 24, 15, tzinfo=UTC)
+    # Keep the successful connector events inside the reconciliation horizon.
+    # A fixed historical timestamp would make their upstream_attempted event
+    # eligible for indeterminate reconciliation on a later quality-gate run.
+    now = datetime.now(UTC).replace(microsecond=0)
     try:
         async with owner.engine.begin() as connection:
             await connection.execute(
@@ -92,6 +95,30 @@ async def test_usage_registry_is_idempotent_aggregated_and_tenant_scoped() -> No
         )
         await store.record(event)
         await store.record(event)
+
+        connector_events = (
+            ("meta_lead_ads.webhook_accepted", "quota_reserved", "accepted"),
+            ("meta_lead_ads.fetch_attempted", "upstream_attempted", "attempted"),
+            ("meta_lead_ads.imported", "upstream_succeeded", "succeeded"),
+            ("meta_lead_ads.quarantined", "upstream_failed", "quarantined"),
+            ("meta_lead_ads.failed", "upstream_failed", "failed"),
+        )
+        for code, kind, outcome in connector_events:
+            await store.record(
+                UsageEvent(
+                    context=context,
+                    membership_id=ids["member_a"],
+                    operation_id=uuid4(),
+                    usage_code=code,
+                    event_kind=kind,
+                    outcome=outcome,
+                    occurred_at=now,
+                )
+            )
+        connector_report = await store.report(context, start_on=now.date(), end_on=now.date(), user_id=ids["user_a"])
+        assert {row["usage_code"] for row in connector_report["rows"]} >= {
+            code for code, _kind, _outcome in connector_events
+        }
 
         personal = await store.report(context, start_on=now.date(), end_on=now.date(), user_id=ids["user_a"])
         organization = await store.report(context, start_on=now.date(), end_on=now.date(), user_id=None)

@@ -290,4 +290,70 @@ describe('PlaceSearchPage', () => {
     fireEvent.change(screen.getByLabelText('Nom interne CRM pour Plomberie Boréale'), { target: { value: 'Compte Québec' } })
     expect(screen.getByRole('button', { name: /^Ajouter$/i })).toBeEnabled()
   })
+
+  it('conserve les résultats appliqués lorsque le panneau contient un brouillon, puis restaure ce résultat avec Annuler', async () => {
+    leadSearchApi.search.mockResolvedValue(successfulResult())
+    render(<PlaceSearchPage />)
+
+    submitSearch()
+    await screen.findByText('Plomberie Boréale')
+    fireEvent.click(screen.getByRole('button', { name: 'Ouvrir les paramètres de recherche' }))
+    expect(screen.getByRole('dialog', { name: 'Paramètres' })).toBeInTheDocument()
+    fireEvent.change(screen.getByRole('textbox', { name: /Type d’entreprise/i }), { target: { value: 'électricien' } })
+    expect(screen.getByText('Brouillon : les résultats visibles restent liés à la dernière recherche appliquée.')).toBeInTheDocument()
+    expect(screen.getByText('Plomberie Boréale')).toBeInTheDocument()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Annuler' }))
+    expect(screen.getByRole('textbox', { name: /Type d’entreprise/i })).toHaveValue('plombier')
+    expect(screen.getByText('Plomberie Boréale')).toBeInTheDocument()
+  })
+
+  it('ferme le panneau avec Échap, restaure le focus et garde le brouillon non appliqué', async () => {
+    render(<PlaceSearchPage />)
+    const trigger = screen.getByRole('button', { name: 'Ouvrir les paramètres de recherche' })
+    fireEvent.click(trigger)
+    const dialog = screen.getByRole('dialog', { name: 'Paramètres' })
+    fireEvent.change(screen.getByRole('textbox', { name: /Type d’entreprise/i }), { target: { value: 'électricien' } })
+    expect(screen.getByRole('main')).toHaveAttribute('inert')
+    fireEvent.keyDown(dialog, { key: 'Escape' })
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+    await waitFor(() => expect(trigger).toHaveFocus())
+
+    fireEvent.click(trigger)
+    expect(screen.getByRole('textbox', { name: /Type d’entreprise/i })).toHaveValue('électricien')
+  })
+
+  it('purge les résultats et la sélection lorsque l’organisation active change', async () => {
+    leadSearchApi.search.mockResolvedValue(successfulResult())
+    const sessionA = { active_organization: { id: 'organization-a' }, capabilities: ['google:search', 'prospects:create'] }
+    const sessionB = { active_organization: { id: 'organization-b' }, capabilities: ['google:search', 'prospects:create'] }
+    const view = render(<PlaceSearchPage session={sessionA} />)
+
+    submitSearch()
+    await screen.findByText('Plomberie Boréale')
+    fireEvent.click(screen.getByRole('checkbox', { name: /Sélectionner Plomberie Boréale/i }))
+    view.rerender(<PlaceSearchPage session={sessionB} />)
+
+    await waitFor(() => expect(screen.queryByText('Plomberie Boréale')).not.toBeInTheDocument())
+    expect(screen.queryByRole('checkbox', { name: /Sélectionner Plomberie Boréale/i })).not.toBeInTheDocument()
+  })
+
+  it('indique une sélection partielle et dirige vers le premier nom CRM manquant sans écrire', async () => {
+    const result = successfulResult()
+    result.places.push({
+      place_id: 'place-2', name: 'Plomberie du Fleuve', address: 'Québec', primary_type: 'plumber', business_status: 'OPERATIONAL', radius_verified: true, distance_km: 2.4,
+    })
+    leadSearchApi.search.mockResolvedValue(result)
+    render(<PlaceSearchPage session={{ capabilities: ['google:search', 'prospects:create'] }} />)
+
+    submitSearch()
+    await screen.findByText('Plomberie du Fleuve')
+    fireEvent.click(screen.getByRole('checkbox', { name: /Sélectionner Plomberie Boréale/i }))
+    const selectAll = screen.getByRole('checkbox', { name: 'Sélectionner les résultats affichés' })
+    expect(selectAll.indeterminate).toBe(true)
+    fireEvent.click(screen.getByRole('button', { name: 'Ajouter la sélection' }))
+
+    expect(screen.getByLabelText('Nom interne CRM pour Plomberie Boréale')).toHaveFocus()
+    expect(leadSearchApi.addGoogleProspects).not.toHaveBeenCalled()
+  })
 })
