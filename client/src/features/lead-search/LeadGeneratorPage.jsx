@@ -1,3 +1,5 @@
+// Orchestrateur de la recherche : les composants enfants affichent l’UI, tandis
+// que cette page possède l’état partagé du formulaire, des résultats et de la carte.
 import { useEffect, useRef, useState } from 'react'
 
 import { useBodyScrollLock } from '../../shared/hooks/useBodyScrollLock'
@@ -81,6 +83,8 @@ export function PlaceSearchPage({ session = null }) {
   }
 
   function requestSearchSettingsClose() {
+    // Le marqueur History permet au bouton Retour de fermer le panneau mobile
+    // sans quitter la page de recherche.
     const consumedHistoryEntry = Boolean(window.history.state?.[SEARCH_SETTINGS_HISTORY_KEY])
     setMobilePanelOpen(false)
     restoreSettingsTriggerFocus()

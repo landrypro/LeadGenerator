@@ -1,3 +1,5 @@
+"""Composition root : branche les cas d’usage sur leurs adaptateurs."""
+
 from dataclasses import dataclass, field
 
 from .application.ports import (

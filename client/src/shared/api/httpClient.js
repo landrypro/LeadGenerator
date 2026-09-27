@@ -1,3 +1,5 @@
+// Client HTTP commun : centralise cookies, CSRF et conversion des erreurs afin
+// de garder un contrat homogène entre les écrans.
 export class ApiError extends Error {
   constructor(message, status = 0, code = '', fields = {}, retryAfter = '') {
     super(message)
@@ -32,6 +34,7 @@ async function readError(response, fallbackMessage) {
 }
 
 export async function request(path, { responseType = 'json', fallbackMessage = 'La requête a échoué.', ...options } = {}) {
+  // Les requêtes mutantes authentifiées par cookie portent le jeton CSRF.
   const method = (options.method || 'GET').toUpperCase()
   const headers = { ...options.headers }
   if (csrfToken && ['POST', 'PUT', 'PATCH', 'DELETE'].includes(method)) {

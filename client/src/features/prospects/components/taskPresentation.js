@@ -1,3 +1,4 @@
+// Règles de présentation de l'échéance, partagées par les composants de tâches.
 const TEXT = {
   'fr-CA': { late: 'En retard', today: 'Aujourd’hui', upcoming: 'À venir' },
   'en-CA': { late: 'Overdue', today: 'Today', upcoming: 'Upcoming' },

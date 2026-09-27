@@ -1,3 +1,5 @@
+// Vue agrégée d’un prospect : elle coordonne profil, conformité, activités,
+// tâches et opportunités tout en conservant une seule synchronisation.
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 
 import { Building2, Check, LoaderCircle, UsersRound } from '../../icons'
@@ -58,6 +60,8 @@ export function ProspectDetailPage({ routeParams, session }) {
     setLoading(true)
     setError('')
     try {
+      // Les ressources indépendantes sont chargées en parallèle ; le contrôleur
+      // empêche une ancienne fiche d’écraser les données du prospect courant.
       const requests = [
         prospectApi.get(prospectId, controller.signal),
         prospectApi.listContacts(prospectId, controller.signal),

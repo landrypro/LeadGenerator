@@ -1,3 +1,5 @@
+"""Routes de conformité : rétention, imports et décisions d’acquisition."""
+
 from __future__ import annotations
 
 from datetime import datetime

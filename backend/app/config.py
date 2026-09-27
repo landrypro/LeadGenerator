@@ -1,3 +1,9 @@
+"""Configuration centralisée et validation des garde-fous d’environnement.
+
+Les valeurs sont chargées depuis l’environnement puis validées ici afin que
+les composants applicatifs puissent supposer une configuration cohérente.
+"""
+
 from __future__ import annotations
 
 import os

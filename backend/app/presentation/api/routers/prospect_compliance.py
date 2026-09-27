@@ -1,3 +1,5 @@
+"""Routes de conformité des prospects et de leurs canaux de contact."""
+
 from __future__ import annotations
 
 from uuid import UUID

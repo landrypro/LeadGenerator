@@ -1,3 +1,5 @@
+// Encapsule le cycle de recherche Google : annulation, états d’attente et
+// normalisation de l’erreur affichée à l’utilisateur.
 import { useCallback, useEffect, useRef, useState } from 'react'
 
 import { leadSearchApi } from '../api/leadSearchApi'
@@ -15,6 +17,8 @@ export function useLeadSearch({ clearError, reportError }) {
   }, [])
 
   const runSearch = useCallback(async (form) => {
+    // Une nouvelle recherche invalide l’ancienne pour éviter qu’une réponse
+    // lente ne remplace les résultats les plus récents.
     activeRequestRef.current?.abort()
     const controller = new AbortController()
     const requestSequence = requestSequenceRef.current + 1

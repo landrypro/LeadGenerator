@@ -1,3 +1,5 @@
+"""Modèles de domaine produits par une recherche de prospects Google."""
+
 from __future__ import annotations
 
 from dataclasses import dataclass, field
