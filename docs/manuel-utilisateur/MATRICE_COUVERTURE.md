@@ -42,7 +42,14 @@ Statuts : `couvert`, `capturée`, `capture à produire`, `hors édition`.
 | Opportunités | Clôture et réouverture | Selon capacité | Documenter une perte, conclure ou réouvrir | CAP-35 | capturée (v0.10) |
 | Opportunités | Alignement pipeline | Selon capacité pipeline | Confirmer séparément une transition Kanban autorisée | CAP-36 | capturée (v0.10) |
 | Opportunités | Chronologie prospect | Commercial, gestionnaire, admin | Lire les créations, modifications, transitions et réouvertures | CAP-37 | capturée (v0.10) |
+| Navigation | En-tête, catégories et panneau responsive | Tous | Ouvrir les groupes, fermer avec Échap et accéder au manuel | CAP-38 | capturée (v0.11) |
+| Navigation | Barre mobile | Tous | Utiliser Accueil, Tâches, Prospects, Pipeline et Plus | CAP-39 | capturée (v0.11) |
+| Tableau de bord | `/app/dashboard` | Tous selon capacité | Choisir portée/période et lire photographies, flux et devises | CAP-40 | couvert (v0.11) |
+| Usage | `/app/usage` | Tous selon capacité | Consulter quota courant, rapport 93 jours et ventilation | CAP-41 | couvert (v0.11) |
+| Imports | `/app/imports/history` | Gestionnaire, admin | Lire sessions, runs et quarantaine minimisée | CAP-42 | couvert (v0.11) |
+| Exports | `/app/exports` | Tous selon capacité | Demander, suivre et télécharger un export CSV | CAP-43 | couvert (v0.11) |
+| Connexions | Onglet « Connexions » | Administrateur | Soumettre, faire approuver, activer ou arrêter un connecteur Meta | CAP-44 | couvert (v0.11) |
 
 ## Cahier de captures
 
-Les captures CAP-01, CAP-05, CAP-06, CAP-07, CAP-09, CAP-10 et CAP-11 sont représentées par les quatre vues historiques de démonstration. Les captures CAP-31 à CAP-37 documentent la phase 3.4 dans l'édition 0.10. Les captures CAP-26 à CAP-30 restent à produire. Toutes les captures utilisent des données fictives, masquent les courriels lorsqu'ils ne sont pas nécessaires, montrent uniquement la zone utile et conservent une largeur cohérente.
+Les captures CAP-01, CAP-05, CAP-06, CAP-07, CAP-09, CAP-10 et CAP-11 sont représentées par les vues historiques de démonstration. Les captures CAP-31 à CAP-37 documentent la phase 3.4 dans l'édition 0.10. Les captures CAP-38 à CAP-39 et CAP-44 utilisent les vues réelles fournies le 26 septembre 2026 ; les indicateurs 4.1 à 4.5 restent couverts par procédure et tests, avec capture à produire lorsque des données de démonstration dédiées seront disponibles. Toutes les captures utilisent des données fictives, masquent les courriels lorsqu'ils ne sont pas nécessaires, montrent uniquement la zone utile et conservent une largeur cohérente.

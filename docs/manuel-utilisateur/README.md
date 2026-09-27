@@ -4,14 +4,14 @@
 
 Ce dossier est la source de référence du manuel utilisateur de Marketteo CRM. Il doit rester synchronisé avec les écrans livrés, les capacités par rôle et les règles de conformité réellement appliquées par l'application.
 
-La première édition couvre l'état fonctionnel observé dans le dépôt au 25 août 2026. Elle s'adresse aux commerciaux, gestionnaires, administrateurs d'organisation et administrateurs de plateforme.
+L'édition 0.11 couvre l'état fonctionnel observé dans le dépôt et l'application au 26 septembre 2026. Elle s'adresse aux commerciaux, gestionnaires, administrateurs d'organisation et administrateurs de plateforme.
 
 ## Livrables
 
 - `MANUEL_UTILISATEUR.md` : source éditoriale versionnée ;
 - `MATRICE_COUVERTURE.md` : couverture des écrans, rôles et captures ;
-- `Marketteo_CRM_Manuel_Utilisateur_v0.10.docx` : édition Word illustrée ;
-- `Marketteo_CRM_Manuel_Utilisateur_v0.10.html` : édition HTML publiée dans l'application ;
+- `Marketteo_CRM_Manuel_Utilisateur_v0.11.docx` : édition Word illustrée ;
+- `Marketteo_CRM_Manuel_Utilisateur_v0.11.html` : édition HTML publiée dans l'application ;
 - `scripts/build_user_manual.py` : générateur reproductible du document Word ;
 - `scripts/build_user_manual_html.py` : générateur reproductible de l'édition HTML.
 
@@ -37,7 +37,7 @@ En cas de divergence, appliquer cet ordre :
 
 Les principales sources actuelles sont `client/src/app/routes.js`, les composants sous `client/src/features`, `backend/app/domain/identity.py` et `docs/SPECIFICATION_CRM_V1.md`.
 
-## Périmètre de l'édition 0.10
+## Périmètre de l'édition 0.11
 
 Sont documentés :
 
@@ -51,9 +51,13 @@ Sont documentés :
 - administration des organisations et audit de plateforme ;
 - pipeline commercial, activités, tâches et rappels internes ;
 - portefeuille, création, édition, clôture, réouverture et alignement des opportunités de la phase 3.4 ;
+- tableau de bord, quotas et rapports d'usage de la phase 4 ;
+- exports CSV CRM, historique des imports et quarantaine minimisée ;
+- fournisseurs, acquisitions et onglet « Connexions » du pilote Meta Lead Ads ;
+- navigation par catégories, menu responsive, barre mobile et accès intégré au manuel ;
 - limites actuelles et dépannage de premier niveau.
 
-Ne sont pas décrits comme disponibles : export des contenus Google, facturation, conversion de devises, notifications externes et automatisations futures.
+Ne sont pas décrits comme disponibles : export des contenus Google, facturation, conversion de devises, notifications externes, activation Meta réelle sans autorisation externe et automatisations futures.
 
 ## Cycle de mise à jour
 
@@ -80,7 +84,7 @@ Une édition est publiable lorsque :
 
 ## Décisions encore requises avant une édition 1.0
 
-- régénérer les captures et le DOCX après la migration des libellés visibles vers « Marketteo CRM » ;
+- valider l'édition 0.11 et ses captures après la migration des libellés visibles vers « Marketteo CRM » (captures et DOCX déjà régénérés) ;
 - fournir l'URL de production et le canal officiel de soutien ;
 - faire valider les consignes de conformité par la personne responsable ;
 - confirmer si l'administration de plateforme doit rester dans le même manuel ou devenir un guide séparé.
