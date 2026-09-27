@@ -1,22 +1,30 @@
-import { AccountPage } from '../features/account/AccountPage'
-import { PlatformAuditPage } from '../features/audit/PlatformAuditPage'
-import { TenantAuditPage } from '../features/audit/TenantAuditPage'
-import { PlaceSearchPage } from '../features/lead-search/LeadGeneratorPage'
-import { OrganizationPage } from '../features/organizations/OrganizationPage'
-import { MembersPage } from '../features/organizations/MembersPage'
-import { PlatformOrganizationsPage } from '../features/platform/PlatformOrganizationsPage'
-import { ProvidersAcquisitionsPage } from '../features/compliance/ProvidersAcquisitionsPage'
-import { RetentionImportsPage } from '../features/retention/RetentionImportsPage'
-import { ImportHistoryPage } from '../features/retention/ImportHistoryPage'
-import { ExportsPage } from '../features/exports/ExportsPage'
-import { CreateProspectPage } from '../features/prospects/CreateProspectPage'
-import { ProspectDetailPage } from '../features/prospects/ProspectDetailPage'
-import { ProspectsPage } from '../features/prospects/ProspectsPage'
-import { PipelinePage } from '../features/prospects/PipelinePage'
-import { TasksPage } from '../features/prospects/TasksPage'
-import { OpportunitiesPage } from '../features/opportunities/OpportunitiesPage'
-import { DashboardPage } from '../features/dashboard/DashboardPage'
-import { UsagePage } from '../features/usage/UsagePage'
+import { lazy } from 'react'
+
+
+function lazyNamed(loader, exportName) {
+  return lazy(() => loader().then(module => ({ default: module[exportName] })))
+}
+
+
+const AccountPage = lazyNamed(() => import('../features/account/AccountPage'), 'AccountPage')
+const PlatformAuditPage = lazyNamed(() => import('../features/audit/PlatformAuditPage'), 'PlatformAuditPage')
+const TenantAuditPage = lazyNamed(() => import('../features/audit/TenantAuditPage'), 'TenantAuditPage')
+const PlaceSearchPage = lazyNamed(() => import('../features/lead-search/LeadGeneratorPage'), 'PlaceSearchPage')
+const OrganizationPage = lazyNamed(() => import('../features/organizations/OrganizationPage'), 'OrganizationPage')
+const MembersPage = lazyNamed(() => import('../features/organizations/MembersPage'), 'MembersPage')
+const PlatformOrganizationsPage = lazyNamed(() => import('../features/platform/PlatformOrganizationsPage'), 'PlatformOrganizationsPage')
+const ProvidersAcquisitionsPage = lazyNamed(() => import('../features/compliance/ProvidersAcquisitionsPage'), 'ProvidersAcquisitionsPage')
+const RetentionImportsPage = lazyNamed(() => import('../features/retention/RetentionImportsPage'), 'RetentionImportsPage')
+const ImportHistoryPage = lazyNamed(() => import('../features/retention/ImportHistoryPage'), 'ImportHistoryPage')
+const ExportsPage = lazyNamed(() => import('../features/exports/ExportsPage'), 'ExportsPage')
+const CreateProspectPage = lazyNamed(() => import('../features/prospects/CreateProspectPage'), 'CreateProspectPage')
+const ProspectDetailPage = lazyNamed(() => import('../features/prospects/ProspectDetailPage'), 'ProspectDetailPage')
+const ProspectsPage = lazyNamed(() => import('../features/prospects/ProspectsPage'), 'ProspectsPage')
+const PipelinePage = lazyNamed(() => import('../features/prospects/PipelinePage'), 'PipelinePage')
+const TasksPage = lazyNamed(() => import('../features/prospects/TasksPage'), 'TasksPage')
+const OpportunitiesPage = lazyNamed(() => import('../features/opportunities/OpportunitiesPage'), 'OpportunitiesPage')
+const DashboardPage = lazyNamed(() => import('../features/dashboard/DashboardPage'), 'DashboardPage')
+const UsagePage = lazyNamed(() => import('../features/usage/UsagePage'), 'UsagePage')
 
 
 export const CRM_PATHS = Object.freeze({

@@ -79,11 +79,11 @@ describe('AppRouter', () => {
     expect(screen.queryByText('Recherche d’établissements')).not.toBeInTheDocument()
   })
 
-  it('ouvre la plateforme uniquement avec sa capacité de lecture', () => {
+  it('ouvre la plateforme uniquement avec sa capacité de lecture', async () => {
     window.history.replaceState({}, '', '/app/platform/organizations')
     renderRouter(authenticatedSession({ activeOrganization: null, capabilities: ['platform:organizations:read'], platformRole: 'platform_admin' }))
 
-    expect(screen.getByRole('heading', { name: 'Organisations de la plateforme' })).toBeInTheDocument()
+    expect(await screen.findByRole('heading', { name: 'Organisations de la plateforme' })).toBeInTheDocument()
     expect(screen.getByRole('link', { name: 'Plateforme' })).toHaveAttribute('aria-current', 'page')
   })
 
@@ -95,25 +95,25 @@ describe('AppRouter', () => {
     expect(screen.queryByRole('heading', { name: 'Recherche d’établissements' })).not.toBeInTheDocument()
   })
 
-  it('ouvre la page Organisation avec la capacité de lecture', () => {
+  it('ouvre la page Organisation avec la capacité de lecture', async () => {
     window.history.replaceState({}, '', '/app/admin/organization')
     renderRouter(authenticatedSession({
       activeOrganization: { id: 'org-1', name: 'Entreprise' },
       capabilities: ['organization:read'],
     }))
 
-    expect(screen.getByRole('heading', { name: 'Fiche de l’organisation' })).toBeInTheDocument()
+    expect(await screen.findByRole('heading', { name: 'Fiche de l’organisation' })).toBeInTheDocument()
     expect(screen.getByRole('link', { name: 'Organisation' })).toHaveAttribute('aria-current', 'page')
   })
 
-  it('ouvre la page Membres uniquement avec la capacité de lecture', () => {
+  it('ouvre la page Membres uniquement avec la capacité de lecture', async () => {
     window.history.replaceState({}, '', '/app/admin/users')
     renderRouter(authenticatedSession({
       activeOrganization: { id: 'org-1', name: 'Entreprise' },
       capabilities: ['members:read'],
     }))
 
-    expect(screen.getByRole('heading', { name: 'Administration des membres' })).toBeInTheDocument()
+    expect(await screen.findByRole('heading', { name: 'Administration des membres' })).toBeInTheDocument()
     expect(screen.getByRole('link', { name: 'Membres' })).toHaveAttribute('aria-current', 'page')
   })
 
@@ -135,7 +135,7 @@ describe('AppRouter', () => {
       activeOrganization: { id: 'org-1', name: 'Entreprise' },
       capabilities: ['google:search'],
     }))
-    expect(screen.getByRole('heading', { name: 'Recherche d’établissements' })).toBeInTheDocument()
+    expect(await screen.findByRole('heading', { name: 'Recherche d’établissements' })).toBeInTheDocument()
 
     window.history.replaceState({}, '', '/app/account')
     window.dispatchEvent(new PopStateEvent('popstate'))

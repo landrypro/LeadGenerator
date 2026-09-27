@@ -1,4 +1,4 @@
-import { useContext, useEffect, useState } from 'react'
+import { Suspense, useContext, useEffect, useState } from 'react'
 
 import { AuthContext } from '../features/auth/context'
 import { AccessDeniedPage } from '../features/auth/AccessDeniedPage'
@@ -76,14 +76,19 @@ export function AppRouter({ invitationToken = '' }) {
     content = <AccessDeniedPage homePath={homePath} />
   } else {
     const RouteComponent = route.Component
-    content = <RouteComponent
-      key={auth.session.active_organization?.id ?? 'without-organization'}
-      session={auth.session}
-      onLogout={auth.logout}
-      onOrganizationUpdated={auth.updateActiveOrganizationSummary}
-      onSessionInvalidated={auth.invalidateSession}
-      routeParams={route.params ?? {}}
-    />
+    const loadingMessage = auth.session.active_organization?.locale === 'en-CA'
+      ? 'Loading page…'
+      : 'Chargement de la page…'
+    content = <Suspense fallback={<SessionLoadingPage message={loadingMessage} />}>
+      <RouteComponent
+        key={auth.session.active_organization?.id ?? 'without-organization'}
+        session={auth.session}
+        onLogout={auth.logout}
+        onOrganizationUpdated={auth.updateActiveOrganizationSummary}
+        onSessionInvalidated={auth.invalidateSession}
+        routeParams={route.params ?? {}}
+      />
+    </Suspense>
   }
 
   return <AuthenticatedLayout
