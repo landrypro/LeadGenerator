@@ -857,5 +857,6 @@ def _retention_error(request: Request, error: Exception) -> Response | None:
     if isinstance(error, (AuthenticationServiceUnavailable, ProspectServiceUnavailable)):
         return api_error(request, 503, "retention_unavailable", "La conservation est temporairement indisponible.")
     if isinstance(error, ValueError):
-        return api_error(request, 422, "validation_failed", "La commande conservation est invalide.")
+        message = str(error).strip() or "La commande conservation est invalide."
+        return api_error(request, 422, "validation_failed", message)
     return None
