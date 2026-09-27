@@ -17,6 +17,7 @@ DEFAULT_CORS_ORIGINS = (
     "http://localhost:5173",
     "http://127.0.0.1:5173",
 )
+DEVELOPMENT_JOB_IDEMPOTENCY_HMAC_KEY: Final = "development-only-worker-idempotency-secret-change-me"
 VALID_APP_ENVIRONMENTS: Final = frozenset({"development", "test", "staging", "production"})
 POSTGRESQL_ASYNC_PREFIX: Final = "postgresql+asyncpg://"
 REDIS_PREFIXES: Final = ("redis://", "rediss://")
@@ -179,6 +180,8 @@ class Settings:
             raise ValueError("GOOGLE_SELECTION_GRANT_TTL_SECONDS ne peut pas dépasser 900 en staging et production.")
         if self.app_env == "staging" and not self.redis_url:
             raise ValueError("REDIS_URL est obligatoire en staging.")
+        if self.app_env == "staging" and len(self.job_idempotency_hmac_key.encode("utf-8")) < 32:
+            raise ValueError("JOB_IDEMPOTENCY_HMAC_KEY est obligatoire en staging.")
         if self.app_env == "production":
             self._validate_production_settings()
         if self.app_env in {"staging", "production"}:
@@ -204,6 +207,8 @@ class Settings:
             raise ValueError("PUBLIC_APP_URL doit être présente dans CORS_ALLOWED_ORIGINS.")
         if not self.rate_limit_hmac_key:
             raise ValueError("RATE_LIMIT_HMAC_KEY est obligatoire hors développement local.")
+        if len(self.job_idempotency_hmac_key.encode("utf-8")) < 32:
+            raise ValueError("JOB_IDEMPOTENCY_HMAC_KEY est obligatoire en production.")
 
     @property
     def static_maps_api_key(self) -> str:
@@ -269,7 +274,14 @@ class Settings:
             google_selection_grant_max_entries=int(values.get("GOOGLE_SELECTION_GRANT_MAX_ENTRIES", "1000")),
             import_temp_directory=values.get("IMPORT_TEMP_DIRECTORY", ".runtime/imports").strip(),
             import_temp_max_bytes=int(values.get("IMPORT_TEMP_MAX_BYTES", str(10 * 1024 * 1024))),
-            job_idempotency_hmac_key=values.get("JOB_IDEMPOTENCY_HMAC_KEY", "").strip(),
+            job_idempotency_hmac_key=(
+                values.get("JOB_IDEMPOTENCY_HMAC_KEY", "").strip()
+                or (
+                    DEVELOPMENT_JOB_IDEMPOTENCY_HMAC_KEY
+                    if app_env in {"development", "test"}
+                    else ""
+                )
+            ),
             meta_lead_ads_enabled=_parse_bool(values.get("META_LEAD_ADS_ENABLED", "false")),
             meta_webhook_verify_token=values.get("META_WEBHOOK_VERIFY_TOKEN", "").strip(),
             meta_webhook_app_secret=values.get("META_WEBHOOK_APP_SECRET", "").strip(),

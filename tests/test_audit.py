@@ -149,6 +149,16 @@ def test_usage_report_audit_accepts_only_minimized_period_metadata() -> None:
         )
 
 
+def test_export_failure_audit_accepts_the_terminal_retry_code() -> None:
+    event = _draft(
+        action=AuditAction.EXPORT_FAILED,
+        entity_type="export_request",
+        metadata={"dataset": "prospects", "error_code": "attempts_exhausted"},
+    )
+
+    assert event.metadata == {"dataset": "prospects", "error_code": "attempts_exhausted"}
+
+
 class _StubSession:
     def __init__(self, result: object) -> None:
         self.result = result

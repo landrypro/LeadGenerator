@@ -148,6 +148,7 @@ _EXPORT_ERRORS = frozenset(
         "limit_exceeded",
         "dependency_unavailable",
         "timeout",
+        "attempts_exhausted",
     }
 )
 _EXPORT_FILTERS = frozenset(

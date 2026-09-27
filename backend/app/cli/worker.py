@@ -50,7 +50,8 @@ class WorkerConfig:
     @classmethod
     def from_environment(cls) -> WorkerConfig:
         url = os.environ.get("WORKER_DATABASE_URL", "")
-        secret = os.environ.get("JOB_IDEMPOTENCY_HMAC_KEY", "").encode("utf-8")
+        settings = Settings.from_env()
+        secret = settings.job_idempotency_hmac_key.encode("utf-8")
         if not url.startswith("postgresql+asyncpg://prospect_worker:"):
             raise ValueError("WORKER_DATABASE_URL doit utiliser le rôle prospect_worker.")
         if len(secret) < 32:
@@ -62,7 +63,7 @@ class WorkerConfig:
         cleanup = int(os.environ.get("JOB_CLEANUP_ALERT_SECONDS", "1800"))
         if queue_lag < 1 or cleanup < 1:
             raise ValueError("Les seuils d'alerte doivent être positifs.")
-        return cls(url, directory, secret, queue_lag, cleanup, Settings.from_env())
+        return cls(url, directory, secret, queue_lag, cleanup, settings)
 
 
 async def _probe(claim: ClaimedJob, context: TenantContext, queue: PostgresJobQueue) -> str:

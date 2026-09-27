@@ -42,6 +42,17 @@ def test_settings_keep_legacy_defaults_and_static_key_fallback() -> None:
     assert settings.static_maps_api_key == "shared-key"
 
 
+def test_local_settings_default_export_idempotency_key() -> None:
+    settings = Settings.from_env({"APP_ENV": "development"})
+
+    assert len(settings.job_idempotency_hmac_key.encode("utf-8")) >= 32
+
+
+def test_staging_requires_export_idempotency_key() -> None:
+    with pytest.raises(ValueError, match="JOB_IDEMPOTENCY_HMAC_KEY"):
+        Settings(app_env="staging", redis_url="redis://redis:6379/0")
+
+
 def test_settings_reject_invalid_operational_limits() -> None:
     with pytest.raises(ValueError):
         Settings(map_grant_ttl_seconds=0)
