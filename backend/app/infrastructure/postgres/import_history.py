@@ -43,12 +43,12 @@ class ImportHistoryReader:
                        s.duplicate_count, s.review_count, s.quarantined_count, s.created_at,
                        s.expires_at, s.confirmed_at, s.version
                 FROM csv_import_sessions s JOIN import_declarations d ON d.id = s.declaration_id
-                WHERE (:status IS NULL OR s.status = :status)
-                  AND (:declaration_id IS NULL OR s.declaration_id = :declaration_id)
-                  AND (:author_id IS NULL OR d.declared_by = :author_id)
+                WHERE (CAST(:status AS text) IS NULL OR s.status = CAST(:status AS text))
+                  AND (CAST(:declaration_id AS uuid) IS NULL OR s.declaration_id = CAST(:declaration_id AS uuid))
+                  AND (CAST(:author_id AS uuid) IS NULL OR d.declared_by = CAST(:author_id AS uuid))
                   AND (CAST(:created_from AS timestamptz) IS NULL OR s.created_at >= :created_from)
                   AND (CAST(:created_to AS timestamptz) IS NULL OR s.created_at < :created_to)
-                  AND (CAST(:anchor_at AS timestamptz) IS NULL OR (s.created_at, s.id) < (CAST(:anchor_at AS timestamptz), :anchor_id))
+                  AND (CAST(:anchor_at AS timestamptz) IS NULL OR (s.created_at, s.id) < (CAST(:anchor_at AS timestamptz), CAST(:anchor_id AS uuid)))
                 ORDER BY s.created_at DESC, s.id DESC LIMIT :limit
             """),
                         {
@@ -91,11 +91,11 @@ class ImportHistoryReader:
                        r.quarantined_count, r.completed_at
                 FROM csv_import_runs r JOIN csv_import_sessions s ON s.id = r.session_id
                 JOIN import_declarations d ON d.id = s.declaration_id
-                WHERE (:declaration_id IS NULL OR s.declaration_id = :declaration_id)
-                  AND (:author_id IS NULL OR d.declared_by = :author_id)
+                WHERE (CAST(:declaration_id AS uuid) IS NULL OR s.declaration_id = CAST(:declaration_id AS uuid))
+                  AND (CAST(:author_id AS uuid) IS NULL OR d.declared_by = CAST(:author_id AS uuid))
                   AND (CAST(:created_from AS timestamptz) IS NULL OR r.completed_at >= :created_from)
                   AND (CAST(:created_to AS timestamptz) IS NULL OR r.completed_at < :created_to)
-                  AND (CAST(:anchor_at AS timestamptz) IS NULL OR (r.completed_at, r.id) < (CAST(:anchor_at AS timestamptz), :anchor_id))
+                  AND (CAST(:anchor_at AS timestamptz) IS NULL OR (r.completed_at, r.id) < (CAST(:anchor_at AS timestamptz), CAST(:anchor_id AS uuid)))
                 ORDER BY r.completed_at DESC, r.id DESC LIMIT :limit
             """),
                         {
