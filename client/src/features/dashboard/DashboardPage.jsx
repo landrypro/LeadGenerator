@@ -67,10 +67,12 @@ function dateTime(value, locale, timezone) {
   return new Intl.DateTimeFormat(locale, { dateStyle: 'medium', timeStyle: 'short', timeZone: timezone }).format(new Date(value))
 }
 
-function DataTable({ title, headers, rows, empty }) {
-  return <section className="dashboard-panel" aria-label={title}>
+function DataTable({ title, headers, rows, empty, wide = false }) {
+  const panelClassName = wide ? 'dashboard-panel dashboard-panel--wide' : 'dashboard-panel'
+  const tableClassName = `dashboard-table dashboard-table--${headers.length}`
+  return <section className={panelClassName} aria-label={title}>
     <h3>{title}</h3>
-    {rows.length ? <div className="dashboard-table-scroll"><table><caption className="sr-only">{title}</caption>
+    {rows.length ? <div className="dashboard-table-scroll"><table className={tableClassName}><caption className="sr-only">{title}</caption>
       <thead><tr>{headers.map((header) => <th scope="col" key={header}>{header}</th>)}</tr></thead>
       <tbody>{rows.map((row, index) => <tr key={index}>{row.map((cell, column) => column === 0
         ? <th scope="row" key={column}>{cell}</th> : <td key={column}>{cell}</td>)}</tr>)}</tbody>
@@ -97,7 +99,7 @@ function SummarySections({ data, locale, labels, timezone, compact = false }) {
     <div className="dashboard-grid">
       <DataTable title={labels.activities} headers={[labels.activity, labels.count]} empty={labels.noData}
         rows={data.activities_by_type.filter((item) => item.count > 0).map((item) => [activity(item.type), number(item.count, locale)])} />
-      <DataTable title={labels.passage} headers={[labels.from, labels.to, labels.cohort, labels.advanced, labels.rate]} empty={labels.noData}
+      <DataTable title={labels.passage} headers={[labels.from, labels.to, labels.cohort, labels.advanced, labels.rate]} empty={labels.noData} wide
         rows={data.stage_passage.map((item) => [stage(item.from_stage), stage(item.to_stage), number(item.cohort, locale), number(item.advanced, locale), item.rate_percent === null ? labels.insufficient : `${number(Number(item.rate_percent), locale)} %`])} />
       <DataTable title={labels.losses} headers={[labels.from, labels.cohort, labels.lost]} empty={labels.noData}
         rows={data.stage_losses.map((item) => [stage(item.from_stage), number(item.cohort, locale), number(item.lost, locale)])} />

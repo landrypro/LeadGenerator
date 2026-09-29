@@ -995,11 +995,20 @@ footer a:hover { color: #147da5; text-decoration: underline; }
 .dashboard-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 320px), 1fr)); gap: 14px; }
 .dashboard-panel { min-width: 0; padding: 16px; border: 1px solid #dce8eb; border-radius: 12px; background: #fff; }
 .dashboard-panel h2, .dashboard-panel h3 { margin: 0 0 12px; }
-.dashboard-table-scroll { max-width: 100%; overflow-x: auto; }
-.dashboard-panel table { width: 100%; border-collapse: collapse; text-align: left; }
-.dashboard-panel th, .dashboard-panel td { padding: 8px; border-bottom: 1px solid #e3ecee; vertical-align: top; }
+.dashboard-table-scroll { max-width: 100%; }
+.dashboard-panel .dashboard-table { width: 100%; min-width: 0; table-layout: fixed; border-collapse: collapse; text-align: left; }
+.dashboard-panel th, .dashboard-panel td { padding: 8px; border-bottom: 1px solid #e3ecee; vertical-align: top; overflow-wrap: anywhere; }
 .dashboard-panel td:not(:first-child) { text-align: right; font-variant-numeric: tabular-nums; }
 .dashboard-panel th { font-weight: 700; }
+.dashboard-table--2 th:first-child, .dashboard-table--2 td:first-child { width: 68%; }
+.dashboard-table--2 th:nth-child(2), .dashboard-table--2 td:nth-child(2) { width: 32%; }
+.dashboard-table--3 th:first-child, .dashboard-table--3 td:first-child { width: 19%; }
+.dashboard-table--3 th:nth-child(2), .dashboard-table--3 td:nth-child(2), .dashboard-table--3 th:nth-child(3), .dashboard-table--3 td:nth-child(3) { width: 40.5%; }
+.dashboard-table--5 { font-size: 11px; }
+.dashboard-table--5 th, .dashboard-table--5 td { padding: 7px 5px; }
+.dashboard-table--5 th:nth-child(1), .dashboard-table--5 td:nth-child(1), .dashboard-table--5 th:nth-child(2), .dashboard-table--5 td:nth-child(2) { width: 25%; }
+.dashboard-table--5 th:nth-child(n + 3), .dashboard-table--5 td:nth-child(n + 3) { width: 16.66%; }
+.dashboard-panel--wide { grid-column: span 2; }
 
 .usage-warning { color: #8a4b08; font-weight: 700; }
 .usage-volumes { display: grid; gap: 1rem; margin: 0; }
@@ -1012,4 +1021,9 @@ footer a:hover { color: #147da5; text-decoration: underline; }
 .dashboard-breakdown details { margin: 10px 0; padding: 12px; border: 1px solid #dce8eb; border-radius: 10px; }
 .dashboard-breakdown summary { cursor: pointer; font-weight: 700; }
 .dashboard-compact { margin-top: 16px; }
+@media (max-width: 760px) {
+  .dashboard-panel--wide { grid-column: auto; }
+  .dashboard-table--5 { font-size: 10px; }
+  .dashboard-table--5 th, .dashboard-table--5 td { padding-inline: 3px; }
+}
 @media (max-width: 600px) { .dashboard-filters label, .dashboard-filters button { width: 100%; } }
