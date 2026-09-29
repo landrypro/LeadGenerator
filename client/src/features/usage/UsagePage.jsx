@@ -15,6 +15,7 @@ const COPY = {
     error: 'Impossible de charger le rapport d’usage.', current: 'Quota Text Search courant', used: 'utilisées', remaining: 'restantes',
     reset: 'Remise à zéro', warning: 'Le seuil d’avertissement est atteint.', google: 'Opérations Google', platform: 'Volumes de plateforme',
     day: 'Série journalière', code: 'Opération', values: 'Mesures', exports: 'Exports CSV', imports: 'Imports CSV',
+    technicalDetails: 'Détails techniques', technicalCode: 'Code de suivi', technicalUnit: 'Unité de mesure', quotaSummary: 'Réservations Text Search',
     invoice: 'Ce rapport présente des unités techniques et ne constitue pas une facture.', empty: 'Aucun usage enregistré sur cette période.',
     invalid: 'Choisir une plage valide de 93 jours au plus.',
     breakdown: 'Ventilation par membre',
@@ -29,6 +30,7 @@ const COPY = {
     member: 'Member', choose: 'Choose a member', apply: 'Show', loading: 'Loading usage…', error: 'Could not load the usage report.',
     current: 'Current Text Search quota', used: 'used', remaining: 'remaining', reset: 'Reset', warning: 'The warning threshold has been reached.',
     google: 'Google operations', platform: 'Platform volumes', day: 'Daily series', code: 'Operation', values: 'Measures',
+    technicalDetails: 'Technical details', technicalCode: 'Tracking code', technicalUnit: 'Unit of measure', quotaSummary: 'Text Search reservations',
     exports: 'CSV exports', imports: 'CSV imports', invoice: 'This report shows technical units and is not an invoice.',
     empty: 'No usage was recorded for this period.', invalid: 'Choose a valid range of no more than 93 days.',
     breakdown: 'By member',
@@ -40,8 +42,67 @@ const COPY = {
 
 function count(value, locale) { return new Intl.NumberFormat(locale).format(value ?? 0) }
 function dateTime(value, locale) { return new Intl.DateTimeFormat(locale, { dateStyle: 'medium', timeStyle: 'short', timeZone: 'UTC' }).format(new Date(value)) }
-function measures(item, locale) {
-  return Object.entries(item).filter(([key]) => !['code', 'unit'].includes(key)).map(([key, value]) => `${key}: ${count(value, locale)}`).join(' · ')
+function date(value, locale) { return new Intl.DateTimeFormat(locale, { dateStyle: 'medium', timeZone: 'UTC' }).format(new Date(`${value}T00:00:00Z`)) }
+
+const OPERATION_LABELS = {
+  'google.places_text_search.quota': ['Réservations de quota Text Search', 'Text Search quota reservations'],
+  'google.places_text_search.request': ['Recherches d’établissements', 'Place searches'],
+  'google.places_autocomplete.request': ['Suggestions de lieux', 'Place suggestions'],
+  'google.places_details.request': ['Consultations de fiches établissement', 'Place detail lookups'],
+  'google.maps_static.request': ['Cartes statiques', 'Static maps'],
+  'platform.csv_export': ['Exports CSV', 'CSV exports'],
+  'platform.csv_import': ['Imports CSV', 'CSV imports'],
+}
+
+const MEASURE_LABELS = {
+  accepted: ['Acceptées', 'Accepted'], rejected: ['Refusées', 'Rejected'], attempted: ['Tentées', 'Attempted'],
+  succeeded: ['Réussies', 'Succeeded'], failed: ['Échouées', 'Failed'], indeterminate: ['À confirmer', 'Pending confirmation'],
+  requested: ['Demandes créées', 'Requests created'], ready: ['Fichiers prêts', 'Files ready'], expired: ['Expirés', 'Expired'],
+  rows: ['Lignes exportées', 'Rows exported'], omitted: ['Lignes omises', 'Rows omitted'], bytes: ['Taille générée', 'Generated size'],
+  confirmed_runs: ['Imports confirmés', 'Confirmed imports'], examined_rows: ['Lignes analysées', 'Rows reviewed'],
+  created: ['Fiches créées', 'Records created'], duplicates: ['Doublons détectés', 'Duplicates detected'],
+  review: ['À vérifier', 'Needs review'], quarantined: ['Mises en quarantaine', 'Quarantined'],
+}
+
+const EVENT_LABELS = {
+  quota_reserved: ['Réservations de quota', 'Quota reservations'], upstream_attempted: ['Appels au fournisseur', 'Provider calls'],
+  export_requested: ['Demandes d’export', 'Export requests'], export_ready: ['Exports prêts', 'Exports ready'],
+  export_failed: ['Exports échoués', 'Failed exports'], export_expired: ['Exports expirés', 'Expired exports'],
+  import_confirmed: ['Imports confirmés', 'Confirmed imports'], import_examined: ['Lignes analysées', 'Rows reviewed'],
+  import_created: ['Fiches créées', 'Records created'], import_duplicate: ['Doublons détectés', 'Duplicates detected'],
+  import_review: ['Fiches à vérifier', 'Records needing review'], import_quarantined: ['Fiches en quarantaine', 'Quarantined records'],
+}
+
+function label(labels, key, locale) {
+  if (!key) return locale === 'en-CA' ? 'Event' : 'Événement'
+  return labels[key]?.[locale === 'en-CA' ? 1 : 0] ?? key.replace(/[._-]+/g, ' ').replace(/^./, (letter) => letter.toUpperCase())
+}
+function byteCount(value, locale) { return new Intl.NumberFormat(locale, { maximumFractionDigits: 1 }).format((value ?? 0) / 1024) }
+
+function MetricList({ item, locale }) {
+  return <dl className="usage-metric-list">{Object.entries(item).filter(([key]) => !['code', 'unit'].includes(key)).map(([key, value]) => <div key={key}>
+    <dt>{label(MEASURE_LABELS, key, locale)}</dt><dd>{key === 'bytes' ? `${byteCount(value, locale)} Ko` : count(value, locale)}</dd>
+  </div>)}</dl>
+}
+
+function TechnicalDetails({ code, unit, copy }) {
+  return <details className="usage-technical-details"><summary>{copy.technicalDetails}</summary>
+    <dl><div><dt>{copy.technicalCode}</dt><dd><code>{code}</code></dd></div>{unit && <div><dt>{copy.technicalUnit}</dt><dd>{unit}</dd></div>}</dl>
+  </details>
+}
+
+function UsageEventList({ operations, locale }) {
+  return <ul className="usage-event-list">{Object.entries(operations).map(([key, value]) => {
+      const [operation, event, result] = key.split(':')
+      return <li key={key}><span>{label(OPERATION_LABELS, operation, locale)} · {label(EVENT_LABELS, event, locale)}</span><strong>{label(MEASURE_LABELS, result, locale)} : {count(value, locale)}</strong></li>
+    })}</ul>
+}
+
+function DailySeries({ series, locale }) {
+  return <div className="usage-daily-series">{series.map((item) => <section key={item.date} className="usage-day">
+    <h3><time dateTime={`${item.date}T00:00:00Z`}>{date(item.date, locale)}</time></h3>
+    <UsageEventList operations={item.operations} locale={locale} />
+  </section>)}</div>
 }
 
 export function UsagePage({ session }) {
@@ -96,11 +157,11 @@ export function UsagePage({ session }) {
     {data && current && <>
       <p className="dashboard-asof">{data.period.start_on} – {data.period.end_on} (UTC)</p>
       {data.completeness?.status === 'partial' && <p role="status" className="usage-warning">{copy.partial}</p>}
-      <section className="dashboard-panel"><h2>{copy.current}</h2><p><strong>{count(current.used, locale)} / {count(current.limit, locale)}</strong> {copy.used} · {count(current.remaining, locale)} {copy.remaining}</p><p>{copy.reset}: {dateTime(current.reset_at, locale)} UTC · {current.unit} · {current.policy_code} · {current.source}</p>{current.enforcement_status !== 'available' && <p role="status" className="usage-warning">{copy.quotaUnavailable}</p>}{warning && <p role="status" className="usage-warning">{copy.warning}</p>}</section>
-      <section className="dashboard-panel"><h2>{copy.google}</h2><div className="dashboard-table-scroll"><table><thead><tr><th scope="col">{copy.code}</th><th scope="col">{copy.values}</th></tr></thead><tbody>{data.google.totals.map((item) => <tr key={item.code}><th scope="row">{item.code}<small>{item.unit}</small></th><td>{measures(item, locale)}</td></tr>)}</tbody></table></div></section>
-      <section className="dashboard-panel"><h2>{copy.platform}</h2><dl className="usage-volumes"><div><dt>{copy.exports}</dt><dd>{measures(data.platform.csv_export, locale)}</dd></div><div><dt>{copy.imports}</dt><dd>{measures(data.platform.csv_import, locale)}</dd></div></dl></section>
-      <section className="dashboard-panel"><h2>{copy.day}</h2>{hasRows ? <div className="dashboard-table-scroll"><table><thead><tr><th scope="col">UTC</th><th scope="col">{copy.values}</th></tr></thead><tbody>{data.series.map((item) => <tr key={item.date}><th scope="row">{item.date}</th><td>{Object.entries(item.operations).map(([key, value]) => `${key}: ${count(value, locale)}`).join(' · ')}</td></tr>)}</tbody></table></div> : <p>{data.completeness?.status === 'complete' ? copy.empty : copy.partialEmpty}</p>}</section>
-      {data.owner_breakdown?.length > 0 && <section className="dashboard-panel"><h2>{copy.breakdown}</h2>{data.owner_breakdown.map((item) => <details key={item.owner_membership_id}><summary>{members.items.find((member) => member.membership_id === item.owner_membership_id)?.user.display_name ?? item.owner_membership_id}</summary><p>{Object.entries(item.operations).map(([key, value]) => `${key}: ${count(value, locale)}`).join(' · ')}</p></details>)}</section>}
+      <section className="dashboard-panel"><h2>{copy.current}</h2><p><strong>{copy.quotaSummary} : {count(current.used, locale)} {copy.used} sur {count(current.limit, locale)}</strong> · {count(current.remaining, locale)} {copy.remaining}</p><p>{copy.reset}: {dateTime(current.reset_at, locale)} UTC.</p><TechnicalDetails code={`${current.policy_code} · ${current.source}`} unit={current.unit} copy={copy} />{current.enforcement_status !== 'available' && <p role="status" className="usage-warning">{copy.quotaUnavailable}</p>}{warning && <p role="status" className="usage-warning">{copy.warning}</p>}</section>
+      <section className="dashboard-panel"><h2>{copy.google}</h2><div className="usage-operation-list">{data.google.totals.map((item) => <article key={item.code} className="usage-operation"><h3>{label(OPERATION_LABELS, item.code, locale)}</h3><MetricList item={item} locale={locale} /><TechnicalDetails code={item.code} unit={item.unit} copy={copy} /></article>)}</div></section>
+      <section className="dashboard-panel"><h2>{copy.platform}</h2><dl className="usage-volumes"><div><dt>{copy.exports}</dt><dd><MetricList item={data.platform.csv_export} locale={locale} /></dd></div><div><dt>{copy.imports}</dt><dd><MetricList item={data.platform.csv_import} locale={locale} /></dd></div></dl></section>
+      <section className="dashboard-panel"><h2>{copy.day}</h2>{hasRows ? <DailySeries series={data.series} locale={locale} /> : <p>{data.completeness?.status === 'complete' ? copy.empty : copy.partialEmpty}</p>}</section>
+      {data.owner_breakdown?.length > 0 && <section className="dashboard-panel"><h2>{copy.breakdown}</h2>{data.owner_breakdown.map((item) => <details key={item.owner_membership_id}><summary>{members.items.find((member) => member.membership_id === item.owner_membership_id)?.user.display_name ?? item.owner_membership_id}</summary><UsageEventList operations={item.operations} locale={locale} /></details>)}</section>}
       <p className="dashboard-attribution">{copy.invoice}</p>
     </>}
   </main>

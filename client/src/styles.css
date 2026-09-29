@@ -1015,7 +1015,25 @@ footer a:hover { color: #147da5; text-decoration: underline; }
 .usage-volumes div { border-bottom: 1px solid #d8dee8; padding-bottom: 0.75rem; }
 .usage-volumes dt { font-weight: 700; }
 .usage-volumes dd { margin: 0.35rem 0 0; }
-.usage-page table small { display: block; font-weight: 400; }
+.usage-operation-list { display: grid; gap: 10px; }
+.usage-operation { padding: 12px; border: 1px solid #e1ecef; border-radius: 10px; background: #fbfdfd; }
+.usage-operation h3 { margin: 0 0 9px; font-size: 14px; }
+.usage-metric-list { display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 8px; margin: 0; }
+.usage-metric-list div { display: grid; gap: 2px; padding: 8px 10px; border-radius: 8px; background: #f1f7f8; }
+.usage-metric-list dt { color: #59717b; font-size: 11px; font-weight: 700; }
+.usage-metric-list dd { margin: 0; color: #183b4b; font-size: 15px; font-variant-numeric: tabular-nums; font-weight: 800; }
+.usage-technical-details { margin-top: 9px; color: #5f7882; font-size: 11px; }
+.usage-technical-details summary { cursor: pointer; font-weight: 700; }
+.usage-technical-details dl { display: grid; gap: 4px; margin: 8px 0 0; }
+.usage-technical-details dl div { display: grid; grid-template-columns: minmax(0, 140px) minmax(0, 1fr); gap: 8px; }
+.usage-technical-details dt { font-weight: 700; }
+.usage-technical-details dd { min-width: 0; margin: 0; overflow-wrap: anywhere; }
+.usage-daily-series { display: grid; gap: 10px; }
+.usage-day { padding: 12px; border: 1px solid #e1ecef; border-radius: 10px; background: #fbfdfd; }
+.usage-day h3 { margin: 0 0 8px; font-size: 14px; }
+.usage-event-list { display: grid; gap: 6px; margin: 8px 0 0; padding: 0; list-style: none; }
+.usage-event-list li { display: flex; justify-content: space-between; gap: 14px; padding: 7px 9px; border-radius: 7px; background: #f1f7f8; color: #385966; font-size: 12px; }
+.usage-event-list li strong { flex: 0 0 auto; color: #183b4b; font-variant-numeric: tabular-nums; }
 .dashboard-breakdown { margin-top: 24px; }
 .dashboard-breakdown > p { color: #5f7882; }
 .dashboard-breakdown details { margin: 10px 0; padding: 12px; border: 1px solid #dce8eb; border-radius: 10px; }
@@ -1025,5 +1043,6 @@ footer a:hover { color: #147da5; text-decoration: underline; }
   .dashboard-panel--wide { grid-column: auto; }
   .dashboard-table--5 { font-size: 10px; }
   .dashboard-table--5 th, .dashboard-table--5 td { padding-inline: 3px; }
+  .usage-event-list li { display: grid; gap: 3px; }
 }
 @media (max-width: 600px) { .dashboard-filters label, .dashboard-filters button { width: 100%; } }

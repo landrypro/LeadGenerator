@@ -46,7 +46,9 @@ describe('UsagePage', () => {
     expect(await screen.findByText(/16 \/ 20/)).toBeInTheDocument()
     expect(screen.getByText(/seuil d’avertissement/)).toBeInTheDocument()
     expect(screen.getByText(/ne constitue pas une facture/)).toBeInTheDocument()
-    expect(screen.getByText('google.places_text_search.quota')).toBeInTheDocument()
+    expect(screen.getByRole('heading', { name: 'Réservations de quota Text Search' })).toBeInTheDocument()
+    expect(screen.getByText('Demandes créées')).toBeInTheDocument()
+    expect(screen.getByText('Appels au fournisseur')).toBeInTheDocument()
     expect(screen.getByText(/données sont partielles/)).toBeInTheDocument()
   })
 
