@@ -17,6 +17,7 @@ from backend.app.application.use_cases.search_google_places import (
     MAX_GOOGLE_RESULTS,
     SearchGooglePlacesUseCase,
 )
+from backend.app.infrastructure.google.simulated import SimulatedGooglePlacesGateway
 from backend.app.infrastructure.memory import (
     InMemoryGenerationGuard,
     InMemoryGoogleSelectionGrantStore,
@@ -147,6 +148,35 @@ async def test_use_case_records_reservation_attempt_and_success_with_one_operati
     ]
     assert len({event.operation_id for event in usage.events}) == 1
     assert all(event.context.organization_id == usage.events[0].context.organization_id for event in usage.events)
+
+
+@pytest.mark.asyncio
+async def test_simulated_search_does_not_issue_a_map_grant_with_the_manual_coordinates() -> None:
+    usage = UsageRecorder()
+    use_case = SearchGooglePlacesUseCase(
+        SimulatedGooglePlacesGateway(),
+        InMemoryGenerationGuard(),
+        InMemoryMapSnapshotGrantStore(),
+        InMemoryGoogleSelectionGrantStore(),
+        PermissiveGoogleSearchPolicy(),
+        PermissiveGoogleSearchQuota(),
+        FixedClock(),
+        usage=usage,  # type: ignore[arg-type]
+        issue_map_snapshot=False,
+    )
+
+    outcome = await use_case.execute(
+        GooglePlaceSearchCriteria(query="plombier", center_latitude=46.8139, center_longitude=-71.2080),
+        access_context(),
+    )
+
+    assert outcome.map_snapshot_token == ""
+    assert outcome.selection_token
+    assert [event.event_kind for event in usage.events] == [
+        "quota_reserved",
+        "upstream_attempted",
+        "upstream_succeeded",
+    ]
 
 
 @pytest.mark.asyncio

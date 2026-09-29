@@ -3,6 +3,7 @@ from __future__ import annotations
 import csv
 import io
 from datetime import UTC, datetime
+from unittest.mock import MagicMock
 from uuid import uuid4
 
 import pytest
@@ -82,6 +83,23 @@ def test_google_origin_alias_stays_excluded_after_manual_profile_update() -> Non
     assert "city" not in allowed
     row["_prospect_origin"] = "import"
     assert ExportService._allowed_fields(row, "prospect_profile", [], datetime(2026, 9, 24, tzinfo=UTC)) == set()
+
+
+def test_recovery_removes_only_provisionals_owned_by_the_retried_job(tmp_path) -> None:
+    service = ExportService(MagicMock(), str(tmp_path), b"x" * 32)
+    service._root.mkdir()
+    retried_job, other_job = uuid4(), uuid4()
+    own_provisional = service._root / f".{retried_job}.aabbcc.tmp"
+    other_provisional = service._root / f".{other_job}.ddeeff.tmp"
+    legacy_provisional = service._root / ".legacy.tmp"
+    for path in (own_provisional, other_provisional, legacy_provisional):
+        path.write_bytes(b"temporary")
+
+    service._remove_job_provisionals(retried_job)
+
+    assert not own_provisional.exists()
+    assert other_provisional.exists()
+    assert legacy_provisional.exists()
 
 
 def test_export_audit_metadata_is_closed_and_minimized() -> None:

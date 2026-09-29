@@ -104,7 +104,12 @@ async def test_unmatched_path_is_normalized_before_json_logging(capsys: pytest.C
 
 
 def test_staging_requires_json_logs_enabled_metrics_and_a_secret() -> None:
-    common = {"app_env": "staging", "redis_url": "rediss://redis:6379/0", "log_format": "json"}
+    common = {
+        "app_env": "staging",
+        "redis_url": "rediss://redis:6379/0",
+        "log_format": "json",
+        "job_idempotency_hmac_key": "test-job-idempotency-key-with-at-least-32-bytes",
+    }
 
     with pytest.raises(ValueError, match="METRICS_ENABLED"):
         Settings(**common)  # type: ignore[arg-type]

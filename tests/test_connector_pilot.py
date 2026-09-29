@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import asyncio
 import hashlib
 import hmac
 import json
@@ -8,6 +9,7 @@ import pytest
 
 from backend.app.config import Settings
 from backend.app.infrastructure.postgres.connector_pilot import (
+    MetaLeadProcessor,
     MetaLeadWebhookService,
     MetaWebhookRejected,
     _approved_meta_fields,
@@ -52,6 +54,26 @@ def test_meta_mapping_discards_custom_answers_and_invalid_channels() -> None:
     assert fields.full_name == "Ada Lovelace"
     assert _normalize_channel("email", fields.email or "") == "ada@example.test"
     assert _normalize_channel("phone", fields.phone or "") is None
+
+
+def test_meta_simulator_returns_synthetic_fields_without_an_upstream_call() -> None:
+    processor = MetaLeadProcessor.__new__(MetaLeadProcessor)
+    processor._settings = Settings(  # type: ignore[attr-defined]
+        meta_lead_ads_enabled=True,
+        meta_lead_ads_simulator_enabled=True,
+        meta_webhook_verify_token="v" * 32,
+        meta_webhook_app_secret="s" * 32,
+        meta_reference_hmac_key="h" * 32,
+        meta_lead_reference_encryption_key="e" * 32,
+        meta_graph_access_token="t" * 32,
+        job_idempotency_hmac_key="j" * 32,
+    )
+
+    fields = asyncio.run(processor._fetch("E2E08-LEAD-001"))
+
+    assert fields.full_name == "Lead Meta Simulé"
+    assert fields.email == "e2e08-8f6cd729f556@example.test"
+    assert fields.phone == "+14165550123"
 
 
 def test_meta_webhook_challenge_and_signature_use_constant_time_service_contract() -> None:

@@ -79,7 +79,25 @@ async def test_create_app_uses_injected_settings_for_health() -> None:
         response = await client.get("/api/health")
 
     assert response.status_code == 200
-    assert response.json() == {"status": "ok", "google_api_key_configured": True}
+    assert response.json() == {
+        "status": "ok",
+        "google_api_key_configured": True,
+        "google_places_mode": "live",
+    }
+
+
+async def test_health_reports_local_google_simulator_as_available() -> None:
+    app = create_app(Settings(google_places_simulator_enabled=True))
+
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+        response = await client.get("/api/health")
+
+    assert response.status_code == 200
+    assert response.json() == {
+        "status": "ok",
+        "google_api_key_configured": True,
+        "google_places_mode": "simulated",
+    }
 
 
 async def test_default_container_without_redis_fails_google_closed_without_memory_fallback() -> None:
