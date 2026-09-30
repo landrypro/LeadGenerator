@@ -4,9 +4,9 @@
 | --- | --- |
 | Produit | Marketteo CRM |
 | Lot | 4.6 — Recette de phase et tests de bout en bout |
-| Version | 0.4 — verrou qualité local VERT |
-| Statut | Décisions `P4.6-01` à `P4.6-08` validées ; implémentation et verrou qualité local VERT le 25 septembre 2026 |
-| Date | 25 septembre 2026 (UTC) |
+| Version | 0.5 — clôture locale |
+| Statut | GO de clôture locale reçu le 30 septembre 2026 ; verrou qualité local VERT sur la tête Alembic `20260929_0030`. Le passage Azure sur le commit de clôture reste requis pour le verdict global. |
+| Date | 30 septembre 2026 (UTC) |
 | Contrat parent | [`PHASE_4_SPECIFICATIONS_DETAILLEES.md`](PHASE_4_SPECIFICATIONS_DETAILLEES.md) |
 | Prérequis | Lots 4.1 à 4.5 implémentés ; tête 4.6 `20260925_0026` validée par le verrou local |
 

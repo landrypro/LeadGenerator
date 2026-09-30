@@ -4,9 +4,9 @@
 | --- | --- |
 | Produit | Marketteo CRM |
 | Lot | 4.5 — Fournisseurs et connecteur pilote |
-| Version | 0.2 — décisions produit validées |
-| Statut | Décisions P4.5-01 à P4.5-08 validées ; GO d’implémentation distinct requis ; aucun appel Meta, jeton ni webhook réel n’est autorisé par ce document seul |
-| Date | 24 septembre 2026 (UTC) |
+| Version | 0.3 — implémentation validée |
+| Statut | Décisions et GO validés ; implémentation réalisée ; verrou qualité local VERT ; recette fonctionnelle en 4.6 |
+| Date | 25 septembre 2026 (UTC) |
 | Contrat parent | [PHASE_4_SPECIFICATIONS_DETAILLEES.md](PHASE_4_SPECIFICATIONS_DETAILLEES.md), section 8 et décisions P4-05/P4-07 |
 | Prérequis | Fondations de conformité 2.5, worker 4.2, exports/imports 4.3 et registre d’usage 4.4 ; recette fonctionnelle globale au lot 4.6 |
 
@@ -222,7 +222,7 @@ Le verrou de l’incrément couvre Alembic, tests unitaires et intégration Post
 
 ## 11. Décisions validées par le responsable produit
 
-| ID | Décision proposée | Effet |
+| ID | Décision validée | Effet |
 | --- | --- | --- |
 | P4.5-01 | Conserver le fournisseur comme source de vérité des droits et ajouter un contrat distinct Meta avec les états fermés de la section 3.1. | Aucun statut fournisseur ne déclenche seul un connecteur. |
 | P4.5-02 | Exiger revue interne sécurité, confidentialité et produit, puis preuve Meta des permissions accordées avant binding actif ou appel amont. | Le pilote reste fermé si le dossier est incomplet. |
@@ -233,4 +233,7 @@ Le verrou de l’incrément couvre Alembic, tests unitaires et intégration Post
 | P4.5-07 | Conserver référence de lead chiffrée, empreinte HMAC, résultat minimal 30 jours et aucun payload Meta. | Reprise technique sans entrepôt de données source. |
 | P4.5-08 | Ajouter compteurs non facturants, audit minimisé, arrêt d’urgence et suspension sur révocation/erreur d’autorisation ; laisser la recette globale à 4.6. | Exploitation explicable et retrait immédiat. |
 
-Le responsable produit a validé explicitement les huit décisions P4.5-01 à P4.5-08 le 24 septembre 2026. Cette validation autorise la préparation du GO d’implémentation 4.5. Elle n’autorise pas la mise en production du pilote Meta : celle-ci reste conditionnée par le verdict réel de Meta, les preuves contractuelles et le verrou qualité.
+Le responsable produit a validé explicitement les huit décisions P4.5-01 à P4.5-08 puis donné le GO
+d’implémentation le 24 septembre 2026. L’implémentation et son verrou local sont terminés. Cette validation n’autorise
+pas la mise en production du pilote Meta : celle-ci reste conditionnée par le verdict réel de Meta, les preuves
+contractuelles et la recette 4.6.
