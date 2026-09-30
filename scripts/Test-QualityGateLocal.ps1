@@ -38,8 +38,8 @@ $qualityClient = Join-Path $qualityRoot 'client'
 $qualityNpmCache = Join-Path $qualityRoot 'npm-cache'
 $vitestReport = Join-Path $testResults 'vitest.xml'
 $projectName = 'prospect-crm-quality'
-# Le correctif de locale 3.4 expose la langue et le fuseau horaire dans la session.
-$expectedAlembicRevision = '20260922_0021'
+# Révision courante attendue après la correction de l'audit du pilote Meta Lead Ads.
+$expectedAlembicRevision = '20260929_0030'
 $script:resolvedDockerMode = $null
 $script:wslWorkspace = $null
 $script:wslDistribution = $null
@@ -52,6 +52,26 @@ function Invoke-QualityStep {
     & $Action
     if ($LASTEXITCODE -ne 0) {
         throw "Le contrôle '$Name' a échoué avec le code $LASTEXITCODE."
+    }
+}
+
+function Assert-QualityDiskSpace {
+    param(
+        [string]$Path,
+        [long]$MinimumFreeBytes = 2GB
+    )
+
+    $fullPath = [System.IO.Path]::GetFullPath($Path)
+    $root = [System.IO.Path]::GetPathRoot($fullPath)
+    $drive = [System.IO.DriveInfo]::new($root)
+    if (-not $drive.IsReady) {
+        throw "Le volume temporaire '$root' est indisponible."
+    }
+
+    if ($drive.AvailableFreeSpace -lt $MinimumFreeBytes) {
+        $availableGiB = [math]::Round($drive.AvailableFreeSpace / 1GB, 2)
+        $requiredGiB = [math]::Round($MinimumFreeBytes / 1GB, 2)
+        throw "Espace disque insuffisant sur '$root' pour le verrou qualité : ${availableGiB} Go libres, ${requiredGiB} Go requis. Libérez de l'espace dans les caches npm ou les fichiers temporaires, puis relancez."
     }
 }
 
@@ -127,6 +147,89 @@ function Invoke-PytestWithTransientDatabaseConnectionRetry {
     }
 }
 
+function Invoke-AlembicWithTransientDatabaseConnectionRetry {
+    param(
+        [string]$PythonCommand,
+        [string]$AlembicConfig,
+        [string[]]$Arguments
+    )
+
+    # Après une reprise WSL, le relais TCP Windows-vers-WSL peut expirer une
+    # fois alors que PostgreSQL est prêt et que le port vient d'être validé.
+    # Une seule reprise est admise pour les signatures observables du
+    # relais Windows-vers-WSL : timeout à l'ouverture (WinError 121), socket
+    # réinitialisée pendant une commande (WinError 64), ou refus ponctuel du
+    # transfert local (WinError 1225). Une erreur SQL, une erreur de migration
+    # ou une seconde panne conserve le verrou rouge.
+    $attempt = 1
+    while ($true) {
+        $alembicOutput = @()
+        # Alembic écrit ses messages INFO sur stderr. ProcessStartInfo collecte
+        # les deux flux sans les convertir en NativeCommandError, et un signal
+        # périodique rend l'attente visible pendant une vraie migration.
+        $startInfo = [System.Diagnostics.ProcessStartInfo]::new()
+        $startInfo.FileName = $PythonCommand
+        $startInfo.UseShellExecute = $false
+        $startInfo.CreateNoWindow = $true
+        $startInfo.RedirectStandardOutput = $true
+        $startInfo.RedirectStandardError = $true
+        # ArgumentList est null dans certaines versions de PowerShell/.NET
+        # installées sur Windows. Les arguments Alembic sont contrôlés ici et
+        # seul le chemin du fichier de configuration peut contenir des espaces.
+        $startInfo.Arguments = "-m alembic -c `"$AlembicConfig`" $($Arguments -join ' ')"
+
+        $process = [System.Diagnostics.Process]::new()
+        $process.StartInfo = $startInfo
+        $startedAt = Get-Date
+        Write-Host "Alembic en cours..." -ForegroundColor DarkGray
+        if (-not $process.Start()) {
+            throw 'Impossible de démarrer Alembic.'
+        }
+        $stdoutTask = $process.StandardOutput.ReadToEndAsync()
+        $stderrTask = $process.StandardError.ReadToEndAsync()
+        while (-not $process.WaitForExit(5000)) {
+            $elapsedSeconds = [Math]::Floor(((Get-Date) - $startedAt).TotalSeconds)
+            Write-Host "Alembic toujours en cours ($elapsedSeconds s)..." -ForegroundColor DarkGray
+        }
+        $process.WaitForExit()
+        $alembicExitCode = $process.ExitCode
+        $alembicOutput = @(
+            $stdoutTask.GetAwaiter().GetResult(),
+            $stderrTask.GetAwaiter().GetResult()
+        ) | Where-Object { -not [string]::IsNullOrWhiteSpace($_) }
+        $alembicOutput | ForEach-Object { Write-Host $_ }
+        if ($alembicExitCode -eq 0) {
+            $global:LASTEXITCODE = 0
+            return
+        }
+
+        $outputText = $alembicOutput | Out-String
+        $isAsyncpgWslTransportInterruption = (
+            ($outputText -match 'WinError 121') -and
+            ($outputText -match 'asyncpg[\\/]connect_utils\.py')
+        ) -or (
+            ($outputText -match 'WinError 64') -and
+            ($outputText -match 'asyncpg\.exceptions\.ConnectionDoesNotExistError') -and
+            ($outputText -match 'connection was closed in the middle of operation')
+        ) -or (
+            ($outputText -match 'WinError 1225') -and
+            ($outputText -match 'ConnectionRefusedError') -and
+            ($outputText -match 'asyncpg[\\/]connect_utils\.py')
+        ) -or (
+            ($outputText -match 'asyncpg\.exceptions\.ConnectionDoesNotExistError') -and
+            ($outputText -match 'connection was closed in the middle of operation')
+        )
+        if ($attempt -ge 2 -or -not $isAsyncpgWslTransportInterruption) {
+            $global:LASTEXITCODE = $alembicExitCode
+            return
+        }
+
+        $attempt++
+        Write-Warning "Alembic a perdu le relais TCP Windows-vers-WSL. Reprise unique de la commande."
+        Start-Sleep -Seconds 2
+    }
+}
+
 function Convert-ToWslPath {
     param([string]$Path)
 
@@ -185,6 +288,7 @@ function Set-TestDependencyUrls {
 
     $env:TEST_DATABASE_URL = "postgresql+asyncpg://prospect_app:prospect-app-test-only@${HostName}:$TestPostgresPort/prospect_test"
     $env:TEST_MIGRATION_DATABASE_URL = "postgresql+asyncpg://prospect_test:prospect-test-only@${HostName}:$TestPostgresPort/prospect_test"
+    $env:TEST_WORKER_DATABASE_URL = "postgresql+asyncpg://prospect_worker:prospect-worker-test-only@${HostName}:$TestPostgresPort/prospect_test"
     $env:TEST_REDIS_URL = "redis://${HostName}:$TestRedisPort/0"
     $env:TEST_MAILPIT_SMTP_HOST = $HostName
     $env:TEST_MAILPIT_API_URL = "http://${HostName}:$TestMailpitApiPort"
@@ -195,6 +299,7 @@ function Wait-TestTcpPort {
     param(
         [string]$HostName,
         [int]$Port,
+        [string]$ServiceName = 'La dépendance',
         [int]$Attempts = 30
     )
 
@@ -215,7 +320,7 @@ function Wait-TestTcpPort {
         Start-Sleep -Milliseconds 500
     }
 
-    throw "PostgreSQL est sain dans Docker mais reste inaccessible depuis Windows sur ${HostName}:$Port."
+    throw "$ServiceName est sain dans Docker mais reste inaccessible depuis Windows sur ${HostName}:$Port."
 }
 
 function Initialize-QualityClient {
@@ -318,6 +423,7 @@ function Resolve-WslDistribution {
 if (-not (Test-Path -LiteralPath $python)) {
     throw 'Environnement Python .venv introuvable.'
 }
+Assert-QualityDiskSpace -Path $qualityBase
 New-Item -ItemType Directory -Force -Path $testResults | Out-Null
 New-Item -ItemType Directory -Force -Path $qualityBase | Out-Null
 New-Item -ItemType Directory -Force -Path $qualityRoot | Out-Null
@@ -347,17 +453,31 @@ try {
     Invoke-QualityStep 'Dépendances réelles' {
         Invoke-DockerCli -Arguments @('compose', '-p', $projectName, '-f', (Get-ComposeFileArgument), 'up', '-d', '--wait')
     }
-    Invoke-QualityStep 'Rôle PostgreSQL applicatif' {
+    Invoke-QualityStep 'Rôles PostgreSQL applicatif et worker' {
         Invoke-DockerCli -Arguments @('compose', '-p', $projectName, '-f', (Get-ComposeFileArgument), 'run', '--rm', 'database-role-provisioner')
     }
     Invoke-QualityStep 'Accessibilité PostgreSQL' {
-        Wait-TestTcpPort -HostName $script:testDependencyHost -Port $TestPostgresPort
+        Wait-TestTcpPort -HostName $script:testDependencyHost -Port $TestPostgresPort -ServiceName 'PostgreSQL'
     }
-    Invoke-QualityStep 'Alembic upgrade' { & $python -m alembic -c (Join-Path $workspace 'backend\alembic.ini') upgrade head }
+    Invoke-QualityStep 'Accessibilité Mailpit' {
+        Wait-TestTcpPort -HostName $script:testDependencyHost -Port $TestMailpitApiPort -ServiceName 'Mailpit'
+    }
+    Invoke-QualityStep 'Alembic upgrade' {
+        Invoke-AlembicWithTransientDatabaseConnectionRetry `
+            -PythonCommand $python `
+            -AlembicConfig (Join-Path $workspace 'backend\alembic.ini') `
+            -Arguments @('upgrade', 'head')
+    }
     Invoke-QualityStep 'Alembic reconstruction' {
-        & $python -m alembic -c (Join-Path $workspace 'backend\alembic.ini') downgrade 20260723_0002
+        Invoke-AlembicWithTransientDatabaseConnectionRetry `
+            -PythonCommand $python `
+            -AlembicConfig (Join-Path $workspace 'backend\alembic.ini') `
+            -Arguments @('downgrade', '20260723_0002')
         if ($LASTEXITCODE -ne 0) { throw 'Le downgrade Alembic de test a échoué.' }
-        & $python -m alembic -c (Join-Path $workspace 'backend\alembic.ini') upgrade head
+        Invoke-AlembicWithTransientDatabaseConnectionRetry `
+            -PythonCommand $python `
+            -AlembicConfig (Join-Path $workspace 'backend\alembic.ini') `
+            -Arguments @('upgrade', 'head')
     }
     Invoke-QualityStep 'Alembic current' {
         $currentReport = Join-Path $testResults 'alembic-current.txt'
@@ -411,11 +531,21 @@ try {
     }
     Invoke-QualityStep 'Zéro skip frontend' { & $python (Join-Path $workspace 'scripts\quality_gate.py') junit-no-skips $vitestReport }
     Invoke-QualityStep 'Build Vite' { Push-Location $qualityClient; try { npm.cmd run build } finally { Pop-Location } }
+    Invoke-QualityStep 'Recette navigateur 4.6' {
+        $previousBrowserReport = $env:PHASE46_BROWSER_REPORT
+        $env:PHASE46_BROWSER_REPORT = Join-Path $testResults 'phase-4-6\browser-axe.json'
+        Push-Location $qualityClient
+        try { & $nodeCommand.Source (Join-Path $workspace 'scripts\phase4_6_browser_gate.mjs') }
+        finally {
+            Pop-Location
+            $env:PHASE46_BROWSER_REPORT = $previousBrowserReport
+        }
+    }
     Invoke-QualityStep 'Sources navigateur' { & $python (Join-Path $workspace 'scripts\quality_gate.py') browser-sources (Join-Path $client 'src') }
     Invoke-QualityStep 'Artefact Vite' { & $python (Join-Path $workspace 'scripts\quality_gate.py') artifact (Join-Path $qualityClient 'dist') }
     Invoke-QualityStep 'Diff Git' { Push-Location $workspace; try { git --no-pager diff --check } finally { Pop-Location } }
     $summary = @(
-        '# Rapport du verrou qualité local 3.4'
+        '# Rapport du verrou qualité local'
         ''
         "- Date UTC : $([DateTime]::UtcNow.ToString('u'))"
         "- Mode Docker : $script:resolvedDockerMode"
@@ -424,7 +554,24 @@ try {
         '- Rapports : `pytest-quality.xml`, `vitest.xml`, `alembic-current.txt`'
     )
     Set-Content -LiteralPath (Join-Path $testResults 'quality-summary.md') -Value $summary -Encoding utf8
-    Write-Host "`nVerrou qualité local 3.4 : VERT" -ForegroundColor Green
+    Write-Host "`nVerrou qualité local : VERT" -ForegroundColor Green
+}
+catch {
+    $qualityFailure = $_
+    if ($script:resolvedDockerMode) {
+        $dependencyLogs = Join-Path $testResults 'quality-dependencies-on-failure.log'
+        try {
+            $logOutput = @(Invoke-DockerCli -Arguments @(
+                'compose', '-p', $projectName, '-f', (Get-ComposeFileArgument), 'logs', '--timestamps'
+            ))
+            Set-Content -LiteralPath $dependencyLogs -Value $logOutput -Encoding utf8
+            Write-Warning "Journaux des dépendances sauvegardés : $dependencyLogs"
+        }
+        catch {
+            Write-Warning "Les journaux des dépendances n'ont pas pu être sauvegardés : $($_.Exception.Message)"
+        }
+    }
+    throw $qualityFailure
 }
 finally {
     if ($script:resolvedDockerMode) {
