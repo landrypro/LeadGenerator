@@ -189,7 +189,10 @@ def build(source: Path, output: Path) -> None:
     metadata = parse_metadata(markdown)
     title = markdown.splitlines()[0].lstrip("# ").strip()
     headings = [match.group(1) for line in markdown.splitlines() if (match := H2_PATTERN.match(line))]
-    navigation = "".join(f'<li><a href="#{slugify(heading)}">{inline(heading)}</a></li>' for heading in headings)
+    navigation = "".join(
+        f'<li><a href="#{slugify(heading)}">{inline(re.sub(r"^\d+(?:\.\d+)*\.?\s+", "", heading))}</a></li>'
+        for heading in headings
+    )
     meta = "".join(f"<span>{html.escape(key)} : {inline(value)}</span>" for key, value in metadata.items() if key != "Public")
     public = html.escape(metadata.get("Public", "Utilisateurs de Marketteo CRM"))
     output.parent.mkdir(parents=True, exist_ok=True)

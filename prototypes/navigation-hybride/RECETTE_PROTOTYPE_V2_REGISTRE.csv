@@ -1,0 +1,25 @@
+id;niveau;statut;commentaire
+NAV-V2-01;DECISION;PASS;Validé lors de la recette utilisateur du 25 septembre 2026.
+NAV-V2-02;DECISION;PASS;Validé lors de la recette utilisateur du 25 septembre 2026.
+NAV-V2-03;DECISION;PASS;Validé lors de la recette utilisateur du 25 septembre 2026.
+NAV-V2-04;DECISION;PASS;Validé lors de la recette utilisateur du 25 septembre 2026.
+GSRCH-V2-01;DECISION;PASS;Validé lors de la recette utilisateur du 25 septembre 2026.
+GSRCH-V2-02;DECISION;PASS;Validé lors de la recette utilisateur du 25 septembre 2026.
+GSRCH-V2-03;DECISION;PASS;Validé lors de la recette utilisateur du 25 septembre 2026.
+GSRCH-V2-04;AMELIORATION;PASS;Validé lors de la recette utilisateur du 25 septembre 2026.
+GSRCH-V2-05;DECISION;PASS;Validé lors de la recette utilisateur du 25 septembre 2026.
+STATE-V2-01;DECISION;PASS;Validé lors de la recette utilisateur du 25 septembre 2026.
+ROLE-V2-01;DECISION;PASS;Validé lors de la recette utilisateur du 25 septembre 2026.
+ROLE-V2-02;DECISION;FAIL;Audit plateforme absent du profil Plateforme dans la version initiale, signalé pendant la recette.
+ROLE-V2-02-R1;DECISION;PASS;Rejeu accepté : Plateforme et Audit plateforme sont présents séparément.
+I18N-V2-01;DECISION;PASS;Validé lors de la recette utilisateur du 25 septembre 2026.
+AUTO-V2-01;AMELIORATION;PASS;Validé lors de la recette utilisateur du 25 septembre 2026.
+A11Y-V2-01;DECISION;PASS;Validé lors de la recette utilisateur du 25 septembre 2026.
+SYNTH-01;QUESTION;PASS;Barre inférieure + Plus préférée, car elle correspond davantage aux usages et codes mobiles.
+SYNTH-02;QUESTION;PASS;Aucune destination difficile à retrouver pour le moment.
+SYNTH-03;QUESTION;PASS;Hiérarchie Acquisition / Données et audit / Administration jugée correcte.
+SYNTH-04;QUESTION;PASS;Place occupée par les paramètres de recherche jugée correcte.
+SYNTH-05;QUESTION;PASS;Ajout au CRM et exigence du nom interne jugés clairs.
+SYNTH-06;QUESTION;PASS;Aucun état dégradé ne nécessite actuellement une meilleure explication.
+SYNTH-07;QUESTION;PASS;Automatisation à placer immédiatement après Tableau de bord / Dashboard pour renforcer sa visibilité commerciale.
+SYNTH-08;QUESTION;PASS;Aucun irritant principal identifié avant implémentation.

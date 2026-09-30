@@ -1,8 +1,8 @@
 # Manuel utilisateur Marketteo CRM
 
-**Version :** 0.11
-**État :** édition phase 4 et navigation responsive à valider
-**Date de référence :** 26 septembre 2026
+**Version :** 0.12
+**État :** phase 4.6 clôturée localement avec GO produit ; preuve Azure requise avant la phase 5
+**Date de référence :** 30 septembre 2026
 **Public :** commerciaux, gestionnaires, administrateurs d'organisation et administrateurs de plateforme
 
 > Les libellés visibles de l'application utilisent désormais la marque Marketteo CRM. Les identifiants techniques historiques peuvent encore contenir `prospect` ou `LeadGenerator` afin de préserver les installations existantes.
@@ -36,7 +36,9 @@ Lorsqu'un résultat est ajouté au CRM, Marketteo conserve la référence Google
   commerciales, la facturation et la conversion de devises ne font pas partie de cette édition.
 - Les métriques et journaux techniques sont réservés à l'exploitation : ils ne sont pas visibles dans le CRM et ne
   changent ni les droits commerciaux ni les limites affichées.
-- La recette interne de phase 4.6 couvre les parcours navigateur en français et en anglais ; l'activation réelle du connecteur Meta reste bloquée tant que l'autorisation externe n'est pas obtenue.
+- La recette locale de phase 4.6 a validé les parcours E2E-01 à E2E-12, le verrou qualité sans skip et les contrôles d'accessibilité ; le pipeline Azure doit encore publier les preuves sur le commit de clôture avant l'entrée en phase 5.
+- L'activation du connecteur Meta avec un compte réel reste `BLOCKED_EXTERNAL` jusqu'à l'autorisation externe, la revue de l'application et la validation des permissions officielles. Le pilote local simulé ne vaut pas activation fournisseur.
+- La phase 5 est cadrée mais non disponible dans l'application : préproduction, abonnements, facturation, restauration, essais de charge et déploiement progressif restent à décider et à implémenter.
 
 ## 2. Accéder à l'application
 
@@ -662,7 +664,70 @@ Vérifiez que le prospect n'est ni archivé ni dans une étape Kanban terminale.
 
 La valeur pondérée est calculée à partir du montant et de la probabilité. Les totaux restent séparés par devise et aucune conversion n'est appliquée. Si la devise a changé, confirmez que le montant était déjà exprimé dans la nouvelle devise ; corrigez-le manuellement au besoin.
 
-## 16. Glossaire
+### Un export reste en attente ou échoue
+
+Les exports volumineux sont traités par le worker. Actualisez « Exports » après quelques instants et vérifiez l'état du
+travail (`queued`, `running`, `succeeded` ou `failed`). Une reprise réussie ne crée qu'un seul fichier. Si l'état reste
+bloqué, notez l'identifiant de l'export et l'heure observée, puis transmettez-les à l'administrateur ; ne relancez pas
+plusieurs demandes identiques.
+
+### « Usage temporairement indisponible » s'affiche
+
+Le rapport d'usage n'a pas pu réserver ou lire son compteur technique. Il ne s'agit pas d'une facture et aucune recherche
+Google ne doit être répétée en boucle. Réessayez après le rétablissement du service ; l'application doit ensuite afficher
+à nouveau le quota courant et le mode Google actif.
+
+### La connexion Meta n'est pas activable
+
+Une connexion « Brouillon », « Soumise » ou « Bloquée » peut être normale. Vérifiez que le fournisseur, l'acquisition,
+le contrat et la revue interne sont approuvés. Si l'interface indique `BLOCKED_EXTERNAL`, l'autorisation d'un compte Meta
+réel ou la revue fournisseur manque encore : seul l'administrateur habilité peut poursuivre après obtention de cette
+preuve. N'utilisez pas de jeton personnel et ne tentez pas de contourner l'état affiché.
+
+### Une erreur d'import place des lignes en quarantaine
+
+Ouvrez « Historique des imports » et consultez les numéros de lignes, les codes de motifs et la référence opaque. Les
+valeurs brutes ne sont pas restituées. Corrigez le fichier source, vérifiez de nouveau l'acquisition et relancez un lot
+distinct ; le rejeu idempotent ne doit pas créer de doublon.
+
+## 17. État de sortie de la phase 4
+
+La phase 4.6 a été clôturée localement le 30 septembre 2026 avec un **GO produit**. Cette décision signifie que les
+parcours livrés sont utilisables dans l'environnement local et que les réserves de la phase 3.4 transférées à la recette
+ont été rejouées. Elle ne constitue pas encore une autorisation de mise en production : le pipeline Azure doit publier
+les preuves sur le même commit de clôture avant le démarrage de la phase 5.
+
+### 17.1 Ce que la recette confirme
+
+| Parcours ou contrôle | Résultat utilisateur | Portée |
+|---|---|---|
+| E2E-01 à E2E-02 | Connexion, changement d'organisation, prospect, activité, tâche, pipeline et opportunité cohérents | Données synthétiques isolées par organisation |
+| E2E-03 | Import CSV confirmé, rejeu sans nouvelle création et lignes invalides visibles en quarantaine | Déduplication exacte et motifs minimisés |
+| E2E-04 à E2E-05 | Export privé téléchargeable et reprise du worker sans doublon | Fichier allowlisté, temporaire et authentifié |
+| E2E-06 à E2E-07 | Compteurs Google agrégés, quota `429` et indisponibilités `503` compréhensibles puis réversibles | Usage technique, jamais facturation |
+| E2E-08 à E2E-09 | Pilote Meta simulé admis, rejoué et révoqué de façon idempotente | Aucun appel à Meta réel |
+| E2E-10 | Rôles et isolation multi-organisation respectés, y compris RLS PostgreSQL | Aucune lecture ou mutation inter-tenant |
+| E2E-11-AUTO et E2E-11-MANUAL | 44 parcours Axe sans violation et quatre contrôles manuels validés | Français/anglais, clavier, zoom 200 %, états vides et erreurs réversibles |
+| E2E-12 | Données synthétiques de recette archivées avec compteur final nul | Archivage logique audité |
+
+Le verrou local final est **VERT** : 345 tests backend, 216 tests frontend, 44 parcours navigateur Axe, audit npm sans
+vulnérabilité et build Vite réussis sans skip. Les données Google descriptives, les jetons et les fichiers sources ne
+sont pas exposés dans les indicateurs, les exports ou les journaux.
+
+### 17.2 Limites à connaître avant la suite
+
+- `META-EXT-01` reste `BLOCKED_EXTERNAL` : la validation avec un compte Meta Lead Ads réel exige une autorisation externe,
+  une revue préalable de l'application et un environnement de test autorisé.
+- Le rapport d'usage est un compteur technique. Les plans, prix, sièges, taxes, paiements et factures appartiennent au
+  cadrage de la phase 5 et ne sont pas disponibles.
+- La preuve Azure de la révision de clôture, la préproduction, les essais de charge/coûts, la sauvegarde/restauration
+  et le lancement progressif restent des portes de phase 5. Une mention dans une spécification n'est pas une fonction
+  accessible dans le produit.
+
+Pour signaler un écart, indiquez l'organisation active, le rôle, l'heure, le parcours concerné et le message affiché.
+N'ajoutez jamais de mot de passe, jeton, courriel réel ou contenu de prospect dans un ticket ou une capture.
+
+## 18. Glossaire
 
 **Activité commerciale** : note ou interaction déjà réalisée, inscrite volontairement dans la chronologie du prospect. Elle n'envoie aucun message et ne crée pas de permission.
 
@@ -690,10 +755,21 @@ La valeur pondérée est calculée à partir du montant et de la probabilité. L
 
 **Résultat Google temporaire** : information affichée pendant une recherche et non conservée comme donnée descriptive dans le CRM.
 
-## 17. Historique du document
+**Worker** : traitement asynchrone qui exécute une demande longue, enregistre son état et peut reprendre après une interruption.
+
+**Usage technique** : compteur agrégé servant à protéger les services et à suivre leur consommation ; il ne constitue pas une facture.
+
+**Quarantaine** : résultat minimisé d'une ligne d'import refusée, conservant un numéro, un code de motif et une référence opaque sans valeur brute.
+
+**Idempotence** : propriété d'une relance qui conserve le même résultat métier sans créer de doublon.
+
+**Activation externe** : autorisation et revue d'un fournisseur réel, distinctes de la simulation locale du connecteur.
+
+## 19. Historique du document
 
 | Version | Date | État | Résumé |
 |---|---|---|---|
+| 0.12 | 30 septembre 2026 | GO local — preuve Azure requise | Clôture de la phase 4.6 : parcours E2E-01 à E2E-12, verrou qualité, accessibilité, worker, imports/exports, usage, isolation et limites de l'activation Meta réelle ; ajout du bilan de sortie et des captures phase 4 conservées |
 | 0.11 | 26 septembre 2026 | À valider | Mise à jour phase 4 : tableau de bord, usage, imports/exports, connexions Meta, navigation responsive et six nouvelles captures d'écran de l'application |
 | 0.10 | 18 septembre 2026 | À valider | Couverture complète de la phase 3.4 : portefeuille, création, édition, responsable, cycle de vie, alignement, conflits et six nouvelles captures d'écran |
 | 0.9 | 18 septembre 2026 | À valider | Consolidation des opportunités 3.4, des droits associés et des limites de devise, avec édition HTML du manuel |

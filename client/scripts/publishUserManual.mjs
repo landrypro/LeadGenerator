@@ -9,7 +9,7 @@ const manualSource = join(
   repositoryRoot,
   'docs',
   'manuel-utilisateur',
-  'Marketteo_CRM_Manuel_Utilisateur_v0.11.html',
+  'Marketteo_CRM_Manuel_Utilisateur_v0.12.html',
 )
 const imagesSource = join(repositoryRoot, 'docs', 'manuel-utilisateur', 'images')
 const publicationDirectory = join(clientRoot, 'public', 'manuel-utilisateur')
