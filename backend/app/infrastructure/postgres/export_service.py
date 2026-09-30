@@ -250,7 +250,8 @@ class ExportService:
                         text("""
                 SELECT r.id, r.dataset, r.schema_code, r.scope, r.status, r.created_at,
                        r.snapshot_at, r.finished_at, r.error_code, a.row_count,
-                       a.omitted_count, a.byte_size, a.expires_at
+                       a.omitted_count, a.byte_size, a.expires_at,
+                       (a.expires_at IS NOT NULL AND a.expires_at <= clock_timestamp()) AS artifact_expired
                 FROM export_requests r LEFT JOIN export_artifacts a ON a.export_id = r.id
                 WHERE r.requester_user_id = :actor
                   AND (CAST(:anchor_at AS timestamptz) IS NULL OR (r.created_at, r.id) < (CAST(:anchor_at AS timestamptz), :cursor))
@@ -288,7 +289,8 @@ class ExportService:
                     await session.execute(
                         text("""
                 SELECT r.dataset, r.scope, r.status, r.requester_membership_id,
-                       a.file_ref, a.byte_size, a.sha256, a.published_at, a.expires_at, a.deleted_at
+                       a.file_ref, a.byte_size, a.sha256, a.published_at, a.expires_at, a.deleted_at,
+                       (a.expires_at IS NOT NULL AND a.expires_at <= clock_timestamp()) AS artifact_expired
                 FROM export_requests r LEFT JOIN export_artifacts a ON a.export_id = r.id
                 WHERE r.id = :id AND r.requester_user_id = :actor
             """),
@@ -303,7 +305,13 @@ class ExportService:
             self._require_dataset_role(role, str(row["dataset"]), str(row["scope"]))
             if row["requester_membership_id"] != membership_id:
                 raise ExportForbidden
-            if row["status"] == "expired" or (row["expires_at"] and row["expires_at"] <= datetime.now(UTC)):
+            if row["status"] == "expired" or row["artifact_expired"]:
+                LOGGER.info(
+                    "export_download_rejected reason=expired export_id=%s status=%s expires_at=%s",
+                    export_id,
+                    row["status"],
+                    row["expires_at"],
+                )
                 raise ExportExpired
             if row["status"] != "ready" or row["deleted_at"] is not None or not row["file_ref"]:
                 raise ExportConflict
@@ -311,10 +319,16 @@ class ExportService:
                 raise ExportForbidden
             path = self._file_path(str(row["file_ref"]))
             if not path.is_file() or path.stat().st_size != row["byte_size"]:
+                LOGGER.warning(
+                    "export_download_rejected reason=file_missing_or_size export_id=%s file_present=%s",
+                    export_id,
+                    path.is_file(),
+                )
                 raise ExportExpired
             with path.open("rb") as artifact:
                 actual_digest = hashlib.file_digest(artifact, "sha256").hexdigest()
             if actual_digest != row["sha256"]:
+                LOGGER.warning("export_download_rejected reason=digest_mismatch export_id=%s", export_id)
                 raise ExportExpired
             await SqlAlchemyAuditRecorder(session).record(
                 tenant_audit_event(
@@ -333,7 +347,8 @@ class ExportService:
                     text("""
             SELECT r.id, r.dataset, r.schema_code, r.scope, r.status, r.created_at,
                    r.snapshot_at, r.finished_at, r.error_code, a.row_count,
-                   a.omitted_count, a.byte_size, a.expires_at
+                   a.omitted_count, a.byte_size, a.expires_at,
+                   (a.expires_at IS NOT NULL AND a.expires_at <= clock_timestamp()) AS artifact_expired
             FROM export_requests r LEFT JOIN export_artifacts a ON a.export_id = r.id
             WHERE r.id = :id AND r.requester_user_id = :actor
         """),
@@ -350,7 +365,8 @@ class ExportService:
     @staticmethod
     def _public_row(row: Any) -> dict[str, Any]:
         result = dict(row)
-        if result["status"] == "ready" and result["expires_at"] and result["expires_at"] <= datetime.now(UTC):
+        artifact_expired = bool(result.pop("artifact_expired", False))
+        if result["status"] == "ready" and artifact_expired:
             result["status"] = "expired"
         return result
 
@@ -572,8 +588,9 @@ class ExportService:
             raise ExportForbidden
         await self._set_running(context, claim.subject_id)
         self._root.mkdir(mode=0o700, parents=True, exist_ok=True)
+        self._remove_job_provisionals(claim.id)
         file_ref = secrets.token_hex(24)
-        provisional = self._root / f".{file_ref}.tmp"
+        provisional = self._root / f".{claim.id}.{file_ref}.tmp"
         final = self._file_path(file_ref)
         published = False
         row_count = omitted = byte_size = 0
@@ -722,6 +739,15 @@ class ExportService:
                 provisional.unlink()
             if not published and final.exists():
                 final.unlink()
+
+    def _remove_job_provisionals(self, job_id: UUID) -> None:
+        """Remove bytes left by an interrupted earlier attempt of this job only."""
+        for path in self._root.glob(f".{job_id}.*.tmp"):
+            try:
+                if path.is_file():
+                    path.unlink(missing_ok=True)
+            except OSError:
+                LOGGER.warning("export_provisional_cleanup_failed job_id=%s", job_id)
 
     async def mark_failed(self, context: TenantContext, export_id: UUID, error_code: str) -> None:
         async with self._sessions.begin() as session:

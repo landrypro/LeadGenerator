@@ -98,6 +98,8 @@ class MetaLeadProcessor:
             return (str(value), "running") if value else (None, "authorization_revoked")
 
     async def _fetch(self, lead_reference: str) -> MetaLeadFields:
+        if self._settings.meta_lead_ads_simulator_enabled:
+            return _simulated_meta_fields(lead_reference)
         # The response and URL are intentionally never logged: both may contain personal data or a token.
         url = f"{self._settings.meta_graph_api_base_url}/v21.0/{lead_reference}"
         try:
@@ -202,22 +204,19 @@ class MetaLeadProcessor:
                         "now": now,
                     },
                 )
+                # The contact-channel trigger creates the mandatory unknown permission.
+                # The restricted definer function then applies the connector declaration
+                # to that exact, newly created channel without granting broad UPDATE rights
+                # on CRM permissions to the worker role.
                 await session.execute(
                     text("""
-                        INSERT INTO contact_permissions (
-                            id, organization_id, channel_id, status, legal_basis_code, provenance_id,
-                            reason, decided_at, decided_by, valid_from, created_at, updated_at
-                        ) VALUES (
-                            :id, :organization_id, :channel_id, :status, :basis, :provenance_id,
-                            NULL, :now, :actor_id, :now, :now, :now
+                        SELECT app_private.set_connector_contact_permission(
+                            :channel_id, :status, :provenance_id, :now
                         )
                     """),
                     {
-                        **record,
-                        "id": uuid4(),
                         "channel_id": channel_id,
                         "status": permission_status,
-                        "basis": "consent" if permission_status == "allowed" else None,
                         "provenance_id": provenance_id,
                         "now": now,
                     },
@@ -480,6 +479,16 @@ def _approved_meta_fields(payload: object) -> MetaLeadFields:
             if value and len(value) <= 512:
                 values[str(field["name"])] = value
     return MetaLeadFields(values.get("full_name"), values.get("email"), values.get("phone"))
+
+
+def _simulated_meta_fields(lead_reference: str) -> MetaLeadFields:
+    """Return deterministic synthetic values for the local Meta acceptance path."""
+    suffix = hashlib.sha256(lead_reference.encode("utf-8")).hexdigest()[:12]
+    return MetaLeadFields(
+        full_name="Lead Meta Simulé",
+        email=f"e2e08-{suffix}@example.test",
+        phone="+14165550123",
+    )
 
 
 def _normalize_channel(channel_type: str, value: str) -> str | None:

@@ -44,6 +44,7 @@ class SearchGooglePlacesUseCase:
         operation_id_factory: Callable[[], UUID] = uuid4,
         metrics: MetricsRecorder | None = None,
         usage: UsageStore | None = None,
+        issue_map_snapshot: bool = True,
     ) -> None:
         self._places = places
         self._generation_guard = generation_guard
@@ -55,6 +56,7 @@ class SearchGooglePlacesUseCase:
         self._operation_id_factory = operation_id_factory
         self._metrics = metrics or NullMetricsRecorder()
         self._usage = usage or NullUsageStore()
+        self._issue_map_snapshot = issue_map_snapshot
 
     async def execute(
         self,
@@ -120,17 +122,19 @@ class SearchGooglePlacesUseCase:
             raise
         else:
             search = self._build_result(candidates, criteria, searched_at=self._clock.now())
-            snapshot = MapSnapshot(
-                center_latitude=criteria.center_latitude,
-                center_longitude=criteria.center_longitude,
-                radius_km=criteria.radius_km,
-                points=[
-                    MapPoint(latitude=place.latitude, longitude=place.longitude)
-                    for place in search.places
-                    if place.latitude is not None and place.longitude is not None
-                ],
-            )
-            token = await self._map_grants.issue(snapshot, access.owner)
+            token = ""
+            if self._issue_map_snapshot:
+                snapshot = MapSnapshot(
+                    center_latitude=criteria.center_latitude,
+                    center_longitude=criteria.center_longitude,
+                    radius_km=criteria.radius_km,
+                    points=[
+                        MapPoint(latitude=place.latitude, longitude=place.longitude)
+                        for place in search.places
+                        if place.latitude is not None and place.longitude is not None
+                    ],
+                )
+                token = await self._map_grants.issue(snapshot, access.owner)
             selection_token = await self._selection_grants.issue(
                 tuple(place.place_id for place in search.places),
                 access.owner,

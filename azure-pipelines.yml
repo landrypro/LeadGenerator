@@ -16,7 +16,7 @@ variables:
   testRedisUrl: 'redis://127.0.0.1:56379/0'
   testMailpitApiUrl: 'http://127.0.0.1:58025'
   testMailpitSmtpPort: '51025'
-  expectedAlembicRevision: '20260924_0025'
+  expectedAlembicRevision: '20260929_0030'
 
 steps:
   - task: UsePythonVersion@0
@@ -130,6 +130,12 @@ steps:
   - script: npm run build
     workingDirectory: client
     displayName: Compiler l’interface React
+
+  - script: node ../scripts/phase4_6_browser_gate.mjs
+    workingDirectory: client
+    env:
+      PHASE46_BROWSER_REPORT: $(Build.SourcesDirectory)/test-results/phase-4-6/browser-axe.json
+    displayName: Exécuter la recette navigateur Phase 4.6
 
   - script: python scripts/quality_gate.py browser-sources client/src
     displayName: Vérifier la confidentialité du navigateur

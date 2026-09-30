@@ -220,7 +220,7 @@ async def search_google_places(
 ) -> Response:
     try:
         access = await required_google_access(request, container, "google:search")
-        if not container.settings.google_maps_api_key:
+        if not container.settings.google_places_search_available:
             return api_error(
                 request,
                 503,

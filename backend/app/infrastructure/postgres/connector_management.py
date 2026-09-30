@@ -7,6 +7,7 @@ from datetime import datetime
 from uuid import UUID, uuid4
 
 from sqlalchemy import text
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from ...application.tenancy import TenantContext
@@ -36,6 +37,7 @@ class MetaConnectorManagement:
                 text("""
                     SELECT c.id, c.provider_id, c.status, c.requested_permissions, c.approved_permissions,
                            c.review_valid_until, c.created_at, c.updated_at, c.version,
+                           (c.created_by = :actor_id) AS is_creator,
                            b.id AS binding_id, b.status AS binding_status, b.allow_full_name,
                            b.allow_email, b.allow_phone, b.email_permission_status, b.phone_permission_status
                     FROM provider_connector_contracts c
@@ -43,6 +45,7 @@ class MetaConnectorManagement:
                     WHERE c.connector_code = 'meta_lead_ads'
                     ORDER BY c.updated_at DESC, c.id DESC
                 """),
+                {"actor_id": context.actor_id},
             )
             return tuple(dict(row) for row in rows.mappings().all())
 
@@ -155,10 +158,8 @@ class MetaConnectorManagement:
                         "phone_permission_status": phone_permission_status,
                     },
                 )
-            except Exception as error:
-                if "unique" in type(error).__name__.lower():
-                    raise ConnectorContractConflict("duplicate_meta_connector") from error
-                raise
+            except IntegrityError as error:
+                raise ConnectorContractConflict("duplicate_meta_connector") from error
         return {"id": contract_id, "binding_id": binding_id, "status": "draft", "version": 1}
 
     async def submit(self, context: TenantContext, contract_id: UUID, version: int) -> Mapping[str, object]:

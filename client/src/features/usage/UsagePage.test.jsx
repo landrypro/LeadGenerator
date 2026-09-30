@@ -22,7 +22,10 @@ const report = {
     csv_export: { requested: 2, ready: 2, failed: 0, expired: 0, rows: 42, omitted: 0, bytes: 8192 },
     csv_import: { confirmed_runs: 1, examined_rows: 30, created: 25, duplicates: 2, review: 1, quarantined: 2 },
   },
-  series: [{ date: '2026-09-24', operations: { 'google.places_text_search.quota:quota_reserved:accepted': 8 } }],
+  series: [{ date: '2026-09-24', operations: {
+    'google.places_text_search.quota:quota_reserved:accepted': 8,
+    'google.places_text_search.request:upstream_attempted:attempted': 8,
+  } }],
 }
 const current = {
   used: 16, remaining: 4, limit: 20, warning_threshold_percent: 80,
@@ -43,12 +46,12 @@ describe('UsagePage', () => {
   it('affiche les unités qualifiées, les volumes et l’avertissement', async () => {
     render(<UsagePage session={session()} />)
     expect(await screen.findByRole('heading', { name: 'Usage' })).toBeInTheDocument()
-    expect(await screen.findByText(/16 \/ 20/)).toBeInTheDocument()
+    expect(await screen.findByText(/16 utilisées sur 20/)).toBeInTheDocument()
     expect(screen.getByText(/seuil d’avertissement/)).toBeInTheDocument()
     expect(screen.getByText(/ne constitue pas une facture/)).toBeInTheDocument()
     expect(screen.getByRole('heading', { name: 'Réservations de quota Text Search' })).toBeInTheDocument()
     expect(screen.getByText('Demandes créées')).toBeInTheDocument()
-    expect(screen.getByText('Appels au fournisseur')).toBeInTheDocument()
+    expect(screen.getByText(/Appels au fournisseur/)).toBeInTheDocument()
     expect(screen.getByText(/données sont partielles/)).toBeInTheDocument()
   })
 

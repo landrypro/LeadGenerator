@@ -199,6 +199,17 @@ describe('PlaceSearchPage', () => {
     await waitFor(() => expect(leadSearchApi.mapSnapshot).toHaveBeenCalledTimes(1))
   })
 
+  it('ne demande pas de carte lorsqu’une recherche simulée ne retourne aucun jeton de carte', async () => {
+    leadSearchApi.search.mockResolvedValue({ ...successfulResult(), map_snapshot_token: '' })
+    render(<PlaceSearchPage session={{ capabilities: ['google:search', 'google:map'] }} />)
+
+    submitSearch()
+
+    expect(await screen.findByText('Plomberie Boréale')).toBeInTheDocument()
+    expect(screen.getByText('Carte non disponible')).toBeInTheDocument()
+    expect(leadSearchApi.mapSnapshot).not.toHaveBeenCalled()
+  })
+
   it('neutralise une double soumission pendant la recherche', () => {
     leadSearchApi.search.mockReturnValue(new Promise(() => {}))
     render(<PlaceSearchPage />)

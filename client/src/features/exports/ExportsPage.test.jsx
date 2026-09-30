@@ -30,4 +30,15 @@ describe('ExportsPage', () => {
     render(<ExportsPage session={{ capabilities: ['exports:create:self'], active_organization: { locale: 'en-CA' } }} />)
     expect(await screen.findAllByRole('button', { name: 'Download' })).toHaveLength(1)
   })
+
+  it('removes the download action when the artifact expires after the list is loaded', async () => {
+    exportApi.list.mockResolvedValue({ items: [
+      { id: 'expired-after-load', dataset: 'prospects', scope: 'self', status: 'ready', created_at: '2026-09-24T00:00:00Z', expires_at: '2099-09-25T00:00:00Z' },
+    ], next_cursor: null })
+    exportApi.download.mockRejectedValue({ code: 'artifact_expired', message: 'Export expired.' })
+    render(<ExportsPage session={{ capabilities: ['exports:create:self'], active_organization: { locale: 'en-CA' } }} />)
+    fireEvent.click(await screen.findByRole('button', { name: 'Download' }))
+    await waitFor(() => expect(screen.queryByRole('button', { name: 'Download' })).toBeNull())
+    expect(screen.getByText('This file has expired. Prepare a new export to download it.')).toBeInTheDocument()
+  })
 })

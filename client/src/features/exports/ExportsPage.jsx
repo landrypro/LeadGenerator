@@ -15,6 +15,7 @@ const COPY = {
     rows: 'lignes', omitted: 'champs ou lignes omis', expires: 'Expire le', status: 'État',
     sourceNotice: 'Les données de source externe sans droit d’export explicite sont omises.',
     queued: 'En attente', running: 'Préparation', ready: 'Prêt', failed: 'Échec', cancelled: 'Annulé', expired: 'Expiré',
+    expiredNotice: 'Ce fichier a expiré. Préparez un nouvel export pour le télécharger.',
     error: 'Impossible de charger les exports.',
     rules: 'Droits d’export des sources', source: 'Source', category: 'Catégorie', fields: 'Champs autorisés (codes séparés par des virgules)', purpose: 'Finalité', proof: 'Référence de preuve', allow: 'Autoriser', revoke: 'Révoquer', noRules: 'Aucune règle explicite.',
   },
@@ -26,6 +27,7 @@ const COPY = {
     rows: 'rows', omitted: 'fields or rows omitted', expires: 'Expires on', status: 'Status',
     sourceNotice: 'External source data without explicit export rights is omitted.',
     queued: 'Queued', running: 'Preparing', ready: 'Ready', failed: 'Failed', cancelled: 'Cancelled', expired: 'Expired',
+    expiredNotice: 'This file has expired. Prepare a new export to download it.',
     error: 'Could not load exports.',
     rules: 'Source export rights', source: 'Source', category: 'Category', fields: 'Allowed fields (comma-separated codes)', purpose: 'Purpose', proof: 'Evidence reference', allow: 'Allow', revoke: 'Revoke', noRules: 'No explicit rules.',
   },
@@ -97,7 +99,13 @@ export function ExportsPage({ session }) {
       anchor.download = `marketteo-${item.dataset}-${item.id}.csv`
       anchor.click()
       window.setTimeout(() => URL.revokeObjectURL(url), 60000)
-    } catch (cause) { setError(toUserMessage(cause)) }
+    } catch (cause) {
+      if (cause?.code === 'artifact_expired') {
+        setItems((current) => current.map((candidate) => candidate.id === item.id ? { ...candidate, status: 'expired' } : candidate))
+        setError('')
+        setMessage(copy.expiredNotice)
+      } else setError(toUserMessage(cause))
+    }
     finally { setBusy(false) }
   }
   async function createRule(event) {
@@ -148,10 +156,14 @@ export function ExportsPage({ session }) {
     </section>
     <section className="administration-card"><h2>{copy.list}</h2><button type="button" className="secondary-button" onClick={() => load()} disabled={busy}>{copy.refresh}</button>
       {loading ? <p role="status">{locale === 'fr-CA' ? 'Chargement…' : 'Loading…'}</p> : items.length === 0 ? <p>{copy.empty}</p> : <ul className="compliance-list">
-        {items.map((item) => <li key={item.id}><div><strong>{item.dataset}</strong><small>{date(item.created_at)} · {item.scope === 'self' ? copy.self : copy.organization}</small><span className={`resource-status ${item.status}`}>{copy[item.status] ?? item.status}</span></div>
+        {items.map((item) => {
+          const expired = item.status === 'ready' && item.expires_at && new Date(item.expires_at) <= new Date()
+          const status = expired ? 'expired' : item.status
+          return <li key={item.id}><div><strong>{item.dataset}</strong><small>{date(item.created_at)} · {item.scope === 'self' ? copy.self : copy.organization}</small><span className={`resource-status ${status}`}>{copy[status] ?? status}</span></div>
           <div><small>{item.row_count ?? '—'} {copy.rows} · {item.omitted_count ?? '—'} {copy.omitted}</small>{item.expires_at && <small>{copy.expires}: {date(item.expires_at)}</small>}{item.error_code && <small>{item.error_code}</small>}</div>
-          {item.status === 'ready' && <button type="button" className="secondary-button" disabled={busy} onClick={() => download(item)}>{copy.download}</button>}
-        </li>)}
+          {status === 'ready' && <button type="button" className="secondary-button" disabled={busy} onClick={() => download(item)}>{copy.download}</button>}
+        </li>
+        })}
       </ul>}{cursor && <button type="button" className="secondary-button" onClick={() => load(cursor)}>{copy.more}</button>}
     </section>
     {canManageRules && <section className="administration-card compliance-form-card"><h2>{copy.rules}</h2>

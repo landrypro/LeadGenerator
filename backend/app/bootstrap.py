@@ -24,6 +24,7 @@ from .application.ports import (
     MapSnapshotGrantStore,
     MetricsRecorder,
     NullMetricsRecorder,
+    PlacesGateway,
     TenantUnitOfWorkFactory,
     UnitOfWorkFactory,
 )
@@ -133,6 +134,7 @@ from .infrastructure.google.places import (
     GooglePlacesSettings,
 )
 from .infrastructure.google.quota_policy import SettingsGoogleSearchPolicyProvider
+from .infrastructure.google.simulated import SimulatedGooglePlacesGateway
 from .infrastructure.google.static_maps import GoogleStaticMapGateway
 from .infrastructure.health import UnconfiguredDependencyProbe
 from .infrastructure.imports import LocalTemporaryCsvFileStore
@@ -230,13 +232,17 @@ def build_container(settings: Settings) -> AppContainer:
     else:
         probes.append(UnconfiguredDependencyProbe("redis"))
 
-    places_client = GooglePlacesClient(
-        GooglePlacesSettings(
-            api_key=settings.google_maps_api_key,
-            timeout_seconds=settings.places_timeout_seconds,
+    places_gateway: PlacesGateway
+    if settings.google_places_simulator_enabled:
+        places_gateway = SimulatedGooglePlacesGateway()
+    else:
+        places_client = GooglePlacesClient(
+            GooglePlacesSettings(
+                api_key=settings.google_maps_api_key,
+                timeout_seconds=settings.places_timeout_seconds,
+            )
         )
-    )
-    places_gateway = GooglePlacesGateway(places_client)
+        places_gateway = GooglePlacesGateway(places_client)
     generation_guard: GenerationGuard
     map_grants: MapSnapshotGrantStore
     selection_grants: GoogleSelectionGrantStore
@@ -631,6 +637,7 @@ def build_container(settings: Settings) -> AppContainer:
             SystemClock(),
             metrics=metrics,
             usage=usage_store,
+            issue_map_snapshot=not settings.google_places_simulator_enabled,
         ),
         get_map_snapshot=GetMapSnapshotUseCase(map_grants, static_maps, metrics, usage_store),
         metrics=metrics,

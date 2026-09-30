@@ -212,5 +212,21 @@ def _connector_error(request: Request, error: Exception) -> Response:
             request, 409, "connector_conflict", "Le contrat connecteur a changé ou ne peut pas être validé."
         )
     if isinstance(error, ValueError):
-        return api_error(request, 422, "validation_failed", "La commande connecteur est invalide.")
+        # Ne pas renvoyer le détail d'une exception SQL ou d'un secret, mais
+        # conserver le code métier prévu par la validation pour diagnostiquer
+        # les parcours de recette sans exposer de donnée sensible.
+        safe_reasons = {
+            "invalid_meta_contract",
+            "invalid_meta_permissions",
+            "invalid_meta_review",
+            "meta_reference_key_not_configured",
+        }
+        reason = str(error) if str(error) in safe_reasons else "invalid_meta_command"
+        return api_error(
+            request,
+            422,
+            "validation_failed",
+            "La commande connecteur est invalide.",
+            fields={"reason": reason},
+        )
     return api_error(request, 503, "connector_unavailable", "Le connecteur est temporairement indisponible.")

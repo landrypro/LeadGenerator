@@ -13,6 +13,7 @@ export function CoverageMap({ copy, places, form, loading, searchedAt, resultTok
     <div className="map-canvas real-map">
       {snapshotUrl && !snapshotLoading && <img className="map-snapshot" src={snapshotUrl} alt={copy.mapAlt.replace('{count}', places.length).replace('{radius}', form.radius_km)} />}
       {!searchedAt && !loading && <div className="map-pending"><div><MapPin size={24} /><span /></div><strong>{copy.mapPending}</strong><small>{copy.mapPendingHelp}</small></div>}
+      {searchedAt && !resultToken && !loading && <div className="map-pending"><div><MapPin size={24} /><span /></div><strong>{copy.mapUnavailable}</strong><small>{copy.mapPendingHelp}</small></div>}
       {snapshotLoading && <div className="map-pending"><LoaderCircle className="spin" size={25} /><strong>{copy.mapLoading}</strong></div>}
       {snapshotError && !snapshotLoading && <div className="map-pending map-error"><AlertTriangle size={23} /><strong>{copy.mapUnavailable}</strong><small>{snapshotError}</small></div>}
       {loading && <div className="scan"><span /></div>}

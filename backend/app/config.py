@@ -59,6 +59,7 @@ class Settings:
     login_rate_limit_address_failures: int = 20
     google_maps_api_key: str = field(default="", repr=False)
     google_maps_static_api_key: str = field(default="", repr=False)
+    google_places_simulator_enabled: bool = False
     cors_allowed_origins: tuple[str, ...] = DEFAULT_CORS_ORIGINS
     places_timeout_seconds: float = 30.0
     google_search_lock_ttl_seconds: float = 45.0
@@ -75,6 +76,7 @@ class Settings:
     import_temp_max_bytes: int = 10 * 1024 * 1024
     job_idempotency_hmac_key: str = field(default="", repr=False)
     meta_lead_ads_enabled: bool = False
+    meta_lead_ads_simulator_enabled: bool = False
     meta_webhook_verify_token: str = field(default="", repr=False)
     meta_webhook_app_secret: str = field(default="", repr=False)
     meta_reference_hmac_key: str = field(default="", repr=False)
@@ -91,6 +93,12 @@ class Settings:
     def __post_init__(self) -> None:
         if self.app_env not in VALID_APP_ENVIRONMENTS:
             raise ValueError("APP_ENV doit être development, test, staging ou production.")
+        if self.google_places_simulator_enabled and self.app_env not in {"development", "test"}:
+            raise ValueError("GOOGLE_PLACES_SIMULATOR_ENABLED est réservé au développement et au test.")
+        if self.meta_lead_ads_simulator_enabled and self.app_env not in {"development", "test"}:
+            raise ValueError("META_LEAD_ADS_SIMULATOR_ENABLED est réservé au développement et au test.")
+        if self.meta_lead_ads_simulator_enabled and not self.meta_lead_ads_enabled:
+            raise ValueError("META_LEAD_ADS_SIMULATOR_ENABLED exige META_LEAD_ADS_ENABLED=true.")
         if self.log_format not in {"text", "json"}:
             raise ValueError("LOG_FORMAT doit être text ou json.")
         if self.instance_id and not INSTANCE_ID_PATTERN.fullmatch(self.instance_id):
@@ -214,6 +222,11 @@ class Settings:
     def static_maps_api_key(self) -> str:
         return self.google_maps_static_api_key or self.google_maps_api_key
 
+    @property
+    def google_places_search_available(self) -> bool:
+        """Indique si Text Search est disponible sans révéler sa configuration."""
+        return self.google_places_simulator_enabled or bool(self.google_maps_api_key)
+
     @classmethod
     def from_env(cls, environ: Mapping[str, str] | None = None) -> Settings:
         values = os.environ if environ is None else environ
@@ -260,6 +273,7 @@ class Settings:
             login_rate_limit_address_failures=int(values.get("LOGIN_RATE_LIMIT_ADDRESS_FAILURES", "20")),
             google_maps_api_key=values.get("GOOGLE_MAPS_API_KEY", "").strip(),
             google_maps_static_api_key=values.get("GOOGLE_MAPS_STATIC_API_KEY", "").strip(),
+            google_places_simulator_enabled=_parse_bool(values.get("GOOGLE_PLACES_SIMULATOR_ENABLED", "false")),
             cors_allowed_origins=origins,
             places_timeout_seconds=float(values.get("GOOGLE_PLACES_TIMEOUT_SECONDS", "30")),
             google_search_lock_ttl_seconds=float(values.get("GOOGLE_SEARCH_LOCK_TTL_SECONDS", "45")),
@@ -276,13 +290,10 @@ class Settings:
             import_temp_max_bytes=int(values.get("IMPORT_TEMP_MAX_BYTES", str(10 * 1024 * 1024))),
             job_idempotency_hmac_key=(
                 values.get("JOB_IDEMPOTENCY_HMAC_KEY", "").strip()
-                or (
-                    DEVELOPMENT_JOB_IDEMPOTENCY_HMAC_KEY
-                    if app_env in {"development", "test"}
-                    else ""
-                )
+                or (DEVELOPMENT_JOB_IDEMPOTENCY_HMAC_KEY if app_env in {"development", "test"} else "")
             ),
             meta_lead_ads_enabled=_parse_bool(values.get("META_LEAD_ADS_ENABLED", "false")),
+            meta_lead_ads_simulator_enabled=_parse_bool(values.get("META_LEAD_ADS_SIMULATOR_ENABLED", "false")),
             meta_webhook_verify_token=values.get("META_WEBHOOK_VERIFY_TOKEN", "").strip(),
             meta_webhook_app_secret=values.get("META_WEBHOOK_APP_SECRET", "").strip(),
             meta_reference_hmac_key=values.get("META_REFERENCE_HMAC_KEY", "").strip(),

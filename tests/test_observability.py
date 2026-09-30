@@ -97,9 +97,12 @@ async def test_unmatched_path_is_normalized_before_json_logging(capsys: pytest.C
     async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
         response = await client.get("/missing/person@example.test")
 
-    assert response.status_code == 200
+    # Le fallback SPA est présent après un build frontend et absent dans les
+    # tests backend isolés. Dans les deux cas, le journal ne doit jamais
+    # contenir le chemin brut ni l'adresse qui y figure.
+    assert response.status_code in {200, 404}
     event = json.loads(capsys.readouterr().out)
-    assert event["route"] == "/{frontend_path:path}"
+    assert event["route"] in {"/{frontend_path:path}", "unmatched"}
     assert "person@example.test" not in json.dumps(event)
 
 
