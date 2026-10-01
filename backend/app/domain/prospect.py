@@ -22,9 +22,12 @@ class ProspectOrigin(StrEnum):
 
 class ProspectStageCode(StrEnum):
     NEW = "new"
+    QUALIFYING = "qualifying"
     QUALIFIED = "qualified"
     CONTACTED = "contacted"
+    OPPORTUNITY = "opportunity"
     PROPOSAL_SENT = "proposal_sent"
+    NEGOTIATION = "negotiation"
     WON = "won"
     LOST = "lost"
     ARCHIVED = "archived"
@@ -613,6 +616,7 @@ class ProspectView:
     created_at: datetime
     updated_at: datetime
     archived_at: datetime | None
+    stage_changed_at: datetime | None = None
     owner_id: UUID | None = None
     profile_provenance_id: UUID | None = None
     industry_label: str | None = None

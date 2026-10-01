@@ -5,9 +5,9 @@
 | Produit | Marketteo CRM |
 | Phase | 3 — Cœur CRM |
 | Incrément | 3.2 — Pipeline Kanban |
-| Version | 1.0 — décisions validées |
+| Version | 1.1 — implémentation réalisée |
 | Prérequis | 3.1 clôturé avec réserve ; socle prospects 2.5 ; audit 2.4 ; durcissement 2.6 |
-| Statut | Spécifications validées — en attente du GO d’implémentation |
+| Statut | Implémenté — recette fonctionnelle et verrou complet à exécuter |
 | Date | 4 septembre 2026 |
 | Résultat visé | Neuf étapes commerciales, transitions contrôlées, conflits de version, historique, audit et filtres |
 
@@ -338,6 +338,6 @@ Les seize décisions de la section 17 ont été validées par le responsable pro
 les transitions, les rôles, les contrats de concurrence, l’historique, les filtres et les exigences de qualité sont
 désormais stabilisés.
 
-L’implémentation de 3.2 sera réalisée dans un lot structuré comprenant domaine et migration, cas d’utilisation et API,
-interface Kanban, tests, documentation et rapport. Aucun code de 3.2 n’est modifié avant un GO d’implémentation
-explicite.
+L’implémentation est réalisée : domaine et migration `20260904_0015`, ports et cas d’utilisation, API sécurisée,
+interface Kanban, capacités, audit et tests ciblés. Avant clôture, la recette fonctionnelle PostgreSQL/RLS et le verrou
+qualité complet doivent être exécutés sur l’environnement de validation.

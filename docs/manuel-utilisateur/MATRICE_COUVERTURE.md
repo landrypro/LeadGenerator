@@ -1,6 +1,6 @@
 # Matrice de couverture - Manuel utilisateur Marketteo CRM
 
-Statuts : `couvert`, `capturée (v0.5)`, `capture à produire`, `hors édition`.
+Statuts : `couvert`, `capturée`, `capture à produire`, `hors édition`.
 
 | Domaine | Route ou écran | Public principal | Procédure | Capture | Statut |
 |---|---|---|---|---|---|
@@ -29,9 +29,27 @@ Statuts : `couvert`, `capturée (v0.5)`, `capture à produire`, `hors édition`.
 | Plateforme | Organisations | Admin plateforme | Provisionner, suspendre, réactiver | CAP-23 | couvert |
 | Plateforme | Audit plateforme | Admin plateforme | Filtrer et consulter | CAP-24 | couvert |
 | Imports | Rapport de quarantaine CSV | Gestionnaire, admin | Consulter les lignes et motifs minimisés | CAP-25 | capture à produire |
+| Pipeline | `/app/pipeline` | Commercial, gestionnaire, admin | Filtrer et consulter les étapes commerciales | CAP-26 | couvert |
+| Pipeline | Déplacement, perte et réouverture | Commercial, gestionnaire, admin | Changer d'étape ou documenter une perte | CAP-27 | couvert |
+| Prospects | Chronologie commerciale | Commercial, gestionnaire, admin | Déclarer ou corriger une activité | CAP-28 | couvert |
+| CRM avancé | `/app/tasks` et tâches prospect | Commercial, gestionnaire, admin selon capacité | Créer, terminer, annuler, rouvrir et gérer un rappel | CAP-29 | couvert |
+| CRM avancé | Prochaine action | Commercial, gestionnaire, admin | Consulter la tâche ouverte prioritaire dans la fiche, la liste ou le Kanban | CAP-30 | couvert |
 | Export | Export Google/Excel | Désactivé | Aucun | - | hors édition |
-| CRM avancé | Pipeline, tâches, rappels, opportunités | Planifié | Aucun | - | hors édition |
+| Opportunités | `/app/opportunities` | Commercial, gestionnaire, admin selon capacité | Filtrer le portefeuille et lire les totaux par devise | CAP-31 | capturée (v0.10) |
+| Opportunités | Fiche prospect | Commercial, gestionnaire, admin selon capacité | Créer, faire progresser, conclure ou réouvrir une opportunité | CAP-32 | capturée (v0.10) |
+| Opportunités | Éditeur de fiche | Gestionnaire, admin ; commercial propriétaire | Modifier les champs et confirmer un changement de devise | CAP-33 | capturée (v0.10) |
+| Opportunités | Responsable | Gestionnaire, admin | Réaffecter une opportunité vers un membre actif | CAP-34 | capturée (v0.10) |
+| Opportunités | Clôture et réouverture | Selon capacité | Documenter une perte, conclure ou réouvrir | CAP-35 | capturée (v0.10) |
+| Opportunités | Alignement pipeline | Selon capacité pipeline | Confirmer séparément une transition Kanban autorisée | CAP-36 | capturée (v0.10) |
+| Opportunités | Chronologie prospect | Commercial, gestionnaire, admin | Lire les créations, modifications, transitions et réouvertures | CAP-37 | capturée (v0.10) |
+| Navigation | En-tête, catégories et panneau responsive | Tous | Ouvrir les groupes, fermer avec Échap et accéder au manuel | CAP-38 | capturée (v0.11) |
+| Navigation | Barre mobile | Tous | Utiliser Accueil, Tâches, Prospects, Pipeline et Plus | CAP-39 | capturée (v0.11) |
+| Tableau de bord | `/app/dashboard` | Tous selon capacité | Choisir portée/période et lire photographies, flux et devises | CAP-40 | couvert (v0.11) |
+| Usage | `/app/usage` | Tous selon capacité | Consulter quota courant, rapport 93 jours et ventilation | CAP-41 | couvert (v0.11) |
+| Imports | `/app/imports/history` | Gestionnaire, admin | Lire sessions, runs et quarantaine minimisée | CAP-42 | couvert (v0.11) |
+| Exports | `/app/exports` | Tous selon capacité | Demander, suivre et télécharger un export CSV | CAP-43 | couvert (v0.11) |
+| Connexions | Onglet « Connexions » | Administrateur | Soumettre, faire approuver, activer ou arrêter un connecteur Meta | CAP-44 | couvert (v0.11) |
 
 ## Cahier de captures
 
-Les captures CAP-01, CAP-05, CAP-06, CAP-07, CAP-09, CAP-10 et CAP-11 sont représentées dans l'édition 0.5 par quatre vues de démonstration. Les autres captures restent à produire avec un environnement de démonstration. Elles doivent utiliser des noms fictifs, masquer les courriels si nécessaire, montrer uniquement la zone utile et conserver une largeur cohérente. Une capture ne doit être ajoutée que si elle facilite une décision ou une action ; les procédures simples restent textuelles.
+Les captures CAP-01, CAP-05, CAP-06, CAP-07, CAP-09, CAP-10 et CAP-11 sont représentées par les vues historiques de démonstration. Les captures CAP-31 à CAP-37 documentent la phase 3.4 dans l'édition 0.10. Les captures CAP-38 à CAP-39 et CAP-44 utilisent les vues réelles fournies le 26 septembre 2026 ; les indicateurs 4.1 à 4.5 restent couverts par procédure et tests, avec capture à produire lorsque des données de démonstration dédiées seront disponibles. Toutes les captures utilisent des données fictives, masquent les courriels lorsqu'ils ne sont pas nécessaires, montrent uniquement la zone utile et conservent une largeur cohérente.

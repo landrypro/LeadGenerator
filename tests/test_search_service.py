@@ -12,10 +12,12 @@ from backend.app.application.models import (
     GoogleSearchQuotaPolicy,
 )
 from backend.app.application.ports.places import PlaceCandidate
+from backend.app.application.ports.usage import UsageEvent
 from backend.app.application.use_cases.search_google_places import (
     MAX_GOOGLE_RESULTS,
     SearchGooglePlacesUseCase,
 )
+from backend.app.infrastructure.google.simulated import SimulatedGooglePlacesGateway
 from backend.app.infrastructure.memory import (
     InMemoryGenerationGuard,
     InMemoryGoogleSelectionGrantStore,
@@ -67,6 +69,14 @@ class FixedClock:
         return datetime(2026, 8, 25, 12, tzinfo=UTC)
 
 
+class UsageRecorder:
+    def __init__(self) -> None:
+        self.events: list[UsageEvent] = []
+
+    async def record(self, event: UsageEvent) -> None:
+        self.events.append(event)
+
+
 def candidate(index: int, **overrides: object) -> PlaceCandidate:
     values: dict[str, object] = {
         "place_id": f"place-{index}",
@@ -91,6 +101,19 @@ def use_case(gateway: FakePlacesGateway) -> SearchGooglePlacesUseCase:
     )
 
 
+def tracked_use_case(gateway: FakePlacesGateway, usage: UsageRecorder) -> SearchGooglePlacesUseCase:
+    return SearchGooglePlacesUseCase(
+        gateway,
+        InMemoryGenerationGuard(),
+        InMemoryMapSnapshotGrantStore(),
+        InMemoryGoogleSelectionGrantStore(),
+        PermissiveGoogleSearchPolicy(),
+        PermissiveGoogleSearchQuota(),
+        FixedClock(),
+        usage=usage,  # type: ignore[arg-type]
+    )
+
+
 def access_context() -> GoogleAccessContext:
     return GoogleAccessContext(uuid4(), uuid4(), uuid4())
 
@@ -109,6 +132,51 @@ async def test_use_case_calls_gateway_once_and_limits_results_to_twenty() -> Non
     assert outcome.search.stats.api_calls == 1
     assert outcome.search.stats.raw_results == 25
     assert outcome.selection_token
+
+
+@pytest.mark.asyncio
+async def test_use_case_records_reservation_attempt_and_success_with_one_operation() -> None:
+    gateway = FakePlacesGateway([candidate(1)])
+    usage = UsageRecorder()
+
+    await tracked_use_case(gateway, usage).execute(GooglePlaceSearchCriteria(query="plombier"), access_context())
+
+    assert [event.event_kind for event in usage.events] == [
+        "quota_reserved",
+        "upstream_attempted",
+        "upstream_succeeded",
+    ]
+    assert len({event.operation_id for event in usage.events}) == 1
+    assert all(event.context.organization_id == usage.events[0].context.organization_id for event in usage.events)
+
+
+@pytest.mark.asyncio
+async def test_simulated_search_does_not_issue_a_map_grant_with_the_manual_coordinates() -> None:
+    usage = UsageRecorder()
+    use_case = SearchGooglePlacesUseCase(
+        SimulatedGooglePlacesGateway(),
+        InMemoryGenerationGuard(),
+        InMemoryMapSnapshotGrantStore(),
+        InMemoryGoogleSelectionGrantStore(),
+        PermissiveGoogleSearchPolicy(),
+        PermissiveGoogleSearchQuota(),
+        FixedClock(),
+        usage=usage,  # type: ignore[arg-type]
+        issue_map_snapshot=False,
+    )
+
+    outcome = await use_case.execute(
+        GooglePlaceSearchCriteria(query="plombier", center_latitude=46.8139, center_longitude=-71.2080),
+        access_context(),
+    )
+
+    assert outcome.map_snapshot_token == ""
+    assert outcome.selection_token
+    assert [event.event_kind for event in usage.events] == [
+        "quota_reserved",
+        "upstream_attempted",
+        "upstream_succeeded",
+    ]
 
 
 @pytest.mark.asyncio

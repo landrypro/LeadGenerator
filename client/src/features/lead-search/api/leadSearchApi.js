@@ -2,6 +2,13 @@ import { postJson, request } from '../../../shared/api/httpClient'
 
 
 export const leadSearchApi = {
+  suggestLocation(payload, signal) {
+    return postJson('/api/google/places/locations/suggest', payload, { signal, fallbackMessage: 'La recherche de lieu a échoué.' })
+  },
+
+  resolveLocation(payload, signal) {
+    return postJson('/api/google/places/locations/resolve', payload, { signal, fallbackMessage: 'Le lieu n’a pas pu être sélectionné.' })
+  },
   health(signal) {
     return request('/api/health', { signal, fallbackMessage: 'Impossible de vérifier la configuration.' })
   },

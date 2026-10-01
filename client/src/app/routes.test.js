@@ -1,22 +1,29 @@
 import { describe, expect, it } from 'vitest'
 
 import {
-  canAccessRoute, CRM_PATHS, findRoute, landingPath, navigationRoutes, routes,
+  canAccessRoute, CRM_PATHS, findRoute, landingPath, localizedRouteLabel, localizedRouteTitle, navigationRoutes, routes,
 } from './routes'
 
 
 describe('routes CRM', () => {
-  it('déclare les routes canoniques jusqu’à 2.5.5-E', () => {
+  it('déclare les routes canoniques dont le tableau de bord 4.1', () => {
     expect(CRM_PATHS).toEqual({
       home: '/',
       login: '/login',
       acceptInvitation: '/accept-invitation',
       search: '/app/search',
+      dashboard: '/app/dashboard',
+      usage: '/app/usage',
       prospects: '/app/prospects',
       prospectNew: '/app/prospects/new',
       prospectDetail: '/app/prospects/:prospectId',
+      pipeline: '/app/pipeline',
+      opportunities: '/app/opportunities',
+      tasks: '/app/tasks',
       compliance: '/app/compliance/sources',
       retention: '/app/compliance/retention',
+      importHistory: '/app/imports/history',
+      exports: '/app/exports',
       account: '/app/account',
       organization: '/app/admin/organization',
       users: '/app/admin/users',
@@ -26,10 +33,17 @@ describe('routes CRM', () => {
     })
   })
 
-  it('active les pages terminées jusqu’au portefeuille prospects', () => {
+  it('active les pages terminées dont le tableau de bord 4.1', () => {
     expect(routes.map((route) => route.path)).toEqual([
+      '/app/dashboard',
+      '/app/usage',
       '/app/compliance/retention',
+      '/app/imports/history',
+      '/app/exports',
       '/app/compliance/sources',
+      '/app/pipeline',
+      '/app/opportunities',
+      '/app/tasks',
       '/app/prospects',
       '/app/prospects/new',
       '/app/prospects/:prospectId',
@@ -42,11 +56,15 @@ describe('routes CRM', () => {
       '/app/account',
     ])
     expect(findRoute('/app/platform/organizations')?.requiredCapability).toBe('platform:organizations:read')
+    expect(findRoute('/app/usage')?.requiredCapability).toBe('usage:read:self')
     expect(findRoute('/app/audit')?.requiredCapability).toBe('audit:read')
     expect(findRoute('/app/platform/audit')?.requiredCapability).toBe('platform:audit:read')
     expect(findRoute('/app/prospects')?.requiredCapability).toBe('prospects:read')
+    expect(findRoute('/app/opportunities')?.requiredCapability).toBe('opportunities:read')
     expect(findRoute('/app/compliance/sources')?.requiredCapability).toBe('providers:read')
     expect(findRoute('/app/compliance/retention')?.requiredCapability).toBe('retention:read')
+    expect(findRoute('/app/imports/history')?.requiredCapability).toBe('imports:read')
+    expect(findRoute('/app/exports')?.requiredCapability).toBe('exports:create:self')
     expect(findRoute('/app/prospects/11111111-1111-1111-1111-111111111111')?.params).toEqual({
       prospectId: '11111111-1111-1111-1111-111111111111',
     })
@@ -58,10 +76,12 @@ describe('routes CRM', () => {
 
     const tenant = session({
       activeOrganization: { id: 'org-1', name: 'Entreprise' },
-      capabilities: ['google:search', 'prospects:read', 'providers:read', 'organization:read', 'members:read'],
+      capabilities: ['google:search', 'prospects:read', 'providers:read', 'organization:read', 'members:read', 'tasks:read', 'opportunities:read'],
     })
     expect(navigationRoutes(tenant).map((route) => route.id)).toEqual([
       'compliance-sources',
+      'opportunities',
+      'tasks',
       'prospects',
       'google-place-search',
       'organization',
@@ -69,6 +89,9 @@ describe('routes CRM', () => {
       'account',
     ])
     expect(canAccessRoute(findRoute('/app/search'), tenant)).toBe(true)
+
+    const pipelineUser = session({ activeOrganization: { id: 'org-1', name: 'Entreprise' }, capabilities: ['pipeline:read'] })
+    expect(navigationRoutes(pipelineUser).map((route) => route.id)).toEqual(['pipeline', 'account'])
 
     const auditor = session({
       activeOrganization: { id: 'org-1', name: 'Entreprise' },
@@ -100,6 +123,13 @@ describe('routes CRM', () => {
       activeOrganization: { id: 'org-1', name: 'Entreprise' },
       capabilities: ['organization:read', 'platform:organizations:read'],
     }))).toBe('/app/admin/organization')
+  })
+
+  it('localise le libellé et le titre de la route Opportunités', () => {
+    const route = findRoute('/app/opportunities')
+    expect(localizedRouteLabel(route, 'fr-CA')).toBe('Opportunités')
+    expect(localizedRouteLabel(route, 'en-CA')).toBe('Opportunities')
+    expect(localizedRouteTitle(route, 'en-CA')).toBe('Opportunities')
   })
 })
 

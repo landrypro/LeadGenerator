@@ -1,3 +1,5 @@
+"""Implémentation des curseurs de pagination partagés par les repositories."""
+
 from __future__ import annotations
 
 import base64

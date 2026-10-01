@@ -16,6 +16,7 @@ export function OrganizationSwitcher({ session, switching, onSwitch }) {
   const activeId = activeMembershipId(session)
   const [selectedMembershipId, setSelectedMembershipId] = useState(activeId)
   const [error, setError] = useState('')
+  const english = session.active_organization?.locale === 'en-CA'
 
   useEffect(() => {
     setSelectedMembershipId(activeId)
@@ -43,12 +44,12 @@ export function OrganizationSwitcher({ session, switching, onSwitch }) {
     } catch (switchError) {
       if (switchError?.name === 'AbortError') return
       setSelectedMembershipId(activeId)
-      setError(toUserMessage(switchError, 'Le changement d’organisation a échoué.'))
+      setError(toUserMessage(switchError, english ? 'Organization switching failed.' : 'Le changement d’organisation a échoué.'))
     }
   }
 
   return <div className="organization-switcher">
-    <label htmlFor="active-organization-select">Organisation active</label>
+    <label htmlFor="active-organization-select">{english ? 'Active organization' : 'Organisation active'}</label>
     <select
       id="active-organization-select"
       value={selectedMembershipId}
@@ -60,7 +61,7 @@ export function OrganizationSwitcher({ session, switching, onSwitch }) {
         {membership.organization.name}
       </option>)}
     </select>
-    <span className="sr-only" aria-live="polite">{switching ? 'Changement d’organisation en cours…' : ''}</span>
+    <span className="sr-only" aria-live="polite">{switching ? (english ? 'Switching organization…' : 'Changement d’organisation en cours…') : ''}</span>
     {error && <span id="organization-switch-error" className="organization-switch-error" role="alert">{error}</span>}
   </div>
 }

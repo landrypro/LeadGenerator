@@ -6,6 +6,7 @@ from ....application.errors import (
     InvalidMapSnapshotGrant,
     MapSnapshotGrantInProgress,
     StaticMapProviderError,
+    UsageTrackingUnavailable,
 )
 from ..dependencies import ContainerDependency
 from ..google_access import google_access_error, required_google_access
@@ -55,6 +56,10 @@ async def map_snapshot(
                 503,
                 "google_protection_unavailable",
                 "La protection temporaire du parcours Google est indisponible.",
+            )
+        if isinstance(error, UsageTrackingUnavailable):
+            return api_error(
+                request, 503, "usage_tracking_unavailable", "Le registre d’usage est temporairement indisponible."
             )
         if isinstance(error, StaticMapProviderError):
             return api_error(

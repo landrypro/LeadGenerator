@@ -1,3 +1,9 @@
+"""Configuration centralisée et validation des garde-fous d’environnement.
+
+Les valeurs sont chargées depuis l’environnement puis validées ici afin que
+les composants applicatifs puissent supposer une configuration cohérente.
+"""
+
 from __future__ import annotations
 
 import os
@@ -11,6 +17,7 @@ DEFAULT_CORS_ORIGINS = (
     "http://localhost:5173",
     "http://127.0.0.1:5173",
 )
+DEVELOPMENT_JOB_IDEMPOTENCY_HMAC_KEY: Final = "development-only-worker-idempotency-secret-change-me"
 VALID_APP_ENVIRONMENTS: Final = frozenset({"development", "test", "staging", "production"})
 POSTGRESQL_ASYNC_PREFIX: Final = "postgresql+asyncpg://"
 REDIS_PREFIXES: Final = ("redis://", "rediss://")
@@ -52,6 +59,7 @@ class Settings:
     login_rate_limit_address_failures: int = 20
     google_maps_api_key: str = field(default="", repr=False)
     google_maps_static_api_key: str = field(default="", repr=False)
+    google_places_simulator_enabled: bool = False
     cors_allowed_origins: tuple[str, ...] = DEFAULT_CORS_ORIGINS
     places_timeout_seconds: float = 30.0
     google_search_lock_ttl_seconds: float = 45.0
@@ -66,6 +74,15 @@ class Settings:
     google_selection_grant_max_entries: int = 1_000
     import_temp_directory: str = ".runtime/imports"
     import_temp_max_bytes: int = 10 * 1024 * 1024
+    job_idempotency_hmac_key: str = field(default="", repr=False)
+    meta_lead_ads_enabled: bool = False
+    meta_lead_ads_simulator_enabled: bool = False
+    meta_webhook_verify_token: str = field(default="", repr=False)
+    meta_webhook_app_secret: str = field(default="", repr=False)
+    meta_reference_hmac_key: str = field(default="", repr=False)
+    meta_lead_reference_encryption_key: str = field(default="", repr=False)
+    meta_graph_access_token: str = field(default="", repr=False)
+    meta_graph_api_base_url: str = "https://graph.facebook.com"
     log_format: str = "text"
     instance_id: str = ""
     metrics_enabled: bool = False
@@ -76,6 +93,12 @@ class Settings:
     def __post_init__(self) -> None:
         if self.app_env not in VALID_APP_ENVIRONMENTS:
             raise ValueError("APP_ENV doit être development, test, staging ou production.")
+        if self.google_places_simulator_enabled and self.app_env not in {"development", "test"}:
+            raise ValueError("GOOGLE_PLACES_SIMULATOR_ENABLED est réservé au développement et au test.")
+        if self.meta_lead_ads_simulator_enabled and self.app_env not in {"development", "test"}:
+            raise ValueError("META_LEAD_ADS_SIMULATOR_ENABLED est réservé au développement et au test.")
+        if self.meta_lead_ads_simulator_enabled and not self.meta_lead_ads_enabled:
+            raise ValueError("META_LEAD_ADS_SIMULATOR_ENABLED exige META_LEAD_ADS_ENABLED=true.")
         if self.log_format not in {"text", "json"}:
             raise ValueError("LOG_FORMAT doit être text ou json.")
         if self.instance_id and not INSTANCE_ID_PATTERN.fullmatch(self.instance_id):
@@ -144,12 +167,29 @@ class Settings:
             raise ValueError("La configuration des jetons de sélection Google doit être positive.")
         if not self.import_temp_directory.strip() or self.import_temp_max_bytes != 10 * 1024 * 1024:
             raise ValueError("La configuration du stockage temporaire CSV est invalide.")
+        if self.job_idempotency_hmac_key and len(self.job_idempotency_hmac_key.encode("utf-8")) < 32:
+            raise ValueError("JOB_IDEMPOTENCY_HMAC_KEY doit contenir au moins 32 octets.")
+        meta_secrets = (
+            self.meta_webhook_verify_token,
+            self.meta_webhook_app_secret,
+            self.meta_reference_hmac_key,
+            self.meta_lead_reference_encryption_key,
+            self.meta_graph_access_token,
+        )
+        if self.meta_lead_ads_enabled and any(len(value.encode("utf-8")) < 32 for value in meta_secrets):
+            raise ValueError("Les secrets Meta doivent contenir au moins 32 octets lorsque le pilote est activé.")
+        if self.meta_lead_ads_enabled and len(self.job_idempotency_hmac_key.encode("utf-8")) < 32:
+            raise ValueError("JOB_IDEMPOTENCY_HMAC_KEY est obligatoire lorsque le pilote Meta est activé.")
+        if not _is_public_https_origin(self.meta_graph_api_base_url):
+            raise ValueError("META_GRAPH_API_BASE_URL doit être une origine HTTPS publique.")
         if self.app_env != "test" and self.map_grant_ttl_seconds > 300:
             raise ValueError("MAP_SNAPSHOT_GRANT_TTL_SECONDS ne peut pas dépasser 300 hors test.")
         if self.app_env in {"staging", "production"} and self.google_selection_grant_ttl_seconds > 900:
             raise ValueError("GOOGLE_SELECTION_GRANT_TTL_SECONDS ne peut pas dépasser 900 en staging et production.")
         if self.app_env == "staging" and not self.redis_url:
             raise ValueError("REDIS_URL est obligatoire en staging.")
+        if self.app_env == "staging" and len(self.job_idempotency_hmac_key.encode("utf-8")) < 32:
+            raise ValueError("JOB_IDEMPOTENCY_HMAC_KEY est obligatoire en staging.")
         if self.app_env == "production":
             self._validate_production_settings()
         if self.app_env in {"staging", "production"}:
@@ -175,10 +215,17 @@ class Settings:
             raise ValueError("PUBLIC_APP_URL doit être présente dans CORS_ALLOWED_ORIGINS.")
         if not self.rate_limit_hmac_key:
             raise ValueError("RATE_LIMIT_HMAC_KEY est obligatoire hors développement local.")
+        if len(self.job_idempotency_hmac_key.encode("utf-8")) < 32:
+            raise ValueError("JOB_IDEMPOTENCY_HMAC_KEY est obligatoire en production.")
 
     @property
     def static_maps_api_key(self) -> str:
         return self.google_maps_static_api_key or self.google_maps_api_key
+
+    @property
+    def google_places_search_available(self) -> bool:
+        """Indique si Text Search est disponible sans révéler sa configuration."""
+        return self.google_places_simulator_enabled or bool(self.google_maps_api_key)
 
     @classmethod
     def from_env(cls, environ: Mapping[str, str] | None = None) -> Settings:
@@ -226,6 +273,7 @@ class Settings:
             login_rate_limit_address_failures=int(values.get("LOGIN_RATE_LIMIT_ADDRESS_FAILURES", "20")),
             google_maps_api_key=values.get("GOOGLE_MAPS_API_KEY", "").strip(),
             google_maps_static_api_key=values.get("GOOGLE_MAPS_STATIC_API_KEY", "").strip(),
+            google_places_simulator_enabled=_parse_bool(values.get("GOOGLE_PLACES_SIMULATOR_ENABLED", "false")),
             cors_allowed_origins=origins,
             places_timeout_seconds=float(values.get("GOOGLE_PLACES_TIMEOUT_SECONDS", "30")),
             google_search_lock_ttl_seconds=float(values.get("GOOGLE_SEARCH_LOCK_TTL_SECONDS", "45")),
@@ -240,6 +288,20 @@ class Settings:
             google_selection_grant_max_entries=int(values.get("GOOGLE_SELECTION_GRANT_MAX_ENTRIES", "1000")),
             import_temp_directory=values.get("IMPORT_TEMP_DIRECTORY", ".runtime/imports").strip(),
             import_temp_max_bytes=int(values.get("IMPORT_TEMP_MAX_BYTES", str(10 * 1024 * 1024))),
+            job_idempotency_hmac_key=(
+                values.get("JOB_IDEMPOTENCY_HMAC_KEY", "").strip()
+                or (DEVELOPMENT_JOB_IDEMPOTENCY_HMAC_KEY if app_env in {"development", "test"} else "")
+            ),
+            meta_lead_ads_enabled=_parse_bool(values.get("META_LEAD_ADS_ENABLED", "false")),
+            meta_lead_ads_simulator_enabled=_parse_bool(values.get("META_LEAD_ADS_SIMULATOR_ENABLED", "false")),
+            meta_webhook_verify_token=values.get("META_WEBHOOK_VERIFY_TOKEN", "").strip(),
+            meta_webhook_app_secret=values.get("META_WEBHOOK_APP_SECRET", "").strip(),
+            meta_reference_hmac_key=values.get("META_REFERENCE_HMAC_KEY", "").strip(),
+            meta_lead_reference_encryption_key=values.get("META_LEAD_REFERENCE_ENCRYPTION_KEY", "").strip(),
+            meta_graph_access_token=values.get("META_GRAPH_ACCESS_TOKEN", "").strip(),
+            meta_graph_api_base_url=values.get("META_GRAPH_API_BASE_URL", "https://graph.facebook.com")
+            .strip()
+            .rstrip("/"),
             log_format=values.get("LOG_FORMAT", "json" if app_env in {"staging", "production"} else "text")
             .strip()
             .lower(),

@@ -9,7 +9,9 @@ export default defineConfig({
     setupFiles: ['./src/test/setup.js'],
     clearMocks: true,
     restoreMocks: true,
-    maxWorkers: 2,
+    pool: 'threads',
+    maxWorkers: 1,
+    fileParallelism: false,
     testTimeout: 10_000,
   },
 })

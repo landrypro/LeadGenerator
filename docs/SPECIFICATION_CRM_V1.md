@@ -876,10 +876,10 @@ d’implémentation ont été approuvés le 26 août 2026. La recette locale et 
 clôture avec réserve a été prononcée le 4 septembre 2026. La réserve staging multi-instance 2.6 et la preuve Azure
 restent obligatoires avant préproduction, sans bloquer 3.2.
 
-Les spécifications proposées de **3.2 — Pipeline Kanban** sont disponibles dans
+Les spécifications détaillées de **3.2 — Pipeline Kanban** sont disponibles dans
 [`PHASE_3_2_SPECIFICATIONS_DETAILLEES.md`](PHASE_3_2_SPECIFICATIONS_DETAILLEES.md). Elles définissent les neuf étapes,
 les transitions versionnées et idempotentes, l’historique atomique, l’audit, les filtres et l’interface accessible. Les
-seize décisions propres à 3.2 ont été validées le 4 septembre 2026. Aucun code 3.2 ne démarre avant un GO
+seize décisions propres à 3.2 ont été validées le 4 septembre 2026. Le code 3.2 est implémenté et attend la recette fonctionnelle PostgreSQL/RLS ainsi que le verrou qualité complet avant clôture.
 d’implémentation explicite.
 
 Le développement de 2.5 est découpé en cinq sous-incréments validés séparément : **2.5.1** modèle de données et

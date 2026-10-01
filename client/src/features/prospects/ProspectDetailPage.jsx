@@ -1,9 +1,18 @@
+// Vue agrégée d’un prospect : elle coordonne profil, conformité, activités,
+// tâches et opportunités tout en conservant une seule synchronisation.
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 
 import { Building2, Check, LoaderCircle, UsersRound } from '../../icons'
 import { toUserMessage } from '../../shared/api/errors'
+import { createRequestId } from '../../shared/ids/requestId'
 import { ErrorBanner } from '../../shared/ui/Feedback'
+import { organizationApi } from '../organizations/api/organizationApi'
+import { opportunityApi } from '../opportunities/api/opportunityApi'
+import { OpportunitySection } from '../opportunities/components/OpportunitySection'
+import { getOpportunityMessages } from '../opportunities/opportunityMessages'
 import { prospectApi } from './api/prospectApi'
+import { ActivityTimeline } from './components/ActivityTimeline'
+import { TaskPanel } from './components/TaskPanel'
 
 const MANUAL_SOURCE = { kind: 'manual', purpose: 'commercial_follow_up', territory: 'CA-QC' }
 
@@ -18,6 +27,13 @@ export function ProspectDetailPage({ routeParams, session }) {
   const [channels, setChannels] = useState([])
   const [contactChannels, setContactChannels] = useState({})
   const [permissions, setPermissions] = useState({})
+  const [activities, setActivities] = useState([])
+  const [tasks, setTasks] = useState([])
+  const [taskEvents, setTaskEvents] = useState([])
+  const [transitions, setTransitions] = useState([])
+  const [opportunityEvents, setOpportunityEvents] = useState([])
+  const [opportunityPage, setOpportunityPage] = useState({ items: [], aggregates_by_currency: [] })
+  const [opportunityMembers, setOpportunityMembers] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [success, setSuccess] = useState('')
@@ -25,9 +41,16 @@ export function ProspectDetailPage({ routeParams, session }) {
   const [channelValue, setChannelValue] = useState('')
   const [channelType, setChannelType] = useState('email')
   const [channelTarget, setChannelTarget] = useState('prospect')
+  const [activitySubmitting, setActivitySubmitting] = useState(false)
+  const [taskSubmitting, setTaskSubmitting] = useState(false)
+  const [opportunitySubmitting, setOpportunitySubmitting] = useState(false)
   const controllerRef = useRef(null)
   const canUpdate = session.capabilities.includes('prospects:update')
   const canWriteContacts = session.capabilities.includes('contacts:write')
+  const canReadOpportunities = session.capabilities.includes('opportunities:read')
+  const opportunityStrings = getOpportunityMessages(session.active_organization?.locale)
+  const activeMembership = (session.memberships ?? []).find((membership) => membership.organization?.id === session.active_organization?.id)
+  const canManageOpportunities = ['admin', 'manager'].includes(activeMembership?.role)
 
   const load = useCallback(async () => {
     if (!prospectId) return
@@ -37,11 +60,21 @@ export function ProspectDetailPage({ routeParams, session }) {
     setLoading(true)
     setError('')
     try {
-      const [nextProspect, contactsPage, nextChannels] = await Promise.all([
+      // Les ressources indépendantes sont chargées en parallèle ; le contrôleur
+      // empêche une ancienne fiche d’écraser les données du prospect courant.
+      const requests = [
         prospectApi.get(prospectId, controller.signal),
         prospectApi.listContacts(prospectId, controller.signal),
         prospectApi.listChannels(prospectId, controller.signal),
-      ])
+      ]
+      if (session.capabilities.includes('activities:read')) requests.push(prospectApi.listTimeline(prospectId, controller.signal))
+      const [nextProspect, contactsPage, nextChannels, timeline] = await Promise.all(requests)
+      const nextOpportunityPage = canReadOpportunities
+        ? await opportunityApi.listForProspect(prospectId, {}, controller.signal)
+        : { items: [], aggregates_by_currency: [] }
+      const nextOpportunityMembers = canManageOpportunities
+        ? await organizationApi.listMembers('', 100, controller.signal)
+        : { items: [] }
       const nextContactChannels = Object.fromEntries(await Promise.all((contactsPage.items ?? []).map(async (contact) => [
         contact.id,
         await prospectApi.listContactChannels(contact.id, controller.signal),
@@ -53,13 +86,20 @@ export function ProspectDetailPage({ routeParams, session }) {
       setChannels(nextChannels ?? [])
       setContactChannels(nextContactChannels)
       setPermissions(Object.fromEntries(permissionPairs))
+      setActivities(timeline?.activities ?? [])
+      setTasks(timeline?.tasks ?? [])
+      setTaskEvents(timeline?.task_events ?? [])
+      setTransitions(timeline?.transitions ?? [])
+      setOpportunityEvents(timeline?.opportunity_events ?? [])
+      setOpportunityPage(nextOpportunityPage)
+      setOpportunityMembers(nextOpportunityMembers.items ?? [])
     } catch (requestError) {
       if (requestError?.name !== 'AbortError') setError(toUserMessage(requestError, 'Impossible de charger le prospect.'))
     } finally {
       if (controllerRef.current === controller) controllerRef.current = null
       setLoading(false)
     }
-  }, [prospectId])
+  }, [canManageOpportunities, canReadOpportunities, prospectId, session.capabilities])
 
   useEffect(() => { load(); return () => controllerRef.current?.abort() }, [load])
 
@@ -125,6 +165,169 @@ export function ProspectDetailPage({ routeParams, session }) {
     } catch (requestError) { setError(toUserMessage(requestError, 'Impossible de modifier la permission.')) }
   }
 
+  async function createActivity(payload) {
+    if (!prospect) return false
+    setActivitySubmitting(true)
+    setError('')
+    try {
+      const created = await prospectApi.createActivity(prospect.id, { ...payload, idempotency_key: createRequestId() })
+      setActivities((current) => [created, ...current])
+      setSuccess('L’activité a été ajoutée à la chronologie.')
+      return true
+    } catch (requestError) {
+      setError(toUserMessage(requestError, 'Impossible d’enregistrer l’activité.'))
+      return false
+    } finally {
+      setActivitySubmitting(false)
+    }
+  }
+
+  async function correctActivity(activity, payload) {
+    setActivitySubmitting(true)
+    setError('')
+    try {
+      const correction = await prospectApi.correctActivity(activity.id, { ...payload, idempotency_key: createRequestId() })
+      setActivities((current) => [correction, ...current])
+      setSuccess('La correction a été ajoutée sans modifier l’activité initiale.')
+      return true
+    } catch (requestError) {
+      setError(toUserMessage(requestError, 'Impossible de corriger l’activité.'))
+      return false
+    } finally {
+      setActivitySubmitting(false)
+    }
+  }
+
+  async function createTask(payload) {
+    if (!prospect) return false
+    setTaskSubmitting(true)
+    setError('')
+    try {
+      const task = await prospectApi.createTask(prospect.id, { ...payload, idempotency_key: createRequestId() })
+      setTasks((current) => [...current, task].sort((left, right) => new Date(left.due_at) - new Date(right.due_at)))
+      setSuccess('La tâche a été planifiée.')
+      return true
+    } catch (requestError) {
+      setError(toUserMessage(requestError, 'Impossible de créer la tâche.'))
+      return false
+    } finally {
+      setTaskSubmitting(false)
+    }
+  }
+
+  async function updateTask(task, action, extra = {}) {
+    setTaskSubmitting(true)
+    setError('')
+    try {
+      const updated = await prospectApi.taskAction(task.id, action, { version: task.version, idempotency_key: createRequestId(), ...extra })
+      setTasks((current) => current.map((item) => item.id === updated.id ? updated : item))
+      setSuccess('La tâche a été mise à jour.')
+      return true
+    } catch (requestError) {
+      setError(toUserMessage(requestError, 'Impossible de modifier la tâche.'))
+      return false
+    } finally {
+      setTaskSubmitting(false)
+    }
+  }
+
+  async function createOpportunity(payload) {
+    if (!prospect) return false
+    setOpportunitySubmitting(true)
+    setError('')
+    setSuccess('')
+    try {
+      const created = await opportunityApi.create(prospect.id, { ...payload, idempotency_key: createRequestId() })
+      setOpportunityPage((current) => ({ ...current, items: [created, ...(current.items ?? [])] }))
+      setSuccess(opportunityStrings.created)
+      await load()
+      return true
+    } catch (requestError) {
+      if (requestError?.fields && ['opportunity_command_invalid', 'validation_failed'].includes(requestError.code)) {
+        return { fieldErrors: requestError.fields }
+      }
+      setError(toUserMessage(requestError, opportunityStrings.createError))
+      return false
+    } finally {
+      setOpportunitySubmitting(false)
+    }
+  }
+
+  async function updateOpportunity(opportunity, changes) {
+    setOpportunitySubmitting(true)
+    setError('')
+    setSuccess('')
+    try {
+      const updated = await opportunityApi.update(opportunity.id, {
+        version: opportunity.version,
+        idempotency_key: createRequestId(),
+        ...changes,
+      })
+      setOpportunityPage((current) => ({ ...current, items: (current.items ?? []).map((item) => item.id === updated.id ? updated : item) }))
+      setSuccess(opportunityStrings.updated)
+      await load()
+      return true
+    } catch (requestError) {
+      setError(toUserMessage(requestError, opportunityStrings.updateError))
+      return false
+    } finally {
+      setOpportunitySubmitting(false)
+    }
+  }
+
+  async function transitionOpportunity(opportunity, toStage, extra = {}) {
+    if (toStage === opportunity.stage_code) return
+    setOpportunitySubmitting(true)
+    setError('')
+    setSuccess('')
+    try {
+      const updated = await opportunityApi.transition(opportunity.id, {
+        version: opportunity.version,
+        to_stage: toStage,
+        idempotency_key: createRequestId(),
+        ...extra,
+      })
+      setOpportunityPage((current) => ({ ...current, items: (current.items ?? []).map((item) => item.id === updated.id ? updated : item) }))
+      setSuccess(opportunityStrings.stageUpdated)
+      await load()
+    } catch (requestError) {
+      setError(toUserMessage(requestError, opportunityStrings.stageUpdateError))
+    } finally {
+      setOpportunitySubmitting(false)
+    }
+  }
+
+  async function reopenOpportunity(opportunity, extra) {
+    setOpportunitySubmitting(true)
+    setError('')
+    setSuccess('')
+    try {
+      await opportunityApi.reopen(opportunity.id, { version: opportunity.version, probability: 50, idempotency_key: createRequestId(), ...extra })
+      setSuccess(opportunityStrings.reopened)
+      await load()
+    } catch (requestError) {
+      setError(toUserMessage(requestError, opportunityStrings.reopenError))
+    } finally {
+      setOpportunitySubmitting(false)
+    }
+  }
+
+  async function alignPipeline(_opportunity, stageCode) {
+    if (!prospect) return
+    setOpportunitySubmitting(true)
+    setError('')
+    setSuccess('')
+    try {
+      await prospectApi.moveStage(prospect.id, { version: prospect.version, to_stage: stageCode, idempotency_key: createRequestId() })
+      setSuccess(opportunityStrings.pipelineAligned)
+      await load()
+    } catch (requestError) {
+      setError(toUserMessage(requestError, opportunityStrings.pipelineAlignmentError))
+    } finally {
+      setOpportunitySubmitting(false)
+    }
+  }
+
   if (loading && !prospect) return <main className="administration-page"><div className="administration-loading"><LoaderCircle className="spin" size={20} /> Chargement du prospect…</div></main>
   if (!prospect) return <main className="administration-page"><section className="route-status-card"><h1>Prospect indisponible</h1><p>{error || 'Ce prospect est introuvable.'}</p><button type="button" className="secondary-button" onClick={load}>Réessayer</button></section></main>
 
@@ -143,6 +346,9 @@ export function ProspectDetailPage({ routeParams, session }) {
         <button className="primary-button" type="submit">Enregistrer le profil</button></form> : <p>Vous pouvez consulter ce profil, mais votre rôle ne permet pas de le modifier.</p>}</section>
       <section className="administration-card"><div className="administration-card-icon"><UsersRound size={21} /></div><h2>Contacts</h2>{contacts.length ? <ul className="prospect-contact-list">{contacts.map((contact) => <li key={contact.id}><strong>{contact.display_name}</strong>{contact.role_label && <span>{contact.role_label}</span>}{(contactChannels[contact.id] ?? []).map((channel) => <small key={channel.id}>{channel.channel_type} · {channel.value} · {permissionLabel(permissions[channel.id]?.status || 'unknown')}</small>)}</li>)}</ul> : <p className="form-help">Aucune personne de contact n’est enregistrée.</p>}{canWriteContacts && <form className="prospect-inline-form" onSubmit={addContact}><label htmlFor="contact-name">Ajouter une personne</label><input id="contact-name" value={contactName} onChange={(event) => setContactName(event.target.value)} maxLength="160" required /><button className="secondary-button" type="submit">Ajouter</button></form>}</section>
       <section className="administration-card prospect-channels-card"><h2>Canaux et permissions</h2>{channels.length ? <ul className="prospect-channel-list">{channels.map((channel) => { const permission = permissions[channel.id]; return <li key={channel.id}><div><strong>{channel.channel_type === 'email' ? 'Courriel' : channel.channel_type === 'phone' ? 'Téléphone' : channel.channel_type}</strong><span>{channel.value}</span><small>{permissionLabel(permission?.status || 'unknown')}</small></div>{permission && (session.capabilities.includes('permissions:allow') || session.capabilities.includes('permissions:restrict')) && <select aria-label={`Permission ${channel.value}`} value={permission.status} onChange={(event) => changePermission(channel, event.target.value)}><option value="unknown" disabled>Non déterminée</option>{session.capabilities.includes('permissions:allow') && <option value="allowed">Autorisé</option>}{session.capabilities.includes('permissions:restrict') && <><option value="do_not_contact">Ne pas contacter</option><option value="opted_out">Opposition</option></>}</select>}</li> })}</ul> : <p className="form-help">Aucun canal direct n’est enregistré.</p>}{canWriteContacts && <form className="prospect-inline-form" onSubmit={addChannel}><label htmlFor="channel-target">Associer le canal à</label><select id="channel-target" value={channelTarget} onChange={(event) => setChannelTarget(event.target.value)}><option value="prospect">L’établissement</option>{contacts.map((contact) => <option key={contact.id} value={contact.id}>{contact.display_name}</option>)}</select><label htmlFor="channel-value">Ajouter un canal</label><div><select value={channelType} onChange={(event) => setChannelType(event.target.value)} aria-label="Type de canal"><option value="email">Courriel</option><option value="phone">Téléphone</option><option value="linkedin">LinkedIn</option><option value="facebook">Facebook</option><option value="other">Autre</option></select><input id="channel-value" value={channelValue} onChange={(event) => setChannelValue(event.target.value)} maxLength="512" required /><button className="secondary-button" type="submit">Ajouter</button></div></form>}</section>
+      {canReadOpportunities && <OpportunitySection prospect={prospect} opportunities={opportunityPage.items} aggregates={opportunityPage.aggregates_by_currency} members={opportunityMembers} locale={session.active_organization?.locale} timezone={session.active_organization?.timezone} canCreate={session.capabilities.includes('opportunities:create')} canUpdate={session.capabilities.includes('opportunities:update')} canReassign={canManageOpportunities} canClose={session.capabilities.includes('opportunities:close')} canReopen={session.capabilities.includes('opportunities:reopen')} canAlign={session.capabilities.includes('pipeline:move')} submitting={opportunitySubmitting} onCreate={createOpportunity} onUpdate={updateOpportunity} onTransition={transitionOpportunity} onReopen={reopenOpportunity} onAlign={alignPipeline} />}
+      {session.capabilities.includes('activities:read') && <ActivityTimeline activities={activities} taskEvents={taskEvents} tasks={tasks} transitions={transitions} opportunityEvents={opportunityEvents} channels={[...channels, ...Object.values(contactChannels).flat()].map((channel) => ({ ...channel, permission: permissions[channel.id] }))} locale={session.active_organization?.locale} timezone={session.active_organization?.timezone} canCreate={session.capabilities.includes('activities:create')} canCorrectAny={session.capabilities.includes('activities:correct:any')} canCorrectSelf={session.capabilities.includes('activities:correct:self')} currentUserId={session.user?.id} submitting={activitySubmitting} onCreate={createActivity} onCorrect={correctActivity} />}
+      {session.capabilities.includes('tasks:read') && <TaskPanel tasks={tasks} locale={session.active_organization?.locale} timezone={session.active_organization?.timezone} canCreate={session.capabilities.includes('tasks:create')} submitting={taskSubmitting} onCreate={createTask} onAction={updateTask} />}
     </div>
   </main>
 }

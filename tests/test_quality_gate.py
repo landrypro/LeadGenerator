@@ -42,6 +42,27 @@ def test_browser_gate_rejects_storage_console_and_focused_tests(tmp_path: Path) 
         assert_browser_sources_are_safe(tmp_path)
 
 
+def test_browser_gate_allows_only_the_public_locale_preference(tmp_path: Path) -> None:
+    app = tmp_path / "app"
+    app.mkdir()
+    public_locale = app / "publicLocale.js"
+    public_locale.write_text(
+        "export const PUBLIC_LOCALE_STORAGE_KEY = 'marketteo.public-locale.v1'\n"
+        "globalThis.localStorage?.setItem(PUBLIC_LOCALE_STORAGE_KEY, 'fr-CA')\n"
+        "globalThis.localStorage?.getItem(PUBLIC_LOCALE_STORAGE_KEY)\n",
+        encoding="utf-8",
+    )
+    assert_browser_sources_are_safe(tmp_path)
+
+    public_locale.write_text(
+        "export const PUBLIC_LOCALE_STORAGE_KEY = 'marketteo.public-locale.v1'\n"
+        "globalThis.localStorage?.setItem('session-token', 'secret')\n",
+        encoding="utf-8",
+    )
+    with pytest.raises(ValueError, match="localStorage"):
+        assert_browser_sources_are_safe(tmp_path)
+
+
 def test_artifact_gate_rejects_secrets_and_forbidden_files(tmp_path: Path) -> None:
     (tmp_path / "index.html").write_text("<main>Prospect CRM</main>", encoding="utf-8")
     assert_artifact_is_safe(tmp_path)

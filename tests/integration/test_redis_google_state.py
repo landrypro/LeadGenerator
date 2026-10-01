@@ -133,8 +133,8 @@ async def test_redis_adapters_share_lock_and_tokens_between_two_pools() -> None:
 
 async def test_redis_quota_is_atomic_idempotent_and_bounded_under_concurrency() -> None:
     environment = f"google-quota-{uuid4().hex}"
-    first_resource = RedisResource(redis_url(), connect_timeout_seconds=2, max_connections=128)
-    second_resource = RedisResource(redis_url(), connect_timeout_seconds=2, max_connections=128)
+    first_resource = RedisResource(redis_url(), connect_timeout_seconds=2, max_connections=16)
+    second_resource = RedisResource(redis_url(), connect_timeout_seconds=2, max_connections=16)
     first_quota = RedisGoogleSearchQuota(first_resource.client, environment=environment)
     second_quota = RedisGoogleSearchQuota(second_resource.client, environment=environment)
     now = datetime(2026, 8, 25, 12, tzinfo=UTC)
@@ -181,17 +181,21 @@ async def test_redis_quota_is_atomic_idempotent_and_bounded_under_concurrency() 
         organization_id = uuid4()
         organization_policy = GoogleSearchQuotaPolicy(True, 20, 100, 80, "test_policy")
         organization_owners = [GoogleAccessOwner(uuid4(), organization_id) for _ in range(5)]
-        organization_results = await asyncio.gather(
-            *(
-                (first_quota if index % 2 else second_quota).reserve(
+
+        # Keep overlap between both pools without turning the Docker/WSL port forward
+        # into the subject under test by opening one hundred TCP connections at once.
+        reservation_limit = asyncio.Semaphore(16)
+
+        async def reserve_for_organization(index: int):
+            async with reservation_limit:
+                return await (first_quota if index % 2 else second_quota).reserve(
                     organization_owners[index % len(organization_owners)],
                     organization_policy,
                     uuid4(),
                     now=now,
                 )
-                for index in range(100)
-            )
-        )
+
+        organization_results = await asyncio.gather(*(reserve_for_organization(index) for index in range(100)))
         assert all(reservation.allowed for reservation in organization_results)
         assert sum(reservation.organization_warning_created for reservation in organization_results) == 1
         organization_denied = await first_quota.reserve(

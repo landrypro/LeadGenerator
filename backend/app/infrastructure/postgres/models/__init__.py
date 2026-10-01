@@ -1,6 +1,14 @@
 from .audit import AuditEventModel
 from .base import NAMING_CONVENTION, Base
+from .connector import (
+    ConnectorIngestionModel,
+    ConnectorIngestionOutcomeModel,
+    ProviderConnectorBindingModel,
+    ProviderConnectorContractModel,
+)
+from .export import ExportArtifactModel, ExportRequestModel, SourceExportRuleModel
 from .identity import InvitationDeliveryAttemptModel, MembershipModel, OrganizationModel, UserInvitationModel, UserModel
+from .job import JobAttemptModel, JobEventModel, JobModel, JobSchedulerStateModel, WorkerHeartbeatModel
 from .prospect import (
     AcquisitionRecordModel,
     ContactChannelModel,
@@ -10,16 +18,26 @@ from .prospect import (
     CsvImportQuarantineModel,
     CsvImportRunModel,
     CsvImportSessionModel,
+    OpportunityEventModel,
+    OpportunityModel,
+    PipelineStageSettingModel,
+    ProspectActivityModel,
     ProspectModel,
+    ProspectStageTransitionModel,
+    ProspectTaskEventModel,
+    ProspectTaskModel,
     ProvenanceRecordModel,
     SourceProviderModel,
 )
+from .usage import UsageDailyCounterModel, UsageOperationEventModel
 
 __all__ = [
     "NAMING_CONVENTION",
     "AcquisitionRecordModel",
     "AuditEventModel",
     "Base",
+    "ConnectorIngestionModel",
+    "ConnectorIngestionOutcomeModel",
     "ContactChannelModel",
     "ContactModel",
     "ContactPermissionModel",
@@ -27,12 +45,31 @@ __all__ = [
     "CsvImportQuarantineModel",
     "CsvImportRunModel",
     "CsvImportSessionModel",
+    "ExportArtifactModel",
+    "ExportRequestModel",
     "InvitationDeliveryAttemptModel",
+    "JobAttemptModel",
+    "JobEventModel",
+    "JobModel",
+    "JobSchedulerStateModel",
     "MembershipModel",
+    "OpportunityEventModel",
+    "OpportunityModel",
     "OrganizationModel",
+    "PipelineStageSettingModel",
+    "ProspectActivityModel",
     "ProspectModel",
+    "ProspectStageTransitionModel",
+    "ProspectTaskEventModel",
+    "ProspectTaskModel",
     "ProvenanceRecordModel",
+    "ProviderConnectorBindingModel",
+    "ProviderConnectorContractModel",
+    "SourceExportRuleModel",
     "SourceProviderModel",
+    "UsageDailyCounterModel",
+    "UsageOperationEventModel",
     "UserInvitationModel",
     "UserModel",
+    "WorkerHeartbeatModel",
 ]

@@ -1,3 +1,5 @@
+"""Routes de conformité : rétention, imports et décisions d’acquisition."""
+
 from __future__ import annotations
 
 from datetime import datetime
@@ -71,6 +73,9 @@ from ..security import require_csrf_token, require_json_content_type, require_tr
 router = APIRouter(tags=["retention"])
 OPTIONAL_DUE_BEFORE_QUERY = Query(default=None)
 OPTIONAL_RESOURCE_ID_QUERY = Query(default=None)
+OPTIONAL_RETRY_RUN_QUERY = Query(default=None)
+OPTIONAL_QUARANTINE_LIMIT_QUERY = Query(default=None, ge=1, le=100)
+QUARANTINE_AFTER_LINE_QUERY = Query(default=0, ge=0)
 
 
 @router.get("/api/retention/policies", response_model=RetentionPolicyPageResponse)
@@ -485,7 +490,12 @@ async def archive_import_declaration(
 
 
 @router.put("/api/import-declarations/{declaration_id}/file", response_model=CsvImportPreviewResponse)
-async def upload_csv_import_file(declaration_id: UUID, request: Request, container: ContainerDependency) -> Response:
+async def upload_csv_import_file(
+    declaration_id: UUID,
+    request: Request,
+    container: ContainerDependency,
+    retry_of_run_id: UUID | None = OPTIONAL_RETRY_RUN_QUERY,
+) -> Response:
     try:
         authentication = await _authenticated_binary_mutation(request, container)
         if request.headers.get("content-type", "").split(";", 1)[0].strip().lower() not in {
@@ -500,6 +510,8 @@ async def upload_csv_import_file(declaration_id: UUID, request: Request, contain
             declaration_id=declaration_id,
             chunks=request.stream(),
             has_capability=_has_capability(authentication, "imports:declare"),
+            retry_of_run_id=retry_of_run_id,
+            has_retry_capability=_has_capability(authentication, "imports:retry"),
         )
     except Exception as error:
         response = _retention_error(request, error)
@@ -541,7 +553,7 @@ async def map_csv_import(
             session_id=session_id,
             expected_version=payload.version,
             mapping={key: str(value) for key, value in payload.mapping.items()},
-            has_capability=_has_capability(authentication, "imports:declare"),
+            has_capability=_has_capability(authentication, "imports:correct"),
         )
     except Exception as error:
         response = _retention_error(request, error)
@@ -563,7 +575,7 @@ async def validate_csv_import(
             context=_tenant_context(request, authentication),
             session_id=session_id,
             expected_version=payload.version,
-            has_capability=_has_capability(authentication, "imports:declare"),
+            has_capability=_has_capability(authentication, "imports:correct"),
         )
     except Exception as error:
         response = _retention_error(request, error)
@@ -590,7 +602,7 @@ async def confirm_csv_import(
             session_id=session_id,
             expected_version=payload.version,
             idempotency_key=idempotency_key or "",
-            has_capability=_has_capability(authentication, "imports:declare"),
+            has_capability=_has_capability(authentication, "imports:confirm"),
         )
     except Exception as error:
         response = _retention_error(request, error)
@@ -601,9 +613,29 @@ async def confirm_csv_import(
 
 
 @router.get("/api/csv-import-runs/{run_id}/quarantines", response_model=list[CsvImportQuarantineResponse])
-async def list_csv_import_quarantines(run_id: UUID, request: Request, container: ContainerDependency) -> Response:
+async def list_csv_import_quarantines(
+    run_id: UUID,
+    request: Request,
+    container: ContainerDependency,
+    limit: int | None = OPTIONAL_QUARANTINE_LIMIT_QUERY,
+    after_line: int = QUARANTINE_AFTER_LINE_QUERY,
+) -> Response:
     try:
         authentication = await required_authentication(request, container)
+        if limit is not None:
+            if container.import_history is None:
+                raise ProspectServiceUnavailable
+            if not _has_capability(authentication, "imports:read"):
+                raise InsufficientCapability
+            page = await container.import_history.list_quarantines(
+                _tenant_context(request, authentication),
+                run_id,
+                limit=limit,
+                after_line=after_line,
+            )
+            if page is None:
+                raise ProspectComplianceResourceNotFound
+            return JSONResponse(page, headers=NO_STORE_HEADERS)
         if container.get_csv_import_report is None:
             raise ProspectServiceUnavailable
         quarantines = await container.get_csv_import_report.execute(
@@ -737,6 +769,7 @@ def _session_response(session: CsvImportSessionView) -> CsvImportSessionResponse
     return CsvImportSessionResponse(
         id=session.id,
         declaration_id=session.declaration_id,
+        retry_of_run_id=session.retry_of_run_id,
         content_sha256=session.content_sha256,
         byte_size=session.byte_size,
         headers=list(session.headers),
@@ -824,5 +857,6 @@ def _retention_error(request: Request, error: Exception) -> Response | None:
     if isinstance(error, (AuthenticationServiceUnavailable, ProspectServiceUnavailable)):
         return api_error(request, 503, "retention_unavailable", "La conservation est temporairement indisponible.")
     if isinstance(error, ValueError):
-        return api_error(request, 422, "validation_failed", "La commande conservation est invalide.")
+        message = str(error).strip() or "La commande conservation est invalide."
+        return api_error(request, 422, "validation_failed", message)
     return None

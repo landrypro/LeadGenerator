@@ -46,9 +46,13 @@ function SummaryProbe() {
   return <>
     <span>{auth.session?.active_organization?.name}</span>
     <span>{auth.session?.memberships[0]?.organization.name}</span>
+    <span>{auth.session?.active_organization?.locale}</span>
+    <span>{auth.session?.active_organization?.timezone}</span>
     <button type="button" onClick={() => auth.updateActiveOrganizationSummary({
       id: 'organization-1',
       name: 'Nom validé par le serveur',
+      locale: 'en-CA',
+      timezone: 'America/Vancouver',
     })}>Actualiser le résumé</button>
   </>
 }
@@ -172,7 +176,7 @@ describe('AuthProvider', () => {
     expect(await screen.findByText('anonymous')).toBeInTheDocument()
   })
 
-  it('répercute un nom validé dans les résumés de la session active', async () => {
+  it('répercute le nom, la locale et le fuseau validés dans la session active', async () => {
     authApi.me.mockResolvedValue({
       ...session,
       memberships: [{
@@ -187,6 +191,8 @@ describe('AuthProvider', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Actualiser le résumé' }))
 
     expect(screen.getAllByText('Nom validé par le serveur')).toHaveLength(2)
+    expect(screen.getByText('en-CA')).toBeInTheDocument()
+    expect(screen.getByText('America/Vancouver')).toBeInTheDocument()
   })
 })
 

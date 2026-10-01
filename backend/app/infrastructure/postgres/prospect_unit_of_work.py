@@ -7,8 +7,11 @@ from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from ...application.errors import OrganizationAdministrationUnavailable
 from ...application.tenancy import TenantContext
+from .activity_repository import SqlAlchemyActivityRepository, SqlAlchemyTaskEventRepository, SqlAlchemyTaskRepository
 from .audit_recorder import SqlAlchemyAuditRecorder
 from .csv_import_repository import SqlAlchemyCsvImportRepository
+from .opportunity_repository import SqlAlchemyOpportunityEventRepository, SqlAlchemyOpportunityRepository
+from .pipeline_repository import SqlAlchemyPipelineRepository
 from .prospect_repository import (
     SqlAlchemyAcquisitionRepository,
     SqlAlchemyContactChannelRepository,
@@ -29,6 +32,7 @@ class SqlAlchemyProspectUnitOfWork(SqlAlchemyTenantUnitOfWork):
     def __init__(self, session_factory: async_sessionmaker[AsyncSession], context: TenantContext) -> None:
         super().__init__(session_factory, context)
         self.prospects: SqlAlchemyProspectRepository
+        self.pipeline: SqlAlchemyPipelineRepository
         self.contacts: SqlAlchemyContactRepository
         self.contact_channels: SqlAlchemyContactChannelRepository
         self.contact_permissions: SqlAlchemyContactPermissionRepository
@@ -40,6 +44,11 @@ class SqlAlchemyProspectUnitOfWork(SqlAlchemyTenantUnitOfWork):
         self.retention_holds: SqlAlchemyRetentionHoldRepository
         self.import_declarations: SqlAlchemyImportDeclarationRepository
         self.csv_imports: SqlAlchemyCsvImportRepository
+        self.activities: SqlAlchemyActivityRepository
+        self.tasks: SqlAlchemyTaskRepository
+        self.task_events: SqlAlchemyTaskEventRepository
+        self.opportunities: SqlAlchemyOpportunityRepository
+        self.opportunity_events: SqlAlchemyOpportunityEventRepository
         self.audit: SqlAlchemyAuditRecorder
 
     async def __aenter__(self) -> SqlAlchemyProspectUnitOfWork:
@@ -48,6 +57,7 @@ class SqlAlchemyProspectUnitOfWork(SqlAlchemyTenantUnitOfWork):
         except SQLAlchemyError as error:
             raise OrganizationAdministrationUnavailable from error
         self.prospects = SqlAlchemyProspectRepository(self.session)
+        self.pipeline = SqlAlchemyPipelineRepository(self.session)
         self.contacts = SqlAlchemyContactRepository(self.session)
         self.contact_channels = SqlAlchemyContactChannelRepository(self.session)
         self.contact_permissions = SqlAlchemyContactPermissionRepository(self.session)
@@ -59,6 +69,11 @@ class SqlAlchemyProspectUnitOfWork(SqlAlchemyTenantUnitOfWork):
         self.retention_holds = SqlAlchemyRetentionHoldRepository(self.session)
         self.import_declarations = SqlAlchemyImportDeclarationRepository(self.session)
         self.csv_imports = SqlAlchemyCsvImportRepository(self.session)
+        self.activities = SqlAlchemyActivityRepository(self.session)
+        self.tasks = SqlAlchemyTaskRepository(self.session)
+        self.task_events = SqlAlchemyTaskEventRepository(self.session)
+        self.opportunities = SqlAlchemyOpportunityRepository(self.session)
+        self.opportunity_events = SqlAlchemyOpportunityEventRepository(self.session)
         self.audit = SqlAlchemyAuditRecorder(self.session)
         return self
 

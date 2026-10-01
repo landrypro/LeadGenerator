@@ -27,6 +27,7 @@ class SqlAlchemyCsvImportRepository(CsvImportRepository):
         headers: tuple[str, ...],
         now: datetime,
         expires_at: datetime,
+        retry_of_run_id: UUID | None = None,
     ) -> CsvImportSessionView:
         row = (
             (
@@ -34,11 +35,11 @@ class SqlAlchemyCsvImportRepository(CsvImportRepository):
                     text("""
             INSERT INTO public.csv_import_sessions (
                 id, organization_id, declaration_id, file_ref, content_sha256, byte_size, headers,
-                mapping, status, ready_count, duplicate_count, review_count, quarantined_count,
+                mapping, status, ready_count, duplicate_count, review_count, quarantined_count, retry_of_run_id,
                 created_at, expires_at, version
             ) VALUES (
                 :id, app_private.current_organization_id(), :declaration_id, :file_ref, :content_sha256,
-                :byte_size, CAST(:headers AS jsonb), '{}'::jsonb, 'uploaded', 0, 0, 0, 0, :now, :expires_at, 1
+                :byte_size, CAST(:headers AS jsonb), '{}'::jsonb, 'uploaded', 0, 0, 0, 0, :retry_of_run_id, :now, :expires_at, 1
             ) RETURNING *
         """),
                     {
@@ -50,6 +51,7 @@ class SqlAlchemyCsvImportRepository(CsvImportRepository):
                         "headers": json.dumps(headers),
                         "now": now,
                         "expires_at": expires_at,
+                        "retry_of_run_id": retry_of_run_id,
                     },
                 )
             )
@@ -291,6 +293,7 @@ def _session_from_row(row: Mapping[str, object]) -> CsvImportSessionView:
         expires_at=cast(datetime, row["expires_at"]),
         confirmed_at=cast(datetime | None, row["confirmed_at"]),
         version=cast(int, row["version"]),
+        retry_of_run_id=cast(UUID | None, row.get("retry_of_run_id")),
     )
 
 

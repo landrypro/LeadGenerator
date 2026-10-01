@@ -1,3 +1,5 @@
+"""Cas d’usage d’authentification, de session et de limitation de connexion."""
+
 from __future__ import annotations
 
 import hmac

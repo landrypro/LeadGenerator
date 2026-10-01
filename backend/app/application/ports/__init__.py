@@ -1,3 +1,4 @@
+from .activity import ActivityRepository, TaskEventRepository, TaskRepository
 from .audit import (
     ActorAuditedUnitOfWorkFactory,
     AuditCursorCodec,
@@ -60,10 +61,12 @@ from .provisioning import (
 from .runtime import AsyncResource
 from .sessions import SessionStore
 from .unit_of_work import ActorUnitOfWorkFactory, TenantUnitOfWorkFactory, UnitOfWork, UnitOfWorkFactory
+from .usage import NullUsageStore, UsageEvent, UsageStore
 
 __all__ = [
     "AcceptanceGatewayResult",
     "AcceptanceResultCode",
+    "ActivityRepository",
     "ActorAuditedUnitOfWorkFactory",
     "ActorUnitOfWorkFactory",
     "AsyncResource",
@@ -101,6 +104,7 @@ __all__ = [
     "MetricsRecorder",
     "NullMetricsRecorder",
     "NullTechnicalEventLogger",
+    "NullUsageStore",
     "OrganizationAdministrationGateway",
     "OrganizationStatusGatewayResult",
     "OrganizationStatusResultCode",
@@ -122,6 +126,8 @@ __all__ = [
     "StaticMapGateway",
     "SwitchOrganizationGatewayResult",
     "SwitchOrganizationResultCode",
+    "TaskEventRepository",
+    "TaskRepository",
     "TechnicalEventLogger",
     "TenantAuditReadUnitOfWorkFactory",
     "TenantAuditedUnitOfWorkFactory",
@@ -132,4 +138,6 @@ __all__ = [
     "UpdateMembershipResultCode",
     "UpdateOrganizationGatewayResult",
     "UpdateOrganizationResultCode",
+    "UsageEvent",
+    "UsageStore",
 ]

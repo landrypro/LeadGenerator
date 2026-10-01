@@ -1,16 +1,21 @@
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import date, datetime
+from decimal import Decimal
 from uuid import UUID, uuid4
 
 from sqlalchemy import (
+    CHAR,
     CheckConstraint,
+    Date,
     DateTime,
     ForeignKey,
     ForeignKeyConstraint,
     Index,
     Integer,
+    Numeric,
     PrimaryKeyConstraint,
+    SmallInteger,
     String,
     Text,
     UniqueConstraint,
@@ -173,7 +178,7 @@ class ProspectModel(Base):
         ),
         CheckConstraint("char_length(source_label) BETWEEN 1 AND 160", name="source_label_length"),
         CheckConstraint(
-            "stage_code IN ('new', 'qualified', 'contacted', 'proposal_sent', 'won', 'lost', 'archived')",
+            "stage_code IN ('new', 'qualifying', 'qualified', 'contacted', 'opportunity', 'proposal_sent', 'negotiation', 'won', 'lost', 'archived')",
             name="stage_code_allowed",
         ),
         CheckConstraint("priority BETWEEN 0 AND 5", name="priority_range"),
@@ -230,6 +235,7 @@ class ProspectModel(Base):
     retention_review_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=text("CURRENT_TIMESTAMP"))
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=text("CURRENT_TIMESTAMP"))
+    stage_changed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     archived_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     archived_by: Mapped[UUID | None] = mapped_column(ForeignKey("users.id", ondelete="RESTRICT"))
     archive_reason_code: Mapped[str | None] = mapped_column(String(64))
@@ -244,6 +250,409 @@ class ProspectModel(Base):
     postal_code: Mapped[str | None] = mapped_column(String(32))
     country_code: Mapped[str | None] = mapped_column(String(2))
     tags: Mapped[list[str]] = mapped_column(JSONB, server_default=text("'[]'::jsonb"))
+
+
+class PipelineStageSettingModel(Base):
+    __tablename__ = "pipeline_stage_settings"
+    __table_args__ = (
+        CheckConstraint(
+            "stage_code IN ('new', 'qualifying', 'qualified', 'contacted', 'opportunity', 'proposal_sent', 'negotiation', 'won', 'lost')",
+            name="stage_code_allowed",
+        ),
+        CheckConstraint("position BETWEEN 1 AND 9", name="position_range"),
+        CheckConstraint("char_length(color_token) BETWEEN 1 AND 32", name="color_token_length"),
+        CheckConstraint("labels IS NOT NULL AND jsonb_typeof(labels) = 'object'", name="labels_object"),
+        CheckConstraint("version > 0", name="version_positive"),
+        UniqueConstraint("organization_id", "stage_code", name="uq_pipeline_stage_settings_organization_stage"),
+        UniqueConstraint("organization_id", "position", name="uq_pipeline_stage_settings_organization_position"),
+    )
+
+    id: Mapped[UUID] = mapped_column(primary_key=True, default=uuid4)
+    organization_id: Mapped[UUID] = mapped_column(ForeignKey("organizations.id", ondelete="CASCADE"))
+    stage_code: Mapped[str] = mapped_column(String(32))
+    position: Mapped[int] = mapped_column(Integer)
+    color_token: Mapped[str] = mapped_column(String(32))
+    labels: Mapped[dict[str, str]] = mapped_column(JSONB)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=text("CURRENT_TIMESTAMP"))
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=text("CURRENT_TIMESTAMP"))
+    version: Mapped[int] = mapped_column(Integer, server_default=text("1"))
+
+
+class ProspectStageTransitionModel(Base):
+    __tablename__ = "prospect_stage_transitions"
+    __table_args__ = (
+        CheckConstraint(
+            "from_stage IN ('new', 'qualifying', 'qualified', 'contacted', 'opportunity', 'proposal_sent', 'negotiation', 'won', 'lost')",
+            name="from_stage_allowed",
+        ),
+        CheckConstraint(
+            "to_stage IN ('new', 'qualifying', 'qualified', 'contacted', 'opportunity', 'proposal_sent', 'negotiation', 'won', 'lost')",
+            name="to_stage_allowed",
+        ),
+        CheckConstraint("from_stage <> to_stage", name="stage_changed"),
+        CheckConstraint("from_version > 0 AND resulting_version > from_version", name="version_sequence"),
+        CheckConstraint("reason_note IS NULL OR char_length(reason_note) BETWEEN 1 AND 500", name="reason_note_length"),
+        ForeignKeyConstraint(
+            ["organization_id", "prospect_id"], ["prospects.organization_id", "prospects.id"], ondelete="RESTRICT"
+        ),
+        UniqueConstraint("organization_id", "id", name="uq_prospect_stage_transitions_organization_id_id"),
+        UniqueConstraint(
+            "organization_id",
+            "prospect_id",
+            "idempotency_key",
+            name="uq_prospect_stage_transitions_idempotency",
+        ),
+        Index(
+            "ix_prospect_stage_transitions_organization_prospect_occurred",
+            "organization_id",
+            "prospect_id",
+            "occurred_at",
+        ),
+    )
+
+    id: Mapped[UUID] = mapped_column(primary_key=True, default=uuid4)
+    organization_id: Mapped[UUID] = mapped_column(ForeignKey("organizations.id", ondelete="CASCADE"))
+    prospect_id: Mapped[UUID] = mapped_column()
+    actor_id: Mapped[UUID] = mapped_column(ForeignKey("users.id", ondelete="RESTRICT"))
+    from_stage: Mapped[str] = mapped_column(String(32))
+    to_stage: Mapped[str] = mapped_column(String(32))
+    from_version: Mapped[int] = mapped_column(Integer)
+    resulting_version: Mapped[int] = mapped_column(Integer)
+    reason_code: Mapped[str | None] = mapped_column(String(64))
+    reason_note: Mapped[str | None] = mapped_column(Text)
+    idempotency_key: Mapped[str] = mapped_column(String(128))
+    command_fingerprint: Mapped[str] = mapped_column(String(128))
+    occurred_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+
+
+class ProspectActivityModel(Base):
+    __tablename__ = "prospect_activities"
+    __table_args__ = (
+        CheckConstraint("activity_type IN ('note', 'call', 'email', 'meeting')", name="activity_type_allowed"),
+        CheckConstraint("direction IN ('internal', 'inbound', 'outbound')", name="direction_allowed"),
+        CheckConstraint("char_length(summary) BETWEEN 1 AND 160", name="summary_length"),
+        CheckConstraint("note IS NULL OR char_length(note) BETWEEN 1 AND 4000", name="note_length"),
+        CheckConstraint(
+            "permission_snapshot IN ('unknown', 'allowed', 'restricted', 'not_applicable')",
+            name="permission_snapshot_allowed",
+        ),
+        CheckConstraint("(correction_of_activity_id IS NULL) = (correction_reason IS NULL)", name="correction_pair"),
+        CheckConstraint(
+            "correction_reason IS NULL OR char_length(correction_reason) BETWEEN 1 AND 500",
+            name="correction_reason_length",
+        ),
+        ForeignKeyConstraint(
+            ["organization_id", "prospect_id"], ["prospects.organization_id", "prospects.id"], ondelete="RESTRICT"
+        ),
+        ForeignKeyConstraint(
+            ["organization_id", "contact_id"], ["contacts.organization_id", "contacts.id"], ondelete="RESTRICT"
+        ),
+        ForeignKeyConstraint(
+            ["organization_id", "contact_channel_id"],
+            ["contact_channels.organization_id", "contact_channels.id"],
+            ondelete="RESTRICT",
+        ),
+        ForeignKeyConstraint(
+            ["organization_id", "correction_of_activity_id"],
+            ["prospect_activities.organization_id", "prospect_activities.id"],
+            ondelete="RESTRICT",
+        ),
+        UniqueConstraint("organization_id", "id", name="uq_prospect_activities_organization_id_id"),
+        Index("ix_prospect_activities_organization_prospect_occurred", "organization_id", "prospect_id", "occurred_at"),
+        Index("ix_prospect_activities_organization_actor_occurred", "organization_id", "actor_id", "occurred_at"),
+        Index(
+            "uq_prospect_activities_idempotency",
+            "organization_id",
+            "prospect_id",
+            "idempotency_key",
+            unique=True,
+            postgresql_where=text("idempotency_key IS NOT NULL"),
+        ),
+    )
+
+    id: Mapped[UUID] = mapped_column(primary_key=True, default=uuid4)
+    organization_id: Mapped[UUID] = mapped_column(ForeignKey("organizations.id", ondelete="CASCADE"))
+    prospect_id: Mapped[UUID] = mapped_column()
+    actor_id: Mapped[UUID] = mapped_column(ForeignKey("users.id", ondelete="RESTRICT"))
+    activity_type: Mapped[str] = mapped_column(String(32))
+    direction: Mapped[str] = mapped_column(String(16))
+    summary: Mapped[str] = mapped_column(String(160))
+    note: Mapped[str | None] = mapped_column(Text)
+    occurred_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    contact_id: Mapped[UUID | None] = mapped_column()
+    contact_channel_id: Mapped[UUID | None] = mapped_column()
+    permission_snapshot: Mapped[str] = mapped_column(String(32), server_default=text("'not_applicable'"))
+    correction_of_activity_id: Mapped[UUID | None] = mapped_column()
+    correction_reason: Mapped[str | None] = mapped_column(Text)
+    idempotency_key: Mapped[str | None] = mapped_column(String(128))
+    command_fingerprint: Mapped[str | None] = mapped_column(String(128))
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=text("CURRENT_TIMESTAMP"))
+
+
+class ProspectTaskModel(Base):
+    __tablename__ = "prospect_tasks"
+    __table_args__ = (
+        CheckConstraint("char_length(title) BETWEEN 1 AND 160", name="title_length"),
+        CheckConstraint(
+            "description IS NULL OR char_length(description) BETWEEN 1 AND 2000", name="description_length"
+        ),
+        CheckConstraint("priority IN ('low', 'normal', 'high', 'urgent')", name="priority_allowed"),
+        CheckConstraint("status IN ('open', 'completed', 'cancelled')", name="status_allowed"),
+        CheckConstraint("reminder_at IS NULL OR reminder_at <= due_at", name="reminder_before_due"),
+        CheckConstraint("version > 0", name="version_positive"),
+        ForeignKeyConstraint(
+            ["organization_id", "prospect_id"], ["prospects.organization_id", "prospects.id"], ondelete="RESTRICT"
+        ),
+        ForeignKeyConstraint(
+            ["organization_id", "assigned_membership_id"],
+            ["memberships.organization_id", "memberships.id"],
+            ondelete="RESTRICT",
+        ),
+        UniqueConstraint("organization_id", "id", name="uq_prospect_tasks_organization_id_id"),
+        Index("ix_prospect_tasks_organization_prospect_due", "organization_id", "prospect_id", "due_at"),
+        Index(
+            "ix_prospect_tasks_organization_assignee_status_due",
+            "organization_id",
+            "assigned_membership_id",
+            "status",
+            "due_at",
+        ),
+        Index(
+            "uq_prospect_tasks_idempotency",
+            "organization_id",
+            "prospect_id",
+            "idempotency_key",
+            unique=True,
+            postgresql_where=text("idempotency_key IS NOT NULL"),
+        ),
+    )
+
+    id: Mapped[UUID] = mapped_column(primary_key=True, default=uuid4)
+    organization_id: Mapped[UUID] = mapped_column(ForeignKey("organizations.id", ondelete="CASCADE"))
+    prospect_id: Mapped[UUID] = mapped_column()
+    created_by: Mapped[UUID] = mapped_column(ForeignKey("users.id", ondelete="RESTRICT"))
+    assigned_membership_id: Mapped[UUID | None] = mapped_column()
+    title: Mapped[str] = mapped_column(String(160))
+    description: Mapped[str | None] = mapped_column(Text)
+    priority: Mapped[str] = mapped_column(String(16), server_default=text("'normal'"))
+    status: Mapped[str] = mapped_column(String(16), server_default=text("'open'"))
+    due_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    reminder_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    reminder_acknowledged_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    reminder_snoozed_until: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    completed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    cancelled_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    cancelled_reason: Mapped[str | None] = mapped_column(String(500))
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=text("CURRENT_TIMESTAMP"))
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=text("CURRENT_TIMESTAMP"))
+    version: Mapped[int] = mapped_column(Integer, server_default=text("1"))
+    idempotency_key: Mapped[str | None] = mapped_column(String(128))
+    command_fingerprint: Mapped[str | None] = mapped_column(String(128))
+
+
+class ProspectTaskEventModel(Base):
+    __tablename__ = "prospect_task_events"
+    __table_args__ = (
+        CheckConstraint(
+            "event_type IN ('created', 'updated', 'completed', 'cancelled', 'reopened', 'reminder_acknowledged', 'reminder_snoozed')",
+            name="event_type_allowed",
+        ),
+        CheckConstraint("resulting_status IN ('open', 'completed', 'cancelled')", name="resulting_status_allowed"),
+        CheckConstraint("resulting_version > 0", name="resulting_version_positive"),
+        CheckConstraint(
+            "changed_fields IS NOT NULL AND jsonb_typeof(changed_fields) = 'object'", name="changed_fields_object"
+        ),
+        CheckConstraint("reason IS NULL OR char_length(reason) BETWEEN 1 AND 500", name="reason_length"),
+        ForeignKeyConstraint(
+            ["organization_id", "prospect_id"], ["prospects.organization_id", "prospects.id"], ondelete="RESTRICT"
+        ),
+        ForeignKeyConstraint(
+            ["organization_id", "task_id"], ["prospect_tasks.organization_id", "prospect_tasks.id"], ondelete="CASCADE"
+        ),
+        UniqueConstraint("organization_id", "id", name="uq_prospect_task_events_organization_id_id"),
+        Index("ix_prospect_task_events_organization_task_occurred", "organization_id", "task_id", "occurred_at"),
+        Index(
+            "uq_prospect_task_events_idempotency",
+            "organization_id",
+            "task_id",
+            "idempotency_key",
+            unique=True,
+            postgresql_where=text("idempotency_key IS NOT NULL"),
+        ),
+    )
+
+    id: Mapped[UUID] = mapped_column(primary_key=True, default=uuid4)
+    organization_id: Mapped[UUID] = mapped_column(ForeignKey("organizations.id", ondelete="CASCADE"))
+    prospect_id: Mapped[UUID] = mapped_column()
+    task_id: Mapped[UUID] = mapped_column()
+    actor_id: Mapped[UUID] = mapped_column(ForeignKey("users.id", ondelete="RESTRICT"))
+    event_type: Mapped[str] = mapped_column(String(32))
+    resulting_status: Mapped[str] = mapped_column(String(16))
+    resulting_version: Mapped[int] = mapped_column(Integer)
+    changed_fields: Mapped[dict[str, str]] = mapped_column(JSONB, server_default=text("'{}'::jsonb"))
+    reason: Mapped[str | None] = mapped_column(String(500))
+    occurred_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    idempotency_key: Mapped[str | None] = mapped_column(String(128))
+    command_fingerprint: Mapped[str | None] = mapped_column(String(128))
+
+
+class OpportunityModel(Base):
+    __tablename__ = "opportunities"
+    __table_args__ = (
+        CheckConstraint("char_length(name) BETWEEN 1 AND 160", name="name_length"),
+        CheckConstraint("amount > 0 AND amount <> 'NaN'::numeric", name="amount_positive_and_finite"),
+        CheckConstraint("currency_code ~ '^[A-Z]{3}$'", name="currency_format"),
+        CheckConstraint("probability BETWEEN 0 AND 100", name="probability_range"),
+        CheckConstraint(
+            "stage_code IN ('discovery', 'qualification', 'proposal', 'negotiation', 'won', 'lost')",
+            name="stage_code_allowed",
+        ),
+        CheckConstraint("version > 0", name="version_positive"),
+        CheckConstraint(
+            "loss_reason_note IS NULL OR char_length(loss_reason_note) BETWEEN 1 AND 500",
+            name="loss_reason_note_length",
+        ),
+        CheckConstraint(
+            """
+            (
+                stage_code IN ('discovery', 'qualification', 'proposal', 'negotiation')
+                AND closed_at IS NULL
+                AND loss_reason_code IS NULL
+                AND loss_reason_note IS NULL
+            )
+            OR (
+                stage_code = 'won'
+                AND probability = 100
+                AND closed_at IS NOT NULL
+                AND loss_reason_code IS NULL
+                AND loss_reason_note IS NULL
+            )
+            OR (
+                stage_code = 'lost'
+                AND probability = 0
+                AND closed_at IS NOT NULL
+                AND loss_reason_code IN (
+                    'no_need', 'no_budget', 'no_response', 'competitor', 'timing', 'scope_mismatch',
+                    'invalid_or_duplicate', 'other'
+                )
+                AND (loss_reason_code <> 'other' OR loss_reason_note IS NOT NULL)
+            )
+            """,
+            name="terminal_state_consistency",
+        ),
+        ForeignKeyConstraint(
+            ["organization_id", "prospect_id"], ["prospects.organization_id", "prospects.id"], ondelete="RESTRICT"
+        ),
+        ForeignKeyConstraint(
+            ["organization_id", "owner_membership_id"],
+            ["memberships.organization_id", "memberships.id"],
+            ondelete="RESTRICT",
+        ),
+        UniqueConstraint("organization_id", "id", name="uq_opportunities_organization_id_id"),
+        UniqueConstraint("organization_id", "prospect_id", "id", name="uq_opportunities_organization_prospect_id"),
+        Index(
+            "ix_opportunities_organization_prospect_stage_expected_close",
+            "organization_id",
+            "prospect_id",
+            "stage_code",
+            "expected_close_on",
+            "id",
+        ),
+        Index(
+            "ix_opportunities_organization_owner_stage_expected_close",
+            "organization_id",
+            "owner_membership_id",
+            "stage_code",
+            "expected_close_on",
+            "id",
+        ),
+        Index(
+            "ix_opportunities_open_expected_close",
+            "organization_id",
+            "expected_close_on",
+            "id",
+            postgresql_where=text("stage_code IN ('discovery', 'qualification', 'proposal', 'negotiation')"),
+        ),
+    )
+
+    id: Mapped[UUID] = mapped_column(primary_key=True, default=uuid4)
+    organization_id: Mapped[UUID] = mapped_column(ForeignKey("organizations.id", ondelete="CASCADE"))
+    prospect_id: Mapped[UUID] = mapped_column()
+    owner_membership_id: Mapped[UUID] = mapped_column()
+    name: Mapped[str] = mapped_column(String(160))
+    amount: Mapped[Decimal] = mapped_column(Numeric(19, 4, asdecimal=True))
+    currency_code: Mapped[str] = mapped_column(CHAR(3))
+    probability: Mapped[int] = mapped_column(SmallInteger, server_default=text("10"))
+    stage_code: Mapped[str] = mapped_column(String(32), server_default=text("'discovery'"))
+    expected_close_on: Mapped[date] = mapped_column(Date)
+    loss_reason_code: Mapped[str | None] = mapped_column(String(64))
+    loss_reason_note: Mapped[str | None] = mapped_column(String(500))
+    closed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    created_by: Mapped[UUID] = mapped_column(ForeignKey("users.id", ondelete="RESTRICT"))
+    version: Mapped[int] = mapped_column(Integer, server_default=text("1"))
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=text("CURRENT_TIMESTAMP"))
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=text("CURRENT_TIMESTAMP"))
+
+
+class OpportunityEventModel(Base):
+    __tablename__ = "opportunity_events"
+    __table_args__ = (
+        CheckConstraint("event_type IN ('created', 'updated', 'stage_changed', 'reopened')", name="event_type_allowed"),
+        CheckConstraint(
+            "from_stage IS NULL OR from_stage IN ('discovery', 'qualification', 'proposal', 'negotiation', 'won', 'lost')",
+            name="from_stage_allowed",
+        ),
+        CheckConstraint(
+            "to_stage IS NULL OR to_stage IN ('discovery', 'qualification', 'proposal', 'negotiation', 'won', 'lost')",
+            name="to_stage_allowed",
+        ),
+        CheckConstraint(
+            """
+            (event_type = 'created' AND from_stage IS NULL AND to_stage = 'discovery'
+             AND from_version = 1 AND resulting_version = 1)
+            OR (event_type = 'updated' AND from_stage IS NULL AND to_stage IS NULL
+                AND from_version > 0 AND resulting_version > from_version)
+            OR (event_type IN ('stage_changed', 'reopened') AND from_stage IS NOT NULL AND to_stage IS NOT NULL
+                AND from_stage <> to_stage AND from_version > 0 AND resulting_version > from_version)
+            """,
+            name="event_shape_consistency",
+        ),
+        CheckConstraint(
+            "changed_fields IS NOT NULL AND jsonb_typeof(changed_fields) = 'object'", name="changed_fields_object"
+        ),
+        CheckConstraint("reason_note IS NULL OR char_length(reason_note) BETWEEN 1 AND 500", name="reason_note_length"),
+        ForeignKeyConstraint(
+            ["organization_id", "prospect_id", "opportunity_id"],
+            ["opportunities.organization_id", "opportunities.prospect_id", "opportunities.id"],
+            ondelete="RESTRICT",
+        ),
+        UniqueConstraint("organization_id", "id", name="uq_opportunity_events_organization_id_id"),
+        UniqueConstraint("organization_id", "event_type", "idempotency_key", name="uq_opportunity_events_idempotency"),
+        Index(
+            "ix_opportunity_events_organization_opportunity_occurred",
+            "organization_id",
+            "opportunity_id",
+            text("occurred_at DESC"),
+            text("id DESC"),
+        ),
+    )
+
+    id: Mapped[UUID] = mapped_column(primary_key=True, default=uuid4)
+    organization_id: Mapped[UUID] = mapped_column(ForeignKey("organizations.id", ondelete="CASCADE"))
+    prospect_id: Mapped[UUID] = mapped_column()
+    opportunity_id: Mapped[UUID] = mapped_column()
+    actor_id: Mapped[UUID] = mapped_column(ForeignKey("users.id", ondelete="RESTRICT"))
+    event_type: Mapped[str] = mapped_column(String(32))
+    from_stage: Mapped[str | None] = mapped_column(String(32))
+    to_stage: Mapped[str | None] = mapped_column(String(32))
+    from_version: Mapped[int] = mapped_column(Integer)
+    resulting_version: Mapped[int] = mapped_column(Integer)
+    changed_fields: Mapped[dict[str, str]] = mapped_column(JSONB, server_default=text("'{}'::jsonb"))
+    reason_code: Mapped[str | None] = mapped_column(String(64))
+    reason_note: Mapped[str | None] = mapped_column(String(500))
+    idempotency_key: Mapped[str] = mapped_column(String(128))
+    command_fingerprint: Mapped[str] = mapped_column(String(128))
+    occurred_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
 
 
 class ContactModel(Base):
@@ -547,9 +956,16 @@ class CsvImportSessionModel(Base):
             ["import_declarations.organization_id", "import_declarations.id"],
             ondelete="RESTRICT",
         ),
+        ForeignKeyConstraint(
+            ["organization_id", "retry_of_run_id"],
+            ["csv_import_runs.organization_id", "csv_import_runs.id"],
+            ondelete="RESTRICT",
+            name="fk_csv_import_sessions_retry_run",
+        ),
         UniqueConstraint("organization_id", "id", name="uq_csv_import_sessions_organization_id_id"),
         Index("ix_csv_import_sessions_organization_declaration", "organization_id", "declaration_id"),
         Index("ix_csv_import_sessions_expiry", "expires_at"),
+        Index("ix_csv_import_sessions_retry_run", "organization_id", "retry_of_run_id"),
         CheckConstraint("content_sha256 ~ '^[a-f0-9]{64}$'", name="sha256"),
         CheckConstraint("byte_size BETWEEN 1 AND 10485760", name="size"),
         CheckConstraint(
@@ -567,6 +983,7 @@ class CsvImportSessionModel(Base):
     id: Mapped[UUID] = mapped_column(primary_key=True, default=uuid4)
     organization_id: Mapped[UUID] = mapped_column(ForeignKey("organizations.id", ondelete="CASCADE"))
     declaration_id: Mapped[UUID] = mapped_column()
+    retry_of_run_id: Mapped[UUID | None] = mapped_column()
     file_ref: Mapped[str] = mapped_column(String(64))
     content_sha256: Mapped[str] = mapped_column(String(64))
     byte_size: Mapped[int] = mapped_column(Integer)

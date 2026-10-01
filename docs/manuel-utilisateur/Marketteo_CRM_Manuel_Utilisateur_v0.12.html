@@ -1,0 +1,353 @@
+<!doctype html>
+<html lang="fr-CA">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="Manuel utilisateur de Marketteo CRM">
+  <title>Manuel utilisateur Marketteo CRM</title>
+  <style>
+:root { --ink:#17251f; --green:#173f35; --green-2:#1f5a49; --mint:#d9eee3; --cream:#f8f2e7; --gold:#e3a829; --paper:#fffdf9; --line:#d6e1dc; --muted:#63716a; }
+* { box-sizing:border-box; }
+html { scroll-behavior:smooth; }
+body { margin:0; background:#eff5f1; color:var(--ink); font:16px/1.58 Inter, Aptos, Calibri, Arial, sans-serif; }
+a { color:var(--green-2); }
+.skip-link { position:absolute; left:-999px; top:auto; width:1px; height:1px; overflow:hidden; }
+.skip-link:focus { left:1rem; top:1rem; width:auto; height:auto; z-index:20; padding:.65rem .85rem; background:#fff; border:2px solid var(--green); border-radius:.4rem; }
+.site-header { background:linear-gradient(125deg, var(--green), #245f4d); color:#fff; padding:2.5rem max(1.25rem, calc((100vw - 1180px) / 2)); }
+.brand { display:flex; gap:.75rem; align-items:center; font-size:.82rem; font-weight:800; letter-spacing:.12em; text-transform:uppercase; }
+.brand-mark { display:grid; place-items:center; width:2.15rem; height:2.15rem; border-radius:.55rem; background:var(--gold); color:var(--green); font-size:1.1rem; }
+.site-header h1 { max-width:760px; margin:1.25rem 0 .4rem; font-size:clamp(2rem, 4vw, 3.45rem); line-height:1.08; }
+.site-header p { max-width:760px; margin:0; color:#dceee5; }
+.meta { display:flex; flex-wrap:wrap; gap:.55rem; margin-top:1.35rem; }
+.meta span { padding:.28rem .62rem; border:1px solid rgba(255,255,255,.34); border-radius:999px; color:#fff; font-size:.88rem; }
+.layout { display:grid; grid-template-columns:250px minmax(0, 860px); gap:2rem; max-width:1180px; margin:0 auto; padding:2rem 1.25rem 4rem; }
+.sidebar { align-self:start; position:sticky; top:1rem; padding:1.1rem; background:#fff; border:1px solid var(--line); border-radius:.85rem; box-shadow:0 .4rem 1.4rem rgba(23,63,53,.06); }
+.sidebar strong { display:block; margin-bottom:.6rem; color:var(--green); font-size:.82rem; letter-spacing:.08em; text-transform:uppercase; }
+.sidebar ol { margin:0; padding-left:1.2rem; }
+.sidebar li { margin:.35rem 0; }
+.sidebar a { text-decoration:none; font-size:.91rem; }
+.manual { min-width:0; padding:clamp(1.25rem, 4vw, 3.25rem); background:var(--paper); border:1px solid var(--line); border-radius:1rem; box-shadow:0 .5rem 1.8rem rgba(23,63,53,.08); }
+.manual h2 { scroll-margin-top:1rem; margin:2.6rem 0 .65rem; color:var(--green-2); font-size:1.7rem; line-height:1.2; }
+.manual h2:first-child { margin-top:0; }
+.manual h3 { scroll-margin-top:1rem; margin:1.75rem 0 .5rem; color:var(--green); font-size:1.2rem; line-height:1.3; }
+.manual p { margin:.65rem 0; }
+.manual ol, .manual ul { margin:.75rem 0 1rem; padding-left:1.45rem; }
+.manual li { margin:.35rem 0; }
+.manual code { padding:.08rem .3rem; border-radius:.25rem; background:var(--cream); color:var(--green); font: .88em ui-monospace, Consolas, monospace; }
+.manual strong { color:#132f27; }
+.note { margin:1.1rem 0; padding:.9rem 1rem; border-left:4px solid var(--gold); background:var(--cream); border-radius:0 .45rem .45rem 0; }
+figure { margin:1.5rem auto; text-align:center; }
+figure img { display:block; max-width:100%; height:auto; margin:auto; border:1px solid var(--line); border-radius:.65rem; box-shadow:0 .35rem 1rem rgba(23,63,53,.1); }
+figcaption { margin-top:.45rem; color:var(--muted); font-size:.9rem; font-style:italic; }
+.table-wrap { overflow-x:auto; margin:1rem 0 1.4rem; }
+table { width:100%; border-collapse:collapse; font-size:.93rem; }
+th, td { padding:.62rem .7rem; border:1px solid var(--line); vertical-align:top; text-align:left; }
+th { background:var(--mint); color:#102c23; font-weight:750; }
+tr:nth-child(even) td { background:#fbfdfb; }
+.site-footer { max-width:1180px; margin:0 auto; padding:0 1.25rem 2.5rem; color:var(--muted); font-size:.9rem; }
+@media (max-width: 850px) { .layout { grid-template-columns:1fr; padding-top:1rem; } .sidebar { position:static; } .sidebar ol { columns:2; } }
+@media (max-width: 540px) { .site-header { padding:1.75rem 1.25rem; } .manual { padding:1.25rem; } .sidebar ol { columns:1; } th, td { min-width:8rem; } }
+@media print { body { background:#fff; font-size:11pt; } .site-header { padding:0 0 1rem; background:#fff; color:#000; } .site-header p, .brand, .meta { color:#000; } .brand-mark { display:none; } .layout { display:block; max-width:none; margin:0; padding:0; } .sidebar { display:none; } .manual { border:0; box-shadow:none; padding:0; } .site-footer { display:none; } a { color:#000; text-decoration:none; } }
+</style>
+</head>
+<body>
+  <a class="skip-link" href="#contenu">Aller au contenu</a>
+  <header class="site-header">
+    <div class="brand"><span class="brand-mark" aria-hidden="true">M</span> Marketteo CRM</div>
+    <h1>Manuel utilisateur Marketteo CRM</h1>
+    <p>Guide pratique destiné à commerciaux, gestionnaires, administrateurs d&#x27;organisation et administrateurs de plateforme.</p>
+    <div class="meta"><span>Version : 0.12</span><span>État : phase 4.6 clôturée localement avec GO produit ; preuve Azure requise avant la phase 5</span><span>Date de référence : 30 septembre 2026</span></div>
+  </header>
+  <div class="layout">
+    <nav class="sidebar" aria-label="Sommaire"><strong>Sommaire</strong><ol><li><a href="#1-a-propos-de-marketteo-crm">À propos de Marketteo CRM</a></li><li><a href="#2-acceder-a-l-application">Accéder à l'application</a></li><li><a href="#3-rechercher-des-etablissements">Rechercher des établissements</a></li><li><a href="#4-gerer-les-prospects">Gérer les prospects</a></li><li><a href="#5-suivre-le-pipeline-commercial">Suivre le pipeline commercial</a></li><li><a href="#6-documenter-les-sources-et-acquisitions">Documenter les sources et acquisitions</a></li><li><a href="#7-conservation-et-declarations-d-import">Conservation et déclarations d'import</a></li><li><a href="#8-piloter-l-activite-avec-le-tableau-de-bord">Piloter l'activité avec le tableau de bord</a></li><li><a href="#9-consulter-les-quotas-et-rapports-d-usage">Consulter les quotas et rapports d'usage</a></li><li><a href="#10-importer-et-exporter-des-donnees-crm">Importer et exporter des données CRM</a></li><li><a href="#11-gerer-les-fournisseurs-acquisitions-et-connexions">Gérer les fournisseurs, acquisitions et connexions</a></li><li><a href="#12-administrer-une-organisation">Administrer une organisation</a></li><li><a href="#13-mon-compte-et-session">Mon compte et session</a></li><li><a href="#14-administration-de-la-plateforme">Administration de la plateforme</a></li><li><a href="#15-depannage-de-premier-niveau">Dépannage de premier niveau</a></li><li><a href="#17-etat-de-sortie-de-la-phase-4">État de sortie de la phase 4</a></li><li><a href="#18-glossaire">Glossaire</a></li><li><a href="#19-historique-du-document">Historique du document</a></li></ol></nav>
+    <main class="manual" id="contenu"><h2 id="1-a-propos-de-marketteo-crm">1. À propos de Marketteo CRM</h2>
+<p>Marketteo CRM permet à une organisation de rechercher ponctuellement des établissements, de les ajouter à un portefeuille CRM et de gérer des informations commerciales obtenues ou saisies de façon autorisée. L'application sépare les résultats Google temporaires des données CRM persistantes.</p>
+<p>Le parcours quotidien le plus courant est le suivant :</p>
+<ol><li>ouvrir l'organisation dans laquelle vous travaillez ;</li><li>rechercher, importer ou créer un prospect manuellement ;</li><li>compléter le profil CRM, les personnes et les canaux obtenus indépendamment ;</li><li>consigner les interactions déjà réalisées dans la chronologie commerciale ;</li><li>suivre les tâches, le pipeline et les opportunités, sans contourner la permission de contact ;</li><li>consulter le tableau de bord, les quotas et les rapports d'usage lorsque votre rôle y donne accès.</li></ol>
+<h3 id="1-1-regle-essentielle-sur-les-donnees-google">1.1 Règle essentielle sur les données Google</h3>
+<p>Les résultats affichés dans « Recherche Google » sont temporaires. Ils peuvent montrer le nom, l'adresse, la distance, le type d'activité et l'état d'un établissement pendant la consultation, mais ces contenus ne sont pas copiés dans le CRM et ne peuvent pas être exportés.</p>
+<p>Lorsqu'un résultat est ajouté au CRM, Marketteo conserve la référence Google autorisée et crée un profil CRM distinct. Les champs internes, contacts, canaux, étiquettes, priorités et permissions sont ensuite gérés comme des données de l'organisation.</p>
+<h3 id="1-2-fonctionnalites-actuellement-limitees">1.2 Fonctionnalités actuellement limitées</h3>
+<ul><li>Une recherche Google retourne au maximum 20 résultats et ne lance pas de pagination automatique.</li><li>Une limite opérationnelle est appliquée par journée UTC : 20 recherches par utilisateur dans l'organisation active et 100 par organisation. Elle protège le budget technique Google ; ce n'est pas encore un forfait commercial ni une facture.</li><li>Le bouton « Exporter Excel » des résultats Google est désactivé.</li><li>L'import accepte uniquement un CSV UTF-8 de 10 Mio ou moins. Les formats Excel, PDF, ZIP et les connecteurs externes ne sont pas pris en charge.</li><li>Les tâches et rappels sont internes à Marketteo : ils n’envoient aucune notification externe. Les automatisations</li></ul>
+<p>commerciales, la facturation et la conversion de devises ne font pas partie de cette édition.</p>
+<ul><li>Les métriques et journaux techniques sont réservés à l'exploitation : ils ne sont pas visibles dans le CRM et ne</li></ul>
+<p>changent ni les droits commerciaux ni les limites affichées.</p>
+<ul><li>La recette locale de phase 4.6 a validé les parcours E2E-01 à E2E-12, le verrou qualité sans skip et les contrôles d'accessibilité ; le pipeline Azure doit encore publier les preuves sur le commit de clôture avant l'entrée en phase 5.</li><li>L'activation du connecteur Meta avec un compte réel reste <code>BLOCKED_EXTERNAL</code> jusqu'à l'autorisation externe, la revue de l'application et la validation des permissions officielles. Le pilote local simulé ne vaut pas activation fournisseur.</li><li>La phase 5 est cadrée mais non disponible dans l'application : préproduction, abonnements, facturation, restauration, essais de charge et déploiement progressif restent à décider et à implémenter.</li></ul>
+<h2 id="2-acceder-a-l-application">2. Accéder à l'application</h2>
+<h3 id="2-1-accepter-une-invitation">2.1 Accepter une invitation</h3>
+<p>Une invitation est envoyée par courriel et contient un lien à usage limité.</p>
+<p>Si vous n'avez pas encore de compte :</p>
+<ol><li>ouvrez le lien complet reçu par courriel ;</li><li>vérifiez le nom de l'organisation et le rôle proposé ;</li><li>saisissez votre nom affiché ;</li><li>créez un mot de passe de 12 à 128 caractères et confirmez-le ;</li><li>sélectionnez « Créer le compte et accepter ».</li></ol>
+<p>Si un compte existe déjà pour l'adresse invitée :</p>
+<ol><li>connectez-vous directement dans la page d'invitation ;</li><li>vérifiez le compte connecté ;</li><li>sélectionnez « Accepter l'invitation ».</li></ol>
+<p>Si un autre compte est déjà connecté, utilisez « Utiliser un autre compte » ou déconnectez-vous avant de poursuivre. Un lien expiré, révoqué, déjà utilisé ou associé à un autre compte ne peut pas être accepté.</p>
+<h3 id="2-2-se-connecter">2.2 Se connecter</h3>
+<ol><li>ouvrez l'adresse de Marketteo CRM communiquée par votre administrateur ;</li><li>saisissez votre adresse courriel ;</li><li>saisissez votre mot de passe ;</li><li>sélectionnez « Se connecter ».</li></ol>
+<p>L'accès est réservé aux comptes créés ou invités par un administrateur. En cas d'échec répété, vérifiez l'adresse utilisée et contactez l'administrateur de votre organisation.</p>
+<figure><img src="images/connexion.png" alt="Écran de connexion Marketteo CRM" loading="lazy"><figcaption>Figure 1 — Écran de connexion Marketteo CRM. Les champs restent volontairement vides dans toute capture diffusée.</figcaption></figure>
+<h3 id="2-3-choisir-l-organisation-active">2.3 Choisir l'organisation active</h3>
+<p>Si vous appartenez à plusieurs organisations, le sélecteur « Organisation active » apparaît dans l'en-tête.</p>
+<ol><li>ouvrez le sélecteur ;</li><li>choisissez l'organisation voulue ;</li><li>attendez la fin du changement avant de continuer.</li></ol>
+<p>Les données, membres, prospects et journaux sont isolés par organisation. Vérifiez toujours l'organisation active avant de créer ou modifier une donnée.</p>
+<h3 id="2-4-navigation-et-acces-selon-le-role">2.4 Navigation et accès selon le rôle</h3>
+<p>Le menu affiche uniquement les pages autorisées pour votre rôle. L'absence d'une page indique généralement que votre compte ne possède pas la capacité correspondante.</p>
+<div class="table-wrap"><table><thead><tr><th scope="col">Fonction</th><th scope="col">Commercial</th><th scope="col">Gestionnaire</th><th scope="col">Administrateur</th><th scope="col">Admin plateforme</th></tr></thead><tbody><tr><td>Tableau de bord</td><td>Mes données</td><td>Organisation et membres</td><td>Organisation et membres</td><td>Selon appartenance</td></tr><tr><td>Recherche Google et carte</td><td>Oui</td><td>Oui</td><td>Oui</td><td>Selon appartenance</td></tr><tr><td>Prospects, contacts et canaux</td><td>Oui</td><td>Oui</td><td>Oui</td><td>Selon appartenance</td></tr><tr><td>Autoriser un contact</td><td>Non</td><td>Oui</td><td>Oui</td><td>Selon appartenance</td></tr><tr><td>Enregistrer « Ne pas contacter » ou une opposition</td><td>Oui</td><td>Oui</td><td>Oui</td><td>Selon appartenance</td></tr><tr><td>Pipeline commercial</td><td>Consulter et déplacer</td><td>Consulter, déplacer et réouvrir</td><td>Consulter, déplacer et réouvrir</td><td>Selon appartenance</td></tr><tr><td>Chronologie commerciale</td><td>Consulter, créer et corriger ses saisies</td><td>Consulter, créer et corriger les saisies</td><td>Consulter, créer et corriger les saisies</td><td>Selon appartenance</td></tr><tr><td>Tâches et rappels</td><td>Gérer les tâches assignées</td><td>Gérer les tâches de l'organisation</td><td>Gérer les tâches de l'organisation</td><td>Selon appartenance</td></tr><tr><td>Opportunités</td><td>Voir, créer, modifier et conclure ses opportunités ; aucune réouverture ni réaffectation</td><td>Voir, créer, modifier, conclure, réouvrir et réaffecter toutes les opportunités</td><td>Voir, créer, modifier, conclure, réouvrir et réaffecter toutes les opportunités</td><td>Selon appartenance</td></tr><tr><td>Sources, acquisitions et connexions</td><td>Non</td><td>Consultation et déclaration</td><td>Gestion, revue et connexions</td><td>Selon appartenance</td></tr><tr><td>Conservation, imports CSV et historique</td><td>Consultation du rapport</td><td>Déclarer, téléverser, mapper, valider, confirmer et consulter l'historique</td><td>Gestion complète</td><td>Selon appartenance</td></tr><tr><td>Exports CSV</td><td>Export de son périmètre</td><td>Export organisationnel selon capacité</td><td>Export organisationnel selon capacité</td><td>Selon appartenance</td></tr><tr><td>Quotas et rapports d'usage</td><td>Rapport personnel</td><td>Organisation et membres</td><td>Organisation et membres</td><td>Selon appartenance</td></tr><tr><td>Membres et journal d'activité</td><td>Non</td><td>Consultation</td><td>Gestion</td><td>Selon appartenance</td></tr><tr><td>Organisations et audit de plateforme</td><td>Non</td><td>Non</td><td>Non</td><td>Oui</td></tr></tbody></table></div>
+<p>Un administrateur de plateforme qui appartient aussi à une organisation cumule les accès correspondants.</p>
+<h3 id="2-5-utiliser-la-navigation-responsive">2.5 Utiliser la navigation responsive</h3>
+<p>La navigation est filtrée par les capacités de la session. Sur grand écran, les cinq accès fréquents (« Tableau de bord », « Mes tâches », « Prospects », « Pipeline » et « Opportunités ») sont visibles dans l'en-tête ; les autres pages sont regroupées dans « Acquisition », « Données et audit » et « Administration ».</p>
+<p>À largeur intermédiaire, sélectionnez « Menu » pour ouvrir le panneau. Sur téléphone, la barre inférieure conserve « Accueil », « Tâches », « Prospects », « Pipeline » et « Plus ». « Plus » ouvre le même panneau catégorisé et donne aussi accès au « Manuel ».</p>
+<ul><li>sélectionnez une catégorie pour afficher ou masquer ses liens ;</li><li>utilisez « Échap », le bouton de fermeture ou le bouton « Menu » pour refermer le panneau ;</li><li>le bouton « Manuel » ouvre la dernière édition HTML publiée dans un nouvel onglet ;</li><li>si un lien n'apparaît pas, vérifiez votre rôle et l'organisation active plutôt que de saisir une URL directe.</li></ul>
+<figure><img src="images/navigation-mobile-menu.png" alt="Menu responsive de Marketteo CRM" loading="lazy"><figcaption>Figure 11 — Panneau de navigation responsive avec les catégories Acquisition, Données et audit et Administration.</figcaption></figure>
+<h2 id="3-rechercher-des-etablissements">3. Rechercher des établissements</h2>
+<p>Ouvrez « Recherche Google » dans la navigation.</p>
+<h3 id="3-1-configurer-la-recherche">3.1 Configurer la recherche</h3>
+<ol><li>dans « Type d'entreprise », saisissez un terme simple, par exemple <code>plombier</code> ; n'ajoutez pas la ville au terme ;</li><li>dans « Pays ou région », commencez à saisir le lieu, puis choisissez une proposition Google ;</li><li>dans « Ville ou quartier », saisissez le lieu précis et choisissez une proposition : la latitude et la longitude du centre sont remplies automatiquement ;</li><li>au besoin, ouvrez « Coordonnées avancées » pour saisir directement la latitude et la longitude ;</li><li>choisissez un rayon de 1 à 50 km ;</li><li>activez « Entreprises de zone de service » si vous souhaitez inclure les entreprises qui n'affichent pas d'adresse ;</li><li>sélectionnez « Rechercher des établissements ».</li></ol>
+<p>Chaque recherche effectue un seul appel Google Text Search et affiche jusqu'à 20 résultats. La carte de couverture apparaît si votre rôle permet l'accès à la carte et si le service est disponible. L'autocomplétion et la résolution du lieu utilisent des appels Google distincts et facturables ; elles ne lancent pas automatiquement de recherche d'établissements. Les propositions sont temporaires et ne sont pas enregistrées dans le CRM.</p>
+<p>La limite quotidienne est calculée par le serveur et se remet à zéro à minuit UTC. Lorsqu'elle est atteinte, aucune recherche n'est transmise à Google. Attendez le délai affiché, ou contactez l'administrateur de votre organisation si l'activité prévue nécessite une révision de la configuration.</p>
+<figure><img src="images/recherche-google-phase4.png" alt="Recherche Google dans l&#x27;interface phase 4" loading="lazy"><figcaption>Figure 12 — Recherche Google phase 4 : paramètres à gauche, couverture et résultats temporaires à droite.</figcaption></figure>
+<h3 id="3-2-lire-et-filtrer-les-resultats">3.2 Lire et filtrer les résultats</h3>
+<p>Le tableau indique l'entreprise Google temporaire, son <code>place_id</code>, la localisation, la distance, l'état et un lien d'ouverture dans Google Maps. Le <code>place_id</code> est la référence technique Google qui permet d'éviter les doublons ; ce n'est pas le nom commercial du prospect dans Marketteo. « Non vérifiable » signifie que la distance ne peut pas être confirmée, notamment pour certaines entreprises de zone de service.</p>
+<p>Utilisez « Filtrer par nom, ville ou activité… » pour réduire localement la liste déjà affichée. Ce filtre ne déclenche pas une nouvelle recherche Google.</p>
+<h3 id="3-3-ajouter-un-resultat-au-crm">3.3 Ajouter un résultat au CRM</h3>
+<p>Pour ajouter un établissement :</p>
+<ol><li>saisissez un « Nom interne CRM » dans la ligne voulue ; ce nom est choisi par votre organisation et ne doit pas être une copie automatique du nom Google ;</li><li>sélectionnez « Ajouter » dans la ligne ; le bouton reste inaccessible tant que le nom interne est vide ;</li><li>attendez le résultat : « Ajouté » confirme la création et « Déjà au CRM » indique qu'un prospect portant ce <code>place_id</code> existe déjà ;</li><li>ouvrez ensuite « Prospects » pour compléter le profil CRM.</li></ol>
+<p>Pour ajouter plusieurs résultats, cochez les lignes, renseignez un nom interne pour chacune, puis sélectionnez « Ajouter la sélection ». Une nouvelle recherche efface la sélection courante.</p>
+<aside class="note">Important : « Ajouter » ne copie pas les détails descriptifs Google dans la fiche. Les coordonnées de contact doivent provenir d'une source autorisée et être saisies séparément.</aside>
+<figure><img src="images/recherche-et-ajout.png" alt="Recherche ponctuelle et ajout au CRM" loading="lazy"><figcaption>Figure 2 — Recherche d'établissements et ajout au CRM. Le nom interne est saisi par l'utilisateur avant l'ajout.</figcaption></figure>
+<h2 id="4-gerer-les-prospects">4. Gérer les prospects</h2>
+<h3 id="4-1-consulter-le-portefeuille">4.1 Consulter le portefeuille</h3>
+<p>Ouvrez « Prospects ». La liste montre le nom interne, l'origine, le secteur et la ville lorsqu'ils sont renseignés, la priorité, la dernière mise à jour et l'état archivé. Pour un prospect issu de Google, le <code>place_id</code> est affiché séparément et en lecture seule.</p>
+<ul><li>Recherchez par nom, secteur, ville ou <code>place_id</code>, puis sélectionnez « Rechercher ».</li><li>Cochez « Inclure les archivés » pour afficher les éléments archivés.</li><li>Sélectionnez « Afficher davantage » lorsqu'une page suivante est disponible.</li><li>Sélectionnez une ligne pour ouvrir la fiche.</li></ul>
+<figure><img src="images/portefeuille-prospects.png" alt="Portefeuille des prospects Marketteo CRM" loading="lazy"><figcaption>Figure 3 — Portefeuille des prospects avec les informations CRM utiles au suivi commercial.</figcaption></figure>
+<h3 id="4-2-creer-un-prospect-manuellement">4.2 Créer un prospect manuellement</h3>
+<ol><li>dans « Prospects », sélectionnez « Ajouter un prospect » ;</li><li>saisissez le « Nom interne de l'établissement » ;</li><li>sélectionnez « Créer le prospect ».</li></ol>
+<p>Cette action crée une donnée CRM manuelle et ne copie aucune information depuis Google.</p>
+<h3 id="4-3-modifier-le-profil-crm">4.3 Modifier le profil CRM</h3>
+<p>Dans la fiche du prospect, la section « Profil CRM » contient :</p>
+<ul><li>le nom interne ;</li><li>le secteur ;</li><li>la ville CRM ;</li><li>une priorité de 0 à 5 ;</li><li>des étiquettes séparées par des virgules.</li></ul>
+<p>Modifiez les champs puis sélectionnez « Enregistrer le profil ». Si votre rôle est en lecture seule, le formulaire est remplacé par un message d'information.</p>
+<p>Pour un prospect Google, la fiche affiche aussi le <code>place_id</code>. Cette référence est non modifiable. Modifier le nom interne ne modifie ni le <code>place_id</code>, ni les données temporaires affichées par Google.</p>
+<h3 id="4-4-ajouter-une-personne-de-contact">4.4 Ajouter une personne de contact</h3>
+<ol><li>ouvrez la fiche du prospect ;</li><li>dans « Contacts », saisissez le nom de la personne ;</li><li>sélectionnez « Ajouter ».</li></ol>
+<p>La personne est enregistrée comme donnée saisie manuellement pour le suivi commercial.</p>
+<h3 id="4-5-ajouter-un-canal-de-contact">4.5 Ajouter un canal de contact</h3>
+<ol><li>dans « Canaux et permissions », choisissez si le canal appartient à l'établissement ou à une personne ;</li><li>choisissez le type : courriel, téléphone, LinkedIn, Facebook ou autre ;</li><li>saisissez la valeur ;</li><li>sélectionnez « Ajouter ».</li></ol>
+<p>Tout nouveau canal est créé avec l'état « Permission non déterminée ». Ne contactez pas la personne tant que la base autorisant le contact n'a pas été vérifiée.</p>
+<h3 id="4-6-gerer-la-permission-de-contact">4.6 Gérer la permission de contact</h3>
+<p>Les états possibles sont :</p>
+<div class="table-wrap"><table><thead><tr><th scope="col">État</th><th scope="col">Signification</th><th scope="col">Conduite à tenir</th></tr></thead><tbody><tr><td>Permission non déterminée</td><td>La permission n'a pas été établie</td><td>Ne pas contacter avant vérification</td></tr><tr><td>Contact autorisé</td><td>Une base et une provenance valides ont été enregistrées</td><td>Contact possible dans la finalité prévue</td></tr><tr><td>Ne pas contacter</td><td>Une restriction manuelle s'applique</td><td>Aucun contact</td></tr><tr><td>Opposition enregistrée</td><td>La personne s'est opposée au contact</td><td>Aucun contact ; conserver la trace</td></tr></tbody></table></div>
+<p>Les gestionnaires et administrateurs peuvent autoriser un canal lorsqu'une provenance compatible existe. Les commerciaux peuvent enregistrer une restriction ou une opposition, mais ne peuvent pas transformer seuls un état inconnu en « Contact autorisé ».</p>
+<figure><img src="images/fiche-prospect-permissions.png" alt="Fiche prospect et permissions de contact" loading="lazy"><figcaption>Figure 4 — Fiche prospect : profil CRM, contacts, canaux et état de permission. Les données affichées sont fictives.</figcaption></figure>
+<h3 id="4-7-consigner-une-activite-commerciale">4.7 Consigner une activité commerciale</h3>
+<p>La section « Chronologie commerciale » de la fiche prospect conserve les faits utiles au suivi. Elle est distincte du « Journal d'activité », qui reste un audit technique. Une activité n'envoie aucun courriel, ne lance aucun appel et ne modifie jamais la permission d'un canal.</p>
+<ol><li>ouvrez la fiche du prospect, puis « Ajouter une activité » ;</li><li>choisissez le type : note interne, appel déclaré, courriel déclaré ou réunion déclarée ;</li><li>pour un appel ou un courriel, choisissez le sens de l'échange et, si utile, le canal correspondant ;</li><li>indiquez la date et l'heure réelles, un résumé, puis des détails internes facultatifs ;</li><li>sélectionnez « Enregistrer l'activité ».</li></ol>
+<p>Un avertissement s'affiche si le canal choisi est restreint ou si sa permission est non déterminée. Il signale qu'il faut vérifier la permission avant tout contact réel ; l'inscription d'un fait passé ne constitue ni une autorisation ni une action de contact.</p>
+<h3 id="4-8-corriger-une-activite">4.8 Corriger une activité</h3>
+<p>Une activité déjà inscrite ne se modifie pas directement. Ouvrez « Corriger », ajustez le résumé, les détails ou la date, indiquez le motif de la correction puis enregistrez. La saisie initiale demeure dans la chronologie et la nouvelle entrée porte sa correction. Un commercial corrige ses propres saisies ; un gestionnaire ou un administrateur peut corriger les saisies de l'organisation.</p>
+<h2 id="5-suivre-le-pipeline-commercial">5. Suivre le pipeline commercial</h2>
+<p>Ouvrez « Pipeline ». Cette vue classe les prospects actifs par étape commerciale ; elle ne contient pas les prospects archivés et ne remplace ni les permissions de contact ni les données de provenance.</p>
+<p>Les étapes initiales sont : Nouveau, Qualification en cours, Qualifié, Contact établi, Opportunité détectée, Proposition envoyée, Négociation, Gagné et Perdu. Utilisez le champ « Filtrer » pour rechercher un nom interne, un secteur ou une ville CRM.</p>
+<h3 id="5-1-faire-progresser-un-prospect">5.1 Faire progresser un prospect</h3>
+<ol><li>repérez la carte du prospect dans sa colonne ;</li><li>utilisez le bouton vers l'étape précédente ou suivante ;</li><li>attendez le rechargement de la colonne avant une nouvelle action.</li></ol>
+<p>Un déplacement est contrôlé par la version courante du prospect. Si un autre membre a modifié le même prospect, rechargez le pipeline, vérifiez l'étape affichée puis recommencez seulement si le déplacement reste pertinent.</p>
+<h3 id="5-2-marquer-un-prospect-comme-perdu-ou-le-reouvrir">5.2 Marquer un prospect comme perdu ou le réouvrir</h3>
+<p>Depuis une étape non terminale, sélectionnez « Marquer perdu », puis choisissez le motif commercial. Si vous sélectionnez « Autre motif », précisez la raison avant de confirmer.</p>
+<p>Les étapes « Gagné » et « Perdu » sont terminales. Un gestionnaire ou un administrateur peut sélectionner « Réouvrir », choisir un motif et confirmer la reprise du suivi. Un commercial peut consulter ces étapes mais ne peut pas les réouvrir.</p>
+<aside class="note">Important : le passage à une étape ne crée pas d'appel, de courriel, de tâche ou de permission de contact. Consignez séparément les activités déjà réalisées.</aside>
+<h3 id="5-3-gerer-les-taches-et-rappels">5.3 Gérer les tâches et rappels</h3>
+<p>Sur la fiche d’un prospect, ouvrez « Tâches et prochaine action » pour planifier une tâche. Saisissez un titre, une échéance et, si utile, un rappel interne. Les heures sont affichées dans le fuseau horaire de l’organisation ; elles ne déclenchent aucun courriel, appel ou notification externe.</p>
+<p>Ouvrez « Mes tâches » pour consulter vos tâches ouvertes et les rappels dus. Vous pouvez terminer une tâche, l’annuler en indiquant un motif, la rouvrir avec un motif, accuser un rappel ou le reporter. Le report est limité à sept jours. Une tâche en retard reste visible jusqu’à sa finalisation. Si l’application indique que le responsable est désactivé, contactez un gestionnaire pour décider de la suite : aucune réaffectation n’est faite automatiquement.</p>
+<p>La « prochaine action » affichée sur la fiche, dans la liste des prospects et sur une carte Kanban est calculée à partir de la première tâche ouverte. Elle ne modifie jamais l’étape commerciale du prospect.</p>
+<h3 id="5-4-comprendre-une-opportunite">5.4 Comprendre une opportunité</h3>
+<p>Une opportunité représente une affaire commerciale interne liée à un prospect. Elle possède son propre nom, son montant, sa devise, sa probabilité, son échéance, son responsable et son étape. La valeur pondérée correspond au montant multiplié par la probabilité. Une opportunité ne crée ni facture, ni client, ni permission de contact, ni tâche ou notification.</p>
+<p>Les étapes sont : Découverte, Qualification, Proposition, Négociation, Gagnée et Perdue. Elles sont indépendantes de l'étape Kanban du prospect. Les montants sont conservés tels qu'ils ont été saisis : Marketteo n'effectue aucune conversion de devise.</p>
+<h3 id="5-5-consulter-le-portefeuille-des-opportunites">5.5 Consulter le portefeuille des opportunités</h3>
+<p>Ouvrez « Opportunités » dans le menu. Le portefeuille présente les affaires auxquelles votre rôle donne accès, avec leur étape, leur montant, leur valeur pondérée, leur échéance et l'indication « En retard » lorsqu'elle s'applique.</p>
+<ol><li>saisissez un nom d'opportunité ou de prospect dans la zone de recherche ;</li><li>filtrez au besoin par étape, par code de devise ou par retard ;</li><li>sélectionnez « Filtrer » ;</li><li>consultez les totaux et valeurs pondérées, regroupés séparément par devise ;</li><li>sélectionnez « Voir le prospect » pour ouvrir la fiche associée ;</li><li>utilisez « Charger plus » lorsqu'une page suivante est disponible.</li></ol>
+<p>Ne calculez jamais un total général en additionnant des montants CAD, USD ou exprimés dans d'autres devises. L'état « En retard » ne change pas automatiquement l'étape et ne crée aucun rappel.</p>
+<figure><img src="images/portefeuille-opportunites.png" alt="Portefeuille des opportunités avec filtres et totaux par devise" loading="lazy"><figcaption>Figure 5 — Portefeuille des opportunités : recherche, filtres, totaux distincts par devise et principales données commerciales.</figcaption></figure>
+<h3 id="5-6-creer-une-opportunite">5.6 Créer une opportunité</h3>
+<p>Ouvrez la fiche d'un prospect, puis la section « Opportunités ».</p>
+<ol><li>saisissez un nom explicite, d'au plus 160 caractères ;</li><li>saisissez un montant supérieur à zéro, avec au plus quatre décimales ;</li><li>vérifiez le code de devise ISO à trois lettres, proposé à <code>CAD</code> ;</li><li>saisissez une probabilité entière de 0 à 100 ;</li><li>choisissez une échéance égale ou postérieure à la date courante de l'organisation ;</li><li>sélectionnez « Créer l'opportunité ».</li></ol>
+<p>L'opportunité est attribuée au membre qui la crée. Un commercial ne voit et ne modifie que ses propres opportunités ; un gestionnaire ou un administrateur peut gérer celles de toute l'organisation. La création est refusée lorsque le prospect est archivé ou lorsque son étape Kanban est déjà Gagné ou Perdu. Réouvrez d'abord le prospect si le suivi doit reprendre.</p>
+<figure><img src="images/fiche-prospect-opportunites.png" alt="Création et cycle de vie des opportunités dans une fiche prospect" loading="lazy"><figcaption>Figure 6 — Fiche prospect : création, valeurs pondérées par devise, étapes ouvertes, clôture, réouverture et alignement explicite du pipeline.</figcaption></figure>
+<h3 id="5-7-modifier-une-opportunite-ou-son-responsable">5.7 Modifier une opportunité ou son responsable</h3>
+<p>Sur une opportunité ouverte, sélectionnez « Modifier ». Vous pouvez ajuster le nom, le montant, la devise, la probabilité, l'échéance et, selon votre rôle, le responsable.</p>
+<p>Si vous changez de devise, vérifiez d'abord que le montant saisi est bien exprimé dans la nouvelle devise, puis cochez « J'ai confirmé le montant dans la nouvelle devise ». Marketteo conserve le nombre saisi sans conversion automatique.</p>
+<p>Le responsable choisi doit être un membre actif. Lorsqu'un responsable est désactivé, l'opportunité reste lisible mais ses actions commerciales sont bloquées. Un gestionnaire ou un administrateur doit alors sélectionner « Réaffecter le responsable » et choisir un membre actif ; seule cette réaffectation est permise tant qu'elle n'est pas terminée.</p>
+<figure><img src="images/modifier-opportunite.png" alt="Modification d&#x27;une opportunité et confirmation de la nouvelle devise" loading="lazy"><figcaption>Figure 7 — Modification d'une opportunité : montant, devise, probabilité, échéance, confirmation sans conversion et responsable actif.</figcaption></figure>
+<h3 id="5-8-faire-progresser-ou-conclure-une-opportunite">5.8 Faire progresser ou conclure une opportunité</h3>
+<p>Pour une opportunité ouverte, le sélecteur d'étape propose uniquement l'étape voisine précédente ou suivante. Un saut direct est refusé.</p>
+<ul><li>« Gagnée » est disponible depuis Proposition ou Négociation. La probabilité devient 100 % et l'affaire passe en lecture seule.</li><li>« Perdue » est disponible depuis toute étape ouverte. Choisissez un motif dans la liste ; « Autre motif » exige une précision. La probabilité devient 0 % et l'affaire passe en lecture seule.</li><li>« Réouvrir » est réservé aux gestionnaires et administrateurs. Un motif est obligatoire. L'affaire revient à une étape ouverte et la probabilité proposée est 50 %.</li></ul>
+<p>Un commercial peut conclure ses propres affaires, mais ne peut ni les réouvrir ni les réaffecter. La clôture d'une opportunité ne crée aucun client, document de vente ou automatisation.</p>
+<figure><img src="images/cycle-opportunite.png" alt="Motif de perte et actions terminales d&#x27;une opportunité" loading="lazy"><figcaption>Figure 8 — Cycle de vie : motif de perte, confirmation, affaire gagnée en lecture seule et action de réouverture selon le rôle.</figcaption></figure>
+<h3 id="5-9-aligner-explicitement-le-pipeline-du-prospect">5.9 Aligner explicitement le pipeline du prospect</h3>
+<p>L'étape de l'opportunité et celle du prospect restent indépendantes. Lorsque « Aligner le pipeline » apparaît :</p>
+<ol><li>sélectionnez l'action ;</li><li>comparez l'étape actuelle du prospect et l'étape suggérée par l'opportunité ;</li><li>confirmez seulement si la transition Kanban proposée est pertinente et voisine ;</li><li>si l'interface refuse le saut, fermez le message et déplacez le prospect étape par étape dans « Pipeline ».</li></ol>
+<p>Fermer ou déplacer une opportunité ne modifie jamais silencieusement le Kanban. L'alignement constitue une seconde intention explicite.</p>
+<figure><img src="images/alignement-opportunite.png" alt="Alignement explicite entre l&#x27;opportunité et le pipeline du prospect" loading="lazy"><figcaption>Figure 9 — Alignement du pipeline : les deux parcours restent indépendants et un saut Kanban interdit doit être effectué étape par étape.</figcaption></figure>
+<h3 id="5-10-lire-l-historique-et-resoudre-un-conflit">5.10 Lire l'historique et résoudre un conflit</h3>
+<p>La « Chronologie commerciale » de la fiche rassemble les événements « Opportunité créée », « Opportunité modifiée », « Étape de l'opportunité modifiée » et « Opportunité réouverte ». Les changements d'étape affichent le passage effectué et l'heure de l'organisation.</p>
+<p>Chaque modification vérifie la version de l'opportunité. Si une autre fenêtre ou un autre membre a enregistré un changement entre-temps, le message « L'opportunité a changé depuis sa lecture. » s'affiche. Rechargez la fiche, examinez les nouvelles valeurs, puis réappliquez uniquement les changements encore nécessaires. Ne renvoyez pas aveuglément l'ancienne saisie.</p>
+<figure><img src="images/chronologie-opportunites.png" alt="Événements d&#x27;opportunité dans la chronologie commerciale" loading="lazy"><figcaption>Figure 10 — Chronologie commerciale : créations, modifications et changements d'étape des opportunités, avec date et heure.</figcaption></figure>
+<h2 id="6-documenter-les-sources-et-acquisitions">6. Documenter les sources et acquisitions</h2>
+<p>Ouvrez « Sources et acquisitions ». Une acquisition approuvée documente la provenance des données, mais ne crée jamais automatiquement une permission de contact.</p>
+<h3 id="6-1-cycle-d-un-fournisseur">6.1 Cycle d'un fournisseur</h3>
+<p>Cette procédure est réservée à l'administrateur.</p>
+<ol><li>dans l'onglet « Fournisseurs », sélectionnez un type de source et saisissez le nom du fournisseur ;</li><li>sélectionnez « Créer le brouillon » ;</li><li>ouvrez « Modifier » ;</li><li>renseignez la référence contractuelle, l'URL des conditions, les dates de validité et les territoires ;</li><li>sélectionnez les finalités et catégories de données autorisées ;</li><li>cochez l'attestation de droits lorsque la vérification est terminée ;</li><li>choisissez l'état approprié et enregistrez.</li></ol>
+<p>N'activez pas un fournisseur dont les droits, dates, territoires ou catégories ne sont pas confirmés.</p>
+<h3 id="6-2-declarer-une-acquisition">6.2 Déclarer une acquisition</h3>
+<p>Cette action est accessible au gestionnaire et à l'administrateur lorsqu'un fournisseur actif et compatible existe.</p>
+<ol><li>ouvrez l'onglet « Acquisitions » ;</li><li>choisissez le fournisseur et le type de source ;</li><li>saisissez un libellé clair, le territoire, la finalité et la date d'obtention ;</li><li>ajoutez une référence externe si disponible ;</li><li>cochez les catégories de données réellement obtenues ;</li><li>sélectionnez « Déclarer l'acquisition ».</li></ol>
+<p>L'administrateur peut ensuite approuver ou rejeter une acquisition en attente. Une déclaration rejetée reste visible dans l'historique d'audit et ne peut pas servir de provenance.</p>
+<h2 id="7-conservation-et-declarations-d-import">7. Conservation et déclarations d'import</h2>
+<p>Ouvrez « Conservation et imports ». Les archivages sont logiques : ils ne suppriment pas physiquement les données.</p>
+<h3 id="7-1-consulter-ou-creer-une-politique">7.1 Consulter ou créer une politique</h3>
+<p>L'onglet « Politiques » présente la ressource, le délai de revue, l'état et la version.</p>
+<p>Pour un administrateur :</p>
+<ol><li>choisissez le type de ressource ;</li><li>saisissez un code, un libellé et le nombre de jours avant revue ;</li><li>ajoutez un délai d'archivage si nécessaire ;</li><li>sélectionnez « Créer » ;</li><li>vérifiez le brouillon puis sélectionnez « Activer ».</li></ol>
+<h3 id="7-2-utiliser-un-hold">7.2 Utiliser un hold</h3>
+<p>Un hold protège une ressource contre le traitement normal de conservation, par exemple pendant une demande légale ou une revue qualité.</p>
+<ol><li>ouvrez « Holds et revues » ;</li><li>choisissez le type de ressource et saisissez son identifiant exact ;</li><li>choisissez le motif et ajoutez une note utile ;</li><li>sélectionnez « Ajouter ».</li></ol>
+<p>Un gestionnaire ou administrateur autorisé peut créer un hold. Seul un rôle disposant de la capacité de libération peut sélectionner « Lever ». Ces actions sont journalisées.</p>
+<h3 id="7-3-declarer-un-import-csv">7.3 Déclarer un import CSV</h3>
+<ol><li>ouvrez « Déclarations d'import » ;</li><li>choisissez une acquisition approuvée ;</li><li>saisissez un libellé et, si connu, le volume estimé ;</li><li>cochez les champs et catégories réellement présents ;</li><li>sélectionnez « Déclarer sans téléverser ».</li></ol>
+<p>La déclaration ne téléverse aucun fichier. Elle peut être annulée ou archivée selon votre rôle.</p>
+<h3 id="7-4-importer-un-csv-declare">7.4 Importer un CSV déclaré</h3>
+<p>Après avoir créé une déclaration CSV liée à une acquisition approuvée :</p>
+<ol><li>ouvrez « Déclarations d’import » ;</li><li>choisissez la déclaration et un fichier CSV UTF-8 de 10 Mio ou moins ;</li><li>consultez l’aperçu temporaire, puis associez chaque colonne utile à un champ CRM ;</li><li>sélectionnez « Enregistrer le mapping », puis « Valider le fichier » ;</li><li>vérifiez les compteurs de créations, doublons exacts et lignes en quarantaine ;</li><li>sélectionnez « Confirmer l’import ».</li></ol>
+<p>Les lignes valides créent des données CRM avec leur provenance. Les canaux reçoivent toujours la permission « non déterminée » : un import n’autorise jamais à contacter une personne. Les doublons exacts sont ignorés. Le rapport n’affiche que les numéros de lignes, les codes de motifs et une référence opaque ; il ne restitue aucune valeur brute du fichier. Le fichier source reste privé et temporaire, puis est supprimé après confirmation ou au plus tard dans les 24 heures.</p>
+<h2 id="8-piloter-l-activite-avec-le-tableau-de-bord">8. Piloter l'activité avec le tableau de bord</h2>
+<p>Ouvrez « Tableau de bord ». Les indicateurs sont calculés côté serveur pour l'organisation active et respectent votre périmètre d'accès. Un Commercial voit « Mes données » ; un Gestionnaire ou un Administrateur peut choisir « Organisation » ou un « Commercial » actif ou désactivé.</p>
+<h3 id="8-1-choisir-le-perimetre-et-la-periode">8.1 Choisir le périmètre et la période</h3>
+<ol><li>choisissez « Mes données », « Organisation » ou « Commercial » lorsque ces options sont proposées ;</li><li>choisissez « Aujourd'hui », « Cette semaine », « Ce mois » ou « Dates personnalisées » ;</li><li>pour une période personnalisée, saisissez une plage locale de 93 jours civils au maximum ;</li><li>sélectionnez « Afficher », puis « Actualiser » après une mutation récente.</li></ol>
+<p>Le fuseau affiché est celui de l'organisation active. Les dates du calendrier sont inclusives et les événements sont arrêtés à l'instant de lecture (<code>as_of</code>). Une période de flux en cours indique « Observé jusqu'au » ; elle ne compte pas d'événements futurs.</p>
+<h3 id="8-2-lire-les-indicateurs">8.2 Lire les indicateurs</h3>
+<p>Le tableau de bord sépare les photographies actuelles des flux de période :</p>
+<ul><li>les prospects actifs par étape, les tâches dues ou en retard et les opportunités ouvertes, gagnées ou perdues sont des photographies ;</li><li>les activités par type, le passage direct entre étapes et les pertes directes décrivent la période choisie ;</li><li>le montant ouvert et la valeur pondérée sont regroupés par devise : aucune conversion n'est appliquée ;</li><li>« Ventilation par responsable » n'est disponible que dans une portée organisationnelle autorisée ; les éléments sans responsable restent dans une ligne « Non assigné » ;</li><li>« Usage Google » peut afficher « Compteur indisponible » : une réservation de quota n'est jamais présentée comme une facturation.</li></ul>
+<p>La ventilation historique des passages utilise le responsable actuel du prospect. Une réaffectation peut donc modifier cette ventilation sans modifier l'événement historique.</p>
+<figure><img src="images/portefeuille-prospects-phase4.png" alt="Portefeuille CRM après la mise à jour de navigation" loading="lazy"><figcaption>Figure 13 — Portefeuille CRM dans l'interface phase 4, avec accès direct au tableau de bord et aux catégories de navigation.</figcaption></figure>
+<h2 id="9-consulter-les-quotas-et-rapports-d-usage">9. Consulter les quotas et rapports d'usage</h2>
+<p>Ouvrez « Données et audit », puis « Quotas et usage ». Cette page décrit la consommation technique observée ; elle ne constitue pas une facture.</p>
+<h3 id="9-1-verifier-le-quota-courant">9.1 Vérifier le quota courant</h3>
+<p>La carte de quota indique la fenêtre UTC, la limite et le niveau d'avertissement. Pour la recherche Google, la limite opérationnelle reste de 20 réservations par utilisateur et 100 par organisation et par jour UTC, avec avertissement à 80 %. Une limite atteinte bloque la recherche avant l'appel fournisseur.</p>
+<h3 id="9-2-lire-un-rapport-historique">9.2 Lire un rapport historique</h3>
+<ol><li>choisissez une période d'au plus 93 jours ;</li><li>sélectionnez « Mes données », « Organisation » ou un membre si votre capacité l'autorise ;</li><li>appliquez les filtres puis lisez la série journalière et la ventilation par membre ;</li><li>vérifiez l'indication « période partielle » pour une période non terminée.</li></ol>
+<p>Le rapport distingue Text Search, Autocomplete, Details, Static Maps, exports, imports et les cinq événements du connecteur Meta. Il ne montre ni requête Google, ni réponse fournisseur, ni contenu CSV, ni référence personnelle brute.</p>
+<h2 id="10-importer-et-exporter-des-donnees-crm">10. Importer et exporter des données CRM</h2>
+<h3 id="10-1-suivre-un-import-et-sa-quarantaine">10.1 Suivre un import et sa quarantaine</h3>
+<p>Dans « Conservation et imports », déclarez l'import lié à une acquisition approuvée, téléversez un CSV UTF-8 de 10 Mio ou moins, mappez les colonnes, validez puis confirmez. Le traitement peut être exécuté par le worker ; l'interface affiche l'attente, l'échec ou l'état final.</p>
+<p>Ouvrez ensuite « Historique des imports » pour consulter les sessions et les runs. Une fiche affiche uniquement les compteurs de créations, doublons et lignes en quarantaine. Les lignes de quarantaine sont identifiées par numéro, codes de motifs et référence opaque ; les valeurs brutes du fichier ne sont jamais restituées. Une relance crée un nouveau fichier et un nouveau lot après revérification de la source et des droits.</p>
+<h3 id="10-2-demander-un-export-csv">10.2 Demander un export CSV</h3>
+<ol><li>ouvrez « Exports » ;</li><li>choisissez l'un des jeux CRM proposés et les colonnes autorisées dans l'ordre canonique ;</li><li>choisissez votre périmètre, appliquez les filtres bornés puis lancez l'export ;</li><li>attendez la fin du traitement et téléchargez le fichier depuis la liste des exports.</li></ol>
+<p>Les exports sont limités à 50 000 lignes ou 50 Mio par fichier, avec au plus cinq demandes actives. Le fichier est privé, authentifié, conservé 24 heures puis purgé. Les colonnes provenant d'une source sans règle de provenance valide sont omises ; les formules de tableur sont neutralisées. Les résultats Google temporaires et leurs contenus directs ne sont jamais exportables.</p>
+<h2 id="11-gerer-les-fournisseurs-acquisitions-et-connexions">11. Gérer les fournisseurs, acquisitions et connexions</h2>
+<p>Ouvrez « Acquisition », puis « Sources et acquisitions ». Une provenance approuvée n'autorise jamais à contacter une personne.</p>
+<h3 id="11-1-declarer-un-fournisseur-et-une-acquisition">11.1 Déclarer un fournisseur et une acquisition</h3>
+<p>Un Administrateur crée un fournisseur en brouillon, renseigne les conditions, territoires, finalités, catégories et atteste les droits, puis l'active. Un Gestionnaire ou un Administrateur peut déclarer une acquisition à partir d'un fournisseur actif ; l'Administrateur chargé de la revue l'approuve ou la rejette séparément.</p>
+<h3 id="11-2-utiliser-l-onglet-connexions">11.2 Utiliser l'onglet « Connexions »</h3>
+<p>L'onglet « Connexions » est réservé à la configuration des intégrations autorisées. Un contrat Meta Lead Ads suit le cycle « Brouillon » → « Soumis » → revue par un autre Administrateur → « Actif ». L'auteur ne peut pas approuver sa propre soumission. Un arrêt d'urgence désactive le binding et bloque les nouveaux webhooks.</p>
+<h3 id="11-3-pilote-meta-lead-ads">11.3 Pilote Meta Lead Ads</h3>
+<p>Le webhook doit présenter un challenge valide et une signature <code>X-Hub-Signature-256</code>. Marketteo admet le message de façon idempotente, le traite par le worker puis extrait uniquement <code>full_name</code>, <code>email</code> et <code>phone</code> selon le mapping déclaré. Les champs non autorisés, les oppositions existantes et les permissions de contact sont respectés ; un canal créé par ingestion reste « Permission non déterminée » tant qu'aucune base compatible n'est enregistrée.</p>
+<p>Le corps Meta n'est pas conservé. La référence de lead est chiffrée puis détruite après 30 jours. Les audits et rapports d'usage ne conservent que des métadonnées minimisées. L'activation Meta réelle reste bloquée tant qu'une revue et une autorisation externe n'ont pas été produites : le pilote interne et l'activation fournisseur sont deux décisions distinctes.</p>
+<figure><img src="images/navigation-desktop-menu.png" alt="Navigation desktop et menu utilisateur" loading="lazy"><figcaption>Figure 14 — Navigation desktop phase 4, catégories regroupées et menu utilisateur séparé.</figcaption></figure>
+<figure><img src="images/pipeline-phase4.png" alt="Pipeline commercial phase 4" loading="lazy"><figcaption>Figure 15 — Pipeline commercial avec les étapes, compteurs et actions de réouverture.</figcaption></figure>
+<h2 id="12-administrer-une-organisation">12. Administrer une organisation</h2>
+<h3 id="12-1-consulter-ou-modifier-l-organisation">12.1 Consulter ou modifier l'organisation</h3>
+<p>Ouvrez « Organisation » pour consulter le nom, la langue, le fuseau horaire, l'état et la date de création. L'administrateur peut modifier le nom, la langue et le fuseau horaire IANA, puis enregistrer.</p>
+<p>Si l'écran signale « Une version plus récente existe », rechargez les données avant de reprendre vos changements. Ce contrôle évite d'écraser la modification d'un autre utilisateur.</p>
+<h3 id="12-2-gerer-les-membres">12.2 Gérer les membres</h3>
+<p>Ouvrez « Membres », puis l'onglet « Membres ».</p>
+<ul><li>Le gestionnaire peut consulter la liste.</li><li>L'administrateur peut sélectionner « Modifier », changer le rôle ou l'état et confirmer l'action sensible.</li><li>Le dernier administrateur actif de l'organisation ne peut pas être désactivé ou rétrogradé sans remplacement.</li></ul>
+<h3 id="12-3-inviter-une-personne">12.3 Inviter une personne</h3>
+<p>Dans l'onglet « Invitations » :</p>
+<ol><li>saisissez l'adresse courriel ;</li><li>choisissez le rôle proposé ;</li><li>envoyez l'invitation ;</li><li>vérifiez son état et sa date d'expiration dans la liste.</li></ol>
+<p>L'administrateur peut renvoyer ou révoquer une invitation lorsqu'une action est proposée. Un renvoi invalide l'ancien lien. Aucun jeton d'invitation n'est affiché dans le navigateur.</p>
+<h3 id="12-4-consulter-le-journal-d-activite">12.4 Consulter le journal d'activité</h3>
+<p>Ouvrez « Journal d'activité ». Vous pouvez filtrer par période, action, type d'entité, identifiant exact et acteur.</p>
+<ol><li>renseignez les filtres utiles ;</li><li>sélectionnez « Appliquer » ;</li><li>ouvrez un événement pour consulter ses détails ;</li><li>utilisez « Afficher davantage » si une page suivante existe ;</li><li>sélectionnez « Réinitialiser » pour effacer les filtres.</li></ol>
+<p>Le journal présente les changements validés de l'organisation active. Il ne remplace pas une sauvegarde et n'autorise pas la modification des événements.</p>
+<figure><img src="images/journal-activite.png" alt="Journal d&#x27;activité Marketteo CRM" loading="lazy"><figcaption>Figure 16 — Journal d'activité avec période, action, type d'entité, identifiant et acteur filtrables.</figcaption></figure>
+<h2 id="13-mon-compte-et-session">13. Mon compte et session</h2>
+<p>Ouvrez « Compte » ou sélectionnez votre nom dans l'en-tête pour consulter :</p>
+<ul><li>votre nom affiché et votre adresse courriel ;</li><li>votre rôle de plateforme, le cas échéant ;</li><li>vos organisations et votre rôle dans chacune ;</li><li>l'organisation actuellement active.</li></ul>
+<p>Sélectionnez « Se déconnecter » lorsque vous avez terminé, particulièrement sur un appareil partagé. Les informations de session ne sont pas enregistrées dans le stockage du navigateur.</p>
+<h2 id="14-administration-de-la-plateforme">14. Administration de la plateforme</h2>
+<p>Cette section s'adresse uniquement aux administrateurs de plateforme.</p>
+<h3 id="14-1-provisionner-une-organisation">14.1 Provisionner une organisation</h3>
+<ol><li>ouvrez « Plateforme » ;</li><li>saisissez le nom de l'organisation, la langue et le fuseau horaire IANA ;</li><li>saisissez le courriel de l'administrateur initial ;</li><li>lancez le provisionnement ;</li><li>vérifiez l'organisation et l'état de la première invitation dans la liste.</li></ol>
+<p>L'administrateur initial reçoit un lien à usage unique. Si une intention de renvoi reste bloquée, utilisez « Abandonner l'intention » seulement après avoir vérifié l'état affiché.</p>
+<p>Selon les actions disponibles, un administrateur de plateforme peut renvoyer ou révoquer l'invitation initiale, suspendre une organisation ou la réactiver. Chaque opération sensible demande une justification ou une confirmation et est auditée.</p>
+<h3 id="14-2-consulter-l-audit-plateforme">14.2 Consulter l'audit plateforme</h3>
+<p>Ouvrez « Audit plateforme ». Utilisez les filtres de période, action, type d'entité, identifiant et acteur comme dans le journal d'une organisation. L'audit plateforme reste séparé des données propres aux organisations et s'affiche en UTC.</p>
+<h2 id="15-depannage-de-premier-niveau">15. Dépannage de premier niveau</h2>
+<h3 id="une-page-n-apparait-pas-dans-le-menu">Une page n'apparaît pas dans le menu</h3>
+<p>Votre rôle ne possède probablement pas la capacité requise, ou aucune organisation active n'est sélectionnée. Vérifiez « Mon compte » et l'organisation active, puis contactez un administrateur.</p>
+<h3 id="acces-refuse-s-affiche">« Accès refusé » s'affiche</h3>
+<p>Revenez à l'accueil proposé. Si l'accès est nécessaire à votre travail, demandez à un administrateur de vérifier votre rôle ; n'utilisez pas l'adresse directe d'une page pour contourner les droits.</p>
+<h3 id="la-recherche-google-indique-cle-api-absente">La recherche Google indique « Clé API absente »</h3>
+<p>Le service doit être configuré côté serveur avec la clé Google Maps. Signalez le message à l'équipe qui exploite Marketteo CRM ; aucun réglage utilisateur ne peut le corriger.</p>
+<h3 id="la-limite-quotidienne-de-recherches-google-est-atteinte">La limite quotidienne de recherches Google est atteinte</h3>
+<p>Marketteo a bloqué la recherche avant l'appel Google afin de protéger le budget de l'organisation. Attendez la remise à zéro indiquée par l'application. Modifier le terme, le rayon ou actualiser la page ne contourne pas cette limite. Les limites actuelles sont opérationnelles et peuvent évoluer avant la commercialisation des forfaits.</p>
+<h3 id="la-recherche-ou-la-carte-indique-que-la-protection-est-temporairement-indisponible">La recherche ou la carte indique que la protection est temporairement indisponible</h3>
+<p>Réessayez après quelques instants. Marketteo ne lance pas la recherche ou la carte tant que sa protection temporaire ne peut pas être garantie ; évitez donc de cliquer plusieurs fois. Si le message persiste, transmettez l'heure approximative de l'incident à l'équipe qui exploite l'application. Aucun réglage de navigateur n'est nécessaire.</p>
+<h3 id="la-carte-n-est-pas-disponible">La carte n'est pas disponible</h3>
+<p>Les résultats textuels peuvent rester utilisables. Réessayez, puis signalez l'erreur si elle persiste. N'interprétez pas une carte absente comme une absence de résultats.</p>
+<h3 id="une-modification-signale-une-version-plus-recente">Une modification signale une version plus récente</h3>
+<p>Rechargez la ressource avant de recommencer. Comparez les nouvelles valeurs et réappliquez seulement les changements encore nécessaires.</p>
+<h3 id="une-invitation-ne-fonctionne-plus">Une invitation ne fonctionne plus</h3>
+<p>Vérifiez que le lien est complet et que le compte connecté correspond à l'adresse invitée. Demandez ensuite à un administrateur de renvoyer une invitation si elle est expirée ou révoquée.</p>
+<h3 id="un-canal-reste-permission-non-determinee">Un canal reste « Permission non déterminée »</h3>
+<p>C'est l'état normal après sa création. Un gestionnaire ou administrateur doit vérifier une provenance compatible avant de l'autoriser. En cas d'opposition ou de doute, choisissez l'état restrictif approprié.</p>
+<h3 id="un-deplacement-du-pipeline-est-refuse">Un déplacement du pipeline est refusé</h3>
+<p>Vérifiez que le prospect n'est pas archivé, que l'étape cible est proposée par l'application et que votre rôle permet l'action. En cas de conflit de version, rechargez le pipeline avant de décider si le déplacement doit être repris.</p>
+<h3 id="une-opportunite-ne-peut-pas-etre-creee-ou-modifiee">Une opportunité ne peut pas être créée ou modifiée</h3>
+<p>Vérifiez que le prospect n'est ni archivé ni dans une étape Kanban terminale. Vérifiez ensuite que le responsable est actif et que votre rôle autorise l'action. Si le message signale une version plus récente, rechargez la fiche avant de reprendre. Un commercial ne peut intervenir que sur ses propres opportunités.</p>
+<h3 id="la-valeur-ponderee-ou-la-devise-semble-incorrecte">La valeur pondérée ou la devise semble incorrecte</h3>
+<p>La valeur pondérée est calculée à partir du montant et de la probabilité. Les totaux restent séparés par devise et aucune conversion n'est appliquée. Si la devise a changé, confirmez que le montant était déjà exprimé dans la nouvelle devise ; corrigez-le manuellement au besoin.</p>
+<h3 id="un-export-reste-en-attente-ou-echoue">Un export reste en attente ou échoue</h3>
+<p>Les exports volumineux sont traités par le worker. Actualisez « Exports » après quelques instants et vérifiez l'état du travail (<code>queued</code>, <code>running</code>, <code>succeeded</code> ou <code>failed</code>). Une reprise réussie ne crée qu'un seul fichier. Si l'état reste bloqué, notez l'identifiant de l'export et l'heure observée, puis transmettez-les à l'administrateur ; ne relancez pas plusieurs demandes identiques.</p>
+<h3 id="usage-temporairement-indisponible-s-affiche">« Usage temporairement indisponible » s'affiche</h3>
+<p>Le rapport d'usage n'a pas pu réserver ou lire son compteur technique. Il ne s'agit pas d'une facture et aucune recherche Google ne doit être répétée en boucle. Réessayez après le rétablissement du service ; l'application doit ensuite afficher à nouveau le quota courant et le mode Google actif.</p>
+<h3 id="la-connexion-meta-n-est-pas-activable">La connexion Meta n'est pas activable</h3>
+<p>Une connexion « Brouillon », « Soumise » ou « Bloquée » peut être normale. Vérifiez que le fournisseur, l'acquisition, le contrat et la revue interne sont approuvés. Si l'interface indique <code>BLOCKED_EXTERNAL</code>, l'autorisation d'un compte Meta réel ou la revue fournisseur manque encore : seul l'administrateur habilité peut poursuivre après obtention de cette preuve. N'utilisez pas de jeton personnel et ne tentez pas de contourner l'état affiché.</p>
+<h3 id="une-erreur-d-import-place-des-lignes-en-quarantaine">Une erreur d'import place des lignes en quarantaine</h3>
+<p>Ouvrez « Historique des imports » et consultez les numéros de lignes, les codes de motifs et la référence opaque. Les valeurs brutes ne sont pas restituées. Corrigez le fichier source, vérifiez de nouveau l'acquisition et relancez un lot distinct ; le rejeu idempotent ne doit pas créer de doublon.</p>
+<h2 id="17-etat-de-sortie-de-la-phase-4">17. État de sortie de la phase 4</h2>
+<p>La phase 4.6 a été clôturée localement le 30 septembre 2026 avec un <strong>GO produit</strong>. Cette décision signifie que les parcours livrés sont utilisables dans l'environnement local et que les réserves de la phase 3.4 transférées à la recette ont été rejouées. Elle ne constitue pas encore une autorisation de mise en production : le pipeline Azure doit publier les preuves sur le même commit de clôture avant le démarrage de la phase 5.</p>
+<h3 id="17-1-ce-que-la-recette-confirme">17.1 Ce que la recette confirme</h3>
+<div class="table-wrap"><table><thead><tr><th scope="col">Parcours ou contrôle</th><th scope="col">Résultat utilisateur</th><th scope="col">Portée</th></tr></thead><tbody><tr><td>E2E-01 à E2E-02</td><td>Connexion, changement d'organisation, prospect, activité, tâche, pipeline et opportunité cohérents</td><td>Données synthétiques isolées par organisation</td></tr><tr><td>E2E-03</td><td>Import CSV confirmé, rejeu sans nouvelle création et lignes invalides visibles en quarantaine</td><td>Déduplication exacte et motifs minimisés</td></tr><tr><td>E2E-04 à E2E-05</td><td>Export privé téléchargeable et reprise du worker sans doublon</td><td>Fichier allowlisté, temporaire et authentifié</td></tr><tr><td>E2E-06 à E2E-07</td><td>Compteurs Google agrégés, quota <code>429</code> et indisponibilités <code>503</code> compréhensibles puis réversibles</td><td>Usage technique, jamais facturation</td></tr><tr><td>E2E-08 à E2E-09</td><td>Pilote Meta simulé admis, rejoué et révoqué de façon idempotente</td><td>Aucun appel à Meta réel</td></tr><tr><td>E2E-10</td><td>Rôles et isolation multi-organisation respectés, y compris RLS PostgreSQL</td><td>Aucune lecture ou mutation inter-tenant</td></tr><tr><td>E2E-11-AUTO et E2E-11-MANUAL</td><td>44 parcours Axe sans violation et quatre contrôles manuels validés</td><td>Français/anglais, clavier, zoom 200 %, états vides et erreurs réversibles</td></tr><tr><td>E2E-12</td><td>Données synthétiques de recette archivées avec compteur final nul</td><td>Archivage logique audité</td></tr></tbody></table></div>
+<p>Le verrou local final est <strong>VERT</strong> : 345 tests backend, 216 tests frontend, 44 parcours navigateur Axe, audit npm sans vulnérabilité et build Vite réussis sans skip. Les données Google descriptives, les jetons et les fichiers sources ne sont pas exposés dans les indicateurs, les exports ou les journaux.</p>
+<h3 id="17-2-limites-a-connaitre-avant-la-suite">17.2 Limites à connaître avant la suite</h3>
+<ul><li><code>META-EXT-01</code> reste <code>BLOCKED_EXTERNAL</code> : la validation avec un compte Meta Lead Ads réel exige une autorisation externe,</li></ul>
+<p>une revue préalable de l'application et un environnement de test autorisé.</p>
+<ul><li>Le rapport d'usage est un compteur technique. Les plans, prix, sièges, taxes, paiements et factures appartiennent au</li></ul>
+<p>cadrage de la phase 5 et ne sont pas disponibles.</p>
+<ul><li>La preuve Azure de la révision de clôture, la préproduction, les essais de charge/coûts, la sauvegarde/restauration</li></ul>
+<p>et le lancement progressif restent des portes de phase 5. Une mention dans une spécification n'est pas une fonction accessible dans le produit.</p>
+<p>Pour signaler un écart, indiquez l'organisation active, le rôle, l'heure, le parcours concerné et le message affiché. N'ajoutez jamais de mot de passe, jeton, courriel réel ou contenu de prospect dans un ticket ou une capture.</p>
+<h2 id="18-glossaire">18. Glossaire</h2>
+<p><strong>Activité commerciale</strong> : note ou interaction déjà réalisée, inscrite volontairement dans la chronologie du prospect. Elle n'envoie aucun message et ne crée pas de permission.</p>
+<p><strong>Acquisition</strong> : déclaration décrivant comment, quand et pour quelle finalité un ensemble de données a été obtenu.</p>
+<p><strong>Canal de contact</strong> : moyen de joindre un établissement ou une personne, par exemple un courriel, un téléphone ou un profil social.</p>
+<p><strong>Étape commerciale</strong> : position actuelle d'un prospect dans le pipeline, distincte de son archivage et de la permission de contact.</p>
+<p><strong>Opportunité</strong> : affaire commerciale interne liée à un prospect, avec un montant, une devise, une probabilité, une échéance et une étape propre.</p>
+<p><strong>Responsable d'opportunité</strong> : membre actif auquel une affaire est attribuée. Un commercial ne consulte que les affaires dont il est responsable.</p>
+<p><strong>Valeur pondérée</strong> : montant d'une opportunité multiplié par sa probabilité, présenté sans conversion et regroupé par devise.</p>
+<p><strong>Hold</strong> : protection temporaire empêchant l'application normale d'une politique de conservation sur une ressource.</p>
+<p><strong>Organisation active</strong> : espace de données dans lequel l'utilisateur travaille actuellement.</p>
+<p><strong>Permission de contact</strong> : état déterminant si un canal peut être utilisé pour la finalité prévue.</p>
+<p><strong>Provenance</strong> : trace de l'origine d'une donnée et des droits associés.</p>
+<p><strong>Prospect</strong> : établissement suivi dans le portefeuille CRM de l'organisation.</p>
+<p><strong>Résultat Google temporaire</strong> : information affichée pendant une recherche et non conservée comme donnée descriptive dans le CRM.</p>
+<p><strong>Worker</strong> : traitement asynchrone qui exécute une demande longue, enregistre son état et peut reprendre après une interruption.</p>
+<p><strong>Usage technique</strong> : compteur agrégé servant à protéger les services et à suivre leur consommation ; il ne constitue pas une facture.</p>
+<p><strong>Quarantaine</strong> : résultat minimisé d'une ligne d'import refusée, conservant un numéro, un code de motif et une référence opaque sans valeur brute.</p>
+<p><strong>Idempotence</strong> : propriété d'une relance qui conserve le même résultat métier sans créer de doublon.</p>
+<p><strong>Activation externe</strong> : autorisation et revue d'un fournisseur réel, distinctes de la simulation locale du connecteur.</p>
+<h2 id="19-historique-du-document">19. Historique du document</h2>
+<div class="table-wrap"><table><thead><tr><th scope="col">Version</th><th scope="col">Date</th><th scope="col">État</th><th scope="col">Résumé</th></tr></thead><tbody><tr><td>0.12</td><td>30 septembre 2026</td><td>GO local — preuve Azure requise</td><td>Clôture de la phase 4.6 : parcours E2E-01 à E2E-12, verrou qualité, accessibilité, worker, imports/exports, usage, isolation et limites de l'activation Meta réelle ; ajout du bilan de sortie et des captures phase 4 conservées</td></tr><tr><td>0.11</td><td>26 septembre 2026</td><td>À valider</td><td>Mise à jour phase 4 : tableau de bord, usage, imports/exports, connexions Meta, navigation responsive et six nouvelles captures d'écran de l'application</td></tr><tr><td>0.10</td><td>18 septembre 2026</td><td>À valider</td><td>Couverture complète de la phase 3.4 : portefeuille, création, édition, responsable, cycle de vie, alignement, conflits et six nouvelles captures d'écran</td></tr><tr><td>0.9</td><td>18 septembre 2026</td><td>À valider</td><td>Consolidation des opportunités 3.4, des droits associés et des limites de devise, avec édition HTML du manuel</td></tr><tr><td>0.8</td><td>10 septembre 2026</td><td>À valider</td><td>Ajout du portefeuille, du cycle de vie et de l’alignement explicite des opportunités 3.4</td></tr><tr><td>0.7</td><td>5 septembre 2026</td><td>À valider</td><td>Ajout des tâches, rappels internes et prochaine action 3.3-D</td></tr><tr><td>0.6</td><td>5 septembre 2026</td><td>À valider</td><td>Ajout du pipeline commercial, de la chronologie d'activités et du parcours réel d'import CSV ; limites mises à jour</td></tr><tr><td>0.5</td><td>26 août 2026</td><td>À valider</td><td>Ajout de quatre captures d'écran avec données de démonstration ; procédures alignées sur le nom interne CRM et le <code>place_id</code></td></tr><tr><td>0.1</td><td>25 août 2026</td><td>À valider</td><td>Structure initiale fondée sur les routes, composants, capacités et règles métier présentes dans le dépôt</td></tr></tbody></table></div></main>
+  </div>
+  <footer class="site-footer">Marketteo CRM · 0.12 · Version HTML autonome.</footer>
+</body>
+</html>

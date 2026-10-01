@@ -3,6 +3,7 @@ from uuid import uuid4
 
 from httpx import ASGITransport, AsyncClient
 
+from backend.app.application.ports.usage import NullUsageStore
 from backend.app.application.use_cases.search_google_places import SearchGooglePlacesOutcome
 from backend.app.bootstrap import build_container, create_app
 from backend.app.config import Settings
@@ -78,7 +79,25 @@ async def test_create_app_uses_injected_settings_for_health() -> None:
         response = await client.get("/api/health")
 
     assert response.status_code == 200
-    assert response.json() == {"status": "ok", "google_api_key_configured": True}
+    assert response.json() == {
+        "status": "ok",
+        "google_api_key_configured": True,
+        "google_places_mode": "live",
+    }
+
+
+async def test_health_reports_local_google_simulator_as_available() -> None:
+    app = create_app(Settings(google_places_simulator_enabled=True))
+
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+        response = await client.get("/api/health")
+
+    assert response.status_code == 200
+    assert response.json() == {
+        "status": "ok",
+        "google_api_key_configured": True,
+        "google_places_mode": "simulated",
+    }
 
 
 async def test_default_container_without_redis_fails_google_closed_without_memory_fallback() -> None:
@@ -142,3 +161,43 @@ async def test_routes_receive_injected_use_cases() -> None:
     assert response.json()["search_parameters"]["radius_km"] == 12
     assert search_google_places.access.user_id == identity.user.id
     assert search_google_places.access.organization_id == identity.active_membership.organization_id
+
+
+async def test_location_suggestions_require_google_access_and_do_not_store_responses() -> None:
+    class StubLocations:
+        async def suggest(self, **kwargs: object) -> list[dict[str, str]]:
+            assert kwargs["access"].user_id == identity.user.id
+            return [{"label": "Canada", "selection_token": "signed-selection"}]
+
+    settings = Settings(google_maps_api_key="fake-key", cors_allowed_origins=("http://test",))
+    identity = authenticated_identity()
+    container = AppContainer(
+        settings=settings,
+        search_google_places=object(),  # type: ignore[arg-type]
+        get_map_snapshot=object(),  # type: ignore[arg-type]
+        get_current_session=CurrentSession(identity),  # type: ignore[arg-type]
+        location_resolver=StubLocations(),  # type: ignore[arg-type]
+        usage_store=NullUsageStore(),
+    )
+    app = create_app(container=container)
+    payload = {"text": "Cana", "scope": "area", "session_token": str(uuid4())}
+
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+        client.cookies.set(settings.session_cookie_name, "current-session")
+        denied = await client.post("/api/google/places/locations/suggest", json=payload)
+        blank = await client.post(
+            "/api/google/places/locations/suggest",
+            json={**payload, "text": "   "},
+            headers={"Origin": "http://test", "X-CSRF-Token": "csrf-test"},
+        )
+        allowed = await client.post(
+            "/api/google/places/locations/suggest",
+            json=payload,
+            headers={"Origin": "http://test", "X-CSRF-Token": "csrf-test"},
+        )
+
+    assert denied.status_code == 403
+    assert blank.status_code == 422
+    assert allowed.status_code == 200
+    assert allowed.headers["cache-control"] == "no-store, max-age=0"
+    assert allowed.json() == {"items": [{"label": "Canada", "selection_token": "signed-selection"}]}

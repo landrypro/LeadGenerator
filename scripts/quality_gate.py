@@ -17,6 +17,11 @@ FORBIDDEN_BROWSER_PATTERNS = {
     "service worker": re.compile(r"\bserviceWorker\b"),
     "console.log/debug": re.compile(r"\bconsole\s*\.\s*(?:log|debug)\s*\("),
 }
+PUBLIC_LOCALE_STORAGE_PATH = Path("app/publicLocale.js")
+PUBLIC_LOCALE_STORAGE_DECLARATION = "export const PUBLIC_LOCALE_STORAGE_KEY = 'marketteo.public-locale.v1'"
+LOCAL_STORAGE_CALL_PATTERN = re.compile(
+    r"\blocalStorage\s*\?\.\s*(?:getItem|setItem)\s*\(\s*(PUBLIC_LOCALE_STORAGE_KEY)"
+)
 FOCUSED_TEST_PATTERN = re.compile(r"\b(?:describe|it|test)\s*\.\s*(?:only|skip|todo)\s*\(")
 GOOGLE_KEY_PATTERN = re.compile(r"AIza[0-9A-Za-z_-]{30,}")
 FORBIDDEN_ARTIFACT_NAMES = {
@@ -56,12 +61,23 @@ def assert_browser_sources_are_safe(source_root: Path) -> None:
         content = path.read_text(encoding="utf-8")
         for label, pattern in FORBIDDEN_BROWSER_PATTERNS.items():
             if pattern.search(content):
+                if label == "localStorage" and _is_public_locale_storage(path, source_root, content):
+                    continue
                 failures.append(f"{path}: utilisation interdite ({label})")
     for path in sorted(source_root.rglob("*.test.*")):
         if FOCUSED_TEST_PATTERN.search(path.read_text(encoding="utf-8")):
             failures.append(f"{path}: test only/skip/todo interdit")
     if failures:
         raise ValueError("\n".join(failures))
+
+
+def _is_public_locale_storage(path: Path, source_root: Path, content: str) -> bool:
+    if path.relative_to(source_root) != PUBLIC_LOCALE_STORAGE_PATH:
+        return False
+    if PUBLIC_LOCALE_STORAGE_DECLARATION not in content:
+        return False
+    calls = list(LOCAL_STORAGE_CALL_PATTERN.finditer(content))
+    return bool(calls) and len(calls) == len(re.findall(r"\blocalStorage\b", content))
 
 
 def assert_artifact_is_safe(artifact_root: Path) -> None:

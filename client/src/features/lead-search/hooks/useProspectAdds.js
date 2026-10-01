@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 
 import { leadSearchApi } from '../api/leadSearchApi'
 
@@ -15,7 +15,7 @@ export function useProspectAdds({ selectionToken, clearError, reportError }) {
   const [addingIds, setAddingIds] = useState(() => new Set())
   const activeRequestRef = useRef(null)
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     activeRequestRef.current?.abort()
     setSelectedPlaceIds(new Set())
     setInternalAliases({})
@@ -27,9 +27,10 @@ export function useProspectAdds({ selectionToken, clearError, reportError }) {
 
   const selectedCount = selectedPlaceIds.size
   const adding = addingIds.size > 0
-  const selectedReady = selectedCount > 0 && setToArray(selectedPlaceIds).every(
-    (placeId) => internalAliases[placeId]?.trim(),
-  )
+  const firstSelectedMissingAlias = setToArray(selectedPlaceIds).find(
+    (placeId) => !internalAliases[placeId]?.trim(),
+  ) ?? ''
+  const selectedReady = selectedCount > 0 && !firstSelectedMissingAlias
 
   const updateInternalAlias = useCallback((placeId, value) => {
     setInternalAliases((current) => ({ ...current, [placeId]: value }))
@@ -40,6 +41,19 @@ export function useProspectAdds({ selectionToken, clearError, reportError }) {
       const next = new Set(current)
       if (next.has(placeId)) next.delete(placeId)
       else next.add(placeId)
+      return next
+    })
+  }, [])
+
+  const togglePlaces = useCallback((placeIds) => {
+    const requested = Array.from(new Set(placeIds.filter(Boolean)))
+    setSelectedPlaceIds((current) => {
+      const next = new Set(current)
+      const allSelected = requested.length > 0 && requested.every((placeId) => next.has(placeId))
+      for (const placeId of requested) {
+        if (allSelected) next.delete(placeId)
+        else next.add(placeId)
+      }
       return next
     })
   }, [])
@@ -106,12 +120,14 @@ export function useProspectAdds({ selectionToken, clearError, reportError }) {
     addingIds,
     selectedCount,
     selectedReady,
+    firstSelectedMissingAlias,
     adding,
     togglePlace,
+    togglePlaces,
     updateInternalAlias,
     addOne,
     addSelected,
-  }), [addOne, addSelected, adding, addingIds, internalAliases, itemStates, selectedCount, selectedPlaceIds, selectedReady, togglePlace, updateInternalAlias])
+  }), [addOne, addSelected, adding, addingIds, firstSelectedMissingAlias, internalAliases, itemStates, selectedCount, selectedPlaceIds, selectedReady, togglePlace, togglePlaces, updateInternalAlias])
 
   return value
 }

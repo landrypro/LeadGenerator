@@ -17,7 +17,12 @@ depends_on: str | Sequence[str] | None = None
 
 
 def upgrade() -> None:
-    op.add_column("memberships", sa.Column("updated_by", sa.Uuid(), nullable=True))
+    # Certaines reconstructions de bases historiques ont déjà matérialisé
+    # ``updated_by`` avant que leur révision Alembic ne soit avancée. L'ajout
+    # doit rester rejouable; les normalisations et contraintes ci-dessous
+    # restent, elles, systématiquement appliquées.
+    if not _column_exists("memberships", "updated_by"):
+        op.add_column("memberships", sa.Column("updated_by", sa.Uuid(), nullable=True))
     op.add_column("memberships", sa.Column("version", sa.Integer(), nullable=True))
     op.execute("UPDATE public.memberships SET updated_by = created_by, version = 1")
     op.alter_column("memberships", "updated_by", nullable=False)
@@ -33,6 +38,25 @@ def upgrade() -> None:
     op.create_check_constraint(op.f("ck_memberships_version_positive"), "memberships", "version > 0")
     _create_functions()
     _grant_permissions()
+
+
+def _column_exists(table_name: str, column_name: str) -> bool:
+    return bool(
+        op.get_bind()
+        .execute(
+            sa.text(
+                """
+                SELECT 1
+                FROM information_schema.columns
+                WHERE table_schema = 'public'
+                  AND table_name = :table_name
+                  AND column_name = :column_name
+                """
+            ),
+            {"table_name": table_name, "column_name": column_name},
+        )
+        .scalar()
+    )
 
 
 def _create_functions() -> None:

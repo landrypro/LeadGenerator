@@ -4,6 +4,7 @@ import unicodedata
 from dataclasses import dataclass
 from datetime import datetime
 from enum import StrEnum
+from typing import Literal
 from uuid import UUID
 
 
@@ -42,6 +43,9 @@ class PlatformRole(StrEnum):
     PLATFORM_ADMIN = "platform_admin"
 
 
+OrganizationLocale = Literal["fr-CA", "en-CA"]
+
+
 @dataclass(frozen=True, slots=True)
 class NormalizedEmail:
     display: str
@@ -57,6 +61,8 @@ class MembershipIdentity:
     status: MembershipStatus
     organization_status: OrganizationStatus
     created_at: datetime
+    organization_locale: OrganizationLocale = "fr-CA"
+    organization_timezone: str = "America/Toronto"
 
     @property
     def is_active(self) -> bool:
@@ -106,6 +112,10 @@ class AuthenticatedIdentity:
 
 CAPABILITIES_BY_ROLE: dict[MembershipRole, tuple[str, ...]] = {
     MembershipRole.ADMIN: (
+        "dashboard:read:self",
+        "dashboard:read:organization",
+        "usage:read:self",
+        "usage:read:organization",
         "organization:read",
         "organization:update",
         "members:read",
@@ -118,6 +128,11 @@ CAPABILITIES_BY_ROLE: dict[MembershipRole, tuple[str, ...]] = {
         "prospects:read",
         "prospects:create",
         "prospects:update",
+        "pipeline:read",
+        "pipeline:move",
+        "pipeline:history:read",
+        "pipeline:reopen",
+        "pipeline:configure",
         "contacts:read",
         "contacts:write",
         "compliance:read",
@@ -125,6 +140,7 @@ CAPABILITIES_BY_ROLE: dict[MembershipRole, tuple[str, ...]] = {
         "permissions:allow",
         "providers:read",
         "providers:manage",
+        "providers:review",
         "acquisitions:declare",
         "acquisitions:review",
         "retention:read",
@@ -133,11 +149,34 @@ CAPABILITIES_BY_ROLE: dict[MembershipRole, tuple[str, ...]] = {
         "retention:hold:release",
         "imports:read",
         "imports:declare",
+        "imports:correct",
+        "imports:confirm",
+        "imports:retry",
         "imports:archive",
+        "exports:create:self",
+        "exports:create:organization",
+        "exports:rules:manage",
         "prospects:archive",
         "contacts:archive",
+        "activities:read",
+        "activities:create",
+        "activities:correct:self",
+        "activities:correct:any",
+        "tasks:read",
+        "tasks:create",
+        "tasks:update:assigned",
+        "tasks:manage",
+        "opportunities:read",
+        "opportunities:create",
+        "opportunities:update",
+        "opportunities:close",
+        "opportunities:reopen",
     ),
     MembershipRole.MANAGER: (
+        "dashboard:read:self",
+        "dashboard:read:organization",
+        "usage:read:self",
+        "usage:read:organization",
         "organization:read",
         "members:read",
         "audit:read",
@@ -146,6 +185,10 @@ CAPABILITIES_BY_ROLE: dict[MembershipRole, tuple[str, ...]] = {
         "prospects:read",
         "prospects:create",
         "prospects:update",
+        "pipeline:read",
+        "pipeline:move",
+        "pipeline:history:read",
+        "pipeline:reopen",
         "contacts:read",
         "contacts:write",
         "compliance:read",
@@ -157,19 +200,53 @@ CAPABILITIES_BY_ROLE: dict[MembershipRole, tuple[str, ...]] = {
         "retention:hold:create",
         "imports:read",
         "imports:declare",
+        "imports:correct",
+        "imports:confirm",
+        "imports:retry",
+        "exports:create:self",
+        "exports:create:organization",
         "prospects:archive",
         "contacts:archive",
+        "activities:read",
+        "activities:create",
+        "activities:correct:self",
+        "activities:correct:any",
+        "tasks:read",
+        "tasks:create",
+        "tasks:update:assigned",
+        "tasks:manage",
+        "opportunities:read",
+        "opportunities:create",
+        "opportunities:update",
+        "opportunities:close",
+        "opportunities:reopen",
     ),
     MembershipRole.SALES: (
+        "dashboard:read:self",
+        "usage:read:self",
         "organization:read",
         "google:search",
         "google:map",
         "prospects:read",
         "prospects:create",
         "prospects:update",
+        "pipeline:read",
+        "pipeline:move",
+        "pipeline:history:read",
         "contacts:read",
         "contacts:write",
         "permissions:restrict",
+        "activities:read",
+        "activities:create",
+        "activities:correct:self",
+        "tasks:read",
+        "tasks:create",
+        "tasks:update:assigned",
+        "opportunities:read",
+        "opportunities:create",
+        "opportunities:update",
+        "opportunities:close",
+        "exports:create:self",
     ),
 }
 

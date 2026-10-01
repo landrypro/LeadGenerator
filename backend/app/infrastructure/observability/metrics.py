@@ -4,7 +4,16 @@ from collections import defaultdict
 from collections.abc import Mapping
 from threading import Lock
 
-from ...application.ports.metrics import GoogleApi, GrantAction, MetricsOutcome, QuotaScope, RedisOperation
+from ...application.ports.metrics import (
+    CrmOpportunityAction,
+    CrmTaskAction,
+    GoogleApi,
+    GrantAction,
+    MetricsOutcome,
+    QuotaScope,
+    RedisOperation,
+    UsageApi,
+)
 
 
 class PrometheusMetricsRecorder:
@@ -41,6 +50,36 @@ class PrometheusMetricsRecorder:
         labels = {"api": api, "outcome": outcome}
         self._increment("marketteo_google_upstream_calls_total", labels)
         self._observe("marketteo_google_upstream_duration_seconds", labels, duration_seconds)
+
+    def record_usage_registry_write(self, api: UsageApi, outcome: MetricsOutcome, policy_code: str) -> None:
+        self._increment(
+            "marketteo_usage_registry_write_total",
+            {"api": api, "outcome": outcome, "policy_code": policy_code},
+        )
+
+    def record_crm_activity_command(self, activity_type: str, result: MetricsOutcome) -> None:
+        self._increment("marketteo_crm_activity_command_total", {"type": activity_type, "result": result})
+
+    def record_crm_task_command(self, action: CrmTaskAction, result: MetricsOutcome) -> None:
+        self._increment("marketteo_crm_task_command_total", {"action": action, "result": result})
+
+    def record_crm_task_version_conflict(self) -> None:
+        self._increment("marketteo_crm_task_version_conflict_total", {})
+
+    def record_crm_timeline_request(self, result: MetricsOutcome) -> None:
+        self._increment("marketteo_crm_timeline_request_total", {"result": result})
+
+    def record_crm_opportunity_command(self, action: CrmOpportunityAction, result: MetricsOutcome) -> None:
+        self._increment("marketteo_opportunity_command_total", {"operation": action, "result": result})
+
+    def record_crm_opportunity_transition(self, from_stage: str, to_stage: str, result: MetricsOutcome) -> None:
+        self._increment(
+            "marketteo_opportunity_transition_total",
+            {"from_stage": from_stage, "to_stage": to_stage, "result": result},
+        )
+
+    def record_crm_opportunity_version_conflict(self, action: CrmOpportunityAction) -> None:
+        self._increment("marketteo_opportunity_conflict_total", {"operation": action})
 
     def render(self) -> bytes:
         with self._lock:

@@ -1,3 +1,5 @@
+// Hook générique pour les listes paginées : état, rechargement et déduplication
+// sont maintenus au même endroit pour les écrans d’administration.
 import { useCallback, useEffect, useRef, useState } from 'react'
 
 import { toUserMessage } from '../../../shared/api/errors'
@@ -25,6 +27,8 @@ export function usePaginatedResource({ enabled = true, fallbackMessage, keyOf, l
   }, [])
 
   const load = useCallback((reset = true) => {
+    // Une requête en cours est réutilisée et les curseurs sont capturés avant
+    // l’appel asynchrone pour éviter les courses entre deux chargements.
     if (!enabled) return Promise.resolve(null)
     if (pendingRef.current) return pendingRef.current
     if (!reset && !cursorRef.current) return Promise.resolve(null)

@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import date, datetime
 from typing import Any, Literal
 from uuid import UUID
 
@@ -27,6 +27,8 @@ class AuthenticatedUserResponse(BaseModel):
 class OrganizationSummaryResponse(BaseModel):
     id: UUID
     name: str
+    locale: Literal["fr-CA", "en-CA"]
+    timezone: str
 
 
 class MembershipSummaryResponse(BaseModel):
@@ -247,6 +249,27 @@ class GooglePlaceSearchRequest(GooglePlaceSearchParameters):
     model_config = ConfigDict(extra="forbid")
 
 
+class GoogleLocationSuggestRequest(StrictCommand):
+    text: str = Field(min_length=3, max_length=80)
+    area: str = Field(default="", max_length=120)
+    scope: Literal["area", "locality"]
+    language: Literal["fr", "en"] = "fr"
+    country_code: str = Field(default="", pattern=r"^$|^[A-Z]{2}$")
+    session_token: UUID
+
+    @field_validator("text")
+    @classmethod
+    def validate_text(cls, value: str) -> str:
+        value = " ".join(value.split())
+        if len(value) < 3:
+            raise ValueError("Saisissez au moins trois caractères pour le lieu.")
+        return value
+
+
+class GoogleLocationResolveRequest(StrictCommand):
+    selection_token: str = Field(min_length=20, max_length=2048)
+
+
 class GooglePlaceSummary(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
@@ -321,6 +344,147 @@ class ProspectResponse(BaseModel):
     created_at: datetime
     updated_at: datetime
     archived_at: datetime | None
+    stage_changed_at: datetime | None
+
+
+class PipelineStageResponse(BaseModel):
+    code: str
+    position: int
+    color_token: str
+    labels: dict[str, str]
+    version: int
+
+
+class PipelineBoardResponse(BaseModel):
+    stages: list[PipelineStageResponse]
+    columns: dict[str, list[ProspectResponse]]
+    next_cursors: dict[str, str | None]
+
+
+class PipelineColumnPageResponse(BaseModel):
+    items: list[ProspectResponse]
+    next_cursor: str | None
+
+
+class ProspectStageTransitionRequest(StrictCommand):
+    version: int = Field(ge=1)
+    to_stage: str = Field(min_length=1, max_length=32)
+    reason_code: str | None = Field(default=None, min_length=1, max_length=64)
+    reason_note: str | None = Field(default=None, min_length=1, max_length=500)
+    idempotency_key: str = Field(min_length=8, max_length=128)
+
+
+class ReopenProspectRequest(StrictCommand):
+    version: int = Field(ge=1)
+    reason_code: str = Field(min_length=1, max_length=64)
+    reason_note: str | None = Field(default=None, min_length=1, max_length=500)
+    idempotency_key: str = Field(min_length=8, max_length=128)
+
+
+class PipelineStageUpdateRequest(StrictCommand):
+    version: int = Field(ge=1)
+    color_token: str | None = Field(default=None, min_length=1, max_length=32)
+    labels: dict[str, str] | None = None
+
+
+class ActivityCreateRequest(StrictCommand):
+    activity_type: Literal["note", "call", "email", "meeting"]
+    direction: Literal["internal", "inbound", "outbound"] = "internal"
+    summary: str = Field(min_length=1, max_length=160)
+    note: str | None = Field(default=None, max_length=4000)
+    occurred_at: datetime
+    contact_channel_id: UUID | None = None
+    idempotency_key: str = Field(min_length=8, max_length=128)
+
+
+class ActivityCorrectionRequest(StrictCommand):
+    summary: str = Field(min_length=1, max_length=160)
+    note: str | None = Field(default=None, max_length=4000)
+    occurred_at: datetime
+    correction_reason: str = Field(min_length=1, max_length=500)
+    idempotency_key: str = Field(min_length=8, max_length=128)
+
+
+class TaskCreateRequest(StrictCommand):
+    title: str = Field(min_length=1, max_length=160)
+    description: str | None = Field(default=None, max_length=2000)
+    due_at: datetime
+    reminder_at: datetime | None = None
+    priority: Literal["low", "normal", "high", "urgent"] = "normal"
+    assigned_membership_id: UUID | None = None
+    idempotency_key: str = Field(min_length=8, max_length=128)
+
+
+class TaskUpdateRequest(StrictCommand):
+    version: int = Field(ge=1)
+    title: str | None = Field(default=None, min_length=1, max_length=160)
+    description: str | None = Field(default=None, max_length=2000)
+    due_at: datetime | None = None
+    reminder_at: datetime | None = None
+    priority: Literal["low", "normal", "high", "urgent"] | None = None
+    assigned_membership_id: UUID | None = None
+    idempotency_key: str = Field(min_length=8, max_length=128)
+
+
+class TaskActionRequest(StrictCommand):
+    version: int = Field(ge=1)
+    idempotency_key: str = Field(min_length=8, max_length=128)
+    reason: str | None = Field(default=None, max_length=500)
+    reminder_at: datetime | None = None
+
+
+class OpportunityCreateRequest(StrictCommand):
+    name: str = Field(min_length=1, max_length=160)
+    amount: str = Field(min_length=1, max_length=32)
+    currency_code: str = Field(min_length=3, max_length=3)
+    probability: int = Field(ge=0, le=100)
+    expected_close_on: date
+    owner_membership_id: UUID | None = None
+    idempotency_key: str = Field(min_length=1, max_length=128)
+
+
+class OpportunityUpdateRequest(StrictCommand):
+    version: int = Field(ge=1)
+    name: str | None = Field(default=None, min_length=1, max_length=160)
+    amount: str | None = Field(default=None, min_length=1, max_length=32)
+    currency_code: str | None = Field(default=None, min_length=3, max_length=3)
+    probability: int | None = Field(default=None, ge=0, le=100)
+    expected_close_on: date | None = None
+    owner_membership_id: UUID | None = None
+    idempotency_key: str = Field(min_length=1, max_length=128)
+
+
+class OpportunityTransitionRequest(StrictCommand):
+    version: int = Field(ge=1)
+    to_stage: str = Field(min_length=1, max_length=32)
+    reason_code: str | None = Field(default=None, min_length=1, max_length=64)
+    reason_note: str | None = Field(default=None, min_length=1, max_length=500)
+    idempotency_key: str = Field(min_length=1, max_length=128)
+
+
+class OpportunityReopenRequest(StrictCommand):
+    version: int = Field(ge=1)
+    reason_code: str = Field(min_length=1, max_length=64)
+    reason_note: str | None = Field(default=None, min_length=1, max_length=500)
+    probability: int = Field(ge=0, le=100)
+    idempotency_key: str = Field(min_length=1, max_length=128)
+
+
+class ProspectStageTransitionResponse(BaseModel):
+    id: UUID
+    prospect_id: UUID
+    actor_id: UUID
+    from_stage: str
+    to_stage: str
+    from_version: int
+    resulting_version: int
+    reason_code: str | None
+    reason_note: str | None
+    occurred_at: datetime
+
+
+class ProspectStageTransitionPageResponse(BaseModel):
+    items: list[ProspectStageTransitionResponse]
 
 
 class ProspectPageResponse(BaseModel):
@@ -724,6 +888,7 @@ class CsvImportVersionRequest(StrictCommand):
 class CsvImportSessionResponse(BaseModel):
     id: UUID
     declaration_id: UUID
+    retry_of_run_id: UUID | None = None
     content_sha256: str
     byte_size: int
     headers: list[str]

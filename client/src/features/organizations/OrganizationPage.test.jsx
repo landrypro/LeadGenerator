@@ -67,6 +67,19 @@ describe('OrganizationPage', () => {
     expect(onOrganizationUpdated).toHaveBeenCalledWith(updated)
   })
 
+  it('propose les fuseaux IANA en auto-complétion', async () => {
+    render(<OrganizationPage session={session(['organization:read', 'organization:update'])} />)
+
+    const timezoneInput = await screen.findByRole('combobox', { name: 'Fuseau horaire IANA' })
+    fireEvent.focus(timezoneInput)
+    const options = Array.from(document.getElementById('organization-timezones').options).map((option) => option.value)
+
+    expect(timezoneInput).toHaveAttribute('list', 'organization-timezones')
+    expect(options).toContain('Africa/Douala')
+    expect(options).toContain('America/Toronto')
+    expect(options).toContain('Europe/Paris')
+  })
+
   it('neutralise une double soumission', async () => {
     organizationApi.update.mockReturnValue(new Promise(() => {}))
     render(<OrganizationPage session={session(['organization:read', 'organization:update'])} />)

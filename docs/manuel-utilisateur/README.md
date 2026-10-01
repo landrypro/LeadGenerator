@@ -4,14 +4,16 @@
 
 Ce dossier est la source de référence du manuel utilisateur de Marketteo CRM. Il doit rester synchronisé avec les écrans livrés, les capacités par rôle et les règles de conformité réellement appliquées par l'application.
 
-La première édition couvre l'état fonctionnel observé dans le dépôt au 25 août 2026. Elle s'adresse aux commerciaux, gestionnaires, administrateurs d'organisation et administrateurs de plateforme.
+L'édition 0.12 couvre l'état fonctionnel observé dans le dépôt et l'application au 30 septembre 2026. Elle intègre la clôture locale de la recette Phase 4.6 (GO produit), tout en signalant la preuve Azure encore requise avant l'entrée en phase 5. Elle s'adresse aux commerciaux, gestionnaires, administrateurs d'organisation et administrateurs de plateforme.
 
 ## Livrables
 
 - `MANUEL_UTILISATEUR.md` : source éditoriale versionnée ;
 - `MATRICE_COUVERTURE.md` : couverture des écrans, rôles et captures ;
-- `Marketteo_CRM_Manuel_Utilisateur_v0.1.docx` : édition Word générée et vérifiée ;
-- `scripts/build_user_manual.py` : générateur reproductible du document Word.
+- `Marketteo_CRM_Manuel_Utilisateur_v0.12.docx` : édition Word illustrée ;
+- `Marketteo_CRM_Manuel_Utilisateur_v0.12.html` : édition HTML publiée dans l'application ;
+- `scripts/build_user_manual.py` : générateur reproductible du document Word ;
+- `scripts/build_user_manual_html.py` : générateur reproductible de l'édition HTML.
 
 ## Ligne éditoriale
 
@@ -35,7 +37,7 @@ En cas de divergence, appliquer cet ordre :
 
 Les principales sources actuelles sont `client/src/app/routes.js`, les composants sous `client/src/features`, `backend/app/domain/identity.py` et `docs/SPECIFICATION_CRM_V1.md`.
 
-## Périmètre de l'édition 0.1
+## Périmètre de l'édition 0.12
 
 Sont documentés :
 
@@ -47,9 +49,17 @@ Sont documentés :
 - politiques de conservation, holds, déclarations et import CSV réel ;
 - organisation, membres, invitations et journal d'activité ;
 - administration des organisations et audit de plateforme ;
+- pipeline commercial, activités, tâches et rappels internes ;
+- portefeuille, création, édition, clôture, réouverture et alignement des opportunités de la phase 3.4 ;
+- tableau de bord, quotas et rapports d'usage de la phase 4 ;
+- exports CSV CRM, historique des imports et quarantaine minimisée ;
+- fournisseurs, acquisitions et onglet « Connexions » du pilote Meta Lead Ads ;
+- navigation par catégories, menu responsive, barre mobile et accès intégré au manuel ;
+- recette finale de phase 4.6 : parcours E2E-01 à E2E-12, reprise du worker, déduplication/quarantaine, exports privés, quotas et indisponibilités réversibles, connecteur Meta simulé, isolation RLS, accessibilité et purge logique ;
+- état de sortie : GO local du 30 septembre 2026, preuve Azure requise sur le commit de clôture et statut `BLOCKED_EXTERNAL` pour l'activation Meta réelle ;
 - limites actuelles et dépannage de premier niveau.
 
-Ne sont pas décrits comme disponibles : export des contenus Google, pipeline commercial complet, tâches/rappels, opportunités, facturation et automatisations futures.
+Ne sont pas décrits comme disponibles : export des contenus Google, facturation, conversion de devises, notifications externes, activation Meta réelle sans autorisation externe, preuve Azure non publiée, préproduction, paiements et automatisations futures de la phase 5.
 
 ## Cycle de mise à jour
 
@@ -76,8 +86,8 @@ Une édition est publiable lorsque :
 
 ## Décisions encore requises avant une édition 1.0
 
-- régénérer les captures et le DOCX après la migration des libellés visibles vers « Marketteo CRM » ;
+- publier la preuve Azure sur le commit de clôture 4.6 et valider l'édition 0.12 et ses 16 captures ;
 - fournir l'URL de production et le canal officiel de soutien ;
-- choisir un jeu de données de démonstration et produire les captures d'écran ;
 - faire valider les consignes de conformité par la personne responsable ;
-- confirmer si l'administration de plateforme doit rester dans le même manuel ou devenir un guide séparé.
+- confirmer si l'administration de plateforme doit rester dans le même manuel ou devenir un guide séparé ;
+- décider le périmètre de la phase 5 (préproduction, plans, sièges, paiements, restauration et lancement progressif).
