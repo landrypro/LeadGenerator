@@ -106,6 +106,13 @@ def _entity_type(action: AuditAction) -> str:
         AuditAction.PROSPECT_TASK_REMINDER_CHANGED,
     }:
         return "prospect_task"
+    if action in {
+        AuditAction.OPPORTUNITY_CREATED,
+        AuditAction.OPPORTUNITY_UPDATED,
+        AuditAction.OPPORTUNITY_STAGE_CHANGED,
+        AuditAction.OPPORTUNITY_REOPENED,
+    }:
+        return "opportunity"
     if action is AuditAction.PIPELINE_STAGE_SETTINGS_UPDATED:
         return "pipeline_stage_setting"
     if action is AuditAction.CONTACT_CREATED:
@@ -151,6 +158,21 @@ def _entity_type(action: AuditAction) -> str:
         AuditAction.IMPORT_MAPPING_SAVED,
         AuditAction.IMPORT_VALIDATED,
         AuditAction.IMPORT_CONFIRMED,
+        AuditAction.IMPORT_RETRY_STARTED,
     }:
         return "csv_import_session"
+    if action is AuditAction.IMPORT_REPORT_VIEWED:
+        return "csv_import_run"
+    if action is AuditAction.USAGE_REPORT_VIEWED:
+        return "usage_report"
+    if action is AuditAction.EXPORT_RULE_CHANGED:
+        return "source_export_rule"
+    if action in {
+        AuditAction.EXPORT_REQUESTED,
+        AuditAction.EXPORT_READY,
+        AuditAction.EXPORT_FAILED,
+        AuditAction.EXPORT_DOWNLOADED,
+        AuditAction.EXPORT_EXPIRED,
+    }:
+        return "export_request"
     return "invitation"

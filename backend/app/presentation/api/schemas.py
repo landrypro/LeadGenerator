@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import date, datetime
 from typing import Any, Literal
 from uuid import UUID
 
@@ -27,6 +27,8 @@ class AuthenticatedUserResponse(BaseModel):
 class OrganizationSummaryResponse(BaseModel):
     id: UUID
     name: str
+    locale: Literal["fr-CA", "en-CA"]
+    timezone: str
 
 
 class MembershipSummaryResponse(BaseModel):
@@ -247,6 +249,27 @@ class GooglePlaceSearchRequest(GooglePlaceSearchParameters):
     model_config = ConfigDict(extra="forbid")
 
 
+class GoogleLocationSuggestRequest(StrictCommand):
+    text: str = Field(min_length=3, max_length=80)
+    area: str = Field(default="", max_length=120)
+    scope: Literal["area", "locality"]
+    language: Literal["fr", "en"] = "fr"
+    country_code: str = Field(default="", pattern=r"^$|^[A-Z]{2}$")
+    session_token: UUID
+
+    @field_validator("text")
+    @classmethod
+    def validate_text(cls, value: str) -> str:
+        value = " ".join(value.split())
+        if len(value) < 3:
+            raise ValueError("Saisissez au moins trois caractères pour le lieu.")
+        return value
+
+
+class GoogleLocationResolveRequest(StrictCommand):
+    selection_token: str = Field(min_length=20, max_length=2048)
+
+
 class GooglePlaceSummary(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
@@ -408,6 +431,43 @@ class TaskActionRequest(StrictCommand):
     idempotency_key: str = Field(min_length=8, max_length=128)
     reason: str | None = Field(default=None, max_length=500)
     reminder_at: datetime | None = None
+
+
+class OpportunityCreateRequest(StrictCommand):
+    name: str = Field(min_length=1, max_length=160)
+    amount: str = Field(min_length=1, max_length=32)
+    currency_code: str = Field(min_length=3, max_length=3)
+    probability: int = Field(ge=0, le=100)
+    expected_close_on: date
+    owner_membership_id: UUID | None = None
+    idempotency_key: str = Field(min_length=1, max_length=128)
+
+
+class OpportunityUpdateRequest(StrictCommand):
+    version: int = Field(ge=1)
+    name: str | None = Field(default=None, min_length=1, max_length=160)
+    amount: str | None = Field(default=None, min_length=1, max_length=32)
+    currency_code: str | None = Field(default=None, min_length=3, max_length=3)
+    probability: int | None = Field(default=None, ge=0, le=100)
+    expected_close_on: date | None = None
+    owner_membership_id: UUID | None = None
+    idempotency_key: str = Field(min_length=1, max_length=128)
+
+
+class OpportunityTransitionRequest(StrictCommand):
+    version: int = Field(ge=1)
+    to_stage: str = Field(min_length=1, max_length=32)
+    reason_code: str | None = Field(default=None, min_length=1, max_length=64)
+    reason_note: str | None = Field(default=None, min_length=1, max_length=500)
+    idempotency_key: str = Field(min_length=1, max_length=128)
+
+
+class OpportunityReopenRequest(StrictCommand):
+    version: int = Field(ge=1)
+    reason_code: str = Field(min_length=1, max_length=64)
+    reason_note: str | None = Field(default=None, min_length=1, max_length=500)
+    probability: int = Field(ge=0, le=100)
+    idempotency_key: str = Field(min_length=1, max_length=128)
 
 
 class ProspectStageTransitionResponse(BaseModel):
@@ -828,6 +888,7 @@ class CsvImportVersionRequest(StrictCommand):
 class CsvImportSessionResponse(BaseModel):
     id: UUID
     declaration_id: UUID
+    retry_of_run_id: UUID | None = None
     content_sha256: str
     byte_size: int
     headers: list[str]

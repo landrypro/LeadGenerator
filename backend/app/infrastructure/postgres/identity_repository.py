@@ -127,6 +127,8 @@ class SqlAlchemyIdentityRepository:
                 status=MembershipStatus(row["membership_status"]),
                 organization_status=OrganizationStatus(row["organization_status"]),
                 created_at=row["membership_created_at"],
+                organization_locale=row["organization_locale"],
+                organization_timezone=row["organization_timezone"],
             )
             for row in membership_rows
         )

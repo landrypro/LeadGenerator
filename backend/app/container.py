@@ -1,3 +1,5 @@
+"""Composition root : branche les cas d’usage sur leurs adaptateurs."""
+
 from dataclasses import dataclass, field
 
 from .application.ports import (
@@ -6,6 +8,7 @@ from .application.ports import (
     NullMetricsRecorder,
     TenantUnitOfWorkFactory,
     UnitOfWorkFactory,
+    UsageStore,
 )
 from .application.ports.csv_import import TemporaryCsvFileStore
 from .application.use_cases import (
@@ -26,6 +29,7 @@ from .application.use_cases import (
     CreateContactUseCase,
     CreateManualProspectUseCase,
     CreateMemberInvitationUseCase,
+    CreateOpportunityUseCase,
     CreateOrganizationUseCase,
     CreateRetentionPolicyUseCase,
     CreateSourceProviderUseCase,
@@ -40,6 +44,7 @@ from .application.use_cases import (
     GetCurrentSessionUseCase,
     GetImportDeclarationUseCase,
     GetMapSnapshotUseCase,
+    GetOpportunityUseCase,
     GetOrganizationUseCase,
     GetPipelineBoardUseCase,
     GetProspectUseCase,
@@ -54,6 +59,9 @@ from .application.use_cases import (
     ListMemberInvitationsUseCase,
     ListMembersUseCase,
     ListNextActionsUseCase,
+    ListOpportunitiesUseCase,
+    ListOpportunityEventsUseCase,
+    ListOpportunitySummariesUseCase,
     ListPipelineColumnUseCase,
     ListPipelineStagesUseCase,
     ListPlatformAuditEventsUseCase,
@@ -75,6 +83,7 @@ from .application.use_cases import (
     PlaceRetentionHoldUseCase,
     PreviewInvitationUseCase,
     ReleaseRetentionHoldUseCase,
+    ReopenOpportunityUseCase,
     ReopenProspectUseCase,
     ResendInitialInvitationUseCase,
     ResendMemberInvitationUseCase,
@@ -82,7 +91,9 @@ from .application.use_cases import (
     RevokeMemberInvitationUseCase,
     SearchGooglePlacesUseCase,
     SwitchOrganizationUseCase,
+    TransitionOpportunityUseCase,
     UpdateMembershipUseCase,
+    UpdateOpportunityUseCase,
     UpdateOrganizationUseCase,
     UpdatePipelineStageUseCase,
     UpdateProspectProfileUseCase,
@@ -92,7 +103,14 @@ from .application.use_cases import (
     UploadCsvImportUseCase,
     ValidateCsvImportUseCase,
 )
+from .application.use_cases.dashboard import GetDashboardSummaryUseCase
+from .application.use_cases.usage import GetCurrentUsageUseCase, GetUsageReportUseCase
 from .config import Settings
+from .infrastructure.google.location import GoogleLocationResolver
+from .infrastructure.postgres.connector_management import MetaConnectorManagement
+from .infrastructure.postgres.connector_pilot import MetaLeadWebhookService
+from .infrastructure.postgres.export_service import ExportService
+from .infrastructure.postgres.import_history import ImportHistoryReader
 
 
 @dataclass(frozen=True, slots=True)
@@ -100,6 +118,7 @@ class AppContainer:
     settings: Settings
     search_google_places: SearchGooglePlacesUseCase
     get_map_snapshot: GetMapSnapshotUseCase
+    location_resolver: GoogleLocationResolver | None = None
     metrics: MetricsRecorder = field(default_factory=NullMetricsRecorder)
     metrics_exporter: object | None = None
     readiness: CheckReadinessUseCase = field(default_factory=CheckReadinessUseCase)
@@ -112,6 +131,12 @@ class AppContainer:
     reactivate_organization: ChangeOrganizationStatusUseCase | None = None
     list_tenant_audit_events: ListTenantAuditEventsUseCase | None = None
     list_platform_audit_events: ListPlatformAuditEventsUseCase | None = None
+    get_dashboard_summary: GetDashboardSummaryUseCase | None = None
+    get_usage_report: GetUsageReportUseCase | None = None
+    get_current_usage: GetCurrentUsageUseCase | None = None
+    usage_store: UsageStore | None = None
+    meta_lead_webhooks: MetaLeadWebhookService | None = None
+    meta_connector_management: MetaConnectorManagement | None = None
     create_manual_prospect: CreateManualProspectUseCase | None = None
     add_google_prospects: AddGoogleProspectsUseCase | None = None
     list_prospects: ListProspectsUseCase | None = None
@@ -119,6 +144,14 @@ class AppContainer:
     update_prospect_profile: UpdateProspectProfileUseCase | None = None
     create_activity: CreateActivityUseCase | None = None
     create_task: CreateTaskUseCase | None = None
+    create_opportunity: CreateOpportunityUseCase | None = None
+    update_opportunity: UpdateOpportunityUseCase | None = None
+    transition_opportunity: TransitionOpportunityUseCase | None = None
+    reopen_opportunity: ReopenOpportunityUseCase | None = None
+    get_opportunity: GetOpportunityUseCase | None = None
+    list_opportunities: ListOpportunitiesUseCase | None = None
+    list_opportunity_events: ListOpportunityEventsUseCase | None = None
+    list_opportunity_summaries: ListOpportunitySummariesUseCase | None = None
     update_task: UpdateTaskUseCase | None = None
     list_prospect_timeline: ListProspectTimelineUseCase | None = None
     list_tasks: ListTasksUseCase | None = None
@@ -168,6 +201,8 @@ class AppContainer:
     confirm_csv_import: ConfirmCsvImportUseCase | None = None
     get_csv_import_report: GetCsvImportReportUseCase | None = None
     csv_import_file_store: TemporaryCsvFileStore | None = None
+    import_history: ImportHistoryReader | None = None
+    exports: ExportService | None = None
     archive_prospect: ArchiveProspectUseCase | None = None
     archive_contact: ArchiveContactUseCase | None = None
     archive_contact_channel: ArchiveContactChannelUseCase | None = None

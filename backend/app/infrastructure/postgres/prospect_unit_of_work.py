@@ -10,6 +10,7 @@ from ...application.tenancy import TenantContext
 from .activity_repository import SqlAlchemyActivityRepository, SqlAlchemyTaskEventRepository, SqlAlchemyTaskRepository
 from .audit_recorder import SqlAlchemyAuditRecorder
 from .csv_import_repository import SqlAlchemyCsvImportRepository
+from .opportunity_repository import SqlAlchemyOpportunityEventRepository, SqlAlchemyOpportunityRepository
 from .pipeline_repository import SqlAlchemyPipelineRepository
 from .prospect_repository import (
     SqlAlchemyAcquisitionRepository,
@@ -46,6 +47,8 @@ class SqlAlchemyProspectUnitOfWork(SqlAlchemyTenantUnitOfWork):
         self.activities: SqlAlchemyActivityRepository
         self.tasks: SqlAlchemyTaskRepository
         self.task_events: SqlAlchemyTaskEventRepository
+        self.opportunities: SqlAlchemyOpportunityRepository
+        self.opportunity_events: SqlAlchemyOpportunityEventRepository
         self.audit: SqlAlchemyAuditRecorder
 
     async def __aenter__(self) -> SqlAlchemyProspectUnitOfWork:
@@ -69,6 +72,8 @@ class SqlAlchemyProspectUnitOfWork(SqlAlchemyTenantUnitOfWork):
         self.activities = SqlAlchemyActivityRepository(self.session)
         self.tasks = SqlAlchemyTaskRepository(self.session)
         self.task_events = SqlAlchemyTaskEventRepository(self.session)
+        self.opportunities = SqlAlchemyOpportunityRepository(self.session)
+        self.opportunity_events = SqlAlchemyOpportunityEventRepository(self.session)
         self.audit = SqlAlchemyAuditRecorder(self.session)
         return self
 

@@ -1,0 +1,3 @@
+Entreprise,Identifiant,Adresse,Contact,Fonction,Courriel,Téléphone,LinkedIn,Facebook
+QA 4.6 Courriel invalide,QA-P46-INVALID-EMAIL,30 rue de la Recette Montréal QC,Chloé Contrôle,Opérations,courriel-invalide,+15145550103,https://www.linkedin.com/in/qa-p46-invalid-email,https://www.facebook.com/qa-p46-invalid-email
+,QA-P46-MISSING-NAME,40 rue de la Recette Montréal QC,David Données,Analyse,david.donnees@example.test,+15145550104,https://www.linkedin.com/in/qa-p46-missing-name,https://www.facebook.com/qa-p46-missing-name

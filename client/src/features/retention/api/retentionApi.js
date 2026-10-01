@@ -14,7 +14,7 @@ export const retentionApi = {
   createImport: (payload) => postJson('/api/import-declarations', payload, { headers: idempotencyHeaders() }),
   cancelImport: (id, version) => postJson(`/api/import-declarations/${encodeURIComponent(id)}/cancel`, { version }),
   archiveImport: (id, payload) => postJson(`/api/import-declarations/${encodeURIComponent(id)}/archive`, payload),
-  uploadCsv: (declarationId, file) => request(`/api/import-declarations/${encodeURIComponent(declarationId)}/file`, {
+  uploadCsv: (declarationId, file, retryOfRunId = '') => request(`/api/import-declarations/${encodeURIComponent(declarationId)}/file${retryOfRunId ? `?retry_of_run_id=${encodeURIComponent(retryOfRunId)}` : ''}`, {
     method: 'PUT', headers: { 'Content-Type': 'text/csv' }, body: file,
   }),
   previewCsv: (sessionId) => request(`/api/csv-imports/${encodeURIComponent(sessionId)}/preview`),

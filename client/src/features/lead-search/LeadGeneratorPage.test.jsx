@@ -7,6 +7,8 @@ import { leadSearchApi } from './api/leadSearchApi'
 vi.mock('./api/leadSearchApi', () => ({
     leadSearchApi: {
       health: vi.fn(),
+      suggestLocation: vi.fn(),
+      resolveLocation: vi.fn(),
       search: vi.fn(),
       mapSnapshot: vi.fn(),
       addGoogleProspects: vi.fn(),
@@ -15,6 +17,7 @@ vi.mock('./api/leadSearchApi', () => ({
 
 
 function submitSearch() {
+  fireEvent.click(screen.getByRole('button', { name: /Coordonnées avancées/i }))
   fireEvent.click(screen.getByRole('button', { name: /Rechercher des établissements/i }))
 }
 
@@ -71,6 +74,58 @@ describe('PlaceSearchPage', () => {
         },
       }],
     })
+  })
+
+  it('résout un pays puis une ville avant de chercher, sans requête sur une simple saisie', async () => {
+    leadSearchApi.suggestLocation.mockImplementation(async ({ scope }) => ({ items: [{
+      label: scope === 'area' ? 'Canada' : 'Montréal, Québec, Canada',
+      selection_token: scope === 'area' ? 'area-token' : 'city-token',
+    }] }))
+    leadSearchApi.resolveLocation.mockImplementation(async ({ selection_token }) => ({
+      label: selection_token === 'area-token' ? 'Canada' : 'Montréal, Québec, Canada',
+      scope: selection_token === 'area-token' ? 'area' : 'locality',
+      latitude: 45.5017, longitude: -73.5673, region_code: 'CA',
+    }))
+    leadSearchApi.search.mockResolvedValue(successfulResult())
+    render(<PlaceSearchPage />)
+
+    fireEvent.change(screen.getByRole('combobox', { name: 'Pays ou région' }), { target: { value: 'Cana' } })
+    expect(screen.getByRole('button', { name: /Rechercher des établissements/i })).toBeDisabled()
+    expect(leadSearchApi.search).not.toHaveBeenCalled()
+    fireEvent.click(await screen.findByRole('option', { name: 'Canada' }))
+    await waitFor(() => expect(screen.getByRole('combobox', { name: 'Pays ou région' })).toHaveValue('Canada'))
+
+    fireEvent.change(screen.getByRole('combobox', { name: 'Ville ou quartier' }), { target: { value: 'Montr' } })
+    fireEvent.click(await screen.findByRole('option', { name: /Montréal/i }))
+    await waitFor(() => expect(screen.getByRole('button', { name: /Rechercher des établissements/i })).toBeEnabled())
+    fireEvent.click(screen.getByRole('button', { name: /Rechercher des établissements/i }))
+    await waitFor(() => expect(leadSearchApi.search).toHaveBeenCalledWith(expect.objectContaining({
+      center_latitude: 45.5017, center_longitude: -73.5673, region_code: 'CA',
+    }), expect.any(AbortSignal)))
+  })
+
+  it('ne sollicite pas Google pour moins de trois caractères et indique une absence de proposition', async () => {
+    leadSearchApi.suggestLocation.mockResolvedValue({ items: [] })
+    render(<PlaceSearchPage />)
+    const area = screen.getByRole('combobox', { name: 'Pays ou région' })
+    fireEvent.change(area, { target: { value: 'Ca' } })
+    expect(leadSearchApi.suggestLocation).not.toHaveBeenCalled()
+    fireEvent.change(area, { target: { value: 'Cana' } })
+    expect(await screen.findByText('Aucun lieu correspondant. Précisez votre saisie.')).toBeInTheDocument()
+    expect(leadSearchApi.suggestLocation).toHaveBeenCalledTimes(1)
+    expect(leadSearchApi.search).not.toHaveBeenCalled()
+  })
+
+  it('utilise en-CA pour les libellés et la recherche', async () => {
+    leadSearchApi.search.mockResolvedValue(successfulResult())
+    render(<PlaceSearchPage session={{ active_organization: { locale: 'en-CA' } }} />)
+    expect(screen.getByRole('combobox', { name: 'Country or region' })).toBeInTheDocument()
+    expect(screen.getByRole('combobox', { name: 'City or neighbourhood' })).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: /Advanced coordinates/i }))
+    fireEvent.click(screen.getByRole('button', { name: /Search businesses/i }))
+    await waitFor(() => expect(leadSearchApi.search).toHaveBeenCalledWith(expect.objectContaining({
+      language_code: 'en',
+    }), expect.any(AbortSignal)))
   })
 
   it('soumet uniquement les paramètres de la recherche limitée et affiche le résultat', async () => {
@@ -144,10 +199,22 @@ describe('PlaceSearchPage', () => {
     await waitFor(() => expect(leadSearchApi.mapSnapshot).toHaveBeenCalledTimes(1))
   })
 
+  it('ne demande pas de carte lorsqu’une recherche simulée ne retourne aucun jeton de carte', async () => {
+    leadSearchApi.search.mockResolvedValue({ ...successfulResult(), map_snapshot_token: '' })
+    render(<PlaceSearchPage session={{ capabilities: ['google:search', 'google:map'] }} />)
+
+    submitSearch()
+
+    expect(await screen.findByText('Plomberie Boréale')).toBeInTheDocument()
+    expect(screen.getByText('Carte non disponible')).toBeInTheDocument()
+    expect(leadSearchApi.mapSnapshot).not.toHaveBeenCalled()
+  })
+
   it('neutralise une double soumission pendant la recherche', () => {
     leadSearchApi.search.mockReturnValue(new Promise(() => {}))
     render(<PlaceSearchPage />)
 
+    fireEvent.click(screen.getByRole('button', { name: /Coordonnées avancées/i }))
     const submit = screen.getByRole('button', { name: /Rechercher des établissements/i })
     fireEvent.click(submit)
     fireEvent.click(submit)
@@ -233,5 +300,71 @@ describe('PlaceSearchPage', () => {
     expect(screen.getByRole('button', { name: /^Ajouter$/i })).toBeDisabled()
     fireEvent.change(screen.getByLabelText('Nom interne CRM pour Plomberie Boréale'), { target: { value: 'Compte Québec' } })
     expect(screen.getByRole('button', { name: /^Ajouter$/i })).toBeEnabled()
+  })
+
+  it('conserve les résultats appliqués lorsque le panneau contient un brouillon, puis restaure ce résultat avec Annuler', async () => {
+    leadSearchApi.search.mockResolvedValue(successfulResult())
+    render(<PlaceSearchPage />)
+
+    submitSearch()
+    await screen.findByText('Plomberie Boréale')
+    fireEvent.click(screen.getByRole('button', { name: 'Ouvrir les paramètres de recherche' }))
+    expect(screen.getByRole('dialog', { name: 'Paramètres' })).toBeInTheDocument()
+    fireEvent.change(screen.getByRole('textbox', { name: /Type d’entreprise/i }), { target: { value: 'électricien' } })
+    expect(screen.getByText('Brouillon : les résultats visibles restent liés à la dernière recherche appliquée.')).toBeInTheDocument()
+    expect(screen.getByText('Plomberie Boréale')).toBeInTheDocument()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Annuler' }))
+    expect(screen.getByRole('textbox', { name: /Type d’entreprise/i })).toHaveValue('plombier')
+    expect(screen.getByText('Plomberie Boréale')).toBeInTheDocument()
+  })
+
+  it('ferme le panneau avec Échap, restaure le focus et garde le brouillon non appliqué', async () => {
+    render(<PlaceSearchPage />)
+    const trigger = screen.getByRole('button', { name: 'Ouvrir les paramètres de recherche' })
+    fireEvent.click(trigger)
+    const dialog = screen.getByRole('dialog', { name: 'Paramètres' })
+    fireEvent.change(screen.getByRole('textbox', { name: /Type d’entreprise/i }), { target: { value: 'électricien' } })
+    expect(screen.getByRole('main')).toHaveAttribute('inert')
+    fireEvent.keyDown(dialog, { key: 'Escape' })
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+    await waitFor(() => expect(trigger).toHaveFocus())
+
+    fireEvent.click(trigger)
+    expect(screen.getByRole('textbox', { name: /Type d’entreprise/i })).toHaveValue('électricien')
+  })
+
+  it('purge les résultats et la sélection lorsque l’organisation active change', async () => {
+    leadSearchApi.search.mockResolvedValue(successfulResult())
+    const sessionA = { active_organization: { id: 'organization-a' }, capabilities: ['google:search', 'prospects:create'] }
+    const sessionB = { active_organization: { id: 'organization-b' }, capabilities: ['google:search', 'prospects:create'] }
+    const view = render(<PlaceSearchPage session={sessionA} />)
+
+    submitSearch()
+    await screen.findByText('Plomberie Boréale')
+    fireEvent.click(screen.getByRole('checkbox', { name: /Sélectionner Plomberie Boréale/i }))
+    view.rerender(<PlaceSearchPage session={sessionB} />)
+
+    await waitFor(() => expect(screen.queryByText('Plomberie Boréale')).not.toBeInTheDocument())
+    expect(screen.queryByRole('checkbox', { name: /Sélectionner Plomberie Boréale/i })).not.toBeInTheDocument()
+  })
+
+  it('indique une sélection partielle et dirige vers le premier nom CRM manquant sans écrire', async () => {
+    const result = successfulResult()
+    result.places.push({
+      place_id: 'place-2', name: 'Plomberie du Fleuve', address: 'Québec', primary_type: 'plumber', business_status: 'OPERATIONAL', radius_verified: true, distance_km: 2.4,
+    })
+    leadSearchApi.search.mockResolvedValue(result)
+    render(<PlaceSearchPage session={{ capabilities: ['google:search', 'prospects:create'] }} />)
+
+    submitSearch()
+    await screen.findByText('Plomberie du Fleuve')
+    fireEvent.click(screen.getByRole('checkbox', { name: /Sélectionner Plomberie Boréale/i }))
+    const selectAll = screen.getByRole('checkbox', { name: 'Sélectionner les résultats affichés' })
+    expect(selectAll.indeterminate).toBe(true)
+    fireEvent.click(screen.getByRole('button', { name: 'Ajouter la sélection' }))
+
+    expect(screen.getByLabelText('Nom interne CRM pour Plomberie Boréale')).toHaveFocus()
+    expect(leadSearchApi.addGoogleProspects).not.toHaveBeenCalled()
   })
 })

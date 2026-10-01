@@ -29,6 +29,10 @@ const COPY = {
     record: 'Enregistrer l’activité',
     recording: 'Enregistrement…',
     stageChanged: 'Étape modifiée',
+    opportunityCreated: 'Opportunité créée',
+    opportunityUpdated: 'Opportunité modifiée',
+    opportunityStageChanged: 'Étape de l’opportunité modifiée',
+    opportunityReopened: 'Opportunité réouverte',
     selectChannel: 'Ne pas associer de canal',
     sentNothing: 'Cette déclaration n’envoie aucun courriel et ne contacte personne.',
     summary: 'Résumé',
@@ -71,6 +75,10 @@ const COPY = {
     record: 'Record activity',
     recording: 'Recording…',
     stageChanged: 'Stage changed',
+    opportunityCreated: 'Opportunity created',
+    opportunityUpdated: 'Opportunity updated',
+    opportunityStageChanged: 'Opportunity stage changed',
+    opportunityReopened: 'Opportunity reopened',
     selectChannel: 'Do not associate a channel',
     sentNothing: 'This record does not send an email or contact anyone.',
     summary: 'Summary',
@@ -91,8 +99,12 @@ const COPY = {
 
 const TYPE_LABEL_KEY = { note: 'note', call: 'call', email: 'email', meeting: 'meeting' }
 const TASK_EVENT_LABEL_KEY = { created: 'taskCreated', updated: 'taskUpdated', completed: 'taskCompleted', cancelled: 'taskCancelled', reopened: 'taskReopened', reminder_acknowledged: 'taskReminderAcknowledged', reminder_snoozed: 'taskReminderSnoozed' }
+const OPPORTUNITY_EVENT_LABEL_KEY = { created: 'opportunityCreated', updated: 'opportunityUpdated', stage_changed: 'opportunityStageChanged', reopened: 'opportunityReopened' }
 const STAGE_LABELS = {
   new: { 'fr-CA': 'Nouveau', 'en-CA': 'New' }, qualifying: { 'fr-CA': 'Qualification', 'en-CA': 'Qualifying' }, qualified: { 'fr-CA': 'Qualifié', 'en-CA': 'Qualified' }, contacted: { 'fr-CA': 'Contacté', 'en-CA': 'Contacted' }, opportunity: { 'fr-CA': 'Opportunité', 'en-CA': 'Opportunity' }, proposal_sent: { 'fr-CA': 'Soumission envoyée', 'en-CA': 'Proposal sent' }, negotiation: { 'fr-CA': 'Négociation', 'en-CA': 'Negotiation' }, won: { 'fr-CA': 'Gagné', 'en-CA': 'Won' }, lost: { 'fr-CA': 'Perdu', 'en-CA': 'Lost' },
+}
+const OPPORTUNITY_STAGE_LABELS = {
+  discovery: { 'fr-CA': 'Découverte', 'en-CA': 'Discovery' }, qualification: { 'fr-CA': 'Qualification', 'en-CA': 'Qualification' }, proposal: { 'fr-CA': 'Proposition', 'en-CA': 'Proposal' }, negotiation: { 'fr-CA': 'Négociation', 'en-CA': 'Negotiation' }, won: { 'fr-CA': 'Gagnée', 'en-CA': 'Won' }, lost: { 'fr-CA': 'Perdue', 'en-CA': 'Lost' },
 }
 
 function copyFor(locale) {
@@ -116,6 +128,10 @@ function activityDirection(activity, strings) {
   return strings[activity.direction] ?? activity.direction
 }
 
+function opportunityStageLabel(stage, locale) {
+  return OPPORTUNITY_STAGE_LABELS[stage]?.[locale] ?? stage
+}
+
 function channelPermissionMessage(channel, strings) {
   const status = channel?.permission?.status
   if (status === 'allowed') return { tone: 'allowed', text: strings.permissionAllowed }
@@ -134,6 +150,7 @@ export function ActivityTimeline({
   taskEvents = [],
   tasks = [],
   transitions = [],
+  opportunityEvents = [],
   channels,
   locale = 'fr-CA',
   timezone,
@@ -150,7 +167,8 @@ export function ActivityTimeline({
     ...activities.map((activity) => ({ kind: 'activity', occurredAt: activity.occurred_at, item: activity })),
     ...taskEvents.map((event) => ({ kind: 'task-event', occurredAt: event.occurred_at, item: event })),
     ...transitions.map((transition) => ({ kind: 'transition', occurredAt: transition.occurred_at, item: transition })),
-  ].sort((left, right) => new Date(right.occurredAt) - new Date(left.occurredAt)), [activities, taskEvents, transitions])
+    ...opportunityEvents.map((event) => ({ kind: 'opportunity-event', occurredAt: event.occurred_at, item: event })),
+  ].sort((left, right) => new Date(right.occurredAt) - new Date(left.occurredAt)), [activities, taskEvents, transitions, opportunityEvents])
   const tasksById = useMemo(() => new Map(tasks.map((task) => [task.id, task])), [tasks])
   return <section className="administration-card activity-timeline-card" aria-labelledby="prospect-timeline-title">
     <div className="activity-timeline-heading"><div><div className="administration-card-icon lime"><Clock3 size={21} /></div><h2 id="prospect-timeline-title">{strings.timeline}</h2></div></div>
@@ -159,6 +177,7 @@ export function ActivityTimeline({
       {timelineItems.length ? timelineItems.map(({ kind, item }) => {
         if (kind === 'activity') return <ActivityItem key={`activity-${item.id}`} activity={item} locale={locale} timezone={timezone} strings={strings} canCorrect={canCorrectAny || (canCorrectSelf && item.actor_id === currentUserId)} submitting={submitting} onCorrect={onCorrect} />
         if (kind === 'task-event') return <TaskEventItem key={`task-event-${item.id}`} event={item} task={tasksById.get(item.task_id)} locale={locale} timezone={timezone} strings={strings} />
+        if (kind === 'opportunity-event') return <OpportunityEventItem key={`opportunity-event-${item.id}`} event={item} locale={locale} timezone={timezone} strings={strings} />
         return <TransitionItem key={`transition-${item.id}`} transition={item} locale={locale} timezone={timezone} strings={strings} />
       }) : <li className="form-help">{strings.empty}</li>}
     </ol>
@@ -246,6 +265,14 @@ function TransitionItem({ transition, locale, timezone, strings }) {
   const toStage = STAGE_LABELS[transition.to_stage]?.[locale] ?? transition.to_stage
   return <li className="prospect-activity-item"><article>
     <div className="activity-item-header"><div><strong>{strings.stageChanged}</strong><span>{`${fromStage} → ${toStage}`}</span></div><time dateTime={transition.occurred_at}>{formatActivityDate(transition.occurred_at, locale, timezone)}</time></div>
+  </article></li>
+}
+
+function OpportunityEventItem({ event, locale, timezone, strings }) {
+  const fromStage = event.from_stage ? opportunityStageLabel(event.from_stage, locale) : ''
+  const toStage = event.to_stage ? opportunityStageLabel(event.to_stage, locale) : ''
+  return <li className="prospect-activity-item"><article>
+    <div className="activity-item-header"><div><strong>{strings[OPPORTUNITY_EVENT_LABEL_KEY[event.event_type]] ?? event.event_type}</strong><span>{fromStage && toStage ? `${fromStage} → ${toStage}` : toStage}</span></div><time dateTime={event.occurred_at}>{formatActivityDate(event.occurred_at, locale, timezone)}</time></div>
   </article></li>
 }
 

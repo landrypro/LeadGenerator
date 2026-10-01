@@ -45,8 +45,8 @@ export function AuthProvider({ children }) {
 
   useEffect(() => () => switchControllerRef.current?.abort(), [])
 
-  const login = useCallback(async (email, password) => {
-    const authenticatedSession = await authApi.login(email, password)
+  const login = useCallback(async (email, password, locale = 'fr-CA') => {
+    const authenticatedSession = await authApi.login(email, password, locale)
     return installSession(authenticatedSession)
   }, [installSession])
 
@@ -97,10 +97,23 @@ export function AuthProvider({ children }) {
       }
       return {
         ...currentSession,
-        active_organization: { ...currentSession.active_organization, name: organization.name },
+        active_organization: {
+          ...currentSession.active_organization,
+          name: organization.name,
+          locale: organization.locale,
+          timezone: organization.timezone,
+        },
         memberships: currentSession.memberships.map((membership) => (
           membership.organization.id === organization.id
-            ? { ...membership, organization: { ...membership.organization, name: organization.name } }
+            ? {
+                ...membership,
+                organization: {
+                  ...membership.organization,
+                  name: organization.name,
+                  locale: organization.locale,
+                  timezone: organization.timezone,
+                },
+              }
             : membership
         )),
       }

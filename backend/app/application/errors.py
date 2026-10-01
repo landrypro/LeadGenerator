@@ -6,6 +6,14 @@ class GoogleProtectionUnavailable(RuntimeError):
     """Redis ne peut pas garantir les protections d'un parcours Google."""
 
 
+class UsageTrackingUnavailable(RuntimeError):
+    """Le registre durable requis avant un appel coûteux est indisponible."""
+
+
+class UsageReportUnavailable(RuntimeError):
+    """Les agrégats d’usage ne peuvent pas être lus de façon fiable."""
+
+
 class GoogleQuotaExceeded(RuntimeError):
     """La politique de coût Google refuse une nouvelle recherche quotidienne."""
 
@@ -233,6 +241,32 @@ class TaskVersionConflict(RuntimeError):
     def __init__(self, current_version: int | None = None) -> None:
         super().__init__("La tâche a été modifiée depuis sa lecture.")
         self.current_version = current_version
+
+
+class OpportunityResourceNotFound(RuntimeError):
+    """L’opportunité demandée n’existe pas dans l’organisation active."""
+
+
+class OpportunityVersionConflict(RuntimeError):
+    def __init__(self, current_version: int | None = None) -> None:
+        super().__init__("L’opportunité a changé depuis sa lecture.")
+        self.current_version = current_version
+
+
+class OpportunityOwnerInactive(RuntimeError):
+    """Le responsable doit être réaffecté avant toute autre mutation."""
+
+
+class OpportunityParentArchived(RuntimeError):
+    """Le prospect parent est archivé et l’opportunité est en lecture seule."""
+
+
+class OpportunityTransitionInvalid(ValueError):
+    """La transition ou l’issue d’opportunité ne respecte pas le graphe."""
+
+
+class OpportunityCursorInvalid(ValueError):
+    """Le curseur d’opportunité ne correspond pas à la requête courante."""
 
 
 class ProspectArchivedReadOnly(RuntimeError):

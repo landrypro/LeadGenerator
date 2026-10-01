@@ -13,23 +13,24 @@ from backend.app.infrastructure.invitations import MailpitInvitationDelivery
 pytestmark = pytest.mark.integration
 
 
-def mailpit_configuration() -> tuple[int, str]:
+def mailpit_configuration() -> tuple[str, int, str]:
+    smtp_host = os.environ.get("TEST_MAILPIT_SMTP_HOST", "127.0.0.1")
     smtp_port = os.environ.get("TEST_MAILPIT_SMTP_PORT", "")
     api_url = os.environ.get("TEST_MAILPIT_API_URL", "")
     if not smtp_port or not api_url:
         if os.environ.get("REQUIRE_INFRASTRUCTURE_TESTS", "").lower() == "true":
             pytest.fail("TEST_MAILPIT_SMTP_PORT et TEST_MAILPIT_API_URL sont obligatoires.")
         pytest.skip("Mailpit est requis pour ce test d’intégration.")
-    return int(smtp_port), api_url.rstrip("/")
+    return smtp_host, int(smtp_port), api_url.rstrip("/")
 
 
 async def test_mailpit_adapter_sends_exactly_one_minimal_local_message() -> None:
-    smtp_port, api_url = mailpit_configuration()
+    smtp_host, smtp_port, api_url = mailpit_configuration()
     recipient = f"mailpit-{uuid4()}@example.ca"
     token = "A" * 43
     link = f"http://localhost:5173/accept-invitation#token={token}"
     delivery = MailpitInvitationDelivery(
-        host="127.0.0.1",
+        host=smtp_host,
         port=smtp_port,
         timeout_seconds=5,
         from_email="no-reply@prospect.local",

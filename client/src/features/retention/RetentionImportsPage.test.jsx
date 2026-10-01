@@ -28,5 +28,8 @@ describe('RetentionImportsPage', () => {
     expect(screen.getByText(/fichier CSV est temporaire/i)).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Déclarer sans téléverser' })).toBeInTheDocument()
     expect(document.querySelector('input[type="file"]')).not.toBeNull()
+    expect(screen.getByRole('checkbox', { name: /Identifiant établissement/i })).toBeInTheDocument()
+    expect(screen.getByRole('checkbox', { name: /Rôle contact/i })).toBeInTheDocument()
+    expect(screen.getByRole('checkbox', { name: /Profil Facebook/i })).toBeInTheDocument()
   })
 })

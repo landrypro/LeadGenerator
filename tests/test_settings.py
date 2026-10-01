@@ -42,6 +42,54 @@ def test_settings_keep_legacy_defaults_and_static_key_fallback() -> None:
     assert settings.static_maps_api_key == "shared-key"
 
 
+def test_settings_enable_google_simulator_only_for_local_environments() -> None:
+    settings = Settings.from_env({"GOOGLE_PLACES_SIMULATOR_ENABLED": "true"})
+
+    assert settings.google_places_simulator_enabled is True
+    assert settings.google_places_search_available is True
+
+    with pytest.raises(ValueError, match="réservé"):
+        Settings(app_env="staging", google_places_simulator_enabled=True)
+
+
+def test_settings_enable_meta_simulator_only_for_local_environments() -> None:
+    secrets = {
+        "meta_webhook_verify_token": "v" * 32,
+        "meta_webhook_app_secret": "s" * 32,
+        "meta_reference_hmac_key": "h" * 32,
+        "meta_lead_reference_encryption_key": "e" * 32,
+        "meta_graph_access_token": "t" * 32,
+    }
+    settings = Settings(
+        meta_lead_ads_enabled=True,
+        meta_lead_ads_simulator_enabled=True,
+        job_idempotency_hmac_key="j" * 32,
+        **secrets,
+    )
+
+    assert settings.meta_lead_ads_simulator_enabled is True
+
+    with pytest.raises(ValueError, match="réservé"):
+        Settings(
+            app_env="staging",
+            redis_url="redis://redis:6379/0",
+            meta_lead_ads_enabled=True,
+            meta_lead_ads_simulator_enabled=True,
+            **secrets,
+        )
+
+
+def test_local_settings_default_export_idempotency_key() -> None:
+    settings = Settings.from_env({"APP_ENV": "development"})
+
+    assert len(settings.job_idempotency_hmac_key.encode("utf-8")) >= 32
+
+
+def test_staging_requires_export_idempotency_key() -> None:
+    with pytest.raises(ValueError, match="JOB_IDEMPOTENCY_HMAC_KEY"):
+        Settings(app_env="staging", redis_url="redis://redis:6379/0")
+
+
 def test_settings_reject_invalid_operational_limits() -> None:
     with pytest.raises(ValueError):
         Settings(map_grant_ttl_seconds=0)

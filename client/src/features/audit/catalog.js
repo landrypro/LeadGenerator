@@ -14,6 +14,9 @@ export const TENANT_ACTIONS = Object.freeze([
   ['prospect.archived', 'Prospect archivé'],
   ['prospect.stage_changed', 'Étape commerciale modifiée'],
   ['pipeline.stage_settings_updated', 'Paramètres d’étape modifiés'],
+  ['usage.report_viewed', 'Rapport d’usage organisationnel consulté'],
+  ['connector.ingestion_admitted', 'Ingestion connecteur admise'],
+  ['connector.ingestion_completed', 'Ingestion connecteur terminée'],
 ])
 
 export const PLATFORM_ACTIONS = Object.freeze([
@@ -31,9 +34,20 @@ export const ENTITY_TYPES = Object.freeze([
   ['user', 'Compte'],
   ['prospect', 'Prospect'],
   ['pipeline_stage_setting', 'Paramètre d’étape'],
+  ['usage_report', 'Rapport d’usage'],
+  ['connector_ingestion', 'Ingestion connecteur'],
 ])
 
+const TENANT_ACTIONS_EN = Object.freeze([
+  ['organization.updated', 'Organization updated'], ['account.organization_preference_changed', 'Active organization changed'], ['membership.role_changed', 'Member role changed'], ['membership.status_changed', 'Member status changed'], ['invitation.created', 'Invitation created'], ['invitation.resend_requested', 'Invitation resend requested'], ['invitation.delivery_completed', 'Invitation delivery completed'], ['invitation.revoked', 'Invitation revoked'], ['invitation.accepted', 'Invitation accepted'], ['organization.activated', 'Organization activated'], ['prospect.created', 'Prospect created'], ['prospect.updated', 'Prospect updated'], ['prospect.archived', 'Prospect archived'], ['prospect.stage_changed', 'Sales stage changed'], ['pipeline.stage_settings_updated', 'Stage settings updated'], ['usage.report_viewed', 'Organization usage report viewed'], ['connector.ingestion_admitted', 'Connector ingestion admitted'], ['connector.ingestion_completed', 'Connector ingestion completed'],
+])
+const PLATFORM_ACTIONS_EN = Object.freeze([
+  ['organization.provisioned', 'Organization provisioned'], ['organization.initial_invitation.created', 'Initial invitation created'], ['organization.initial_invitation.resend_requested', 'Initial resend requested'], ['organization.initial_invitation.delivery_completed', 'Initial invitation delivery completed'], ['organization.initial_invitation.revoked', 'Initial invitation revoked'],
+])
+const ENTITY_TYPES_EN = Object.freeze([['organization', 'Organization'], ['membership', 'Membership'], ['invitation', 'Invitation'], ['user', 'Account'], ['prospect', 'Prospect'], ['pipeline_stage_setting', 'Stage setting'], ['usage_report', 'Usage report'], ['connector_ingestion', 'Connector ingestion']])
+
 const ACTION_LABELS = Object.freeze(Object.fromEntries([...TENANT_ACTIONS, ...PLATFORM_ACTIONS]))
+const ACTION_LABELS_EN = Object.freeze(Object.fromEntries([...TENANT_ACTIONS_EN, ...PLATFORM_ACTIONS_EN]))
 const ROLE_LABELS = Object.freeze({ admin: 'Administrateur', manager: 'Gestionnaire', sales: 'Commercial' })
 const STATUS_LABELS = Object.freeze({
   active: 'Actif',
@@ -91,8 +105,17 @@ const LOSS_REASON_LABELS = Object.freeze({
 const DELIVERY_KIND_LABELS = Object.freeze({ initial: 'Initiale', resend: 'Renvoi' })
 
 
-export function actionLabel(action) {
-  return ACTION_LABELS[action] ?? 'Événement non pris en charge'
+export function tenantActions(locale = 'fr-CA') {
+  return locale === 'en-CA' ? TENANT_ACTIONS_EN : TENANT_ACTIONS
+}
+
+export function entityTypes(locale = 'fr-CA') {
+  return locale === 'en-CA' ? ENTITY_TYPES_EN : ENTITY_TYPES
+}
+
+export function actionLabel(action, locale = 'fr-CA') {
+  const labels = locale === 'en-CA' ? ACTION_LABELS_EN : ACTION_LABELS
+  return labels[action] ?? (locale === 'en-CA' ? 'Unsupported event' : 'Événement non pris en charge')
 }
 
 
@@ -122,6 +145,13 @@ export function metadataRows(event) {
       rows = [
         ['Étape', PIPELINE_STAGE_LABELS[metadata.stage_code]],
         ['Champs modifiés', safeArray(metadata.changed_fields).map((value) => ({ color_token: 'Couleur', labels: 'Libellés' })[value]).filter(Boolean).join(', ')],
+      ]
+      break
+    case 'usage.report_viewed':
+      rows = [
+        ['Portée', metadata.scope],
+        ['Début UTC', metadata.start_on],
+        ['Fin UTC', metadata.end_on],
       ]
       break
     case 'account.organization_preference_changed':
@@ -162,8 +192,8 @@ export function metadataRows(event) {
 }
 
 
-export function entityTypeLabel(entityType) {
-  return Object.fromEntries(ENTITY_TYPES)[entityType] ?? 'Entité'
+export function entityTypeLabel(entityType, locale = 'fr-CA') {
+  return Object.fromEntries(entityTypes(locale))[entityType] ?? (locale === 'en-CA' ? 'Entity' : 'Entité')
 }
 
 

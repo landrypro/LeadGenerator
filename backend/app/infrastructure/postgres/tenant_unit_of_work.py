@@ -12,13 +12,18 @@ class SqlAlchemyTenantUnitOfWork(SqlAlchemyUnitOfWork):
         self,
         session_factory: async_sessionmaker[AsyncSession],
         context: TenantContext,
+        *,
+        snapshot_readonly: bool = False,
     ) -> None:
         super().__init__(session_factory)
         self._context = context
+        self._snapshot_readonly = snapshot_readonly
 
     async def __aenter__(self) -> SqlAlchemyTenantUnitOfWork:
         await super().__aenter__()
         try:
+            if self._snapshot_readonly:
+                await self.session.execute(text("SET TRANSACTION ISOLATION LEVEL REPEATABLE READ READ ONLY"))
             await self.session.execute(
                 text(
                     """

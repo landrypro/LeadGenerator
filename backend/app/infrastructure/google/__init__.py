@@ -7,6 +7,7 @@ from .places import (
     GooglePlacesSettings,
 )
 from .quota_policy import SettingsGoogleSearchPolicyProvider
+from .simulated import SimulatedGooglePlacesGateway
 from .static_maps import GoogleStaticMapGateway, build_static_map_url, calculate_zoom
 
 __all__ = [
@@ -18,6 +19,7 @@ __all__ = [
     "GooglePlacesSettings",
     "GoogleStaticMapGateway",
     "SettingsGoogleSearchPolicyProvider",
+    "SimulatedGooglePlacesGateway",
     "build_static_map_url",
     "calculate_zoom",
 ]

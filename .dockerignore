@@ -3,6 +3,9 @@
 .pytest_cache
 .ruff_cache
 .venv
+.quality-temp
+.runtime
+.agents
 artifacts
 backups
 client/.npm-cache

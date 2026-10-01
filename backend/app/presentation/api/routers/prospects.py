@@ -39,6 +39,7 @@ from ....domain.activity import (
     TaskPriority,
 )
 from ....domain.identity import capabilities_for
+from ....domain.opportunity import OpportunityEventView
 from ....domain.pipeline import PipelineStageView, PipelineValidationError, ProspectStageTransitionView
 from ....domain.prospect import ProspectOrigin, ProspectProfilePatch
 from ..dependencies import ContainerDependency, RequestAuthentication, required_authentication
@@ -87,6 +88,7 @@ async def list_timeline(
             prospect_id=prospect_id,
             limit=limit,
             has_capability=_has_capability(authentication, "activities:read"),
+            has_opportunity_capability=_has_capability(authentication, "opportunities:read"),
         )
     except Exception as error:
         response = _prospect_error(request, error)
@@ -99,6 +101,7 @@ async def list_timeline(
             "tasks": [_task_payload(item) for item in page.tasks],
             "task_events": [_task_event_payload(item) for item in page.task_events],
             "transitions": [_timeline_transition_payload(item) for item in page.transitions],
+            "opportunity_events": [_opportunity_timeline_payload(item) for item in page.opportunity_events],
         },
         headers=NO_STORE_HEADERS,
     )
@@ -863,6 +866,22 @@ def _task_event_payload(event: ProspectTaskEventView) -> dict[str, object]:
         "resulting_version": event.resulting_version,
         "occurred_at": event.occurred_at.isoformat(),
         "reason": event.reason,
+    }
+
+
+def _opportunity_timeline_payload(event: OpportunityEventView) -> dict[str, object]:
+    """Expose only the business-safe portion of an opportunity event in a prospect timeline."""
+    return {
+        "id": str(event.id),
+        "opportunity_id": str(event.opportunity_id),
+        "actor_id": str(event.actor_id),
+        "event_type": event.event_type.value,
+        "from_stage": event.from_stage.value if event.from_stage else None,
+        "to_stage": event.to_stage.value if event.to_stage else None,
+        "resulting_version": event.resulting_version,
+        "changed_fields": event.changed_fields,
+        "reason_code": event.reason_code,
+        "occurred_at": event.occurred_at.isoformat(),
     }
 
 

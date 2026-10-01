@@ -27,3 +27,6 @@ export const ExternalLink = (p) => <Svg {...p}><path d="M15 3h6v6M10 14 21 3M18 
 export const Target = (p) => <Svg {...p}><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="5"/><circle cx="12" cy="12" r="1"/></Svg>
 export const LoaderCircle = (p) => <Svg {...p}><path d="M21 12a9 9 0 1 1-6.2-8.6"/></Svg>
 export const Menu = (p) => <Svg {...p}><path d="M4 6h16M4 12h16M4 18h16"/></Svg>
+export const Home = (p) => <Svg {...p}><path d="m3 11 9-8 9 8"/><path d="M5 10v10h14V10M9 20v-6h6v6"/></Svg>
+export const ListChecks = (p) => <Svg {...p}><path d="m3 6 1.5 1.5L7 5M10 6h11M3 12l1.5 1.5L7 11M10 12h11M3 18l1.5 1.5L7 17M10 18h11"/></Svg>
+export const Columns3 = (p) => <Svg {...p}><rect x="3" y="4" width="5" height="16" rx="1"/><rect x="10" y="4" width="5" height="16" rx="1"/><rect x="17" y="4" width="4" height="16" rx="1"/></Svg>

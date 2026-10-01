@@ -111,6 +111,8 @@ def to_authentication_response(identity: AuthenticatedIdentity) -> Authenticatio
         OrganizationSummaryResponse(
             id=identity.active_membership.organization_id,
             name=identity.active_membership.organization_name,
+            locale=identity.active_membership.organization_locale,
+            timezone=identity.active_membership.organization_timezone,
         )
         if identity.active_membership is not None
         else None
@@ -121,6 +123,8 @@ def to_authentication_response(identity: AuthenticatedIdentity) -> Authenticatio
             organization=OrganizationSummaryResponse(
                 id=membership.organization_id,
                 name=membership.organization_name,
+                locale=membership.organization_locale,
+                timezone=membership.organization_timezone,
             ),
             role=membership.role.value,
         )

@@ -7,8 +7,9 @@ import { usePaginatedResource } from './usePaginatedResource'
 const memberKey = (member) => member.membership_id
 
 
-export function useMembers() {
+export function useMembers(enabled = true) {
   const resource = usePaginatedResource({
+    enabled,
     fallbackMessage: 'Impossible de charger les membres.',
     keyOf: memberKey,
     loader: organizationApi.listMembers,

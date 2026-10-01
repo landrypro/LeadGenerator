@@ -1,3 +1,5 @@
+"""Dépendances FastAPI qui appliquent authentification, CSRF et capacités."""
+
 from __future__ import annotations
 
 import hmac

@@ -47,6 +47,26 @@ def test_audit_event_is_normalized_and_immutable() -> None:
         event.metadata["secret"] = "forbidden"  # type: ignore[index]
 
 
+def test_opportunity_terminal_transition_audit_accepts_closed_at_as_a_minimized_field_name() -> None:
+    event = _draft(
+        action=AuditAction.OPPORTUNITY_STAGE_CHANGED,
+        entity_type="opportunity",
+        metadata={
+            "resulting_version": 4,
+            "stage_code": "won",
+            "from_stage": "proposal",
+            "changed_fields": ["stage_code", "probability", "closed_at"],
+        },
+    )
+
+    assert event.metadata == {
+        "changed_fields": ("closed_at", "probability", "stage_code"),
+        "from_stage": "proposal",
+        "resulting_version": 4,
+        "stage_code": "won",
+    }
+
+
 @pytest.mark.parametrize(
     ("overrides", "message"),
     [
@@ -96,6 +116,47 @@ def test_metadata_policy_rejects_free_text_and_non_internal_identifiers() -> Non
             entity_type="invitation",
             metadata={"delivery_attempt_id": "external-id"},
         )
+
+
+def test_usage_report_audit_accepts_only_minimized_period_metadata() -> None:
+    event = _draft(
+        action=AuditAction.USAGE_REPORT_VIEWED,
+        entity_type="usage_report",
+        metadata={
+            "scope": "organization",
+            "start_on": "2026-09-01",
+            "end_on": "2026-09-24",
+            "group_by": "day",
+        },
+    )
+    assert event.metadata == {
+        "scope": "organization",
+        "start_on": "2026-09-01",
+        "end_on": "2026-09-24",
+        "group_by": "day",
+    }
+    with pytest.raises(InvalidAuditMetadata, match="clés"):
+        _draft(
+            action=AuditAction.USAGE_REPORT_VIEWED,
+            entity_type="usage_report",
+            metadata={
+                "scope": "organization",
+                "start_on": "2026-09-01",
+                "end_on": "2026-09-24",
+                "group_by": "day",
+                "member_name": "Sensitive",
+            },
+        )
+
+
+def test_export_failure_audit_accepts_the_terminal_retry_code() -> None:
+    event = _draft(
+        action=AuditAction.EXPORT_FAILED,
+        entity_type="export_request",
+        metadata={"dataset": "prospects", "error_code": "attempts_exhausted"},
+    )
+
+    assert event.metadata == {"dataset": "prospects", "error_code": "attempts_exhausted"}
 
 
 class _StubSession:

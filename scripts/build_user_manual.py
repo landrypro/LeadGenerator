@@ -212,7 +212,7 @@ def configure_section(section):
     section.different_first_page_header_footer = True
 
 
-def add_running_furniture(section):
+def add_running_furniture(section, version):
     header = section.header
     p = header.paragraphs[0]
     p.alignment = WD_ALIGN_PARAGRAPH.RIGHT
@@ -231,12 +231,12 @@ def add_running_furniture(section):
     page_p = footer.paragraphs[0]
     page_p.alignment = WD_ALIGN_PARAGRAPH.RIGHT
     page_p.paragraph_format.space_before = Pt(4)
-    run = page_p.add_run("Version 0.7  |  Page ")
+    run = page_p.add_run(f"Version {version}  |  Page ")
     set_font(run, size=8.5, color=MUTED)
     add_field(page_p, "PAGE")
 
 
-def add_cover(document):
+def add_cover(document, version, state, reference_date):
     p = document.add_paragraph()
     p.paragraph_format.space_before = Pt(112)
     p.paragraph_format.space_after = Pt(18)
@@ -269,11 +269,11 @@ def add_cover(document):
     p = document.add_paragraph()
     p.alignment = WD_ALIGN_PARAGRAPH.CENTER
     p.paragraph_format.space_after = Pt(5)
-    r = p.add_run("Version 0.7 - Édition 3.3 préparée pour recette fonctionnelle")
+    r = p.add_run(f"Version {version} - {state}")
     set_font(r, size=11, color=GREEN, bold=True)
     p = document.add_paragraph()
     p.alignment = WD_ALIGN_PARAGRAPH.CENTER
-    r = p.add_run("État fonctionnel du 5 septembre 2026")
+    r = p.add_run(f"État fonctionnel du {reference_date}")
     set_font(r, size=10, color=MUTED, italic=True)
 
     p = document.add_paragraph()
@@ -472,6 +472,10 @@ def add_body_from_markdown(document, markdown, source_dir):
 
 def build(source, output):
     markdown = source.read_text(encoding="utf-8")
+    metadata = {
+        label: (match.group(1).strip() if (match := re.search(rf"\*\*{re.escape(label)}\s*:\*\*\s*(.+)", markdown)) else "")
+        for label in ("Version", "État", "Date de référence")
+    }
     headings = [line[3:].strip() for line in markdown.splitlines() if line.startswith("## ")]
     transition_note = next(
         (line[2:].strip() for line in markdown.splitlines() if line.startswith("> ")),
@@ -481,12 +485,12 @@ def build(source, output):
     configure_styles(document)
     configure_numbering(document)
     configure_section(document.sections[0])
-    add_running_furniture(document.sections[0])
+    add_running_furniture(document.sections[0], metadata["Version"] or "inconnue")
     document.core_properties.title = "Marketteo CRM - Manuel utilisateur"
     document.core_properties.subject = "Guide d'utilisation de Marketteo CRM"
     document.core_properties.author = "Marketteo"
     document.core_properties.keywords = "Marketteo, CRM, manuel utilisateur"
-    add_cover(document)
+    add_cover(document, metadata["Version"] or "inconnue", metadata["État"] or "Édition à valider", metadata["Date de référence"] or "date inconnue")
     add_toc(document, headings)
     if transition_note:
         add_callout(document, transition_note)

@@ -6,6 +6,7 @@ COPY client/package.json client/package-lock.json ./
 RUN npm ci
 
 COPY client/ ./
+COPY docs/manuel-utilisateur/ /app/docs/manuel-utilisateur/
 RUN npm run build
 
 
@@ -18,7 +19,9 @@ ENV PYTHONPATH=/app
 WORKDIR /app
 
 RUN addgroup --system prospect \
-    && adduser --system --ingroup prospect prospect
+    && adduser --system --ingroup prospect prospect \
+    && mkdir -p /app/.runtime/imports \
+    && chown -R prospect:prospect /app/.runtime
 
 COPY backend/requirements.txt /app/backend/requirements.txt
 RUN pip install --no-cache-dir --upgrade pip \

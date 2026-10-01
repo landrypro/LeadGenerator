@@ -35,6 +35,7 @@ async def test_internal_metrics_are_private_and_emit_only_bounded_labels() -> No
     recorder = PrometheusMetricsRecorder()
     recorder.record_google_search_lock("accepted")
     recorder.record_google_search_quota("user", "accepted", "server_default_v1")
+    recorder.record_usage_registry_write("places_text_search", "failed", "server_default_v1")
     settings = Settings(
         app_env="test",
         metrics_enabled=True,
@@ -60,6 +61,10 @@ async def test_internal_metrics_are_private_and_emit_only_bounded_labels() -> No
     assert authorized.headers["x-robots-tag"] == "noindex, nofollow"
     assert 'marketteo_google_search_lock_total{outcome="accepted"} 1' in authorized.text
     assert 'policy_code="server_default_v1"' in authorized.text
+    assert (
+        'marketteo_usage_registry_write_total{api="places_text_search",outcome="failed",policy_code="server_default_v1"} 1'
+        in authorized.text
+    )
     assert "request_id" not in authorized.text
     assert "organization_id" not in authorized.text
 
@@ -92,14 +97,22 @@ async def test_unmatched_path_is_normalized_before_json_logging(capsys: pytest.C
     async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
         response = await client.get("/missing/person@example.test")
 
-    assert response.status_code == 200
+    # Le fallback SPA est présent après un build frontend et absent dans les
+    # tests backend isolés. Dans les deux cas, le journal ne doit jamais
+    # contenir le chemin brut ni l'adresse qui y figure.
+    assert response.status_code in {200, 404}
     event = json.loads(capsys.readouterr().out)
-    assert event["route"] == "/{frontend_path:path}"
+    assert event["route"] in {"/{frontend_path:path}", "unmatched"}
     assert "person@example.test" not in json.dumps(event)
 
 
 def test_staging_requires_json_logs_enabled_metrics_and_a_secret() -> None:
-    common = {"app_env": "staging", "redis_url": "rediss://redis:6379/0", "log_format": "json"}
+    common = {
+        "app_env": "staging",
+        "redis_url": "rediss://redis:6379/0",
+        "log_format": "json",
+        "job_idempotency_hmac_key": "test-job-idempotency-key-with-at-least-32-bytes",
+    }
 
     with pytest.raises(ValueError, match="METRICS_ENABLED"):
         Settings(**common)  # type: ignore[arg-type]
