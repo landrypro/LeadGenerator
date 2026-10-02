@@ -5,6 +5,7 @@ from .automation import (
     AutomationOrganizationSettingsModel,
     AutomationPlaybookModel,
     AutomationPlaybookVersionModel,
+    AutomationPreflightModel,
 )
 from .base import NAMING_CONVENTION, Base
 from .connector import (
@@ -47,6 +48,7 @@ __all__ = [
     "AutomationOrganizationSettingsModel",
     "AutomationPlaybookModel",
     "AutomationPlaybookVersionModel",
+    "AutomationPreflightModel",
     "Base",
     "ConnectorIngestionModel",
     "ConnectorIngestionOutcomeModel",

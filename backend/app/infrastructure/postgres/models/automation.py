@@ -113,6 +113,55 @@ class AutomationPlaybookVersionModel(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
 
 
+class AutomationPreflightModel(Base):
+    __tablename__ = "automation_preflights"
+    __table_args__ = (
+        UniqueConstraint("organization_id", "id", name="uq_automation_preflights_org_id"),
+        UniqueConstraint("organization_id", "correlation_id", name="uq_automation_preflights_org_correlation"),
+        ForeignKeyConstraint(
+            ["organization_id", "playbook_version_id"],
+            ["automation_playbook_versions.organization_id", "automation_playbook_versions.id"],
+            name="fk_automation_preflights_org_playbook_version",
+            ondelete="RESTRICT",
+        ),
+        ForeignKeyConstraint(
+            ["organization_id", "requested_by_membership_id"],
+            ["memberships.organization_id", "memberships.id"],
+            name="fk_automation_preflights_org_requester",
+            ondelete="RESTRICT",
+        ),
+        CheckConstraint(
+            "state IN ('queued','running','completed','needs_review','failed','stale','cancelled')",
+            name="ck_automation_preflights_state",
+        ),
+        CheckConstraint("scope_fingerprint ~ '^[a-f0-9]{64}$'", name="ck_automation_preflights_scope_fingerprint"),
+        CheckConstraint("subject_count >= 0", name="ck_automation_preflights_subject_count"),
+        CheckConstraint("green_count >= 0", name="ck_automation_preflights_green_count"),
+        CheckConstraint("yellow_count >= 0", name="ck_automation_preflights_yellow_count"),
+        CheckConstraint("red_count >= 0", name="ck_automation_preflights_red_count"),
+        CheckConstraint("to_verify_count >= 0", name="ck_automation_preflights_to_verify_count"),
+        CheckConstraint("expires_at > created_at", name="ck_automation_preflights_expiry"),
+        Index("ix_automation_preflights_org_state_created", "organization_id", "state", "created_at"),
+    )
+
+    id: Mapped[UUID] = mapped_column(primary_key=True, default=uuid4)
+    organization_id: Mapped[UUID] = mapped_column(ForeignKey("organizations.id", ondelete="RESTRICT"))
+    playbook_version_id: Mapped[UUID] = mapped_column()
+    requested_by_membership_id: Mapped[UUID] = mapped_column()
+    ruleset_version: Mapped[str] = mapped_column(String(64))
+    scope_fingerprint: Mapped[str] = mapped_column(String(64))
+    state: Mapped[str] = mapped_column(String(32), server_default=text("'queued'"))
+    correlation_id: Mapped[UUID] = mapped_column()
+    subject_count: Mapped[int] = mapped_column(Integer, server_default=text("0"))
+    green_count: Mapped[int] = mapped_column(Integer, server_default=text("0"))
+    yellow_count: Mapped[int] = mapped_column(Integer, server_default=text("0"))
+    red_count: Mapped[int] = mapped_column(Integer, server_default=text("0"))
+    to_verify_count: Mapped[int] = mapped_column(Integer, server_default=text("0"))
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+
+
 class AutomationDecisionModel(Base):
     __tablename__ = "automation_decisions"
     __table_args__ = (
@@ -121,6 +170,19 @@ class AutomationDecisionModel(Base):
             ["organization_id", "playbook_version_id"],
             ["automation_playbook_versions.organization_id", "automation_playbook_versions.id"],
             ondelete="RESTRICT",
+        ),
+        ForeignKeyConstraint(
+            ["organization_id", "preflight_id"],
+            ["automation_preflights.organization_id", "automation_preflights.id"],
+            name="fk_automation_decisions_org_preflight",
+            ondelete="RESTRICT",
+        ),
+        UniqueConstraint(
+            "organization_id",
+            "preflight_id",
+            "subject_type",
+            "subject_id",
+            name="uq_automation_decisions_org_preflight_subject",
         ),
         CheckConstraint("subject_type IN ('prospect','opportunity')", name="ck_automation_decisions_subject_type"),
         CheckConstraint(
@@ -133,12 +195,14 @@ class AutomationDecisionModel(Base):
         CheckConstraint("context_fingerprint ~ '^[a-f0-9]{64}$'", name="ck_automation_decisions_context_fingerprint"),
         CheckConstraint("jsonb_typeof(reason_codes) = 'array'", name="ck_automation_decisions_reason_codes"),
         CheckConstraint("expires_at > created_at", name="ck_automation_decisions_expiry"),
+        Index("ix_automation_decisions_org_preflight", "organization_id", "preflight_id", "created_at"),
         Index("ix_automation_decisions_org_subject", "organization_id", "subject_type", "subject_id", "created_at"),
         Index("uq_automation_decisions_org_correlation", "organization_id", "correlation_id", unique=True),
     )
 
     id: Mapped[UUID] = mapped_column(primary_key=True, default=uuid4)
     organization_id: Mapped[UUID] = mapped_column(ForeignKey("organizations.id", ondelete="RESTRICT"))
+    preflight_id: Mapped[UUID] = mapped_column()
     playbook_version_id: Mapped[UUID] = mapped_column()
     subject_type: Mapped[str] = mapped_column(String(32))
     subject_id: Mapped[UUID] = mapped_column()

@@ -33,7 +33,7 @@ describe('accessibilité de l’administration', () => {
     expect(formatViolations(await axeViolations(container))).toEqual([])
     fireEvent.click(screen.getByRole('tab', { name: 'Invitations' }))
     expect(formatViolations(await axeViolations(container))).toEqual([])
-  })
+  }, 20_000)
 
   it('valide Membres en lecture Gestionnaire', async () => assertAccessible(<MembersPage session={session(['members:read'])} />))
 

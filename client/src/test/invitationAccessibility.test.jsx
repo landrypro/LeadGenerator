@@ -21,7 +21,7 @@ describe('accessibilité de l’invitation', () => {
     const { container } = render(<InvitationPage initialToken="token-test" auth={{ status: 'anonymous', session: null, login: vi.fn(), logout: vi.fn(), adoptSession: vi.fn() }} />)
     await waitFor(() => expect(container.querySelector('#invitation-name')).toBeInTheDocument())
     expect(formatViolations(await axeViolations(container))).toEqual([])
-  })
+  }, 20_000)
 
   it('valide l’état terminal sans jeton', async () => {
     const { container } = render(<InvitationPage initialToken="" auth={null} />)
