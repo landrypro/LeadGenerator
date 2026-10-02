@@ -18,6 +18,7 @@ def test_settings_load_and_normalize_environment_values() -> None:
             "SESSION_IDLE_SECONDS": "1200",
             "SESSION_ABSOLUTE_SECONDS": "21600",
             "LOGIN_RATE_LIMIT_PAIR_FAILURES": "4",
+            "AUTOMATION_ENABLED": "true",
         }
     )
 
@@ -33,6 +34,7 @@ def test_settings_load_and_normalize_environment_values() -> None:
     assert settings.session_idle_seconds == 1_200
     assert settings.session_absolute_seconds == 21_600
     assert settings.login_rate_limit_pair_failures == 4
+    assert settings.automation_enabled is True
 
 
 def test_settings_keep_legacy_defaults_and_static_key_fallback() -> None:
@@ -40,6 +42,7 @@ def test_settings_keep_legacy_defaults_and_static_key_fallback() -> None:
 
     assert settings.cors_allowed_origins == DEFAULT_CORS_ORIGINS
     assert settings.static_maps_api_key == "shared-key"
+    assert settings.automation_enabled is False
 
 
 def test_settings_enable_google_simulator_only_for_local_environments() -> None:

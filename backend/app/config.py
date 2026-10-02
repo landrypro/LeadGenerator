@@ -75,6 +75,7 @@ class Settings:
     import_temp_directory: str = ".runtime/imports"
     import_temp_max_bytes: int = 10 * 1024 * 1024
     job_idempotency_hmac_key: str = field(default="", repr=False)
+    automation_enabled: bool = False
     meta_lead_ads_enabled: bool = False
     meta_lead_ads_simulator_enabled: bool = False
     meta_webhook_verify_token: str = field(default="", repr=False)
@@ -292,6 +293,7 @@ class Settings:
                 values.get("JOB_IDEMPOTENCY_HMAC_KEY", "").strip()
                 or (DEVELOPMENT_JOB_IDEMPOTENCY_HMAC_KEY if app_env in {"development", "test"} else "")
             ),
+            automation_enabled=_parse_bool(values.get("AUTOMATION_ENABLED", "false")),
             meta_lead_ads_enabled=_parse_bool(values.get("META_LEAD_ADS_ENABLED", "false")),
             meta_lead_ads_simulator_enabled=_parse_bool(values.get("META_LEAD_ADS_SIMULATOR_ENABLED", "false")),
             meta_webhook_verify_token=values.get("META_WEBHOOK_VERIFY_TOKEN", "").strip(),

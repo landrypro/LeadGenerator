@@ -1,4 +1,11 @@
 from .audit import AuditEventModel
+from .automation import (
+    AutomationDecisionModel,
+    AutomationExceptionModel,
+    AutomationOrganizationSettingsModel,
+    AutomationPlaybookModel,
+    AutomationPlaybookVersionModel,
+)
 from .base import NAMING_CONVENTION, Base
 from .connector import (
     ConnectorIngestionModel,
@@ -35,6 +42,11 @@ __all__ = [
     "NAMING_CONVENTION",
     "AcquisitionRecordModel",
     "AuditEventModel",
+    "AutomationDecisionModel",
+    "AutomationExceptionModel",
+    "AutomationOrganizationSettingsModel",
+    "AutomationPlaybookModel",
+    "AutomationPlaybookVersionModel",
     "Base",
     "ConnectorIngestionModel",
     "ConnectorIngestionOutcomeModel",

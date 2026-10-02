@@ -45,6 +45,41 @@ class PlatformRole(StrEnum):
 
 OrganizationLocale = Literal["fr-CA", "en-CA"]
 
+AUTOMATION_CAPABILITIES_BY_ROLE: dict[MembershipRole, tuple[str, ...]] = {
+    MembershipRole.ADMIN: (
+        "automation:read:self",
+        "automation:plan:create",
+        "automation:prepare:self",
+        "automation:read:organization",
+        "automation:playbooks:manage",
+        "automation:preflights:run",
+        "automation:playbooks:activate",
+        "automation:playbooks:suspend",
+        "automation:exceptions:resolve:self",
+        "automation:exceptions:resolve:organization",
+        "automation:approvals:decide",
+    ),
+    MembershipRole.MANAGER: (
+        "automation:read:self",
+        "automation:plan:create",
+        "automation:prepare:self",
+        "automation:read:organization",
+        "automation:playbooks:manage",
+        "automation:preflights:run",
+        "automation:playbooks:activate",
+        "automation:playbooks:suspend",
+        "automation:exceptions:resolve:self",
+        "automation:exceptions:resolve:organization",
+        "automation:approvals:decide",
+    ),
+    MembershipRole.SALES: (
+        "automation:read:self",
+        "automation:plan:create",
+        "automation:prepare:self",
+        "automation:exceptions:resolve:self",
+    ),
+}
+
 
 @dataclass(frozen=True, slots=True)
 class NormalizedEmail:
@@ -306,4 +341,5 @@ def capabilities_for(identity: UserIdentity, active_membership: MembershipIdenti
         )
     if active_membership is not None and active_membership.is_active:
         capabilities.extend(CAPABILITIES_BY_ROLE[active_membership.role])
+        capabilities.extend(AUTOMATION_CAPABILITIES_BY_ROLE[active_membership.role])
     return tuple(capabilities)

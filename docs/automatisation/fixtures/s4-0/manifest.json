@@ -1,0 +1,138 @@
+{
+  "manifest_version": "S4-0.1",
+  "source": "synthetic",
+  "contains_pii": false,
+  "contains_provider_secrets": false,
+  "tenants": [
+    {
+      "id": "org-alpha",
+      "status": "active",
+      "flags": {
+        "automation_global": false,
+        "automation_organization": false,
+        "playbook_new_prospect": false
+      },
+      "members": [
+        {
+          "id": "mem-alpha-admin",
+          "role": "administrator",
+          "active": true,
+          "can_approve_external": true
+        },
+        {
+          "id": "mem-alpha-sales",
+          "role": "commercial",
+          "active": true,
+          "can_approve_external": false
+        },
+        {
+          "id": "mem-alpha-revoked",
+          "role": "commercial",
+          "active": false,
+          "can_approve_external": false
+        }
+      ],
+      "prospects": [
+        {
+          "id": "prospect-alpha-open",
+          "state": "open",
+          "source": "manual",
+          "assigned_member_id": "mem-alpha-sales"
+        },
+        {
+          "id": "prospect-alpha-ambiguous",
+          "state": "quarantine",
+          "source": "synthetic_import",
+          "assigned_member_id": null
+        }
+      ]
+    },
+    {
+      "id": "org-beta",
+      "status": "active",
+      "flags": {
+        "automation_global": false,
+        "automation_organization": false,
+        "playbook_new_prospect": false
+      },
+      "members": [
+        {
+          "id": "mem-beta-admin",
+          "role": "administrator",
+          "active": true,
+          "can_approve_external": true
+        },
+        {
+          "id": "mem-beta-sales",
+          "role": "commercial",
+          "active": true,
+          "can_approve_external": false
+        }
+      ],
+      "prospects": [
+        {
+          "id": "prospect-beta-open",
+          "state": "open",
+          "source": "csv_synthetic",
+          "assigned_member_id": "mem-beta-sales"
+        }
+      ]
+    }
+  ],
+  "capabilities": {
+    "administrator": [
+      "automation.prepare",
+      "automation.approve_internal",
+      "automation.approve_external",
+      "automation.resolve_exception"
+    ],
+    "commercial": [
+      "automation.prepare",
+      "automation.approve_internal"
+    ],
+    "revoked": []
+  },
+  "system_principal": {
+    "id": "automation-system",
+    "enabled": false,
+    "allowed_origins": ["automation_preparer"],
+    "ttl_seconds": 900,
+    "max_scope": "single_organization",
+    "requires_human_actor": true,
+    "external_send": false
+  },
+  "migration_plan": {
+    "tables": [
+      "automation_playbooks",
+      "automation_playbook_versions",
+      "automation_decisions",
+      "automation_exceptions"
+    ],
+    "rls_required": true,
+    "crm_tables_mutated": false,
+    "rollback": "remove_automation_tables_and_revoke_flags"
+  },
+  "audit_events": [
+    "automation.decision.prepared",
+    "automation.decision.refused",
+    "automation.exception.quarantined",
+    "automation.execution.to_verify"
+  ],
+  "metrics": [
+    {
+      "name": "automation_decisions_total",
+      "labels": ["organization_id", "playbook", "outcome"]
+    },
+    {
+      "name": "automation_exceptions_total",
+      "labels": ["organization_id", "exception_code"]
+    }
+  ],
+  "expected_refusals": [
+    "organization_flag_disabled",
+    "revoked_member",
+    "cross_tenant_access",
+    "system_principal_scope_exceeded",
+    "external_send_without_human_approval"
+  ]
+}
