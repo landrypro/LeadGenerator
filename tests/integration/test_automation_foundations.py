@@ -7,7 +7,10 @@ import pytest
 from sqlalchemy import text
 
 from backend.app.application.tenancy import TenantContext
+from backend.app.cli.worker import Worker, WorkerConfig
 from backend.app.infrastructure.postgres import PostgresDatabase
+from backend.app.infrastructure.postgres.automation_runtime import AutomationRuntime
+from backend.app.infrastructure.postgres.job_queue import PostgresJobQueue
 
 pytestmark = pytest.mark.integration
 
@@ -53,6 +56,15 @@ def create_database(url: str) -> PostgresDatabase:
         pool_timeout_seconds=2,
         statement_timeout_ms=2_000,
     )
+
+
+def worker_database_url() -> str:
+    worker_url = os.environ.get("TEST_WORKER_DATABASE_URL", "")
+    if not worker_url:
+        if os.environ.get("REQUIRE_INFRASTRUCTURE_TESTS", "").lower() == "true":
+            pytest.fail("TEST_WORKER_DATABASE_URL est obligatoire.")
+        pytest.skip("L'URL PostgreSQL du worker est requise.")
+    return worker_url
 
 
 async def create_fixture(owner: PostgresDatabase) -> AutomationFixture:
@@ -312,42 +324,63 @@ async def create_fixture(owner: PostgresDatabase) -> AutomationFixture:
 
 
 async def delete_fixture(owner: PostgresDatabase, fixture: AutomationFixture) -> None:
+    organizations = {"organization_a_id": fixture.organization_a_id, "organization_b_id": fixture.organization_b_id}
     async with owner.engine.begin() as connection:
         await connection.execute(
+            text("DELETE FROM prospect_task_events WHERE organization_id IN (:organization_a_id, :organization_b_id)"),
+            organizations,
+        )
+        await connection.execute(
             text("DELETE FROM automation_admissions WHERE organization_id IN (:organization_a_id, :organization_b_id)"),
-            {"organization_a_id": fixture.organization_a_id, "organization_b_id": fixture.organization_b_id},
+            organizations,
+        )
+        await connection.execute(
+            text("DELETE FROM prospect_tasks WHERE organization_id IN (:organization_a_id, :organization_b_id)"),
+            organizations,
         )
         await connection.execute(
             text("DELETE FROM automation_exceptions WHERE organization_id IN (:organization_a_id, :organization_b_id)"),
-            {"organization_a_id": fixture.organization_a_id, "organization_b_id": fixture.organization_b_id},
+            organizations,
         )
         await connection.execute(
             text("DELETE FROM automation_decisions WHERE organization_id IN (:organization_a_id, :organization_b_id)"),
-            {"organization_a_id": fixture.organization_a_id, "organization_b_id": fixture.organization_b_id},
+            organizations,
         )
         await connection.execute(
             text("DELETE FROM automation_preflights WHERE organization_id IN (:organization_a_id, :organization_b_id)"),
-            {"organization_a_id": fixture.organization_a_id, "organization_b_id": fixture.organization_b_id},
+            organizations,
         )
         await connection.execute(
             text(
                 "DELETE FROM automation_playbook_versions WHERE organization_id IN (:organization_a_id, :organization_b_id)"
             ),
-            {"organization_a_id": fixture.organization_a_id, "organization_b_id": fixture.organization_b_id},
+            organizations,
         )
         await connection.execute(
             text("DELETE FROM automation_playbooks WHERE organization_id IN (:organization_a_id, :organization_b_id)"),
-            {"organization_a_id": fixture.organization_a_id, "organization_b_id": fixture.organization_b_id},
+            organizations,
         )
         await connection.execute(
             text(
                 "DELETE FROM automation_organization_settings WHERE organization_id IN (:organization_a_id, :organization_b_id)"
             ),
-            {"organization_a_id": fixture.organization_a_id, "organization_b_id": fixture.organization_b_id},
+            organizations,
         )
         await connection.execute(
-            text("DELETE FROM prospects WHERE id IN (:prospect_a_id, :prospect_b_id)"),
-            {"prospect_a_id": fixture.prospect_a_id, "prospect_b_id": fixture.prospect_b_id},
+            text("DELETE FROM audit_events WHERE organization_id IN (:organization_a_id, :organization_b_id)"),
+            organizations,
+        )
+        await connection.execute(
+            text("DELETE FROM jobs WHERE organization_id IN (:organization_a_id, :organization_b_id)"),
+            organizations,
+        )
+        await connection.execute(
+            text("DELETE FROM job_scheduler_state WHERE organization_id IN (:organization_a_id, :organization_b_id)"),
+            organizations,
+        )
+        await connection.execute(
+            text("DELETE FROM prospects WHERE organization_id IN (:organization_a_id, :organization_b_id)"),
+            organizations,
         )
         await connection.execute(
             text("DELETE FROM memberships WHERE id IN (:membership_a_id, :membership_b_id)"),
@@ -492,7 +525,10 @@ async def test_automation_foundation_tables_are_read_only_and_rls_tenant_isolate
 
     assert {row["relname"] for row in rows} == set(AUTOMATION_TABLES)
     assert all(row["relrowsecurity"] and row["relforcerowsecurity"] for row in rows)
-    assert policies == {f"{table_name}_tenant_read" for table_name in AUTOMATION_TABLES}
+    assert policies == {
+        *(f"{table_name}_tenant_read" for table_name in AUTOMATION_TABLES),
+        "automation_admissions_worker_runtime",
+    }
     assert public_grants == 0
     assert parent_child_count == 2
     assert without_context == 0
@@ -504,3 +540,154 @@ async def test_automation_foundation_tables_are_read_only_and_rls_tenant_isolate
     assert visible_to_b == 0
     assert decisions_visible_to_b == 0
     assert not any(privileges.values())
+
+
+async def test_manual_automation_admission_is_idempotent_and_worker_prepares_one_task() -> None:
+    app_url, owner_url = database_urls()
+    app = create_database(app_url)
+    owner = create_database(owner_url)
+    worker = create_database(worker_database_url())
+    fixture = await create_fixture(owner)
+    context = TenantContext(
+        actor_id=fixture.actor_a_id,
+        organization_id=fixture.organization_a_id,
+        request_id=f"automation-admission-{uuid4()}",
+    )
+    try:
+        async with owner.engine.begin() as connection:
+            await connection.execute(
+                text(
+                    """
+                    UPDATE automation_organization_settings
+                    SET automation_enabled = true
+                    WHERE organization_id = :organization_id
+                    """
+                ),
+                {"organization_id": fixture.organization_a_id},
+            )
+            await connection.execute(
+                text(
+                    """
+                    UPDATE automation_playbooks
+                    SET state = 'active_prepare', prepare_enabled = true
+                    WHERE organization_id = :organization_id AND code = 'new_prospect'
+                    """
+                ),
+                {"organization_id": fixture.organization_a_id},
+            )
+
+        app_runtime = AutomationRuntime(
+            app.session_factory,
+            global_enabled=True,
+            idempotency_secret=b"automation-runtime-integration-secret",
+        )
+        first = await app_runtime.admit_manual(
+            context=context,
+            internal_alias="Prospect admission IMP-A4",
+            requested_membership_id=fixture.membership_a_id,
+            assigned_membership_id=fixture.membership_a_id,
+            idempotency_key="automation-integration-key",
+        )
+        replay = await app_runtime.admit_manual(
+            context=context,
+            internal_alias="Prospect admission IMP-A4",
+            requested_membership_id=fixture.membership_a_id,
+            assigned_membership_id=fixture.membership_a_id,
+            idempotency_key="automation-integration-key",
+        )
+        assert first.replayed is False
+        assert replay.replayed is True
+        assert replay.prospect.id == first.prospect.id
+        assert replay.job_id == first.job_id
+
+        queue = PostgresJobQueue(worker.session_factory)
+        worker_process = Worker(
+            queue,
+            worker,
+            WorkerConfig(
+                database_url="postgresql+asyncpg://prospect_worker:unused@localhost/prospect",
+                import_temp_directory=".",
+                idempotency_secret=b"automation-runtime-integration-secret",
+                automation_enabled=True,
+            ),
+        )
+        assert await worker_process.run_once() is True
+
+        async with owner.engine.connect() as connection:
+            admission = (
+                (
+                    await connection.execute(
+                        text(
+                            """
+                            SELECT state, result_code, task_id, job_id
+                        FROM automation_admissions
+                        WHERE id = :admission_id
+                        """
+                        ),
+                        {"admission_id": first.admission_id},
+                    )
+                )
+                .mappings()
+                .one()
+            )
+            task = (
+                (
+                    await connection.execute(
+                        text(
+                            """
+                        SELECT assigned_membership_id, title, priority, status, due_at
+                        FROM prospect_tasks
+                        WHERE id = :task_id
+                        """
+                        ),
+                        {"task_id": admission["task_id"]},
+                    )
+                )
+                .mappings()
+                .one()
+            )
+            job = (
+                (
+                    await connection.execute(
+                        text("SELECT status, result_code FROM jobs WHERE id = :job_id"),
+                        {"job_id": admission["job_id"]},
+                    )
+                )
+                .mappings()
+                .one()
+            )
+            privileges = (
+                (
+                    await connection.execute(
+                        text(
+                            """
+                        SELECT
+                          has_function_privilege('prospect_app',
+                            'app_private.prepare_automation_new_prospect_task(uuid,uuid,boolean,text)', 'EXECUTE')
+                            AS app_can_prepare,
+                          has_function_privilege('prospect_worker',
+                            'app_private.admit_manual_new_prospect_automation(text,uuid,uuid,text,text,text,uuid,boolean,text)', 'EXECUTE')
+                            AS worker_can_admit
+                        """
+                        )
+                    )
+                )
+                .mappings()
+                .one()
+            )
+    finally:
+        await delete_fixture(owner, fixture)
+        await app.close()
+        await owner.close()
+        await worker.close()
+
+    assert admission["state"] == "prepared"
+    assert admission["result_code"] == "prepared"
+    assert job == {"status": "succeeded", "result_code": "prepared"}
+    assert task["assigned_membership_id"] == fixture.membership_a_id
+    assert task["title"] == "Prendre en charge le prospect Prospect admission IMP-A4"
+    assert task["priority"] == "normal"
+    assert task["status"] == "open"
+    assert task["due_at"] is not None
+    assert privileges["app_can_prepare"] is False
+    assert privileges["worker_can_admit"] is False

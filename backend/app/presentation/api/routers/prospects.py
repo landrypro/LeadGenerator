@@ -42,6 +42,7 @@ from ....domain.identity import capabilities_for
 from ....domain.opportunity import OpportunityEventView
 from ....domain.pipeline import PipelineStageView, PipelineValidationError, ProspectStageTransitionView
 from ....domain.prospect import ProspectOrigin, ProspectProfilePatch
+from ....infrastructure.postgres.automation_runtime import AutomationAdmissionBlocked, AutomationAdmissionConflict
 from ..dependencies import ContainerDependency, RequestAuthentication, required_authentication
 from ..mappers import to_prospect_response
 from ..responses import NO_STORE_HEADERS, api_error
@@ -496,19 +497,44 @@ async def create_prospect(
         authentication = await _authenticated_mutation(request, container)
         if container.create_manual_prospect is None:
             raise ProspectServiceUnavailable
-        prospect = await container.create_manual_prospect.execute(
-            context=_tenant_context(request, authentication),
-            internal_alias=payload.internal_alias,
-            has_capability=_has_capability(authentication, "prospects:create"),
-        )
+        context = _tenant_context(request, authentication)
+        if payload.automation is None:
+            prospect = await container.create_manual_prospect.execute(
+                context=context,
+                internal_alias=payload.internal_alias,
+                has_capability=_has_capability(authentication, "prospects:create"),
+            )
+            response_payload: dict[str, object] = to_prospect_response(prospect).model_dump(mode="json")
+        else:
+            membership = authentication.identity.active_membership
+            if membership is None or container.automation_runtime is None:
+                raise ProspectServiceUnavailable
+            if not (
+                _has_capability(authentication, "prospects:create")
+                and _has_capability(authentication, "automation:prepare:self")
+                and _has_capability(authentication, "tasks:create")
+            ):
+                raise InsufficientCapability
+            outcome = await container.automation_runtime.admit_manual(
+                context=context,
+                internal_alias=payload.internal_alias,
+                requested_membership_id=membership.id,
+                assigned_membership_id=payload.automation.assigned_membership_id,
+                idempotency_key=payload.automation.idempotency_key,
+            )
+            response_payload = to_prospect_response(outcome.prospect).model_dump(mode="json")
+            response_payload["automation"] = {
+                "admission_id": str(outcome.admission_id),
+                "job_id": str(outcome.job_id),
+                "state": outcome.state,
+                "replayed": outcome.replayed,
+            }
     except Exception as error:
         response = _prospect_error(request, error)
         if response is not None:
             return response
         raise
-    return JSONResponse(
-        to_prospect_response(prospect).model_dump(mode="json"), status_code=201, headers=NO_STORE_HEADERS
-    )
+    return JSONResponse(response_payload, status_code=201, headers=NO_STORE_HEADERS)
 
 
 @router.post("/from-google", response_model=ProspectFromGoogleResponse)
@@ -746,6 +772,12 @@ def _prospect_error(request: Request, error: Exception) -> Response | None:
         return api_error(request, 403, "request_rejected", "La requête a été refusée.")
     if isinstance(error, InsufficientCapability):
         return api_error(request, 403, "insufficient_capability", "Autorisation prospects insuffisante.")
+    if isinstance(error, AutomationAdmissionConflict):
+        return api_error(
+            request, 409, "idempotency_conflict", "La clé Automation a déjà été utilisée avec une autre commande."
+        )
+    if isinstance(error, AutomationAdmissionBlocked):
+        return api_error(request, 409, "automation_disabled", "L'automatisation ne peut pas être admise actuellement.")
     if isinstance(error, InvalidGoogleSelectionGrant):
         return api_error(request, 400, "google_selection_invalid", "La sélection Google n’est plus utilisable.")
     if isinstance(error, GoogleProtectionUnavailable):

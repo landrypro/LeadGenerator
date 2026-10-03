@@ -244,6 +244,11 @@ class AutomationAdmissionModel(Base):
             ondelete="RESTRICT",
         ),
         ForeignKeyConstraint(
+            ["organization_id", "assigned_membership_id"],
+            ["memberships.organization_id", "memberships.id"],
+            ondelete="RESTRICT",
+        ),
+        ForeignKeyConstraint(
             ["organization_id", "preflight_id"],
             ["automation_preflights.organization_id", "automation_preflights.id"],
             ondelete="RESTRICT",
@@ -269,6 +274,13 @@ class AutomationAdmissionModel(Base):
         ),
         CheckConstraint("idempotency_key_digest ~ '^[a-f0-9]{64}$'", name="ck_automation_admissions_idempotency"),
         CheckConstraint("request_fingerprint ~ '^[a-f0-9]{64}$'", name="ck_automation_admissions_request"),
+        Index(
+            "uq_automation_admissions_org_job",
+            "organization_id",
+            "job_id",
+            unique=True,
+            postgresql_where=text("job_id IS NOT NULL"),
+        ),
         Index("ix_automation_admissions_org_state_created", "organization_id", "state", "created_at"),
         Index("ix_automation_admissions_org_prospect", "organization_id", "prospect_id", "created_at"),
     )
@@ -278,6 +290,7 @@ class AutomationAdmissionModel(Base):
     prospect_id: Mapped[UUID] = mapped_column()
     playbook_version_id: Mapped[UUID] = mapped_column()
     requested_by_membership_id: Mapped[UUID] = mapped_column()
+    assigned_membership_id: Mapped[UUID | None] = mapped_column()
     preflight_id: Mapped[UUID] = mapped_column()
     decision_id: Mapped[UUID] = mapped_column()
     task_id: Mapped[UUID | None] = mapped_column()

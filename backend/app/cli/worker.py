@@ -21,6 +21,7 @@ from ..application.tenancy import TenantContext
 from ..config import Settings
 from ..infrastructure.imports import LocalTemporaryCsvFileStore
 from ..infrastructure.postgres import PostgresDatabase
+from ..infrastructure.postgres.automation_runtime import AutomationRuntime
 from ..infrastructure.postgres.connector_pilot import MetaLeadProcessor
 from ..infrastructure.postgres.export_service import (
     ExportForbidden,
@@ -38,6 +39,13 @@ class JobCancelled(Exception):
     """Raised by a handler only before an irreversible effect is committed."""
 
 
+class AutomationTerminal(Exception):
+    """Termine un job Automation sans reprise automatique."""
+
+    def __init__(self, error_code: str) -> None:
+        self.error_code = error_code
+
+
 @dataclass(frozen=True, slots=True)
 class WorkerConfig:
     database_url: str
@@ -46,6 +54,7 @@ class WorkerConfig:
     queue_lag_alert_seconds: int = 300
     cleanup_alert_seconds: int = 1800
     meta_settings: Settings | None = None
+    automation_enabled: bool = False
 
     @classmethod
     def from_environment(cls) -> WorkerConfig:
@@ -63,7 +72,7 @@ class WorkerConfig:
         cleanup = int(os.environ.get("JOB_CLEANUP_ALERT_SECONDS", "1800"))
         if queue_lag < 1 or cleanup < 1:
             raise ValueError("Les seuils d'alerte doivent être positifs.")
-        return cls(url, directory, secret, queue_lag, cleanup, settings)
+        return cls(url, directory, secret, queue_lag, cleanup, settings, settings.automation_enabled)
 
 
 async def _probe(claim: ClaimedJob, context: TenantContext, queue: PostgresJobQueue) -> str:
@@ -77,7 +86,12 @@ async def _probe(claim: ClaimedJob, context: TenantContext, queue: PostgresJobQu
 
 
 HANDLERS: dict[str, Handler] = {"internal_probe:1": _probe}
-SUPPORTED_CONTRACTS = ("internal_probe:1", "export_csv:1", "meta_lead_ads_ingest:1")
+SUPPORTED_CONTRACTS = (
+    "internal_probe:1",
+    "export_csv:1",
+    "meta_lead_ads_ingest:1",
+    "automation_new_prospect_prepare:1",
+)
 
 
 class Worker:
@@ -89,6 +103,11 @@ class Worker:
         self._worker_id = _worker_id()
         self._exports = ExportService(database.session_factory, config.import_temp_directory, config.idempotency_secret)
         self._meta = MetaLeadProcessor(database.session_factory, config.meta_settings or Settings())
+        self._automation = AutomationRuntime(
+            database.session_factory,
+            global_enabled=config.automation_enabled,
+            idempotency_secret=config.idempotency_secret,
+        )
 
     def stop(self) -> None:
         self._stop.set()
@@ -103,8 +122,9 @@ class Worker:
                     SELECT 1 FROM memberships m
                     JOIN organizations o ON o.id = m.organization_id
                     JOIN users u ON u.id = m.user_id
-                    WHERE m.id = :member AND m.user_id = :actor AND m.organization_id = :org
+            WHERE m.id = :member AND m.user_id = :actor AND m.organization_id = :org
                       AND m.status = 'active' AND o.status = 'active' AND u.status = 'active'
+                      AND m.role IN ('admin', 'manager', 'sales')
                 """),
                 {"member": claim.actor_membership_id, "actor": claim.actor_id, "org": claim.organization_id},
             )
@@ -150,8 +170,12 @@ class Worker:
             await self._exports.mark_queued(context, claim.subject_id)
 
     async def _cancel_export_job(self, claim: ClaimedJob, context: TenantContext) -> None:
-        if await self._queue.cancel_running(claim, context) and claim.type == "export_csv":
+        if not await self._queue.cancel_running(claim, context):
+            return
+        if claim.type == "export_csv":
             await self._exports.mark_cancelled(context, claim.subject_id)
+        elif claim.type == "automation_new_prospect_prepare":
+            await self._automation.cancel(claim, context)
 
     async def run_once(self) -> bool:
         claim = await self._queue.claim(SUPPORTED_CONTRACTS)
@@ -173,6 +197,8 @@ class Worker:
             if claim.type == "export_csv"
             else self._meta_ingest
             if claim.type == "meta_lead_ads_ingest"
+            else self._automation_prepare
+            if claim.type == "automation_new_prospect_prepare"
             else HANDLERS[f"{claim.type}:{claim.schema_version}"]
         )
         handler_task = asyncio.create_task(handler(claim, context, self._queue))
@@ -208,6 +234,8 @@ class Worker:
                 LOGGER.warning("job_completion_rejected job_id=%s", claim.id)
         except JobCancelled:
             await self._cancel_export_job(claim, context)
+        except AutomationTerminal as error:
+            await self._fail_export_job(claim, context, error.error_code)
         except ValueError:
             await self._fail_export_job(claim, context, "invalid_contract")
         except ExportLimitExceeded:
@@ -235,6 +263,18 @@ class Worker:
         if claim.subject_type != "connector_ingestion":
             raise ValueError("invalid_contract")
         return await self._meta.process(claim.subject_id, context)
+
+    async def _automation_prepare(self, claim: ClaimedJob, context: TenantContext, queue: PostgresJobQueue) -> str:
+        """Prépare une tâche, ou termine sans rejeu lorsqu'une garde s'y oppose."""
+        del queue
+        result = await self._automation.prepare(claim, context)
+        if result == "blocked":
+            raise AutomationTerminal("authorization_revoked")
+        if result == "to_verify":
+            raise AutomationTerminal("effect_uncertain")
+        if result not in {"prepared", "replayed"}:
+            raise ValueError("invalid_contract")
+        return result
 
     async def run_forever(self) -> None:
         file_store = LocalTemporaryCsvFileStore(self._config.import_temp_directory, max_bytes=10 * 1024 * 1024)

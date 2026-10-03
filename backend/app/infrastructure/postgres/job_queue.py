@@ -16,7 +16,14 @@ from ...application.tenancy import TenantContext
 
 TRANSIENT_ERRORS: Final = frozenset({"dependency_unavailable", "timeout", "lease_lost"})
 PERMANENT_ERRORS: Final = frozenset(
-    {"authorization_revoked", "subject_missing", "invalid_contract", "provider_rejected", "limit_exceeded"}
+    {
+        "authorization_revoked",
+        "subject_missing",
+        "invalid_contract",
+        "provider_rejected",
+        "limit_exceeded",
+        "effect_uncertain",
+    }
 )
 REPLAY_REASONS: Final = frozenset({"dependency_recovered", "authorization_restored", "operator_verified"})
 

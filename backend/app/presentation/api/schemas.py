@@ -306,8 +306,15 @@ class GooglePlaceSearchResponse(BaseModel):
     search_parameters: GooglePlaceSearchParameters
 
 
+class AutomationManualProspectRequest(StrictCommand):
+    playbook_code: Literal["new_prospect"]
+    assigned_membership_id: UUID
+    idempotency_key: str = Field(min_length=1, max_length=128)
+
+
 class CreateProspectRequest(StrictCommand):
     internal_alias: str = Field(min_length=1, max_length=160)
+    automation: AutomationManualProspectRequest | None = None
 
 
 class ProspectFromGoogleItemRequest(StrictCommand):

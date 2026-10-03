@@ -151,6 +151,7 @@ from .infrastructure.postgres import (
     SqlAlchemyOrganizationAdministrationGateway,
     SqlAlchemyProvisioningGateway,
 )
+from .infrastructure.postgres.automation_runtime import AutomationRuntime
 from .infrastructure.postgres.connector_management import MetaConnectorManagement
 from .infrastructure.postgres.connector_pilot import MetaLeadWebhookService
 from .infrastructure.postgres.dashboard_reader import PostgresDashboardReader
@@ -533,6 +534,11 @@ def build_container(settings: Settings) -> AppContainer:
             clock,
         )
         create_manual_prospect = CreateManualProspectUseCase(database.tenant_prospect_unit_of_work, clock)
+        automation_runtime = AutomationRuntime(
+            database.session_factory,
+            global_enabled=settings.automation_enabled,
+            idempotency_secret=settings.job_idempotency_hmac_key.encode("utf-8"),
+        )
         add_google_prospects = AddGoogleProspectsUseCase(
             database.tenant_prospect_unit_of_work,
             selection_grants,
@@ -659,6 +665,7 @@ def build_container(settings: Settings) -> AppContainer:
         meta_lead_webhooks=meta_lead_webhooks,
         meta_connector_management=meta_connector_management,
         create_manual_prospect=create_manual_prospect,
+        automation_runtime=automation_runtime if database is not None else None,
         add_google_prospects=add_google_prospects,
         list_prospects=list_prospects,
         get_prospect=get_prospect,
