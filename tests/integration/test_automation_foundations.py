@@ -17,6 +17,7 @@ AUTOMATION_TABLES = (
     "automation_playbook_versions",
     "automation_preflights",
     "automation_decisions",
+    "automation_admissions",
     "automation_exceptions",
 )
 
@@ -29,6 +30,8 @@ class AutomationFixture:
     actor_b_id: UUID
     membership_a_id: UUID
     membership_b_id: UUID
+    prospect_a_id: UUID
+    prospect_b_id: UUID
 
 
 def database_urls() -> tuple[str, str]:
@@ -53,7 +56,7 @@ def create_database(url: str) -> PostgresDatabase:
 
 
 async def create_fixture(owner: PostgresDatabase) -> AutomationFixture:
-    fixture = AutomationFixture(uuid4(), uuid4(), uuid4(), uuid4(), uuid4(), uuid4())
+    fixture = AutomationFixture(uuid4(), uuid4(), uuid4(), uuid4(), uuid4(), uuid4(), uuid4(), uuid4())
     now = datetime.now(UTC).replace(microsecond=0)
     expires_at = now + timedelta(hours=1)
     async with owner.engine.begin() as connection:
@@ -111,12 +114,34 @@ async def create_fixture(owner: PostgresDatabase) -> AutomationFixture:
                 "now": now,
             },
         )
+        await connection.execute(
+            text(
+                """
+                INSERT INTO prospects (
+                    id, organization_id, internal_alias, origin, source_label, owner_id, created_at, updated_at
+                ) VALUES
+                    (:prospect_a_id, :organization_a_id, 'Prospect Automatisation A', 'manual', 'Test', :membership_a_id, :now, :now),
+                    (:prospect_b_id, :organization_b_id, 'Prospect Automatisation B', 'manual', 'Test', :membership_b_id, :now, :now)
+                """
+            ),
+            {
+                "prospect_a_id": fixture.prospect_a_id,
+                "prospect_b_id": fixture.prospect_b_id,
+                "organization_a_id": fixture.organization_a_id,
+                "organization_b_id": fixture.organization_b_id,
+                "membership_a_id": fixture.membership_a_id,
+                "membership_b_id": fixture.membership_b_id,
+                "now": now,
+            },
+        )
         playbook_a_id = uuid4()
         playbook_b_id = uuid4()
         version_a_id = uuid4()
         version_b_id = uuid4()
         preflight_a_id = uuid4()
         preflight_b_id = uuid4()
+        decision_a_id = uuid4()
+        decision_b_id = uuid4()
         await connection.execute(
             text(
                 """
@@ -200,29 +225,69 @@ async def create_fixture(owner: PostgresDatabase) -> AutomationFixture:
                     id, organization_id, preflight_id, playbook_version_id, subject_type, subject_id, fire_level,
                     next_action, reason_codes, context_fingerprint, correlation_id, outcome, created_at, expires_at
                 ) VALUES
-                    (:decision_a_id, :organization_a_id, :preflight_a_id, :version_a_id, 'prospect', :subject_a_id,
+                    (:decision_a_id, :organization_a_id, :preflight_a_id, :version_a_id, 'prospect', :prospect_a_id,
                      'green', 'prepare', '["ready"]'::jsonb, :context_a, :decision_correlation_a, 'prepared', :now, :expires_at),
-                    (:decision_b_id, :organization_b_id, :preflight_b_id, :version_b_id, 'prospect', :subject_b_id,
+                    (:decision_b_id, :organization_b_id, :preflight_b_id, :version_b_id, 'prospect', :prospect_b_id,
                      'green', 'prepare', '["ready"]'::jsonb, :context_b, :decision_correlation_b, 'prepared', :now, :expires_at)
                 """
             ),
             {
-                "decision_a_id": uuid4(),
-                "decision_b_id": uuid4(),
+                "decision_a_id": decision_a_id,
+                "decision_b_id": decision_b_id,
                 "organization_a_id": fixture.organization_a_id,
                 "organization_b_id": fixture.organization_b_id,
                 "preflight_a_id": preflight_a_id,
                 "preflight_b_id": preflight_b_id,
                 "version_a_id": version_a_id,
                 "version_b_id": version_b_id,
-                "subject_a_id": uuid4(),
-                "subject_b_id": uuid4(),
+                "prospect_a_id": fixture.prospect_a_id,
+                "prospect_b_id": fixture.prospect_b_id,
                 "context_a": "e" * 64,
                 "context_b": "f" * 64,
                 "decision_correlation_a": uuid4(),
                 "decision_correlation_b": uuid4(),
                 "now": now,
                 "expires_at": expires_at,
+            },
+        )
+        await connection.execute(
+            text(
+                """
+                INSERT INTO automation_admissions (
+                    id, organization_id, prospect_id, playbook_version_id, requested_by_membership_id, preflight_id,
+                    decision_id, functional_identity_fingerprint, idempotency_key_digest, request_fingerprint,
+                    correlation_id, state, created_at, updated_at
+                ) VALUES
+                    (:admission_a_id, :organization_a_id, :prospect_a_id, :version_a_id, :membership_a_id, :preflight_a_id,
+                     :decision_a_id, :functional_a, :idempotency_a, :request_a, :correlation_a, 'ready_to_prepare', :now, :now),
+                    (:admission_b_id, :organization_b_id, :prospect_b_id, :version_b_id, :membership_b_id, :preflight_b_id,
+                     :decision_b_id, :functional_b, :idempotency_b, :request_b, :correlation_b, 'ready_to_prepare', :now, :now)
+                """
+            ),
+            {
+                "admission_a_id": uuid4(),
+                "admission_b_id": uuid4(),
+                "organization_a_id": fixture.organization_a_id,
+                "organization_b_id": fixture.organization_b_id,
+                "prospect_a_id": fixture.prospect_a_id,
+                "prospect_b_id": fixture.prospect_b_id,
+                "version_a_id": version_a_id,
+                "version_b_id": version_b_id,
+                "membership_a_id": fixture.membership_a_id,
+                "membership_b_id": fixture.membership_b_id,
+                "preflight_a_id": preflight_a_id,
+                "preflight_b_id": preflight_b_id,
+                "decision_a_id": decision_a_id,
+                "decision_b_id": decision_b_id,
+                "functional_a": "1" * 64,
+                "functional_b": "2" * 64,
+                "idempotency_a": "3" * 64,
+                "idempotency_b": "4" * 64,
+                "request_a": "5" * 64,
+                "request_b": "6" * 64,
+                "correlation_a": uuid4(),
+                "correlation_b": uuid4(),
+                "now": now,
             },
         )
         await connection.execute(
@@ -248,6 +313,10 @@ async def create_fixture(owner: PostgresDatabase) -> AutomationFixture:
 
 async def delete_fixture(owner: PostgresDatabase, fixture: AutomationFixture) -> None:
     async with owner.engine.begin() as connection:
+        await connection.execute(
+            text("DELETE FROM automation_admissions WHERE organization_id IN (:organization_a_id, :organization_b_id)"),
+            {"organization_a_id": fixture.organization_a_id, "organization_b_id": fixture.organization_b_id},
+        )
         await connection.execute(
             text("DELETE FROM automation_exceptions WHERE organization_id IN (:organization_a_id, :organization_b_id)"),
             {"organization_a_id": fixture.organization_a_id, "organization_b_id": fixture.organization_b_id},
@@ -275,6 +344,10 @@ async def delete_fixture(owner: PostgresDatabase, fixture: AutomationFixture) ->
                 "DELETE FROM automation_organization_settings WHERE organization_id IN (:organization_a_id, :organization_b_id)"
             ),
             {"organization_a_id": fixture.organization_a_id, "organization_b_id": fixture.organization_b_id},
+        )
+        await connection.execute(
+            text("DELETE FROM prospects WHERE id IN (:prospect_a_id, :prospect_b_id)"),
+            {"prospect_a_id": fixture.prospect_a_id, "prospect_b_id": fixture.prospect_b_id},
         )
         await connection.execute(
             text("DELETE FROM memberships WHERE id IN (:membership_a_id, :membership_b_id)"),
@@ -339,13 +412,18 @@ async def test_automation_foundation_tables_are_read_only_and_rls_tenant_isolate
             parent_child_count = await connection.scalar(
                 text(
                     """
-                    SELECT count(*)
-                    FROM automation_preflights AS preflight
-                    JOIN automation_decisions AS decision
-                      ON decision.organization_id = preflight.organization_id
-                     AND decision.preflight_id = preflight.id
-                    """
-                )
+                        SELECT count(*)
+                        FROM automation_preflights AS preflight
+                        JOIN automation_decisions AS decision
+                          ON decision.organization_id = preflight.organization_id
+                         AND decision.preflight_id = preflight.id
+                        WHERE preflight.organization_id IN (:organization_a_id, :organization_b_id)
+                        """
+                ),
+                {
+                    "organization_a_id": fixture.organization_a_id,
+                    "organization_b_id": fixture.organization_b_id,
+                },
             )
 
         async with app.unit_of_work() as unit_of_work:
@@ -354,6 +432,9 @@ async def test_automation_foundation_tables_are_read_only_and_rls_tenant_isolate
             )
             preflights_without_context = await unit_of_work.session.scalar(
                 text("SELECT count(*) FROM automation_preflights")
+            )
+            admissions_without_context = await unit_of_work.session.scalar(
+                text("SELECT count(*) FROM automation_admissions")
             )
             privileges = (
                 (
@@ -380,6 +461,9 @@ async def test_automation_foundation_tables_are_read_only_and_rls_tenant_isolate
             )
             preflights_visible_to_a = await unit_of_work.session.scalar(
                 text("SELECT count(*) FROM automation_preflights")
+            )
+            admissions_visible_to_a = await unit_of_work.session.scalar(
+                text("SELECT count(*) FROM automation_admissions")
             )
 
         async with app.tenant_unit_of_work(
@@ -413,8 +497,10 @@ async def test_automation_foundation_tables_are_read_only_and_rls_tenant_isolate
     assert parent_child_count == 2
     assert without_context == 0
     assert preflights_without_context == 0
+    assert admissions_without_context == 0
     assert visible_to_a == 1
     assert preflights_visible_to_a == 1
+    assert admissions_visible_to_a == 1
     assert visible_to_b == 0
     assert decisions_visible_to_b == 0
     assert not any(privileges.values())

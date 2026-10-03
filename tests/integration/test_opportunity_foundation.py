@@ -59,7 +59,12 @@ def create_database(url: str) -> PostgresDatabase:
         pool_size=1,
         max_overflow=0,
         pool_timeout_seconds=2,
-        statement_timeout_ms=2_000,
+        # Le nettoyage retire une organisation complète et laisse PostgreSQL
+        # vérifier les clés étrangères de ses objets enfants. Sous Docker/WSL,
+        # 2 s est insuffisant pendant un checkpoint même si aucune requête
+        # applicative ne se bloque ; ce test d'intégration n'est pas un test
+        # de budget de performance.
+        statement_timeout_ms=10_000,
     )
 
 

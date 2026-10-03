@@ -34,6 +34,17 @@ from .automation import (
     PreflightPlan,
     SubjectType,
 )
+from .automation_admission import (
+    AUTOMATION_NEW_PROSPECT_JOB_SCHEMA_VERSION,
+    AUTOMATION_NEW_PROSPECT_JOB_TYPE,
+    INTERNAL_TASK_DESCRIPTION,
+    INTERNAL_TASK_DUE_DELAY,
+    AutomationAdmissionState,
+    AutomationAdmissionValidationError,
+    NewProspectAdmission,
+    PreparationGuard,
+    build_internal_task_draft,
+)
 from .google_place import GooglePlaceSearchResult, GooglePlaceSearchStats, GooglePlaceSummary
 from .identity import (
     AUTOMATION_CAPABILITIES_BY_ROLE,
@@ -73,13 +84,19 @@ from .provisioning import (
 
 __all__ = [
     "AUTOMATION_CAPABILITIES_BY_ROLE",
+    "AUTOMATION_NEW_PROSPECT_JOB_SCHEMA_VERSION",
+    "AUTOMATION_NEW_PROSPECT_JOB_TYPE",
     "AUTOMATION_PREPARE_CAPABILITY",
     "DEFAULT_PREFLIGHT_TTL",
+    "INTERNAL_TASK_DESCRIPTION",
+    "INTERNAL_TASK_DUE_DELAY",
     "AcceptedInvitation",
     "ActivityDirection",
     "ActivityType",
     "ActivityValidationError",
     "AuthenticatedIdentity",
+    "AutomationAdmissionState",
+    "AutomationAdmissionValidationError",
     "AutomationChannel",
     "AutomationFeatureFlags",
     "AutomationValidationError",
@@ -104,6 +121,7 @@ __all__ = [
     "MembershipIdentity",
     "MembershipRole",
     "MembershipStatus",
+    "NewProspectAdmission",
     "NextAction",
     "OrganizationProvisioningView",
     "OrganizationStatus",
@@ -112,6 +130,7 @@ __all__ = [
     "PlaybookVersion",
     "PreflightAction",
     "PreflightPlan",
+    "PreparationGuard",
     "ProspectActivityDraft",
     "ProspectActivityView",
     "ProspectTaskDraft",
@@ -129,6 +148,7 @@ __all__ = [
     "UserIdentity",
     "UserStatus",
     "ValidatedProvisionOrganization",
+    "build_internal_task_draft",
     "capabilities_for",
     "hash_invitation_token",
     "invitation_state",

@@ -109,6 +109,7 @@ class PostgresJobQueue:
             ("internal_probe", 1, "organization"),
             ("export_csv", 1, "export_request"),
             ("meta_lead_ads_ingest", 1, "connector_ingestion"),
+            ("automation_new_prospect_prepare", 1, "prospect"),
         }:
             raise ValueError("Type de travail non enregistré.")
         if job_type == "internal_probe" and subject_id != context.organization_id:

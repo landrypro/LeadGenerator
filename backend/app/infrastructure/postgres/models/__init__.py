@@ -1,5 +1,6 @@
 from .audit import AuditEventModel
 from .automation import (
+    AutomationAdmissionModel,
     AutomationDecisionModel,
     AutomationExceptionModel,
     AutomationOrganizationSettingsModel,
@@ -43,6 +44,7 @@ __all__ = [
     "NAMING_CONVENTION",
     "AcquisitionRecordModel",
     "AuditEventModel",
+    "AutomationAdmissionModel",
     "AutomationDecisionModel",
     "AutomationExceptionModel",
     "AutomationOrganizationSettingsModel",

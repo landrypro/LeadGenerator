@@ -216,6 +216,83 @@ class AutomationDecisionModel(Base):
     expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
 
 
+class AutomationAdmissionModel(Base):
+    __tablename__ = "automation_admissions"
+    __table_args__ = (
+        UniqueConstraint("organization_id", "id", name="uq_automation_admissions_org_id"),
+        UniqueConstraint("organization_id", "idempotency_key_digest", name="uq_automation_admissions_org_idempotency"),
+        UniqueConstraint(
+            "organization_id",
+            "prospect_id",
+            "playbook_version_id",
+            "functional_identity_fingerprint",
+            name="uq_automation_admissions_functional_identity",
+        ),
+        ForeignKeyConstraint(
+            ["organization_id", "prospect_id"],
+            ["prospects.organization_id", "prospects.id"],
+            ondelete="RESTRICT",
+        ),
+        ForeignKeyConstraint(
+            ["organization_id", "playbook_version_id"],
+            ["automation_playbook_versions.organization_id", "automation_playbook_versions.id"],
+            ondelete="RESTRICT",
+        ),
+        ForeignKeyConstraint(
+            ["organization_id", "requested_by_membership_id"],
+            ["memberships.organization_id", "memberships.id"],
+            ondelete="RESTRICT",
+        ),
+        ForeignKeyConstraint(
+            ["organization_id", "preflight_id"],
+            ["automation_preflights.organization_id", "automation_preflights.id"],
+            ondelete="RESTRICT",
+        ),
+        ForeignKeyConstraint(
+            ["organization_id", "decision_id"],
+            ["automation_decisions.organization_id", "automation_decisions.id"],
+            ondelete="RESTRICT",
+        ),
+        ForeignKeyConstraint(
+            ["organization_id", "task_id"],
+            ["prospect_tasks.organization_id", "prospect_tasks.id"],
+            ondelete="RESTRICT",
+        ),
+        ForeignKeyConstraint(["organization_id", "job_id"], ["jobs.organization_id", "jobs.id"], ondelete="RESTRICT"),
+        CheckConstraint(
+            "state IN ('accepted','preflight_required','ready_to_prepare','prepared','blocked','quarantined','to_verify','rejected','cancelled')",
+            name="ck_automation_admissions_state",
+        ),
+        CheckConstraint(
+            "functional_identity_fingerprint ~ '^[a-f0-9]{64}$'",
+            name="ck_automation_admissions_functional_identity",
+        ),
+        CheckConstraint("idempotency_key_digest ~ '^[a-f0-9]{64}$'", name="ck_automation_admissions_idempotency"),
+        CheckConstraint("request_fingerprint ~ '^[a-f0-9]{64}$'", name="ck_automation_admissions_request"),
+        Index("ix_automation_admissions_org_state_created", "organization_id", "state", "created_at"),
+        Index("ix_automation_admissions_org_prospect", "organization_id", "prospect_id", "created_at"),
+    )
+
+    id: Mapped[UUID] = mapped_column(primary_key=True, default=uuid4)
+    organization_id: Mapped[UUID] = mapped_column(ForeignKey("organizations.id", ondelete="RESTRICT"))
+    prospect_id: Mapped[UUID] = mapped_column()
+    playbook_version_id: Mapped[UUID] = mapped_column()
+    requested_by_membership_id: Mapped[UUID] = mapped_column()
+    preflight_id: Mapped[UUID] = mapped_column()
+    decision_id: Mapped[UUID] = mapped_column()
+    task_id: Mapped[UUID | None] = mapped_column()
+    job_id: Mapped[UUID | None] = mapped_column()
+    functional_identity_fingerprint: Mapped[str] = mapped_column(String(64))
+    idempotency_key_digest: Mapped[str] = mapped_column(String(64))
+    request_fingerprint: Mapped[str] = mapped_column(String(64))
+    correlation_id: Mapped[UUID] = mapped_column()
+    state: Mapped[str] = mapped_column(String(32), server_default=text("'accepted'"))
+    result_code: Mapped[str | None] = mapped_column(String(64))
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    completed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+
+
 class AutomationExceptionModel(Base):
     __tablename__ = "automation_exceptions"
     __table_args__ = (
