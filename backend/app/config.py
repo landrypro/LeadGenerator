@@ -76,6 +76,20 @@ class Settings:
     import_temp_max_bytes: int = 10 * 1024 * 1024
     job_idempotency_hmac_key: str = field(default="", repr=False)
     automation_enabled: bool = False
+    automation_assistant_enabled: bool = False
+    automation_assistant_provider: str = "fake"
+    automation_assistant_max_text_length: int = 500
+    automation_assistant_user_window_seconds: int = 60
+    automation_assistant_user_limit: int = 10
+    automation_assistant_organization_window_seconds: int = 3_600
+    automation_assistant_organization_limit: int = 100
+    automation_assistant_daily_budget: int = 500
+    automation_assistant_fake_call_cost: int = 1
+    automation_assistant_timeout_seconds: float = 2.0
+    automation_assistant_circuit_failure_limit: int = 5
+    automation_assistant_circuit_window_seconds: int = 60
+    automation_assistant_circuit_open_seconds: int = 60
+    automation_assistant_max_scope: int = 50
     meta_lead_ads_enabled: bool = False
     meta_lead_ads_simulator_enabled: bool = False
     meta_webhook_verify_token: str = field(default="", repr=False)
@@ -100,6 +114,27 @@ class Settings:
             raise ValueError("META_LEAD_ADS_SIMULATOR_ENABLED est réservé au développement et au test.")
         if self.meta_lead_ads_simulator_enabled and not self.meta_lead_ads_enabled:
             raise ValueError("META_LEAD_ADS_SIMULATOR_ENABLED exige META_LEAD_ADS_ENABLED=true.")
+        if self.automation_assistant_enabled and self.app_env not in {"development", "test"}:
+            raise ValueError("AUTOMATION_ASSISTANT_ENABLED est réservé au développement et au test pour IMP-A5.")
+        if self.automation_assistant_enabled and not self.automation_enabled:
+            raise ValueError("AUTOMATION_ASSISTANT_ENABLED exige AUTOMATION_ENABLED=true.")
+        if self.automation_assistant_provider != "fake":
+            raise ValueError("AUTOMATION_ASSISTANT_PROVIDER doit rester fake pour IMP-A5.")
+        assistant_limits = (
+            self.automation_assistant_max_text_length,
+            self.automation_assistant_user_window_seconds,
+            self.automation_assistant_user_limit,
+            self.automation_assistant_organization_window_seconds,
+            self.automation_assistant_organization_limit,
+            self.automation_assistant_daily_budget,
+            self.automation_assistant_fake_call_cost,
+            self.automation_assistant_circuit_failure_limit,
+            self.automation_assistant_circuit_window_seconds,
+            self.automation_assistant_circuit_open_seconds,
+            self.automation_assistant_max_scope,
+        )
+        if any(value <= 0 for value in assistant_limits) or self.automation_assistant_timeout_seconds <= 0:
+            raise ValueError("Les limites de l’assistant IMP-A5 doivent être positives.")
         if self.log_format not in {"text", "json"}:
             raise ValueError("LOG_FORMAT doit être text ou json.")
         if self.instance_id and not INSTANCE_ID_PATTERN.fullmatch(self.instance_id):
@@ -294,6 +329,28 @@ class Settings:
                 or (DEVELOPMENT_JOB_IDEMPOTENCY_HMAC_KEY if app_env in {"development", "test"} else "")
             ),
             automation_enabled=_parse_bool(values.get("AUTOMATION_ENABLED", "false")),
+            automation_assistant_enabled=_parse_bool(values.get("AUTOMATION_ASSISTANT_ENABLED", "false")),
+            automation_assistant_provider=values.get("AUTOMATION_ASSISTANT_PROVIDER", "fake").strip().lower(),
+            automation_assistant_max_text_length=int(values.get("AUTOMATION_ASSISTANT_MAX_TEXT_LENGTH", "500")),
+            automation_assistant_user_window_seconds=int(values.get("AUTOMATION_ASSISTANT_USER_WINDOW_SECONDS", "60")),
+            automation_assistant_user_limit=int(values.get("AUTOMATION_ASSISTANT_USER_LIMIT", "10")),
+            automation_assistant_organization_window_seconds=int(
+                values.get("AUTOMATION_ASSISTANT_ORGANIZATION_WINDOW_SECONDS", "3600")
+            ),
+            automation_assistant_organization_limit=int(values.get("AUTOMATION_ASSISTANT_ORGANIZATION_LIMIT", "100")),
+            automation_assistant_daily_budget=int(values.get("AUTOMATION_ASSISTANT_DAILY_BUDGET", "500")),
+            automation_assistant_fake_call_cost=int(values.get("AUTOMATION_ASSISTANT_FAKE_CALL_COST", "1")),
+            automation_assistant_timeout_seconds=float(values.get("AUTOMATION_ASSISTANT_TIMEOUT_SECONDS", "2")),
+            automation_assistant_circuit_failure_limit=int(
+                values.get("AUTOMATION_ASSISTANT_CIRCUIT_FAILURE_LIMIT", "5")
+            ),
+            automation_assistant_circuit_window_seconds=int(
+                values.get("AUTOMATION_ASSISTANT_CIRCUIT_WINDOW_SECONDS", "60")
+            ),
+            automation_assistant_circuit_open_seconds=int(
+                values.get("AUTOMATION_ASSISTANT_CIRCUIT_OPEN_SECONDS", "60")
+            ),
+            automation_assistant_max_scope=int(values.get("AUTOMATION_ASSISTANT_MAX_SCOPE", "50")),
             meta_lead_ads_enabled=_parse_bool(values.get("META_LEAD_ADS_ENABLED", "false")),
             meta_lead_ads_simulator_enabled=_parse_bool(values.get("META_LEAD_ADS_SIMULATOR_ENABLED", "false")),
             meta_webhook_verify_token=values.get("META_WEBHOOK_VERIFY_TOKEN", "").strip(),

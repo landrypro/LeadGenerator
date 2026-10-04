@@ -38,8 +38,8 @@ $qualityClient = Join-Path $qualityRoot 'client'
 $qualityNpmCache = Join-Path $qualityRoot 'npm-cache'
 $vitestReport = Join-Path $testResults 'vitest.xml'
 $projectName = 'prospect-crm-quality'
-# Révision courante attendue après la correction de l'audit du pilote Meta Lead Ads.
-$expectedAlembicRevision = '20260929_0030'
+# Révision courante attendue après l'exécuteur contrôlé Automation IMP-A4.
+$expectedAlembicRevision = '20261003_0034'
 $script:resolvedDockerMode = $null
 $script:wslWorkspace = $null
 $script:wslDistribution = $null
@@ -87,9 +87,45 @@ function Invoke-VitestWithWorkerStartupRetry {
     # une erreur applicative ou une seconde panne laisse le verrou rouge.
     $attempt = 1
     while ($true) {
-        $vitestOutput = @()
-        & $VitestCommand @Arguments 2>&1 | Tee-Object -Variable vitestOutput
-        $vitestExitCode = $LASTEXITCODE
+        # Vitest utilise stderr pour des diagnostics qui peuvent être normaux.
+        # PowerShell 7.6 peut les convertir en NativeCommandError même lorsque
+        # Vitest retourne 0. L'exécution via cmd.exe + ProcessStartInfo isole
+        # les flux natifs et laisse le code de sortie être la seule décision.
+        $quotedArguments = $Arguments | ForEach-Object {
+            '"{0}"' -f ($_ -replace '"', '""')
+        }
+        $vitestInvocation = 'call "{0}" {1} 2>&1' -f $VitestCommand, ($quotedArguments -join ' ')
+        $startInfo = [System.Diagnostics.ProcessStartInfo]::new()
+        $startInfo.FileName = $env:ComSpec
+        # ProcessStartInfo n'hérite pas systématiquement du Push-Location
+        # PowerShell. Vitest doit impérativement démarrer dans la copie client
+        # isolée afin de charger son package.json, sa configuration et ses
+        # node_modules, et de ne pas parcourir le dépôt parent.
+        $startInfo.WorkingDirectory = (Get-Location).ProviderPath
+        $startInfo.UseShellExecute = $false
+        $startInfo.CreateNoWindow = $true
+        $startInfo.RedirectStandardOutput = $true
+        $startInfo.RedirectStandardError = $true
+        # ArgumentList est null sur certains runtimes PowerShell/.NET Windows.
+        # La propriété Arguments est compatible et le contenu est entièrement
+        # construit à partir du binaire et des options contrôlés du verrou.
+        $startInfo.Arguments = "/d /s /c `"$vitestInvocation`""
+
+        $process = [System.Diagnostics.Process]::new()
+        $process.StartInfo = $startInfo
+        if (-not $process.Start()) {
+            throw 'Impossible de démarrer Vitest.'
+        }
+        $stdoutTask = $process.StandardOutput.ReadToEndAsync()
+        $stderrTask = $process.StandardError.ReadToEndAsync()
+        $process.WaitForExit()
+        $vitestExitCode = $process.ExitCode
+        $vitestOutput = @(
+            $stdoutTask.GetAwaiter().GetResult(),
+            $stderrTask.GetAwaiter().GetResult()
+        ) | Where-Object { -not [string]::IsNullOrWhiteSpace($_) }
+        $vitestOutput | ForEach-Object { Write-Host $_ }
+        $vitestOutput | Set-Content -LiteralPath (Join-Path $testResults "vitest-console.log") -Encoding utf8
         if ($vitestExitCode -eq 0) {
             $global:LASTEXITCODE = 0
             return
@@ -135,7 +171,11 @@ function Invoke-PytestWithTransientDatabaseConnectionRetry {
         $isAsyncpgConnectionStartupTimeout = (
             ($outputText -match 'asyncpg[\\/]connect_utils\.py') -and
             ($outputText -match 'asyncio\.exceptions\.CancelledError') -and
-            ($outputText -match 'asyncio[\\/]timeouts\.py.*TimeoutError')
+            # Pytest imprime le chemin du module et TimeoutError sur deux lignes
+            # distinctes dans son traceback. Les rechercher séparément garde la
+            # reprise limitée au timeout d'amorcage TCP asyncpg.
+            ($outputText -match 'asyncio[\\/]timeouts\.py') -and
+            ($outputText -match 'TimeoutError')
         )
         if ($attempt -ge 2 -or -not $isAsyncpgConnectionStartupTimeout) {
             $global:LASTEXITCODE = $pytestExitCode

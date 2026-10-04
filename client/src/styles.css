@@ -1046,3 +1046,35 @@ footer a:hover { color: #147da5; text-decoration: underline; }
   .usage-event-list li { display: grid; gap: 3px; }
 }
 @media (max-width: 600px) { .dashboard-filters label, .dashboard-filters button { width: 100%; } }
+.automation-command textarea {
+  box-sizing: border-box;
+  margin-top: 0.5rem;
+  min-height: 8rem;
+  resize: vertical;
+  width: 100%;
+}
+
+.automation-command__footer {
+  align-items: center;
+  display: flex;
+  gap: 1rem;
+  justify-content: space-between;
+  margin-top: 0.75rem;
+}
+
+.automation-plan {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 2rem;
+}
+
+.automation-plan div {
+  display: grid;
+  gap: 0.25rem;
+}
+
+.automation-plan dd {
+  font-size: 1.5rem;
+  font-weight: 700;
+  margin: 0;
+}

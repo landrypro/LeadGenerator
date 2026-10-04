@@ -43,6 +43,30 @@ def test_settings_keep_legacy_defaults_and_static_key_fallback() -> None:
     assert settings.cors_allowed_origins == DEFAULT_CORS_ORIGINS
     assert settings.static_maps_api_key == "shared-key"
     assert settings.automation_enabled is False
+    assert settings.automation_assistant_enabled is False
+    assert settings.automation_assistant_provider == "fake"
+
+
+def test_settings_enable_imp_a5_assistant_only_with_local_automation() -> None:
+    settings = Settings.from_env(
+        {"APP_ENV": "test", "AUTOMATION_ENABLED": "true", "AUTOMATION_ASSISTANT_ENABLED": "true"}
+    )
+    assert settings.automation_assistant_enabled is True
+    assert settings.automation_assistant_max_text_length == 500
+    assert settings.automation_assistant_user_limit == 10
+    assert settings.automation_assistant_organization_limit == 100
+    assert settings.automation_assistant_daily_budget == 500
+    assert settings.automation_assistant_timeout_seconds == 2
+    assert settings.automation_assistant_max_scope == 50
+
+
+def test_settings_reject_non_fake_or_non_local_assistant() -> None:
+    with pytest.raises(ValueError, match="exige AUTOMATION_ENABLED"):
+        Settings(automation_assistant_enabled=True)
+    with pytest.raises(ValueError, match="doit rester fake"):
+        Settings(automation_assistant_provider="openai")
+    with pytest.raises(ValueError, match="réservé au développement"):
+        Settings(app_env="staging", automation_enabled=True, automation_assistant_enabled=True)
 
 
 def test_settings_enable_google_simulator_only_for_local_environments() -> None:

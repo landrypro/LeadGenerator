@@ -25,6 +25,8 @@ UsageApi = Literal[
 CrmCommand = Literal["activity", "task"]
 CrmTaskAction = Literal["created", "updated", "completed", "cancelled", "reopened", "reminder_changed"]
 CrmOpportunityAction = Literal["created", "updated", "stage_changed", "reopened", "portfolio"]
+AssistantResult = Literal["plan_ready", "clarification_required", "intent_not_supported", "fallback_guided"]
+AssistantProtectionScope = Literal["user", "organization", "budget", "circuit"]
 
 
 class MetricsRecorder(Protocol):
@@ -70,6 +72,12 @@ class MetricsRecorder(Protocol):
     def record_crm_opportunity_command(self, action: CrmOpportunityAction, result: MetricsOutcome) -> None: ...
 
     def record_crm_opportunity_transition(self, from_stage: str, to_stage: str, result: MetricsOutcome) -> None: ...
+
+    def record_assistant_request(self, result: AssistantResult) -> None: ...
+
+    def record_assistant_protection(self, scope: AssistantProtectionScope, outcome: MetricsOutcome) -> None: ...
+
+    def record_assistant_provider(self, outcome: MetricsOutcome, duration_seconds: float) -> None: ...
 
     def record_crm_opportunity_version_conflict(self, action: CrmOpportunityAction) -> None: ...
 
@@ -123,3 +131,12 @@ class NullMetricsRecorder:
 
     def record_crm_opportunity_version_conflict(self, action: CrmOpportunityAction) -> None:
         del action
+
+    def record_assistant_request(self, result: AssistantResult) -> None:
+        del result
+
+    def record_assistant_protection(self, scope: AssistantProtectionScope, outcome: MetricsOutcome) -> None:
+        del scope, outcome
+
+    def record_assistant_provider(self, outcome: MetricsOutcome, duration_seconds: float) -> None:
+        del outcome, duration_seconds

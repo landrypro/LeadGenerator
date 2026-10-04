@@ -103,6 +103,7 @@ from .application.use_cases import (
     UploadCsvImportUseCase,
     ValidateCsvImportUseCase,
 )
+from .application.use_cases.assistant import CreateAssistantPlanUseCase
 from .application.use_cases.dashboard import GetDashboardSummaryUseCase
 from .application.use_cases.usage import GetCurrentUsageUseCase, GetUsageReportUseCase
 from .config import Settings
@@ -140,6 +141,7 @@ class AppContainer:
     meta_connector_management: MetaConnectorManagement | None = None
     create_manual_prospect: CreateManualProspectUseCase | None = None
     automation_runtime: AutomationRuntime | None = None
+    create_assistant_plan: CreateAssistantPlanUseCase | None = None
     add_google_prospects: AddGoogleProspectsUseCase | None = None
     list_prospects: ListProspectsUseCase | None = None
     get_prospect: GetProspectUseCase | None = None

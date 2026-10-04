@@ -25,6 +25,7 @@ const TasksPage = lazyNamed(() => import('../features/prospects/TasksPage'), 'Ta
 const OpportunitiesPage = lazyNamed(() => import('../features/opportunities/OpportunitiesPage'), 'OpportunitiesPage')
 const DashboardPage = lazyNamed(() => import('../features/dashboard/DashboardPage'), 'DashboardPage')
 const UsagePage = lazyNamed(() => import('../features/usage/UsagePage'), 'UsagePage')
+const AutomationTodayPage = lazyNamed(() => import('../features/automation/AutomationTodayPage'), 'AutomationTodayPage')
 
 
 export const CRM_PATHS = Object.freeze({
@@ -33,6 +34,8 @@ export const CRM_PATHS = Object.freeze({
   acceptInvitation: '/accept-invitation',
   search: '/app/search',
   dashboard: '/app/dashboard',
+  automation: '/app/automation',
+  automationToday: '/app/automation/today',
   usage: '/app/usage',
   prospects: '/app/prospects',
   prospectNew: '/app/prospects/new',
@@ -55,6 +58,7 @@ export const CRM_PATHS = Object.freeze({
 
 const ROUTE_MESSAGES = Object.freeze({
   dashboard: Object.freeze({ 'fr-CA': Object.freeze({ label: 'Tableau de bord', title: 'Tableau de bord' }), 'en-CA': Object.freeze({ label: 'Dashboard', title: 'Dashboard' }) }),
+  automation: Object.freeze({ 'fr-CA': Object.freeze({ label: 'Automatisation', title: 'Automatisation — Aujourd’hui' }), 'en-CA': Object.freeze({ label: 'Automation', title: 'Automation — Today' }) }),
   usage: Object.freeze({ 'fr-CA': Object.freeze({ label: 'Usage', title: 'Quotas et rapports d’usage' }), 'en-CA': Object.freeze({ label: 'Usage', title: 'Usage quotas and reports' }) }),
   'retention-imports': Object.freeze({ 'fr-CA': Object.freeze({ label: 'Conservation et imports', title: 'Conservation des données' }), 'en-CA': Object.freeze({ label: 'Retention and imports', title: 'Data retention' }) }),
   'import-history': Object.freeze({ 'fr-CA': Object.freeze({ label: 'Historique des imports', title: 'Historique des imports' }), 'en-CA': Object.freeze({ label: 'Import history', title: 'Import history' }) }),
@@ -81,6 +85,15 @@ export const routes = Object.freeze([
   Object.freeze({
     id: 'dashboard', path: CRM_PATHS.dashboard, label: 'Tableau de bord', title: 'Tableau de bord',
     requiredCapability: 'dashboard:read:self', requiresActiveOrganization: true, Component: DashboardPage,
+  }),
+  Object.freeze({
+    id: 'automation', path: CRM_PATHS.automationToday, label: 'Automatisation', title: 'Automatisation — Aujourd’hui',
+    requiredCapability: 'automation:plan:create', requiresActiveOrganization: true, Component: AutomationTodayPage,
+  }),
+  Object.freeze({
+    id: 'automation-root', path: CRM_PATHS.automation, label: 'Automatisation', title: 'Automatisation',
+    navigation: false, requiredCapability: 'automation:plan:create', requiresActiveOrganization: true,
+    redirectTo: CRM_PATHS.automationToday,
   }),
   Object.freeze({
     id: 'usage', path: CRM_PATHS.usage, label: 'Usage', title: 'Quotas et rapports d’usage',

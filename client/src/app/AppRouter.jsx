@@ -74,6 +74,8 @@ export function AppRouter({ invitationToken = '' }) {
     content = <NotFoundPage homePath={homePath} />
   } else if (!canAccessRoute(route, auth.session)) {
     content = <AccessDeniedPage homePath={homePath} />
+  } else if (route.redirectTo) {
+    return <Redirect to={route.redirectTo} onRedirect={setPathname} />
   } else {
     const RouteComponent = route.Component
     const loadingMessage = auth.session.active_organization?.locale === 'en-CA'

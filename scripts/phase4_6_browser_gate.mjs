@@ -72,9 +72,11 @@ async function waitForJson(url, timeoutMs = 30000) {
   throw new Error(`Délai dépassé en attendant ${url}`)
 }
 
-async function waitForHttp(url, timeoutMs = 30000) {
+async function waitForHttp(url, timeoutMs = 60000, stoppedMessage) {
   const started = Date.now()
   while (Date.now() - started < timeoutMs) {
+    const stopped = stoppedMessage?.()
+    if (stopped) throw new Error(stopped)
     try {
       const response = await fetch(url)
       if (response.ok) return
@@ -146,12 +148,26 @@ async function main() {
     `--remote-debugging-port=${debugPort}`, `--user-data-dir=${profile}`, 'about:blank',
   ], { stdio: ['ignore', 'pipe', 'pipe'], windowsHide: true })
 
+  const previewOutput = []
+  let previewError = null
+  const rememberPreviewOutput = (chunk) => {
+    previewOutput.push(chunk.toString())
+    if (previewOutput.join('').length > 4000) previewOutput.splice(0, 1)
+  }
+  preview.stdout?.on('data', rememberPreviewOutput)
+  preview.stderr?.on('data', rememberPreviewOutput)
+  preview.on('error', (error) => { previewError = error.message })
   const report = { generatedAt: new Date().toISOString(), browser: browserPath, baseUrl: `http://127.0.0.1:${previewPort}`, checks: [], failures: [] }
   let connection
   let stage = 'initialisation'
   try {
     stage = 'démarrage de Vite preview'
-    await waitForHttp(`http://127.0.0.1:${previewPort}`)
+    await waitForHttp(`http://127.0.0.1:${previewPort}`, 60000, () => {
+      if (previewError) return `Vite preview n'a pas démarré : ${previewError}`
+      if (preview.exitCode === null) return null
+      const output = previewOutput.join('').trim() || 'aucune sortie disponible'
+      return `Vite preview s'est arrêté (code ${preview.exitCode}) : ${output}`
+    })
     stage = 'connexion CDP'
     const version = await waitForJson(`http://127.0.0.1:${debugPort}/json/version`)
     connection = await connect(version.webSocketDebuggerUrl)
@@ -197,6 +213,7 @@ async function main() {
     report.failures.push({ type: 'runner', stage, error: error?.stack || error?.message || String(error) })
   } finally {
     report.finishedAt = new Date().toISOString()
+    report.preview = { exitCode: preview.exitCode, error: previewError, output: previewOutput.join('').trim() }
     if (report.checks.length === 0 && !report.failures.some((failure) => failure.type === 'runner')) {
       report.failures.push({ type: 'runner', error: 'Aucun parcours navigateur n’a été exécuté.' })
     }

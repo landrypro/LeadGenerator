@@ -5,6 +5,8 @@ from collections.abc import Mapping
 from threading import Lock
 
 from ...application.ports.metrics import (
+    AssistantProtectionScope,
+    AssistantResult,
     CrmOpportunityAction,
     CrmTaskAction,
     GoogleApi,
@@ -80,6 +82,16 @@ class PrometheusMetricsRecorder:
 
     def record_crm_opportunity_version_conflict(self, action: CrmOpportunityAction) -> None:
         self._increment("marketteo_opportunity_conflict_total", {"operation": action})
+
+    def record_assistant_request(self, result: AssistantResult) -> None:
+        self._increment("marketteo_assistant_request_total", {"result": result})
+
+    def record_assistant_protection(self, scope: AssistantProtectionScope, outcome: MetricsOutcome) -> None:
+        self._increment("marketteo_assistant_protection_total", {"scope": scope, "outcome": outcome})
+
+    def record_assistant_provider(self, outcome: MetricsOutcome, duration_seconds: float) -> None:
+        self._increment("marketteo_assistant_provider_total", {"outcome": outcome})
+        self._observe("marketteo_assistant_provider_duration_seconds", {"outcome": outcome}, duration_seconds)
 
     def render(self) -> bytes:
         with self._lock:

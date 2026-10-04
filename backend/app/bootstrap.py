@@ -121,10 +121,12 @@ from .application.use_cases import (
     UploadCsvImportUseCase,
     ValidateCsvImportUseCase,
 )
+from .application.use_cases.assistant import CreateAssistantPlanUseCase
 from .application.use_cases.dashboard import GetDashboardSummaryUseCase
 from .application.use_cases.usage import GetCurrentUsageUseCase, GetUsageReportUseCase
 from .config import Settings
 from .container import AppContainer
+from .infrastructure.assistant.fake import FakeAssistantInterpreter
 from .infrastructure.audit_pagination import HmacAuditCursorCodec
 from .infrastructure.clock import SystemClock
 from .infrastructure.google.location import GoogleLocationResolver
@@ -151,6 +153,7 @@ from .infrastructure.postgres import (
     SqlAlchemyOrganizationAdministrationGateway,
     SqlAlchemyProvisioningGateway,
 )
+from .infrastructure.postgres.assistant_reader import PostgresAssistantScopeReader
 from .infrastructure.postgres.automation_runtime import AutomationRuntime
 from .infrastructure.postgres.connector_management import MetaConnectorManagement
 from .infrastructure.postgres.connector_pilot import MetaLeadWebhookService
@@ -172,11 +175,13 @@ from .infrastructure.redis import (
     UnavailableGoogleSelectionGrantStore,
     UnavailableMapSnapshotGrantStore,
 )
+from .infrastructure.redis.assistant_protection import RedisAssistantProtection
 from .infrastructure.security import Argon2PasswordHasher
 from .presentation.api.responses import api_error
 from .presentation.api.routers import (
     audit_router,
     auth_router,
+    automation_router,
     connectors_router,
     dashboard_router,
     exports_router,
@@ -290,6 +295,7 @@ def build_container(settings: Settings) -> AppContainer:
     list_tenant_audit_events: ListTenantAuditEventsUseCase | None = None
     list_platform_audit_events: ListPlatformAuditEventsUseCase | None = None
     create_manual_prospect: CreateManualProspectUseCase | None = None
+    create_assistant_plan: CreateAssistantPlanUseCase | None = None
     add_google_prospects: AddGoogleProspectsUseCase | None = None
     list_prospects: ListProspectsUseCase | None = None
     get_prospect: GetProspectUseCase | None = None
@@ -388,6 +394,32 @@ def build_container(settings: Settings) -> AppContainer:
         get_usage_report = GetUsageReportUseCase(usage_store, clock)
         get_current_usage = GetCurrentUsageUseCase(usage_store, google_quota, google_policy, clock)
         rate_limit_key = settings.rate_limit_hmac_key.encode("utf-8") or DEVELOPMENT_RATE_LIMIT_KEY
+        assistant_protection = RedisAssistantProtection(
+            redis.client,
+            environment=settings.app_env,
+            hmac_key=rate_limit_key.decode("utf-8"),
+            user_window_seconds=settings.automation_assistant_user_window_seconds,
+            user_limit=settings.automation_assistant_user_limit,
+            organization_window_seconds=settings.automation_assistant_organization_window_seconds,
+            organization_limit=settings.automation_assistant_organization_limit,
+            daily_budget=settings.automation_assistant_daily_budget,
+            call_cost=settings.automation_assistant_fake_call_cost,
+            circuit_failure_limit=settings.automation_assistant_circuit_failure_limit,
+            circuit_window_seconds=settings.automation_assistant_circuit_window_seconds,
+            circuit_open_seconds=settings.automation_assistant_circuit_open_seconds,
+            metrics=metrics,
+        )
+        create_assistant_plan = CreateAssistantPlanUseCase(
+            FakeAssistantInterpreter(),
+            assistant_protection,
+            PostgresAssistantScopeReader(database.session_factory),
+            clock,
+            global_enabled=settings.automation_enabled and settings.automation_assistant_enabled,
+            max_text_characters=settings.automation_assistant_max_text_length,
+            maximum_scope=settings.automation_assistant_max_scope,
+            timeout_seconds=settings.automation_assistant_timeout_seconds,
+            metrics=metrics,
+        )
         cursor_codec = HmacCursorCodec(rate_limit_key)
         audit_cursor_codec = HmacAuditCursorCodec(rate_limit_key)
         prospect_cursor_codec = HmacCursorCodec(rate_limit_key)
@@ -666,6 +698,7 @@ def build_container(settings: Settings) -> AppContainer:
         meta_connector_management=meta_connector_management,
         create_manual_prospect=create_manual_prospect,
         automation_runtime=automation_runtime if database is not None else None,
+        create_assistant_plan=create_assistant_plan,
         add_google_prospects=add_google_prospects,
         list_prospects=list_prospects,
         get_prospect=get_prospect,
@@ -801,6 +834,7 @@ def create_app(
         protected_payload = request.url.path.startswith(
             (
                 "/api/auth/",
+                "/api/automation/",
                 "/api/google/",
                 "/api/map/",
                 "/api/audit-events",
@@ -821,6 +855,7 @@ def create_app(
             return await request_validation_exception_handler(request, error)
         if request.url.path.startswith(
             (
+                "/api/automation/",
                 "/api/google/",
                 "/api/map/",
                 "/api/prospects",
@@ -908,6 +943,7 @@ def create_app(
     app.include_router(health_router)
     app.include_router(metrics_router)
     app.include_router(auth_router)
+    app.include_router(automation_router)
     app.include_router(dashboard_router)
     app.include_router(import_history_router)
     app.include_router(exports_router)

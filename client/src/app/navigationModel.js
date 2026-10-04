@@ -1,7 +1,6 @@
 import { navigationRoutes } from './routes'
 
-// Automation is reserved after dashboard, but has no route until product activation.
-const directIds = ['dashboard', 'tasks', 'prospects', 'pipeline', 'opportunities', 'platform-organizations', 'platform-audit']
+const directIds = ['dashboard', 'automation', 'tasks', 'prospects', 'pipeline', 'opportunities', 'platform-organizations', 'platform-audit']
 const mobileIds = ['dashboard', 'tasks', 'prospects', 'pipeline']
 const groups = [
   { id: 'acquisition', labels: { 'fr-CA': 'Acquisition', 'en-CA': 'Acquisition' }, ids: ['google-place-search', 'compliance-sources'] },
@@ -21,6 +20,7 @@ export function navigationModel(session, locale = 'fr-CA') {
 }
 
 export function navigationRouteId(route) {
+  if (route?.id === 'automation-root') return 'automation'
   return ['prospect-new', 'prospect-detail'].includes(route?.id) ? 'prospects' : route?.id
 }
 
