@@ -141,19 +141,27 @@ class AutomationRuntime:
     async def cancel(self, claim: ClaimedJob, context: TenantContext) -> None:
         if claim.type != "automation_new_prospect_prepare":
             return
+        await self.close(claim, context, reason_code="cancelled")
+
+    async def block(self, claim: ClaimedJob, context: TenantContext, *, reason_code: str) -> None:
+        if claim.type != "automation_new_prospect_prepare":
+            return
+        await self.close(claim, context, reason_code=reason_code)
+
+    async def close(self, claim: ClaimedJob, context: TenantContext, *, reason_code: str) -> None:
+        if reason_code not in {"authorization_revoked", "cancelled"}:
+            raise ValueError("Le motif de clôture Automation est invalide.")
         async with self._sessions.begin() as session:
             await _set_tenant(session, context)
-            await session.execute(
+            await session.scalar(
                 text(
                     """
-                    UPDATE automation_admissions
-                    SET state = 'cancelled', result_code = 'cancelled', completed_at = clock_timestamp(),
-                        updated_at = clock_timestamp()
-                    WHERE job_id = :job_id AND organization_id = :organization_id
-                      AND state = 'ready_to_prepare'
+                    SELECT app_private.close_automation_admission(
+                      :job_id, :reason_code, :request_id
+                    )
                     """
                 ),
-                {"job_id": claim.id, "organization_id": context.organization_id},
+                {"job_id": claim.id, "reason_code": reason_code, "request_id": context.request_id},
             )
 
 

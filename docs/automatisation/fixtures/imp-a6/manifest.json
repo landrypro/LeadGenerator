@@ -1,0 +1,81 @@
+{
+  "manifest_version": "IMP-A6.1",
+  "source": "synthetic",
+  "contains_pii": false,
+  "contains_provider_secrets": false,
+  "environment": "local-docker-wsl",
+  "activation_authorized": false,
+  "tenants": ["ORG-ALPHA", "ORG-BETA"],
+  "fault_injection": {
+    "runtime_endpoint": false,
+    "runtime_flag": false,
+    "test_doubles_only": true
+  },
+  "scenarios": [
+    {
+      "id": "A6-RES-01",
+      "oracle": "authorization_revoked_no_task"
+    },
+    {
+      "id": "A6-RES-02",
+      "oracle": "suspension_no_task"
+    },
+    {
+      "id": "A6-RES-03",
+      "oracle": "concurrent_workers_one_task"
+    },
+    {
+      "id": "A6-RES-04",
+      "oracle": "uncertain_effect_to_verify"
+    },
+    {
+      "id": "A6-RES-05",
+      "oracle": "worker_restart_replayed"
+    },
+    {
+      "id": "A6-RES-06",
+      "oracle": "stale_rule_no_task"
+    },
+    {
+      "id": "A6-RES-07",
+      "oracle": "dependency_failure_closed"
+    },
+    {
+      "id": "A6-EXC-01",
+      "oracle": "same_key_same_effect"
+    },
+    {
+      "id": "A6-EXC-02",
+      "oracle": "unavailable_owner_no_partial_creation"
+    },
+    {
+      "id": "A6-AI-01",
+      "oracle": "provider_failure_guided_fallback"
+    },
+    {
+      "id": "A6-AI-02",
+      "oracle": "crm_instruction_not_executed"
+    },
+    {
+      "id": "A6-OBS-01",
+      "oracle": "bounded_codes_no_free_text"
+    }
+  ],
+  "rollback_order": [
+    "disable_flags",
+    "stop_worker_intake",
+    "cancel_unexecuted",
+    "reconcile_to_verify",
+    "downgrade_disposable_database",
+    "upgrade_head",
+    "prove_no_duplicate"
+  ],
+  "forbidden_report_fields": [
+    "email",
+    "phone",
+    "free_text",
+    "assistant_request",
+    "provider_secret",
+    "crm_payload"
+  ]
+}

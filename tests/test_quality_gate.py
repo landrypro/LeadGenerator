@@ -1,3 +1,4 @@
+import json
 from pathlib import Path
 
 import pytest
@@ -7,6 +8,7 @@ from scripts.quality_gate import (
     assert_artifact_is_safe,
     assert_browser_sources_are_safe,
     assert_junit_has_no_skips,
+    write_automation_imp_a6_evidence,
 )
 
 
@@ -75,3 +77,44 @@ def test_artifact_gate_rejects_secrets_and_forbidden_files(tmp_path: Path) -> No
     (cache / "module.pyc").write_bytes(b"cache")
     with pytest.raises(ValueError, match="fichier interdit"):
         assert_artifact_is_safe(tmp_path)
+
+
+def test_imp_a6_evidence_is_minimized_and_requires_every_oracle(tmp_path: Path) -> None:
+    from scripts.quality_gate import IMP_A6_TEST_ORACLES
+
+    manifest = tmp_path / "manifest.json"
+    manifest.write_text(
+        json.dumps(
+            {
+                "source": "synthetic",
+                "contains_pii": False,
+                "contains_provider_secrets": False,
+                "activation_authorized": False,
+                "fault_injection": {
+                    "runtime_endpoint": False,
+                    "runtime_flag": False,
+                    "test_doubles_only": True,
+                },
+                "scenarios": [{"id": scenario_id} for scenario_id in IMP_A6_TEST_ORACLES],
+            }
+        ),
+        encoding="utf-8",
+    )
+    junit = tmp_path / "pytest.xml"
+    cases = "".join(f'<testcase name="{name}" />' for name in set(IMP_A6_TEST_ORACLES.values()))
+    junit.write_text(f"<testsuite>{cases}</testsuite>", encoding="utf-8")
+    alembic = tmp_path / "alembic.txt"
+    alembic.write_text("20261004_0035 (head)\n", encoding="utf-8")
+    output = tmp_path / "automation-imp-a6" / "evidence.json"
+
+    write_automation_imp_a6_evidence(manifest, junit, alembic, output, "20261004_0035", "1234567890abcdef")
+
+    evidence = json.loads(output.read_text(encoding="utf-8"))
+    assert evidence["contains_pii"] is False
+    assert evidence["contains_free_text"] is False
+    assert evidence["activation_authorized"] is False
+    assert {row["scenario_id"] for row in evidence["scenarios"]} == set(IMP_A6_TEST_ORACLES)
+
+    junit.write_text("<testsuite />", encoding="utf-8")
+    with pytest.raises(ValueError, match="Preuve pytest absente"):
+        write_automation_imp_a6_evidence(manifest, junit, alembic, output, "20261004_0035", "1234567890abcdef")

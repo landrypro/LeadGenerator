@@ -185,6 +185,8 @@ class Worker:
             actor_id=claim.actor_id, organization_id=claim.organization_id, request_id=f"job-{claim.id}"
         )
         if not await self._authorized(claim, context):
+            if claim.type == "automation_new_prospect_prepare":
+                await self._automation.block(claim, context, reason_code="authorization_revoked")
             await self._fail_export_job(claim, context, "authorization_revoked")
             return True
         if claim.cancel_requested:

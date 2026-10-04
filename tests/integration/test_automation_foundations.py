@@ -1,3 +1,5 @@
+import asyncio
+import hashlib
 import os
 from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
@@ -9,8 +11,8 @@ from sqlalchemy import text
 from backend.app.application.tenancy import TenantContext
 from backend.app.cli.worker import Worker, WorkerConfig
 from backend.app.infrastructure.postgres import PostgresDatabase
-from backend.app.infrastructure.postgres.automation_runtime import AutomationRuntime
-from backend.app.infrastructure.postgres.job_queue import PostgresJobQueue
+from backend.app.infrastructure.postgres.automation_runtime import AutomationAdmissionBlocked, AutomationRuntime
+from backend.app.infrastructure.postgres.job_queue import ClaimedJob, PostgresJobQueue
 
 pytestmark = pytest.mark.integration
 
@@ -326,6 +328,11 @@ async def create_fixture(owner: PostgresDatabase) -> AutomationFixture:
 async def delete_fixture(owner: PostgresDatabase, fixture: AutomationFixture) -> None:
     organizations = {"organization_a_id": fixture.organization_a_id, "organization_b_id": fixture.organization_b_id}
     async with owner.engine.begin() as connection:
+        # La suppression finale vérifie plusieurs clés étrangères du socle CRM.
+        # Sous le verrou complet, les checkpoints PostgreSQL peuvent dépasser le
+        # timeout volontairement court (2 s) des requêtes fonctionnelles. Cette
+        # tolérance reste locale au nettoyage de données synthétiques.
+        await connection.execute(text("SET LOCAL statement_timeout = '15s'"))
         await connection.execute(
             text("DELETE FROM prospect_task_events WHERE organization_id IN (:organization_a_id, :organization_b_id)"),
             organizations,
@@ -394,6 +401,59 @@ async def delete_fixture(owner: PostgresDatabase, fixture: AutomationFixture) ->
             text("DELETE FROM users WHERE id IN (:actor_a_id, :actor_b_id)"),
             {"actor_a_id": fixture.actor_a_id, "actor_b_id": fixture.actor_b_id},
         )
+
+
+async def enable_new_prospect_automation(owner: PostgresDatabase, fixture: AutomationFixture) -> None:
+    async with owner.engine.begin() as connection:
+        await connection.execute(
+            text(
+                """
+                UPDATE automation_organization_settings
+                SET automation_enabled = true
+                WHERE organization_id = :organization_id
+                """
+            ),
+            {"organization_id": fixture.organization_a_id},
+        )
+        await connection.execute(
+            text(
+                """
+                UPDATE automation_playbooks
+                SET state = 'active_prepare', prepare_enabled = true
+                WHERE organization_id = :organization_id AND code = 'new_prospect'
+                """
+            ),
+            {"organization_id": fixture.organization_a_id},
+        )
+
+
+def automation_context(fixture: AutomationFixture) -> TenantContext:
+    return TenantContext(
+        actor_id=fixture.actor_a_id,
+        organization_id=fixture.organization_a_id,
+        request_id=f"automation-a6-{uuid4()}",
+    )
+
+
+def automation_runtime(app: PostgresDatabase) -> AutomationRuntime:
+    return AutomationRuntime(
+        app.session_factory,
+        global_enabled=True,
+        idempotency_secret=b"automation-runtime-integration-secret",
+    )
+
+
+def automation_worker(worker: PostgresDatabase, *, enabled: bool = True) -> Worker:
+    return Worker(
+        PostgresJobQueue(worker.session_factory),
+        worker,
+        WorkerConfig(
+            database_url="postgresql+asyncpg://prospect_worker:unused@localhost/prospect",
+            import_temp_directory=".",
+            idempotency_secret=b"automation-runtime-integration-secret",
+            automation_enabled=enabled,
+        ),
+    )
 
 
 async def test_automation_foundation_tables_are_read_only_and_rls_tenant_isolated() -> None:
@@ -691,3 +751,337 @@ async def test_manual_automation_admission_is_idempotent_and_worker_prepares_one
     assert task["due_at"] is not None
     assert privileges["app_can_prepare"] is False
     assert privileges["worker_can_admit"] is False
+
+
+async def test_imp_a6_revoked_membership_blocks_admission_and_writes_minimal_audit() -> None:
+    app_url, owner_url = database_urls()
+    app, owner, worker = create_database(app_url), create_database(owner_url), create_database(worker_database_url())
+    fixture = await create_fixture(owner)
+    context = automation_context(fixture)
+    try:
+        await enable_new_prospect_automation(owner, fixture)
+        outcome = await automation_runtime(app).admit_manual(
+            context=context,
+            internal_alias="Synthetic A6 authorization",
+            requested_membership_id=fixture.membership_a_id,
+            assigned_membership_id=fixture.membership_a_id,
+            idempotency_key="a6-authorization-revoked",
+        )
+        async with owner.engine.begin() as connection:
+            await connection.execute(
+                text("UPDATE memberships SET status='disabled' WHERE id=:membership_id"),
+                {"membership_id": fixture.membership_a_id},
+            )
+
+        assert await automation_worker(worker).run_once() is True
+
+        async with owner.engine.connect() as connection:
+            admission = (
+                (
+                    await connection.execute(
+                        text("SELECT state,result_code,task_id FROM automation_admissions WHERE id=:id"),
+                        {"id": outcome.admission_id},
+                    )
+                )
+                .mappings()
+                .one()
+            )
+            job = (
+                (
+                    await connection.execute(
+                        text("SELECT status,last_error_code FROM jobs WHERE id=:id"), {"id": outcome.job_id}
+                    )
+                )
+                .mappings()
+                .one()
+            )
+            audit = (
+                (
+                    await connection.execute(
+                        text(
+                            """
+                            SELECT action,correlation_id,metadata
+                            FROM audit_events
+                            WHERE entity_type='automation_admission' AND entity_id=:id
+                            """
+                        ),
+                        {"id": outcome.admission_id},
+                    )
+                )
+                .mappings()
+                .one()
+            )
+    finally:
+        await delete_fixture(owner, fixture)
+        await app.close()
+        await owner.close()
+        await worker.close()
+
+    assert admission == {"state": "blocked", "result_code": "authorization_revoked", "task_id": None}
+    assert job == {"status": "failed", "last_error_code": "authorization_revoked"}
+    assert audit["action"] == "automation.execution.blocked"
+    assert audit["correlation_id"]
+    assert audit["metadata"] == {"reason_code": "authorization_revoked"}
+    assert "Synthetic A6" not in str(audit)
+
+
+async def test_imp_a6_unavailable_owner_is_rejected_without_partial_creation() -> None:
+    app_url, owner_url = database_urls()
+    app, owner = create_database(app_url), create_database(owner_url)
+    fixture = await create_fixture(owner)
+    try:
+        await enable_new_prospect_automation(owner, fixture)
+        with pytest.raises(AutomationAdmissionBlocked, match="owner_unavailable"):
+            await automation_runtime(app).admit_manual(
+                context=automation_context(fixture),
+                internal_alias="Synthetic A6 unavailable owner",
+                requested_membership_id=fixture.membership_a_id,
+                assigned_membership_id=uuid4(),
+                idempotency_key="a6-unavailable-owner",
+            )
+        async with owner.engine.connect() as connection:
+            partial_rows = await connection.scalar(
+                text(
+                    """
+                    SELECT count(*) FROM prospects
+                    WHERE organization_id=:organization_id AND internal_alias='Synthetic A6 unavailable owner'
+                    """
+                ),
+                {"organization_id": fixture.organization_a_id},
+            )
+    finally:
+        await delete_fixture(owner, fixture)
+        await app.close()
+        await owner.close()
+
+    assert partial_rows == 0
+
+
+async def test_imp_a6_suspension_and_stale_rule_block_effect_before_write() -> None:
+    app_url, owner_url = database_urls()
+    app, owner, worker = create_database(app_url), create_database(owner_url), create_database(worker_database_url())
+    fixture = await create_fixture(owner)
+    try:
+        await enable_new_prospect_automation(owner, fixture)
+        context = automation_context(fixture)
+        suspended = await automation_runtime(app).admit_manual(
+            context=context,
+            internal_alias="Synthetic A6 suspension",
+            requested_membership_id=fixture.membership_a_id,
+            assigned_membership_id=fixture.membership_a_id,
+            idempotency_key="a6-suspended",
+        )
+        async with owner.engine.begin() as connection:
+            await connection.execute(
+                text("UPDATE automation_organization_settings SET automation_enabled=false WHERE organization_id=:id"),
+                {"id": fixture.organization_a_id},
+            )
+        assert await automation_worker(worker).run_once() is True
+
+        await enable_new_prospect_automation(owner, fixture)
+        stale = await automation_runtime(app).admit_manual(
+            context=context,
+            internal_alias="Synthetic A6 stale rule",
+            requested_membership_id=fixture.membership_a_id,
+            assigned_membership_id=fixture.membership_a_id,
+            idempotency_key="a6-stale-rule",
+        )
+        async with owner.engine.begin() as connection:
+            playbook_id = await connection.scalar(
+                text("SELECT id FROM automation_playbooks WHERE organization_id=:id AND code='new_prospect'"),
+                {"id": fixture.organization_a_id},
+            )
+            await connection.execute(
+                text(
+                    """
+                    INSERT INTO automation_playbook_versions (
+                      id,organization_id,playbook_id,version_number,ruleset_version,configuration,
+                      snapshot_fingerprint,created_by_membership_id,created_at
+                    ) VALUES (:id,:organization_id,:playbook_id,2,'FEU-2.0','{}'::jsonb,:fingerprint,:member,clock_timestamp())
+                    """
+                ),
+                {
+                    "id": uuid4(),
+                    "organization_id": fixture.organization_a_id,
+                    "playbook_id": playbook_id,
+                    "fingerprint": "9" * 64,
+                    "member": fixture.membership_a_id,
+                },
+            )
+        assert await automation_worker(worker).run_once() is True
+
+        async with owner.engine.connect() as connection:
+            rows = (
+                (
+                    await connection.execute(
+                        text(
+                            """
+                            SELECT id,state,result_code,task_id FROM automation_admissions
+                            WHERE id IN (:suspended_id,:stale_id) ORDER BY result_code
+                            """
+                        ),
+                        {"suspended_id": suspended.admission_id, "stale_id": stale.admission_id},
+                    )
+                )
+                .mappings()
+                .all()
+            )
+            task_count = await connection.scalar(
+                text("SELECT count(*) FROM prospect_tasks WHERE prospect_id IN (:suspended_prospect,:stale_prospect)"),
+                {"suspended_prospect": suspended.prospect.id, "stale_prospect": stale.prospect.id},
+            )
+    finally:
+        await delete_fixture(owner, fixture)
+        await app.close()
+        await owner.close()
+        await worker.close()
+
+    assert {(row["state"], row["result_code"], row["task_id"]) for row in rows} == {
+        ("blocked", "guard_blocked", None),
+        ("blocked", "rule_version_stale", None),
+    }
+    assert task_count == 0
+
+
+async def test_imp_a6_concurrent_workers_and_restart_keep_one_internal_task() -> None:
+    app_url, owner_url = database_urls()
+    app, owner = create_database(app_url), create_database(owner_url)
+    worker_a, worker_b = create_database(worker_database_url()), create_database(worker_database_url())
+    fixture = await create_fixture(owner)
+    context = automation_context(fixture)
+    try:
+        await enable_new_prospect_automation(owner, fixture)
+        outcome = await automation_runtime(app).admit_manual(
+            context=context,
+            internal_alias="Synthetic A6 concurrency",
+            requested_membership_id=fixture.membership_a_id,
+            assigned_membership_id=fixture.membership_a_id,
+            idempotency_key="a6-concurrent-workers",
+        )
+        results = await asyncio.gather(
+            automation_worker(worker_a).run_once(),
+            automation_worker(worker_b).run_once(),
+        )
+        replay_claim = ClaimedJob(
+            id=outcome.job_id,
+            organization_id=fixture.organization_a_id,
+            type="automation_new_prospect_prepare",
+            schema_version=1,
+            subject_type="prospect",
+            subject_id=outcome.prospect.id,
+            actor_id=fixture.actor_a_id,
+            actor_membership_id=fixture.membership_a_id,
+            system_origin=None,
+            attempt_count=2,
+            max_attempts=3,
+            owner_token=uuid4(),
+            cancel_requested=False,
+        )
+        replay = await AutomationRuntime(
+            worker_a.session_factory,
+            global_enabled=True,
+            idempotency_secret=b"automation-runtime-integration-secret",
+        ).prepare(replay_claim, context)
+        async with owner.engine.connect() as connection:
+            task_count = await connection.scalar(
+                text("SELECT count(*) FROM prospect_tasks WHERE prospect_id=:id"), {"id": outcome.prospect.id}
+            )
+            audit_count = await connection.scalar(
+                text(
+                    """
+                    SELECT count(*) FROM audit_events
+                    WHERE action='prospect.task_created' AND correlation_id=(
+                      SELECT correlation_id::text FROM automation_admissions WHERE id=:id
+                    )
+                    """
+                ),
+                {"id": outcome.admission_id},
+            )
+    finally:
+        await delete_fixture(owner, fixture)
+        await app.close()
+        await owner.close()
+        await worker_a.close()
+        await worker_b.close()
+
+    assert sorted(results) == [False, True]
+    assert replay == "replayed"
+    assert task_count == 1
+    assert audit_count == 1
+
+
+async def test_imp_a6_uncertain_existing_effect_is_not_retried_blindly() -> None:
+    app_url, owner_url = database_urls()
+    app, owner, worker = create_database(app_url), create_database(owner_url), create_database(worker_database_url())
+    fixture = await create_fixture(owner)
+    context = automation_context(fixture)
+    raw_key = "a6-effect-uncertain"
+    try:
+        await enable_new_prospect_automation(owner, fixture)
+        outcome = await automation_runtime(app).admit_manual(
+            context=context,
+            internal_alias="Synthetic A6 uncertainty",
+            requested_membership_id=fixture.membership_a_id,
+            assigned_membership_id=fixture.membership_a_id,
+            idempotency_key=raw_key,
+        )
+        effect_key = f"automation-admission:{hashlib.sha256(raw_key.encode()).hexdigest()}"
+        async with owner.engine.begin() as connection:
+            await connection.execute(
+                text(
+                    """
+                    INSERT INTO prospect_tasks (
+                      id,organization_id,prospect_id,created_by,assigned_membership_id,title,description,
+                      priority,status,due_at,created_at,updated_at,version,idempotency_key,command_fingerprint
+                    ) VALUES (
+                      :id,:organization_id,:prospect_id,:actor_id,:membership_id,'Synthetic conflict',
+                      'Synthetic fixed text','normal','open',clock_timestamp()+interval '24 hours',
+                      clock_timestamp(),clock_timestamp(),1,:idempotency_key,:fingerprint
+                    )
+                    """
+                ),
+                {
+                    "id": uuid4(),
+                    "organization_id": fixture.organization_a_id,
+                    "prospect_id": outcome.prospect.id,
+                    "actor_id": fixture.actor_a_id,
+                    "membership_id": fixture.membership_a_id,
+                    "idempotency_key": effect_key,
+                    "fingerprint": "8" * 64,
+                },
+            )
+        assert await automation_worker(worker).run_once() is True
+
+        async with owner.engine.connect() as connection:
+            admission = (
+                (
+                    await connection.execute(
+                        text("SELECT state,result_code,task_id FROM automation_admissions WHERE id=:id"),
+                        {"id": outcome.admission_id},
+                    )
+                )
+                .mappings()
+                .one()
+            )
+            task_count = await connection.scalar(
+                text("SELECT count(*) FROM prospect_tasks WHERE prospect_id=:id"), {"id": outcome.prospect.id}
+            )
+            audit_metadata = await connection.scalar(
+                text(
+                    """
+                    SELECT metadata FROM audit_events
+                    WHERE entity_type='automation_admission' AND entity_id=:id
+                      AND action='automation.execution.to_verify'
+                    """
+                ),
+                {"id": outcome.admission_id},
+            )
+    finally:
+        await delete_fixture(owner, fixture)
+        await app.close()
+        await owner.close()
+        await worker.close()
+
+    assert admission == {"state": "to_verify", "result_code": "effect_uncertain", "task_id": None}
+    assert task_count == 1
+    assert audit_metadata == {"reason_code": "effect_uncertain"}
