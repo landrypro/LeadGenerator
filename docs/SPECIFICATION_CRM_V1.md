@@ -930,7 +930,46 @@ produit, le passage Azure est reporté à la clôture globale de la phase 2.4 et
 - registre des fournisseurs et premiers connecteurs approuvés, Meta Lead Ads en priorité après revue ;
 - tests de bout en bout.
 
+### Pré-Phase 5 — Automatisation Marketteo
+
+Le volet Automatisation est traité comme une pré-phase distincte avant la construction de la Phase 5. Il réutilise
+les objets CRM canoniques, l’isolation par organisation, les capacités, l’audit et le worker du socle des Phases 1 à 4 ;
+il ne crée pas de second CRM et n’autorise pas d’envoi externe autonome.
+
+La référence fonctionnelle figée, le point d’entrée IA unique, les trois Playbooks, le Feu relationnel, le Prévol,
+le mode Préparer, les cycles de vie, les exceptions et les limites de l’IA sont documentés dans :
+
+- [`docs/automatisation/VOLET_AUTOMATISATION_MARKETTEO.md`](automatisation/VOLET_AUTOMATISATION_MARKETTEO.md) ;
+- [`docs/automatisation/REFERENCE_FONCTIONNELLE_AUTOMATISATION_V2_1.md`](automatisation/REFERENCE_FONCTIONNELLE_AUTOMATISATION_V2_1.md) ;
+- [`docs/automatisation/BOUSSOLE_EVOLUTION_AUTOMATISATION_MARKETTEO.md`](automatisation/BOUSSOLE_EVOLUTION_AUTOMATISATION_MARKETTEO.md).
+
+Le plan actuellement autorisé est [`docs/automatisation/ETAPE_4_PLAN_LIVRAISON_VALIDATION.md`](automatisation/ETAPE_4_PLAN_LIVRAISON_VALIDATION.md), avec le backlog [`BL-AUT-4.1`](automatisation/BACKLOG_DETAILLE_ETAPE_4.md), le registre de preuves [`PV-AUT-4.1`](automatisation/PREUVES_VALIDATION_ETAPE_4.md), les définitions S4-0 à S4-6, le registre [S4-7 — Levée des réserves](automatisation/S4_7_LEVEE_RESERVES_PORTE_4.md), la décision [`Porte 4 — GO avec réserves`](automatisation/PORTE_4_PRET_A_CONSTRUIRE.md), la [préparation de l'implémentation de Pré-Phase 5](automatisation/PRE_PHASE_5_IMPLEMENTATION_AUTOMATISATION.md) et la [consolidation finale Étapes 1 à 4 / Phases 1 à 4](automatisation/CONTROLE_FINAL_ETAPES_1_A_4_PHASES_1_A_4.md).
+
+La Porte 3 a reçu un `GO conditionnel` vers l’Étape 4 — Plan de livraison et protocole de validation. S4-0 est clôturée
+pour sa préparation statique et le noyau runtime isolé de S4-1 est réalisé et contre-validé ; cette autorisation
+n’autorise ni intégration API/persistance/worker, ni migration, ni effet CRM Automation, ni production. S4-2 est clôturée
+pour sa définition et ses prescriptions contractuelles, tandis que S4-3 est clôturée pour sa définition avec ses prescriptions contractuelles appliquées, sans modèle réel. S4-4 est également clôturée pour sa définition avec ses prescriptions contractuelles appliquées. S4-5 est clôturée pour sa définition avec les prescriptions CV-S4-5-01 à CV-S4-5-07 appliquées. S4-6 est clôturée pour sa définition avec les prescriptions CV-S4-6-01 à CV-S4-6-07 appliquées ; sa construction reste soumise à la Porte 4. Les sessions PME
+restent post-production et la preuve Azure 4.6 reste reportée à la fin de la Phase 5.
+
+S4-6 — [Preuves, résilience et préparation de la Porte 4](automatisation/S4_6_PREUVES_RESILIENCE_PORTE_4.md) — est
+clôturée pour sa définition ; les prescriptions sont consignées dans [CONTRE-VALIDATION-S4-6](automatisation/CONTRE_VALIDATION_S4_6.md).
+La Porte 4 est clôturée avec un **GO avec réserves** pour `P4-Lite`. La [Pré-Phase 5 — Préparation de l'implémentation](automatisation/PRE_PHASE_5_IMPLEMENTATION_AUTOMATISATION.md) autorise le code, les migrations réversibles et le worker
+contrôlé sous flags désactivés. La phase [S4-7 — Levée des réserves](automatisation/S4_7_LEVEE_RESERVES_PORTE_4.md)
+maintient capacité, environnement, rollback et preuves D2/D3. OpenAI est choisi comme fournisseur cible pour
+`AUT-4706`, sans autoriser d'appel réel. Le faux fournisseur, la non-persistance et les limites locales IMP-A5 ont été
+confirmés le 3 octobre 2026 ; rétention, contrat, prix, quotas OpenAI et preuves restent à confirmer. Les envois externes, connecteurs,
+activation client et production restent interdits. La [Phase 4.7](PHASE_4_7_RESERVE.md) est en réserve.
+
+Sur décision du commanditaire, le verrou qualité complet est écarté pour cette consolidation documentaire. Cette
+dérogation ne modifie pas les exigences de qualité du socle CRM ni les contrôles qui seront requis avant construction,
+préproduction ou production.
+
 ### Phase 5 — Préproduction et déploiement
+
+La proposition détaillée de la phase 5 est disponible dans
+[`PHASE_5_SPECIFICATIONS_DETAILLEES.md`](PHASE_5_SPECIFICATIONS_DETAILLEES.md). Elle sépare la mesure des coûts, le
+catalogue commercial versionné, le cycle de vie des abonnements, l'application serveur des droits et le lancement
+progressif. Les montants et seuils commerciaux restent soumis aux décisions produit, comptables et juridiques.
 
 - environnement de préproduction isolé ;
 - migration et restauration testées ;

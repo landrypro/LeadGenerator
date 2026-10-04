@@ -4,11 +4,51 @@
 | --- | --- |
 | Produit | Marketteo CRM |
 | Volet | Automatisation commerciale assistée par l’IA |
-| Statut | Vision produit revue — noyau Lite validé |
-| Décision | GO conditionnel à une surface de lancement réduite |
-| Révision | Double validation par trois expertises — 21 septembre 2026 |
-| Portée | Cadrage produit, sans spécification d’implémentation |
+| Phase programme | Pré-Phase 5 — Automatisation |
+| Statut | **Porte 3 — GO conditionnel** ; S4-0 clôturée, **S4-1 runtime isolé réalisé, S4-2 à S4-6 clôturées pour définition, S4-7 active sous réserves ; OpenAI choisi pour AUT-4706** |
+| Décision | **Porte 4 clôturée avec GO avec réserves ; préparation et implémentation `P4-Lite` sous flags désactivés ; aucun effet externe ou production** |
+| Révision | Porte 3 contre-validée ; recette V2.1, point d’entrée IA unique, trois Playbooks et exceptions consolidés avec le socle ; sessions PME post-production, Azure 4.6 fin Phase 5 ; verrou écarté pour cette consolidation documentaire — 1er octobre 2026 |
+| Portée | Cadrage produit et pilotage ; chantier préparatoire autorisé, implémentation active encore subordonnée à la Porte 4 |
 | Boussole d’évolution | [Parcours complet de réalisation et de validation](./BOUSSOLE_EVOLUTION_AUTOMATISATION_MARKETTEO.md) |
+| Étape fonctionnelle clôturée | [Étape 2 — Conception fonctionnelle et UX](./ETAPE_2_CONCEPTION_FONCTIONNELLE_UX.md) |
+| Étape 3 clôturée | [Architecture, données et sécurité](./ETAPE_3_ARCHITECTURE_DONNEES_SECURITE.md) |
+| Étape active | Étape 4 — Plan de livraison et protocole de validation |
+| Dossier Étape 4 | [Plan de livraison, backlog et protocole de validation](./ETAPE_4_PLAN_LIVRAISON_VALIDATION.md) |
+| Tranche clôturée | [S4-0 — Fondations sans effet](./S4_0_FONDATIONS_SANS_EFFET.md) |
+| Tranche réalisée en isolation | [S4-1 — Noyau déterministe et Prévol](./S4_1_NOYAU_DETERMINISTE_PREVOL.md) |
+| Tranche prête à intégrer | [S4-2 — Nouveau prospect et tâche interne](./S4_2_NOUVEAU_PROSPECT_TACHE_INTERNE.md) ; intégration limitée `P4-Lite` sous flags désactivés |
+| Livrables S4-0 | [Fondations réalisées et preuve D2 statique](./S4_0_LIVRABLES_FONDATIONS.md) |
+| Contre-validation S4-0 | [`Clôturée pour préparation`](./CONTRE_VALIDATION_S4_0.md) ; fondations disponibles pour `P4-Lite` sous flags désactivés |
+| Contre-validation S4-1 | [`GO limité`](./CONTRE_VALIDATION_S4_1.md) ; intégration API/worker contrôlée autorisée dans `P4-Lite` |
+| Définition S4-2 | Admission canonique, idempotence, double garde, Passeport et tâche interne ; prescriptions `CV-S4-2-01..07` appliquées |
+| Clôture S4-2 | [`GO sous prescriptions`](./CONTRE_VALIDATION_S4_2.md) pour la définition ; admission/tâche interne autorisées dans `P4-Lite` |
+| Clôture S4-3 | [Assistant IA encadré](./S4_3_ASSISTANT_IA_ENCADRE.md) ; [contre-validation](./CONTRE_VALIDATION_S4_3.md) ; faux fournisseur autorisé ; modèle OpenAI réel et outils interdits |
+| Clôture S4-4 | [Brouillons, approbations et cycles de vie](./S4_4_BROUILLONS_APPROBATIONS_CYCLES.md) ; [contre-validation](./CONTRE_VALIDATION_S4_4.md) ; prescriptions CV-S4-4-01..07 appliquées ; aucun envoi ou effet intégré |
+| Clôture S4-5 | [Playbooks complémentaires et exceptions](./S4_5_PLAYBOOKS_COMPLEMENTAIRES_EXCEPTIONS.md) ; [prescriptions CV-S4-5-01..07 appliquées](./CONTRE_VALIDATION_S4_5.md) ; définition clôturée ; aucun pipeline, contact ou effet intégré |
+| Clôture S4-6 | [Preuves, résilience et préparation de la Porte 4](./S4_6_PREUVES_RESILIENCE_PORTE_4.md) ; [prescriptions CV-S4-6-01..07 appliquées](./CONTRE_VALIDATION_S4_6.md) ; preuves et runtime contrôlé `P4-Lite` autorisés |
+| S4-7 active sous réserves | [Levée des réserves et réouverture de la Porte 4](./S4_7_LEVEE_RESERVES_PORTE_4.md) ; fake et limites locales IMP-A5 confirmés ; rollback, preuves et réserves contractuelles OpenAI à suivre |
+| Pré-Phase 5 active | [Préparation de l'implémentation Automatisation](./PRE_PHASE_5_IMPLEMENTATION_AUTOMATISATION.md) ; `P4-Lite` sous flags désactivés |
+| Verdict Porte 4 | [`GO avec réserves`](./PORTE_4_PRET_A_CONSTRUIRE.md) ; `P4-Lite` uniquement, activation soumise aux preuves |
+| Backlog Étape 4 | [`BL-AUT-4.1` — items, priorités et dépendances](./BACKLOG_DETAILLE_ETAPE_4.md) |
+| Preuves Étape 4 | [`PV-AUT-4.1` — scénarios, oracles et niveaux de preuve](./PREUVES_VALIDATION_ETAPE_4.md) |
+| Vagues techniques | T1 contre-validée ; T2 → T3 autorisée ; T3 → T4 autorisée ; [T4 — Estimation et Porte 3](./VAGUE_T4_ESTIMATION_PORTE_3.md) contre-validée `GO sous prescriptions` |
+| Contre-validation T1 | [GO sous prescriptions obligatoires et feuille de route T2–T4](./CONTRE_VALIDATION_VAGUE_T1.md) |
+| Dossier T2 | [ADR, modèle de données, règles, Prévol, API et séquences](./VAGUE_T2_DONNEES_REGLES_CONTRATS.md) |
+| Dossier T3 | [Autorisations, IA, menace, résilience et retour arrière](./VAGUE_T3_SECURITE_IA_RESILIENCE.md) |
+| Dossier T4 | [Capacité, coûts, tranches, ADR consolidées et risques](./VAGUE_T4_ESTIMATION_PORTE_3.md) |
+| Contre-validation T4 | [Avis croisés, preuves, réserves et verdict](./CONTRE_VALIDATION_VAGUE_T4.md) |
+| Porte 3 | [Faisabilité et maîtrise — `GO conditionnel` vers l’Étape 4](./PORTE_3_FAISABILITE_MAITRISE.md) |
+| Porte 4 | [`GO avec réserves` — `P4-Lite`](./PORTE_4_PRET_A_CONSTRUIRE.md) |
+| Contrôle final Étapes 1–4 / Phases 1–4 | [Consolidation et verdict de préparation](./CONTROLE_FINAL_ETAPES_1_A_4_PHASES_1_A_4.md) |
+| Analyse du socle | [Analyse croisée Phases 1 à 4 et actions avant l’Étape 3](./ANALYSE_CROISEE_ETAPE_2_PHASES_1_A_4.md) |
+| Contre-validations | [Avis Design, Ingénierie, Confiance, Sécurité et Qualité](./CONTRE_VALIDATIONS_VAGUE_A.md) |
+| Vague B | [Cycles de vie, récupération, prototype V2, playbooks, acceptation et télémétrie](./VAGUE_B_PRODUIT_TESTABLE.md) |
+| Revue Vague B | [Validation Produit favorable du prototype V2](./RAPPORT_VALIDATION_VAGUE_B.md) |
+| Validation d’usage | [Recette V2.1 validée et sessions PME post-production — Vague C](./RECETTE_ET_RECHERCHE_VAGUE_C.md) |
+| Décision de Porte 2 | [GO avec réserves — conception technique autorisée](./PORTE_2_GO_AVEC_RESERVES.md) |
+| Référence fonctionnelle | [`RF-AUT-2.1` — comportements figés avant architecture](./REFERENCE_FONCTIONNELLE_AUTOMATISATION_V2_1.md) |
+| Socle de référence | [Spécification CRM V1](../SPECIFICATION_CRM_V1.md) ; [Phase 1.1](../PHASE_1_1_ACQUISITION_CONSERVATION.md) ; [Phase 2](../PHASE_2_SPECIFICATIONS_DETAILLEES.md) ; [Phase 2.3.4](../PHASE_2_3_4_SPECIFICATIONS_DETAILLEES.md) ; [Phase 2.6 QA](../PHASE_2_6_RECETTE_FINALE_QA.md) ; [Phase 3](../PHASE_3_SPECIFICATIONS_DETAILLEES.md) ; [Phase 4](../PHASE_4_SPECIFICATIONS_DETAILLEES.md) ; [Phase 4.6](../PHASE_4_6_SPECIFICATIONS_DETAILLEES.md) |
+| Phase 4.7 | [Réserve de stabilisation du socle](../PHASE_4_7_RESERVE.md) ; hors périmètre `P4-Lite` |
 
 ## 1. Décision exécutive
 
@@ -23,6 +63,10 @@ Le parcours produit devient :
 > **Capturer → Attribuer → Agir → Prouver**
 
 Marketteo ne doit pas être vendu comme une plateforme d’agents à configurer. Il doit être présenté comme le CRM qui empêche les prospects et les suivis de tomber entre les mailles du filet, sans workflow complexe à construire.
+
+La validation utilisateur auprès des PME est conservée mais exécutée après la mise en production. Jusqu’à sa réalisation, la désirabilité et la compréhension sans accompagnement restent une réserve Produit explicite ; elles ne doivent pas être présentées comme déjà démontrées.
+
+La [Porte 2](./PORTE_2_GO_AVEC_RESERVES.md) a reçu un **GO avec réserves** le 1er octobre 2026. Elle autorise l’Étape interne 3 de conception technique, sans autoriser le développement, l’activation réelle ni la production.
 
 ## 2. Double validation de la proposition
 
@@ -74,6 +118,14 @@ La proposition commerciale courte est :
 
 L’offre Lite comporte cinq capacités visibles. Le passeport de prise en charge est intégré aux fiches et aux actions ; il ne devient pas un sixième module.
 
+### Principe transversal — un point d’entrée utilisateur unique
+
+Toute **nouvelle intention humaine** d’automatisation commence dans l’Assistant IA encadré placé en tête de `Aujourd’hui`. L’utilisateur décrit son objectif en langage naturel ; Marketteo reformule, précise le périmètre, rattache la demande à une recette autorisée et présente un plan avant toute préparation.
+
+`Playbooks` reste un catalogue de consultation, de Prévol, d’activation et de suspension. `Entrées et exceptions` reste une surface de résolution. Ces écrans ne proposent pas un second champ de création et ne concurrencent pas l’entrée principale.
+
+Ce point d’entrée UX unique ne remplace pas les déclencheurs techniques : un nouveau prospect, une proposition silencieuse ou une occasion inactive peuvent toujours être détectés par les événements CRM et les sources déjà configurées. L’IA facilite la commande et la compréhension ; elle n’est ni l’unique moteur d’exécution ni un constructeur libre de workflows.
+
 ### 4.1 Boîte d’entrée prospects
 
 Marketteo centralise les prospects entrants provenant de sources autorisées.
@@ -99,7 +151,7 @@ LinkedIn, TikTok, Google Ads et les partenaires spécialisés restent dans la fe
 
 ### 4.2 Copilote « Aujourd’hui »
 
-Une seule page présente au maximum cinq actions prioritaires par utilisateur.
+Une seule page accueille l’Assistant IA encadré puis présente au maximum cinq actions prioritaires par utilisateur. C’est l’unique endroit où l’utilisateur formule une nouvelle demande d’automatisation.
 
 Exemples :
 
@@ -403,6 +455,11 @@ Les capacités suivantes restent pertinentes, mais ne doivent pas alourdir le la
 
 ```mermaid
 flowchart TB
+    USER["Utilisateur PME"] --> TODAY["Aujourd’hui"]
+    TODAY --> AI["Assistant IA encadré<br/>point d’entrée unique"]
+    AI --> INTENT["Reformuler l’intention<br/>préciser périmètre et volume"]
+    INTENT --> PLAN["Plan explicable<br/>aucun effet direct"]
+
     subgraph SOURCES["Sources de lancement"]
         WEB["Formulaire Web"]
         CSV["CSV contrôlé"]
@@ -422,11 +479,12 @@ flowchart TB
     LIGHT -->|Jaune| REVIEW["Préparer ou demander une vérification"]
     LIGHT -->|Rouge| BLOCK["Bloquer et expliquer"]
 
-    READY --> TODAY["Copilote Aujourd’hui<br/>cinq actions maximum"]
+    READY --> TODAY
     REVIEW --> TODAY
     BLOCK --> HISTORY["Historique lisible"]
 
-    TODAY --> PLAYBOOKS["Trois playbooks<br/>Nouveau prospect · Proposition en attente · Occasion oubliée"]
+    PLAN --> PLAYBOOKS["Trois playbooks autorisés<br/>Nouveau prospect · Proposition en attente · Occasion oubliée"]
+    TODAY --> PLAYBOOKS
     PLAYBOOKS --> PREFLIGHT["Prévol<br/>mêmes règles, aucune action réelle"]
 
     PREFLIGHT --> PREPARE["Préparer par défaut<br/>tâches et brouillons"]
