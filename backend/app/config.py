@@ -23,6 +23,8 @@ POSTGRESQL_ASYNC_PREFIX: Final = "postgresql+asyncpg://"
 REDIS_PREFIXES: Final = ("redis://", "rediss://")
 GOOGLE_SEARCH_QUOTA_POLICY_CODE_PATTERN: Final = re.compile(r"[a-z0-9_]{3,64}")
 INSTANCE_ID_PATTERN: Final = re.compile(r"[A-Za-z0-9_.-]{1,128}")
+RELEASE_GIT_SHA_PATTERN: Final = re.compile(r"[0-9a-f]{7,40}")
+RELEASE_IMAGE_DIGEST_PATTERN: Final = re.compile(r"sha256:[0-9a-f]{64}")
 
 
 @dataclass(frozen=True, slots=True)
@@ -104,6 +106,8 @@ class Settings:
     metrics_bearer_token: str = field(default="", repr=False)
     app_title: str = "Marketteo CRM"
     app_version: str = "1.5.0"
+    release_git_sha: str = ""
+    release_image_digest: str = ""
 
     def __post_init__(self) -> None:
         if self.app_env not in VALID_APP_ENVIRONMENTS:
@@ -139,6 +143,10 @@ class Settings:
             raise ValueError("LOG_FORMAT doit être text ou json.")
         if self.instance_id and not INSTANCE_ID_PATTERN.fullmatch(self.instance_id):
             raise ValueError("INSTANCE_ID est invalide.")
+        if self.release_git_sha and not RELEASE_GIT_SHA_PATTERN.fullmatch(self.release_git_sha):
+            raise ValueError("RELEASE_GIT_SHA doit être un SHA Git hexadécimal.")
+        if self.release_image_digest and not RELEASE_IMAGE_DIGEST_PATTERN.fullmatch(self.release_image_digest):
+            raise ValueError("RELEASE_IMAGE_DIGEST doit être un digest OCI sha256.")
         if self.metrics_enabled and len(self.metrics_bearer_token.encode("utf-8")) < 32:
             raise ValueError("METRICS_BEARER_TOKEN doit contenir au moins 32 octets si les métriques sont activées.")
         if self.database_url and not self.database_url.startswith(POSTGRESQL_ASYNC_PREFIX):
@@ -367,6 +375,9 @@ class Settings:
             instance_id=values.get("INSTANCE_ID", "").strip(),
             metrics_enabled=_parse_bool(values.get("METRICS_ENABLED", "false")),
             metrics_bearer_token=values.get("METRICS_BEARER_TOKEN", "").strip(),
+            app_version=values.get("APP_VERSION", "1.5.0").strip(),
+            release_git_sha=values.get("RELEASE_GIT_SHA", "").strip().lower(),
+            release_image_digest=values.get("RELEASE_IMAGE_DIGEST", "").strip().lower(),
         )
 
 

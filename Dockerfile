@@ -12,9 +12,18 @@ RUN npm run build
 
 FROM python:3.12-slim AS runtime
 
+ARG APP_VERSION=1.5.0
+ARG RELEASE_GIT_SHA=unknown
+
 ENV PYTHONDONTWRITEBYTECODE=1
 ENV PYTHONUNBUFFERED=1
 ENV PYTHONPATH=/app
+ENV APP_VERSION=${APP_VERSION}
+ENV RELEASE_GIT_SHA=${RELEASE_GIT_SHA}
+
+LABEL org.opencontainers.image.title="marketteo-crm" \
+      org.opencontainers.image.version="${APP_VERSION}" \
+      org.opencontainers.image.revision="${RELEASE_GIT_SHA}"
 
 WORKDIR /app
 

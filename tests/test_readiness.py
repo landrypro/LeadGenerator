@@ -57,7 +57,10 @@ async def test_liveness_does_not_depend_on_external_services() -> None:
         response = await client.get("/api/health/live")
 
     assert response.status_code == 200
-    assert response.json() == {"status": "ok"}
+    assert response.json() == {
+        "status": "ok",
+        "release": {"version": "1.5.0", "git_sha": "unknown", "image_digest": "unknown"},
+    }
 
 
 async def test_readiness_reports_missing_postgresql_and_redis() -> None:
@@ -70,6 +73,7 @@ async def test_readiness_reports_missing_postgresql_and_redis() -> None:
     assert response.json() == {
         "status": "not_ready",
         "dependencies": {"postgresql": "not_configured", "redis": "not_configured"},
+        "release": {"version": "1.5.0", "git_sha": "unknown", "image_digest": "unknown"},
     }
 
 
@@ -95,6 +99,7 @@ async def test_readiness_uses_injected_probes_without_leaking_errors() -> None:
     assert response.json() == {
         "status": "not_ready",
         "dependencies": {"postgresql": "ok", "redis": "unavailable"},
+        "release": {"version": "1.5.0", "git_sha": "unknown", "image_digest": "unknown"},
     }
 
 

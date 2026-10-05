@@ -17,8 +17,16 @@ async def health(container: ContainerDependency) -> dict[str, bool | str]:
 
 
 @router.get("/health/live")
-async def liveness() -> dict[str, str]:
-    return {"status": "ok"}
+async def liveness(container: ContainerDependency) -> dict[str, object]:
+    settings = container.settings
+    return {
+        "status": "ok",
+        "release": {
+            "version": settings.app_version,
+            "git_sha": settings.release_git_sha or "unknown",
+            "image_digest": settings.release_image_digest or "unknown",
+        },
+    }
 
 
 @router.get("/health/ready")
@@ -27,5 +35,10 @@ async def readiness(container: ContainerDependency) -> JSONResponse:
     content = {
         "status": "ready" if report.is_ready else "not_ready",
         "dependencies": {dependency.name: dependency.state for dependency in report.dependencies},
+        "release": {
+            "version": container.settings.app_version,
+            "git_sha": container.settings.release_git_sha or "unknown",
+            "image_digest": container.settings.release_image_digest or "unknown",
+        },
     }
     return JSONResponse(status_code=200 if report.is_ready else 503, content=content)

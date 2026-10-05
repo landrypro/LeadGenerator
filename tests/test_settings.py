@@ -47,6 +47,53 @@ def test_settings_keep_legacy_defaults_and_static_key_fallback() -> None:
     assert settings.automation_assistant_provider == "fake"
 
 
+def test_settings_expose_validated_release_identity_in_staging() -> None:
+    digest = "sha256:" + "a" * 64
+    settings = Settings.from_env(
+        {
+            "APP_ENV": "staging",
+            "DATABASE_URL": "postgresql+asyncpg://app:secret@db/prospect",
+            "REDIS_URL": "redis://redis:6379/0",
+            "JOB_IDEMPOTENCY_HMAC_KEY": "j" * 32,
+            "RATE_LIMIT_HMAC_KEY": "r" * 32,
+            "GOOGLE_MAPS_API_KEY": "test-key",
+            "PUBLIC_APP_URL": "https://preprod.example",
+            "CORS_ALLOWED_ORIGINS": "https://preprod.example",
+            "SESSION_COOKIE_NAME": "__Host-prospect_session",
+            "SESSION_COOKIE_SECURE": "true",
+            "METRICS_ENABLED": "true",
+            "METRICS_BEARER_TOKEN": "m" * 32,
+            "RELEASE_GIT_SHA": "abc1234",
+            "RELEASE_IMAGE_DIGEST": digest,
+            "APP_VERSION": "5.1.0",
+        }
+    )
+
+    assert settings.app_version == "5.1.0"
+    assert settings.release_git_sha == "abc1234"
+    assert settings.release_image_digest == digest
+
+
+def test_settings_reject_invalid_release_identity_without_requiring_it_globally() -> None:
+    common = {
+        "app_env": "staging",
+        "database_url": "postgresql+asyncpg://app:secret@db/prospect",
+        "redis_url": "redis://redis:6379/0",
+        "job_idempotency_hmac_key": "j" * 32,
+        "rate_limit_hmac_key": "r" * 32,
+        "google_maps_api_key": "test-key",
+        "public_app_url": "https://preprod.example",
+        "cors_allowed_origins": ("https://preprod.example",),
+        "session_cookie_name": "__Host-prospect_session",
+        "session_cookie_secure": True,
+        "log_format": "json",
+        "metrics_enabled": True,
+        "metrics_bearer_token": "m" * 32,
+    }
+    with pytest.raises(ValueError, match="SHA Git"):
+        Settings(**{**common, "release_git_sha": "not-a-sha", "release_image_digest": "sha256:" + "a" * 64})  # type: ignore[arg-type]
+
+
 def test_settings_enable_imp_a5_assistant_only_with_local_automation() -> None:
     settings = Settings.from_env(
         {"APP_ENV": "test", "AUTOMATION_ENABLED": "true", "AUTOMATION_ASSISTANT_ENABLED": "true"}

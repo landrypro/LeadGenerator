@@ -1,0 +1,122 @@
+name: marketteo-preprod
+
+services:
+  app:
+    image: ${PREPROD_APP_IMAGE:?PREPROD_APP_IMAGE must be a SHA256-pinned image}
+    env_file: ${PREPROD_ENV_FILE:-.env.preprod}
+    environment:
+      IMPORT_TEMP_DIRECTORY: /app/.runtime/imports
+      WORKER_DATABASE_URL: ""
+      POSTGRES_WORKER_PASSWORD: ""
+    depends_on:
+      postgresql:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
+    volumes:
+      - marketteo-preprod-imports:/app/.runtime/imports
+    expose: ["8000"]
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/api/health/live', timeout=2)"]
+      interval: 10s
+      timeout: 3s
+      retries: 12
+      start_period: 20s
+
+  migrations:
+    image: ${PREPROD_APP_IMAGE:?PREPROD_APP_IMAGE must be a SHA256-pinned image}
+    profiles: ["tools"]
+    env_file: ${PREPROD_ENV_FILE:-.env.preprod}
+    depends_on:
+      postgresql:
+        condition: service_healthy
+    command: ["python", "-m", "alembic", "-c", "backend/alembic.ini", "upgrade", "head"]
+
+  worker:
+    image: ${PREPROD_APP_IMAGE:?PREPROD_APP_IMAGE must be a SHA256-pinned image}
+    env_file: ${PREPROD_ENV_FILE:-.env.preprod}
+    command: ["python", "-m", "backend.app.cli.worker", "run"]
+    environment:
+      IMPORT_TEMP_DIRECTORY: /app/.runtime/imports
+    depends_on:
+      postgresql:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "python", "-m", "backend.app.cli.worker", "health"]
+      interval: 15s
+      timeout: 5s
+      retries: 4
+      start_period: 30s
+    volumes:
+      - marketteo-preprod-imports:/app/.runtime/imports
+
+  postgresql:
+    image: postgres:17.10-alpine
+    env_file: ${PREPROD_ENV_FILE:-.env.preprod}
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-prospect}
+      POSTGRES_USER: ${POSTGRES_USER:-prospect}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required}
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+    restart: unless-stopped
+    volumes:
+      - marketteo-preprod-postgresql:/var/lib/postgresql/data
+
+  database-role-provisioner:
+    image: postgres:17.10-alpine
+    profiles: ["tools"]
+    depends_on:
+      postgresql:
+        condition: service_healthy
+    env_file: ${PREPROD_ENV_FILE:-.env.preprod}
+    environment:
+      POSTGRES_APP_USER: prospect_app
+      POSTGRES_WORKER_PASSWORD: ${POSTGRES_WORKER_PASSWORD:?POSTGRES_WORKER_PASSWORD is required}
+      POSTGRES_APP_PASSWORD: ${POSTGRES_APP_PASSWORD:?POSTGRES_APP_PASSWORD is required}
+    volumes:
+      - ./backend/database/provision-postgres-roles.sh:/provision-postgres-roles.sh:ro
+    command: ["sh", "/provision-postgres-roles.sh"]
+
+  redis:
+    image: redis:7.4.9-alpine
+    command: ["redis-server", "--appendonly", "yes"]
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+    restart: unless-stopped
+    volumes:
+      - marketteo-preprod-redis:/data
+
+  caddy:
+    image: caddy:2-alpine
+    depends_on:
+      app:
+        condition: service_healthy
+    env_file: .env.preprod
+    environment:
+      PREPROD_DOMAIN: ${PREPROD_DOMAIN:?PREPROD_DOMAIN is required}
+    ports:
+      - "${PREPROD_HTTP_PORT:-80}:80"
+      - "${PREPROD_HTTPS_PORT:-443}:443"
+    restart: unless-stopped
+    volumes:
+      - ./deploy/preprod/Caddyfile:/etc/caddy/Caddyfile:ro
+      - marketteo-preprod-caddy-data:/data
+      - marketteo-preprod-caddy-config:/config
+
+volumes:
+  marketteo-preprod-imports:
+  marketteo-preprod-postgresql:
+  marketteo-preprod-redis:
+  marketteo-preprod-caddy-data:
+  marketteo-preprod-caddy-config:
