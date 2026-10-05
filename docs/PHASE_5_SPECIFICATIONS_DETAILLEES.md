@@ -5,7 +5,7 @@
 | Produit | Marketteo CRM |
 | Phase | 5 — Préproduction et déploiement |
 | Version | 0.1 — proposition détaillée à valider |
-| Statut | Cadrage prêt pour décision produit ; implémentation conditionnée par la preuve Azure du commit de clôture 4.6 |
+| Statut | Cadrage prêt ; développement des artefacts P5.1 autorisé le 4 octobre 2026, activation toujours conditionnée par les preuves Azure et les réserves Porte 4 |
 | Date | 30 septembre 2026 (UTC) |
 | Prérequis | GO local 4.6, verrou local vert, commit de clôture et pipeline Azure sur la même révision |
 | Source de périmètre | [`SPECIFICATION_CRM_V1.md`](SPECIFICATION_CRM_V1.md), Phase 5 et socle transversal d'abonnement |
@@ -32,6 +32,10 @@ La phase couvre :
 La phase ne transforme pas Marketteo en logiciel comptable. Elle ne facture pas les clients finaux des organisations,
 ne calcule pas leur comptabilité, ne conserve aucune donnée bancaire brute et n'active aucun connecteur fournisseur
 sans son autorisation propre.
+
+La [Phase 4.7 — Réserve de stabilisation du socle](PHASE_4_7_RESERVE.md) est volontairement différée. Elle ne modifie
+pas les prérequis de la présente phase et ne bloque pas la préparation `P4-Lite` de l'Automatisation ; tout sujet de
+réserve devenu critique pour la sécurité ou la production devra toutefois être repris avant activation.
 
 ## 2. Constat sur les abonnements et le pricing
 
@@ -127,6 +131,11 @@ de documentation, d'évaluation fournisseur et de préparation de l'environnemen
 activer un paiement réel.
 
 ## 5. Lot 5.1 — Préproduction et mesure de référence
+
+Le contrat détaillé, les écarts de l'environnement existant, les décisions à confirmer et les scénarios de validation
+du lot sont définis dans [Phase 5.1 — Préproduction et mesure de référence](./PHASE_5_1_SPECIFICATIONS_DETAILLEES.md).
+Les décisions de cadrage 5.1 sont confirmées le 4 octobre 2026 ; elles ne modifient pas les prérequis Azure de la
+Phase 5 et ne valent pas un GO de développement.
 
 ### 5.1 Environnement
 
