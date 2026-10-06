@@ -27,6 +27,26 @@ CrmTaskAction = Literal["created", "updated", "completed", "cancelled", "reopene
 CrmOpportunityAction = Literal["created", "updated", "stage_changed", "reopened", "portfolio"]
 AssistantResult = Literal["plan_ready", "clarification_required", "intent_not_supported", "fallback_guided"]
 AssistantProtectionScope = Literal["user", "organization", "budget", "circuit"]
+AutomationEvent = Literal[
+    "surface_opened",
+    "playbook_preflighted",
+    "playbook_state_changed",
+    "exception_resolved",
+    "first_value_reached",
+]
+AutomationOperation = Literal[
+    "today",
+    "playbooks",
+    "exceptions",
+    "preflight",
+    "activate",
+    "suspend",
+    "resume",
+    "claim",
+    "resolve",
+    "abandon",
+    "reconcile",
+]
 
 
 class MetricsRecorder(Protocol):
@@ -80,6 +100,10 @@ class MetricsRecorder(Protocol):
     def record_assistant_provider(self, outcome: MetricsOutcome, duration_seconds: float) -> None: ...
 
     def record_crm_opportunity_version_conflict(self, action: CrmOpportunityAction) -> None: ...
+
+    def record_automation_event(
+        self, event: AutomationEvent, operation: AutomationOperation, outcome: MetricsOutcome
+    ) -> None: ...
 
 
 class NullMetricsRecorder:
@@ -140,3 +164,8 @@ class NullMetricsRecorder:
 
     def record_assistant_provider(self, outcome: MetricsOutcome, duration_seconds: float) -> None:
         del outcome, duration_seconds
+
+    def record_automation_event(
+        self, event: AutomationEvent, operation: AutomationOperation, outcome: MetricsOutcome
+    ) -> None:
+        del event, operation, outcome

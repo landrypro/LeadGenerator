@@ -12,6 +12,7 @@ from collections.abc import Mapping
 from dataclasses import dataclass, field
 from typing import Final
 from urllib.parse import urlsplit
+from uuid import UUID
 
 DEFAULT_CORS_ORIGINS = (
     "http://localhost:5173",
@@ -78,6 +79,10 @@ class Settings:
     import_temp_max_bytes: int = 10 * 1024 * 1024
     job_idempotency_hmac_key: str = field(default="", repr=False)
     automation_enabled: bool = False
+    # Le flag global reste l'interrupteur d'arrêt d'urgence. Le mode de sortie
+    # permet de préparer un pilote sans modifier le code ni exposer une activation implicite.
+    automation_rollout_mode: str = "all"
+    automation_pilot_organization_ids: tuple[str, ...] = ()
     automation_assistant_enabled: bool = False
     automation_assistant_provider: str = "fake"
     automation_assistant_max_text_length: int = 500
@@ -122,6 +127,12 @@ class Settings:
             raise ValueError("AUTOMATION_ASSISTANT_ENABLED est réservé au développement et au test pour IMP-A5.")
         if self.automation_assistant_enabled and not self.automation_enabled:
             raise ValueError("AUTOMATION_ASSISTANT_ENABLED exige AUTOMATION_ENABLED=true.")
+        if self.automation_rollout_mode not in {"off", "pilot", "all"}:
+            raise ValueError("AUTOMATION_ROLLOUT_MODE doit être off, pilot ou all.")
+        if any(not _is_uuid(value) for value in self.automation_pilot_organization_ids):
+            raise ValueError("AUTOMATION_PILOT_ORGANIZATION_IDS doit contenir uniquement des UUID.")
+        if self.automation_rollout_mode == "pilot" and not self.automation_pilot_organization_ids:
+            raise ValueError("AUTOMATION_ROLLOUT_MODE=pilot exige au moins une organisation pilote.")
         if self.automation_assistant_provider != "fake":
             raise ValueError("AUTOMATION_ASSISTANT_PROVIDER doit rester fake pour IMP-A5.")
         assistant_limits = (
@@ -271,6 +282,14 @@ class Settings:
         """Indique si Text Search est disponible sans révéler sa configuration."""
         return self.google_places_simulator_enabled or bool(self.google_maps_api_key)
 
+    def automation_rollout_enabled_for(self, organization_id: UUID) -> bool:
+        """Décision serveur bornée pour l'exposition des commandes Automation."""
+        if not self.automation_enabled or self.automation_rollout_mode == "off":
+            return False
+        if self.automation_rollout_mode == "all":
+            return True
+        return str(organization_id) in self.automation_pilot_organization_ids
+
     @classmethod
     def from_env(cls, environ: Mapping[str, str] | None = None) -> Settings:
         values = os.environ if environ is None else environ
@@ -337,6 +356,17 @@ class Settings:
                 or (DEVELOPMENT_JOB_IDEMPOTENCY_HMAC_KEY if app_env in {"development", "test"} else "")
             ),
             automation_enabled=_parse_bool(values.get("AUTOMATION_ENABLED", "false")),
+            automation_rollout_mode=values.get(
+                "AUTOMATION_ROLLOUT_MODE",
+                "off" if app_env in {"staging", "production"} else "all",
+            )
+            .strip()
+            .lower(),
+            automation_pilot_organization_ids=tuple(
+                value.strip()
+                for value in values.get("AUTOMATION_PILOT_ORGANIZATION_IDS", "").split(",")
+                if value.strip()
+            ),
             automation_assistant_enabled=_parse_bool(values.get("AUTOMATION_ASSISTANT_ENABLED", "false")),
             automation_assistant_provider=values.get("AUTOMATION_ASSISTANT_PROVIDER", "fake").strip().lower(),
             automation_assistant_max_text_length=int(values.get("AUTOMATION_ASSISTANT_MAX_TEXT_LENGTH", "500")),
@@ -426,3 +456,11 @@ def _parse_bool(value: str) -> bool:
     if normalized in {"0", "false", "no", "off"}:
         return False
     raise ValueError(f"Valeur booléenne invalide : {value!r}.")
+
+
+def _is_uuid(value: str) -> bool:
+    try:
+        UUID(value)
+    except ValueError:
+        return False
+    return True

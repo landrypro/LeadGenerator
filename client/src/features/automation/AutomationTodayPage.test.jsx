@@ -47,4 +47,14 @@ describe('AutomationTodayPage', () => {
       input_mode: 'guided', user_text: null, suggestion_code: 'scope_open_prospects',
     }))
   })
+
+  it('affiche le message quand la préparation est refusée par le backend', async () => {
+    automationApi.createPlan.mockRejectedValue(new Error('L’assistant est désactivé.'))
+    render(<AutomationTodayPage session={session} />)
+
+    fireEvent.change(screen.getByLabelText('Votre demande'), { target: { value: 'Montre mes prospects ouverts' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Préparer un plan' }))
+
+    expect(await screen.findByRole('alert')).toHaveTextContent('L’assistant est désactivé.')
+  })
 })

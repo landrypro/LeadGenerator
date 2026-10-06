@@ -8,7 +8,8 @@ function focusableElements(dialog) {
     .filter(element => !element.hidden && element.getAttribute('aria-hidden') !== 'true')
 }
 
-export function NavigationDialog({ open, dialogRef, closeButtonRef, title, closeLabel, onRequestClose, children, footer }) {
+export function NavigationDialog({ id = 'primary-navigation', open, dialogRef, closeButtonRef, title, closeLabel, onRequestClose, children, footer, className = '' }) {
+  const titleId = `${id}-title`
   useEffect(() => {
     const dialog = dialogRef.current
     if (!dialog) return
@@ -24,9 +25,9 @@ export function NavigationDialog({ open, dialogRef, closeButtonRef, title, close
 
   return <dialog
     ref={dialogRef}
-    id="primary-navigation"
-    className="authenticated-navigation-dialog"
-    aria-labelledby="primary-navigation-title"
+    id={id}
+    className={`authenticated-navigation-dialog ${className}`.trim()}
+    aria-labelledby={titleId}
     aria-modal="true"
     onCancel={event => {
       event.preventDefault()
@@ -57,7 +58,7 @@ export function NavigationDialog({ open, dialogRef, closeButtonRef, title, close
   >
     <div className="authenticated-navigation-dialog-surface">
       <div className="authenticated-navigation-mobile-heading">
-        <strong id="primary-navigation-title">{title}</strong>
+        <strong id={titleId}>{title}</strong>
         <button ref={closeButtonRef} type="button" onClick={onRequestClose} aria-label={closeLabel}>
           <X size={18} />
         </button>

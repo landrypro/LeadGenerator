@@ -7,7 +7,20 @@ from datetime import UTC, datetime
 from typing import Final
 
 _ALLOWED_FIELDS: Final = frozenset(
-    {"outcome", "scope", "policy_code", "status_class", "duration_ms", "route", "method"}
+    {
+        "outcome",
+        "scope",
+        "policy_code",
+        "status_class",
+        "duration_ms",
+        "route",
+        "method",
+        "operation",
+        "state",
+        "replayed",
+        "reason_code",
+        "flag",
+    }
 )
 
 
@@ -79,6 +92,11 @@ _EVENTS: Final = frozenset(
         "redis_operation_failed",
         "google_upstream_completed",
         "metrics_access_denied",
+        "automation.surface_opened.v1",
+        "automation.playbook_preflighted.v1",
+        "automation.playbook_state_changed.v1",
+        "automation.exception_resolved.v1",
+        "automation.first_value_reached.v1",
     }
 )
 

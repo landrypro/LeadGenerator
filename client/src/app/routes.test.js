@@ -15,6 +15,8 @@ describe('routes CRM', () => {
       dashboard: '/app/dashboard',
       automation: '/app/automation',
       automationToday: '/app/automation/today',
+      automationPlaybooks: '/app/automation/playbooks',
+      automationExceptions: '/app/automation/exceptions',
       usage: '/app/usage',
       prospects: '/app/prospects',
       prospectNew: '/app/prospects/new',
@@ -40,6 +42,8 @@ describe('routes CRM', () => {
       '/app/dashboard',
       '/app/automation/today',
       '/app/automation',
+      '/app/automation/playbooks',
+      '/app/automation/exceptions',
       '/app/usage',
       '/app/compliance/retention',
       '/app/imports/history',
@@ -63,6 +67,8 @@ describe('routes CRM', () => {
     expect(findRoute('/app/usage')?.requiredCapability).toBe('usage:read:self')
     expect(findRoute('/app/automation/today')?.requiredCapability).toBe('automation:plan:create')
     expect(findRoute('/app/automation')?.redirectTo).toBe('/app/automation/today')
+    expect(findRoute('/app/automation/playbooks')?.requiredCapability).toBe('automation:read:self')
+    expect(findRoute('/app/automation/exceptions')?.requiredCapability).toBe('automation:read:self')
     expect(findRoute('/app/audit')?.requiredCapability).toBe('audit:read')
     expect(findRoute('/app/platform/audit')?.requiredCapability).toBe('platform:audit:read')
     expect(findRoute('/app/prospects')?.requiredCapability).toBe('prospects:read')

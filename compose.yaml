@@ -55,6 +55,11 @@ services:
     command: ["uvicorn", "backend.app.main:app", "--host", "0.0.0.0", "--port", "8000", "--proxy-headers", "--forwarded-allow-ips", "*"]
     environment:
       APP_ENV: ${APP_ENV:-development}
+      AUTOMATION_ENABLED: ${AUTOMATION_ENABLED:-false}
+      AUTOMATION_ROLLOUT_MODE: ${AUTOMATION_ROLLOUT_MODE:-off}
+      AUTOMATION_PILOT_ORGANIZATION_IDS: ${AUTOMATION_PILOT_ORGANIZATION_IDS:-}
+      AUTOMATION_ASSISTANT_ENABLED: ${AUTOMATION_ASSISTANT_ENABLED:-false}
+      AUTOMATION_ASSISTANT_PROVIDER: ${AUTOMATION_ASSISTANT_PROVIDER:-fake}
       DATABASE_URL: postgresql+asyncpg://prospect_app:${POSTGRES_APP_PASSWORD:-prospect-app-development-only}@postgresql:5432/${POSTGRES_DB:-prospect}
       REDIS_URL: redis://redis:6379/0
       JOB_IDEMPOTENCY_HMAC_KEY: ${JOB_IDEMPOTENCY_HMAC_KEY:-development-only-worker-idempotency-secret-change-me}
@@ -95,6 +100,10 @@ services:
       dockerfile: Dockerfile
     command: ["python", "-m", "backend.app.cli.worker", "run"]
     environment:
+      APP_ENV: ${APP_ENV:-development}
+      AUTOMATION_ENABLED: ${AUTOMATION_ENABLED:-false}
+      AUTOMATION_ROLLOUT_MODE: ${AUTOMATION_ROLLOUT_MODE:-off}
+      AUTOMATION_PILOT_ORGANIZATION_IDS: ${AUTOMATION_PILOT_ORGANIZATION_IDS:-}
       WORKER_DATABASE_URL: postgresql+asyncpg://prospect_worker:${POSTGRES_WORKER_PASSWORD:-prospect-worker-development-only}@postgresql:5432/${POSTGRES_DB:-prospect}
       JOB_IDEMPOTENCY_HMAC_KEY: ${JOB_IDEMPOTENCY_HMAC_KEY:-development-only-worker-idempotency-secret-change-me}
       IMPORT_TEMP_DIRECTORY: /app/.runtime/imports

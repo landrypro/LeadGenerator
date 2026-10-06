@@ -3,6 +3,7 @@ import { useState } from 'react'
 import { toUserMessage } from '../../shared/api/errors'
 import { ErrorBanner } from '../../shared/ui/Feedback'
 import { automationApi } from './api/automationApi'
+import { AutomationWorkspace } from './AutomationWorkspace'
 
 
 const COPY = {
@@ -44,9 +45,9 @@ export function AutomationTodayPage({ session }) {
   const submit = (event) => { event.preventDefault(); if (text.trim()) requestPlan({ input_mode: 'free_text', user_text: text.trim(), suggestion_code: null }) }
   const suggestions = outcome?.suggestion_codes?.length ? outcome.suggestion_codes : GUIDED
 
-  return <main className="automation-today page-stack">
-    <header><p className="eyebrow">IMP-A5</p><h1>{copy.title}</h1><p>{copy.intro}</p></header>
-    {error && <ErrorBanner message={error} />}
+  return <AutomationWorkspace activeSection="today" locale={locale}>
+    <header className="automation-page-heading"><p className="eyebrow">IMP-A5</p><h1>{copy.title}</h1><p>{copy.intro}</p></header>
+    {error && <ErrorBanner>{error}</ErrorBanner>}
     <form className="surface-card automation-command" onSubmit={submit}>
       <label htmlFor="assistant-request">{copy.label}</label>
       <textarea id="assistant-request" maxLength={500} rows={5} value={text} placeholder={copy.placeholder} onChange={event => setText(event.target.value)} />
@@ -62,5 +63,5 @@ export function AutomationTodayPage({ session }) {
         <h3>{copy.noEffects}</h3><ul>{outcome.plan.not_performed_codes.map(code => <li key={code}>{code.replaceAll('_', ' ')}</li>)}</ul>
         <button type="button" className="primary-button" onClick={() => setPrepared(true)}>{copy.prepare}</button>{prepared && <p role="status">{copy.prepared}</p>}</>}
     </section>}
-  </main>
+  </AutomationWorkspace>
 }

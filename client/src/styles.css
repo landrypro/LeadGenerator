@@ -1078,3 +1078,52 @@ footer a:hover { color: #147da5; text-decoration: underline; }
   font-weight: 700;
   margin: 0;
 }
+
+/* AUT-COR-01/02 — coque et états honnêtes de l’Automatisation. */
+.automation-workspace { width: min(100%, 1240px); display: grid; grid-template-columns: 236px minmax(0, 1fr); align-items: start; gap: 26px; padding: 28px clamp(25px, 4vw, 58px) 34px; margin: 0 auto; }
+.automation-section-nav { position: sticky; top: 16px; display: grid; gap: 12px; padding: 18px 14px; border: 1px solid #d6e5ea; border-radius: 15px; background: #fff; box-shadow: 0 10px 28px #133f4e0b; }
+.automation-section-nav .eyebrow { margin: 0 8px; }
+.automation-section-links { display: grid; gap: 4px; }
+.automation-section-links a { min-height: 42px; display: flex; align-items: center; padding: 9px 11px; border-radius: 9px; color: #315567; font-size: 12px; font-weight: 800; text-decoration: none; }
+.automation-section-links a:hover { background: #eef8fb; }
+.automation-section-links a[aria-current='page'] { color: #075d91; background: linear-gradient(135deg, #e5f6fb, #eef9e3); }
+.automation-section-content { min-width: 0; display: grid; gap: 18px; }
+.automation-page-heading h1, .automation-page-heading p { margin-top: 0; }
+.automation-page-heading p:last-child { max-width: 780px; color: #58747f; }
+.automation-mobile-section-nav { display: none; }
+.automation-playbook-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; }
+.automation-playbook-card { min-height: 220px; display: flex; flex-direction: column; align-items: flex-start; }
+.automation-playbook-card h2, .automation-playbook-card p, .automation-boundary h2, .automation-boundary p, .automation-empty-state h2, .automation-empty-state p, .automation-empty-state h3 { margin-top: 0; }
+.automation-playbook-card > p:nth-child(2) { color: #58747f; line-height: 1.55; }
+.automation-unavailable-status { margin-top: auto !important; padding: 6px 9px; color: #825538; background: #fff4e8; border: 1px solid #f2dcc5; border-radius: 999px; font-size: 10px; font-weight: 800; }
+.automation-playbook-card .form-help { margin-bottom: 0; }
+.automation-transition-confirmation { display: flex; flex-wrap: wrap; gap: .5rem; margin-top: .75rem; padding: .75rem; border: 1px solid var(--border-subtle, #cfe0e6); border-radius: .75rem; background: #f7fbfc; }
+.automation-transition-confirmation .form-help { flex-basis: 100%; }
+.automation-exception-item { display: flex; flex-wrap: wrap; align-items: center; gap: .5rem; }
+.automation-exception-item > strong { margin-right: .15rem; }
+.automation-exception-item .automation-transition-confirmation { width: 100%; }
+.automation-boundary { border-color: #cde4ed; background: #f4fbfe; }
+.automation-empty-state { max-width: 760px; padding: 28px; }
+.automation-empty-state > p { max-width: 670px; color: #58747f; line-height: 1.6; }
+.automation-empty-state h3 { margin-bottom: 9px; color: #315567; font-size: 13px; }
+.automation-state-list { display: flex; flex-wrap: wrap; gap: 7px; margin: 0 0 18px; padding: 0; list-style: none; }
+.automation-state-list li { padding: 6px 9px; color: #315567; background: #f0f7f8; border: 1px solid #d8e8eb; border-radius: 999px; font-size: 10px; font-weight: 800; }
+
+@media (max-width: 900px) {
+  .automation-workspace { grid-template-columns: 1fr; gap: 16px; padding-top: 20px; }
+  .automation-section-nav { display: none; }
+  .automation-mobile-section-nav { display: block; }
+  .automation-mobile-section-nav .secondary-button { min-height: 44px; display: inline-flex; align-items: center; gap: 7px; }
+  .automation-section-dialog .automation-section-links { display: grid; gap: 5px; }
+  .automation-section-dialog .automation-section-links a { min-height: 48px; padding: 13px 12px; font-size: 13px; }
+  .automation-playbook-grid { grid-template-columns: 1fr; }
+  .automation-playbook-card { min-height: 0; }
+  .automation-unavailable-status { margin-top: 8px !important; }
+}
+
+@media (max-width: 600px) {
+  .automation-workspace { padding: 18px 14px calc(22px + var(--mobile-navigation-height)); }
+  .automation-empty-state { padding: 20px; }
+  .automation-command__footer { align-items: stretch; flex-direction: column; }
+  .automation-command__footer .primary-button { width: 100%; }
+}

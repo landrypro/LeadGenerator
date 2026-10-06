@@ -7,6 +7,8 @@ from threading import Lock
 from ...application.ports.metrics import (
     AssistantProtectionScope,
     AssistantResult,
+    AutomationEvent,
+    AutomationOperation,
     CrmOpportunityAction,
     CrmTaskAction,
     GoogleApi,
@@ -92,6 +94,15 @@ class PrometheusMetricsRecorder:
     def record_assistant_provider(self, outcome: MetricsOutcome, duration_seconds: float) -> None:
         self._increment("marketteo_assistant_provider_total", {"outcome": outcome})
         self._observe("marketteo_assistant_provider_duration_seconds", {"outcome": outcome}, duration_seconds)
+
+    def record_automation_event(
+        self, event: AutomationEvent, operation: AutomationOperation, outcome: MetricsOutcome
+    ) -> None:
+        # Les trois labels sont des valeurs fermées : aucun UUID, nom ou texte utilisateur.
+        self._increment(
+            "marketteo_automation_event_total",
+            {"event": event, "operation": operation, "outcome": outcome},
+        )
 
     def render(self) -> bytes:
         with self._lock:

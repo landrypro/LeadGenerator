@@ -154,6 +154,10 @@ from .infrastructure.postgres import (
     SqlAlchemyProvisioningGateway,
 )
 from .infrastructure.postgres.assistant_reader import PostgresAssistantScopeReader
+from .infrastructure.postgres.automation_exception_resolution import AutomationExceptionResolution
+from .infrastructure.postgres.automation_lifecycle import AutomationPlaybookLifecycle
+from .infrastructure.postgres.automation_preflight import AutomationPreflightRunner
+from .infrastructure.postgres.automation_reader import AutomationReader
 from .infrastructure.postgres.automation_runtime import AutomationRuntime
 from .infrastructure.postgres.connector_management import MetaConnectorManagement
 from .infrastructure.postgres.connector_pilot import MetaLeadWebhookService
@@ -360,6 +364,10 @@ def build_container(settings: Settings) -> AppContainer:
     get_csv_import_report: GetCsvImportReportUseCase | None = None
     csv_file_store: TemporaryCsvFileStore | None = None
     import_history: ImportHistoryReader | None = None
+    automation_reader: AutomationReader | None = None
+    automation_preflight_runner: AutomationPreflightRunner | None = None
+    automation_playbook_lifecycle: AutomationPlaybookLifecycle | None = None
+    automation_exception_resolution: AutomationExceptionResolution | None = None
     exports: ExportService | None = None
     archive_prospect: ArchiveProspectUseCase | None = None
     archive_contact: ArchiveContactUseCase | None = None
@@ -571,6 +579,21 @@ def build_container(settings: Settings) -> AppContainer:
             global_enabled=settings.automation_enabled,
             idempotency_secret=settings.job_idempotency_hmac_key.encode("utf-8"),
         )
+        automation_reader = AutomationReader(database.session_factory)
+        automation_preflight_runner = AutomationPreflightRunner(
+            database.session_factory,
+            global_enabled=settings.automation_enabled,
+            idempotency_secret=settings.job_idempotency_hmac_key.encode("utf-8"),
+        )
+        automation_playbook_lifecycle = AutomationPlaybookLifecycle(
+            database.session_factory,
+            global_enabled=settings.automation_enabled,
+            idempotency_secret=settings.job_idempotency_hmac_key.encode("utf-8"),
+        )
+        automation_exception_resolution = AutomationExceptionResolution(
+            database.session_factory,
+            idempotency_secret=settings.job_idempotency_hmac_key.encode("utf-8"),
+        )
         add_google_prospects = AddGoogleProspectsUseCase(
             database.tenant_prospect_unit_of_work,
             selection_grants,
@@ -698,6 +721,10 @@ def build_container(settings: Settings) -> AppContainer:
         meta_connector_management=meta_connector_management,
         create_manual_prospect=create_manual_prospect,
         automation_runtime=automation_runtime if database is not None else None,
+        automation_reader=automation_reader if database is not None else None,
+        automation_preflight_runner=automation_preflight_runner if database is not None else None,
+        automation_playbook_lifecycle=automation_playbook_lifecycle if database is not None else None,
+        automation_exception_resolution=automation_exception_resolution if database is not None else None,
         create_assistant_plan=create_assistant_plan,
         add_google_prospects=add_google_prospects,
         list_prospects=list_prospects,

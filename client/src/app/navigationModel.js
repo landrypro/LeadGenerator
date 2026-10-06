@@ -20,7 +20,7 @@ export function navigationModel(session, locale = 'fr-CA') {
 }
 
 export function navigationRouteId(route) {
-  if (route?.id === 'automation-root') return 'automation'
+  if (['automation-root', 'automation-playbooks', 'automation-exceptions'].includes(route?.id)) return 'automation'
   return ['prospect-new', 'prospect-detail'].includes(route?.id) ? 'prospects' : route?.id
 }
 

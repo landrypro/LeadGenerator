@@ -328,6 +328,7 @@ class AutomationExceptionModel(Base):
         CheckConstraint(
             "state IN ('open','in_progress','resolved','abandoned')", name="ck_automation_exceptions_state"
         ),
+        CheckConstraint("version > 0", name="ck_automation_exceptions_version"),
         Index("ix_automation_exceptions_org_state", "organization_id", "state", "created_at"),
     )
 
@@ -342,3 +343,4 @@ class AutomationExceptionModel(Base):
     resolution_code: Mapped[str | None] = mapped_column(String(64))
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    version: Mapped[int] = mapped_column(Integer, server_default=text("1"))

@@ -108,6 +108,10 @@ from .application.use_cases.dashboard import GetDashboardSummaryUseCase
 from .application.use_cases.usage import GetCurrentUsageUseCase, GetUsageReportUseCase
 from .config import Settings
 from .infrastructure.google.location import GoogleLocationResolver
+from .infrastructure.postgres.automation_exception_resolution import AutomationExceptionResolution
+from .infrastructure.postgres.automation_lifecycle import AutomationPlaybookLifecycle
+from .infrastructure.postgres.automation_preflight import AutomationPreflightRunner
+from .infrastructure.postgres.automation_reader import AutomationReader
 from .infrastructure.postgres.automation_runtime import AutomationRuntime
 from .infrastructure.postgres.connector_management import MetaConnectorManagement
 from .infrastructure.postgres.connector_pilot import MetaLeadWebhookService
@@ -141,6 +145,10 @@ class AppContainer:
     meta_connector_management: MetaConnectorManagement | None = None
     create_manual_prospect: CreateManualProspectUseCase | None = None
     automation_runtime: AutomationRuntime | None = None
+    automation_reader: AutomationReader | None = None
+    automation_preflight_runner: AutomationPreflightRunner | None = None
+    automation_playbook_lifecycle: AutomationPlaybookLifecycle | None = None
+    automation_exception_resolution: AutomationExceptionResolution | None = None
     create_assistant_plan: CreateAssistantPlanUseCase | None = None
     add_google_prospects: AddGoogleProspectsUseCase | None = None
     list_prospects: ListProspectsUseCase | None = None

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { navigationModel } from './navigationModel'
+import { navigationModel, navigationRouteId } from './navigationModel'
 import { routes } from './routes'
 
 describe('navigation hybride — capacités réelles', () => {
@@ -27,5 +27,9 @@ describe('navigation hybride — capacités réelles', () => {
     expect(model.groups).toEqual([])
     expect(model.account.id).toBe('account')
     expect(navigationModel({ active_organization: null, capabilities: [] }).direct).toEqual([])
+  })
+  it('conserve Automatisation active dans la navigation globale depuis ses sous-pages', () => {
+    expect(navigationRouteId({ id: 'automation-playbooks' })).toBe('automation')
+    expect(navigationRouteId({ id: 'automation-exceptions' })).toBe('automation')
   })
 })
