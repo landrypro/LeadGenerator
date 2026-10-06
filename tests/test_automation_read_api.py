@@ -22,6 +22,10 @@ from backend.app.domain.identity import (
 from backend.app.infrastructure.postgres.automation_exception_resolution import AutomationExceptionOutcome
 from backend.app.infrastructure.postgres.automation_lifecycle import AutomationLifecycleOutcome
 from backend.app.infrastructure.postgres.automation_preflight import AutomationPreflightOutcome
+from backend.app.infrastructure.postgres.automation_settings import (
+    AutomationSettingsVersionConflict,
+    AutomationSettingsView,
+)
 
 
 class CurrentSession:
@@ -150,6 +154,31 @@ class ExceptionResolution:
         )
 
 
+class SettingsService:
+    def __init__(self, *, organization_id: UUID) -> None:
+        self.item = AutomationSettingsView(
+            id=uuid4(), organization_id=organization_id, automation_enabled=False,
+            suspension_generation=0, version=1, created_at=None, updated_at=None,
+        )
+
+    async def get(self, *, context: object) -> AutomationSettingsView:
+        del context
+        return self.item
+
+    async def update(self, *, context: object, automation_enabled: bool, expected_version: int) -> AutomationSettingsView:
+        del context
+        if expected_version != self.item.version:
+            raise AutomationSettingsVersionConflict(self.item.version)
+        self.item = AutomationSettingsView(
+            id=self.item.id, organization_id=self.item.organization_id,
+            automation_enabled=automation_enabled,
+            suspension_generation=self.item.suspension_generation + int(self.item.automation_enabled and not automation_enabled),
+            version=self.item.version + int(self.item.automation_enabled != automation_enabled),
+            created_at=self.item.created_at, updated_at=self.item.updated_at,
+        )
+        return self.item
+
+
 def build_app(
     role: MembershipRole = MembershipRole.SALES,
     *,
@@ -212,6 +241,50 @@ async def test_automation_read_requires_session_and_keeps_responses_private() ->
     assert response.status_code == 200
     assert response.headers["cache-control"] == "no-store, max-age=0"
     assert response.json()["items"][0]["state"] == "open"
+
+
+async def test_automation_settings_is_admin_only_and_versioned() -> None:
+    organization_id, user_id = uuid4(), uuid4()
+    membership = MembershipIdentity(
+        id=uuid4(), organization_id=organization_id, organization_name="QA", role=MembershipRole.ADMIN,
+        status=MembershipStatus.ACTIVE, organization_status=OrganizationStatus.ACTIVE,
+        created_at=datetime(2026, 10, 1, tzinfo=UTC), organization_locale="fr-CA",
+    )
+    identity = AuthenticatedIdentity(
+        user=UserIdentity(
+            id=user_id, email="automation-admin@example.ca", display_name="Admin", password_hash="hash",
+            status=UserStatus.ACTIVE, platform_role=None, last_active_organization_id=organization_id,
+            version=1, memberships=(membership,),
+        ), active_membership=membership, csrf_token="csrf",
+    )
+    settings_service = SettingsService(organization_id=organization_id)
+    container = AppContainer(
+        settings=Settings(cors_allowed_origins=("http://test",), automation_enabled=True),
+        search_google_places=object(), get_map_snapshot=object(),
+        get_current_session=CurrentSession(identity),  # type: ignore[arg-type]
+        automation_settings=settings_service,  # type: ignore[arg-type]
+    )
+    application = create_app(container=container)
+    async with AsyncClient(transport=ASGITransport(app=application), base_url="http://test") as client:
+        client.cookies.set("prospect_session", "automation-session")
+        response = await client.get("/api/automation/settings")
+        availability_before = await client.get("/api/automation/availability")
+        updated = await client.patch(
+            "/api/automation/settings",
+            json={"schema_version": 1, "automation_enabled": True, "expected_version": 1},
+            headers={"Origin": "http://test", "X-CSRF-Token": "csrf"},
+        )
+        availability_after = await client.get("/api/automation/availability")
+    assert response.status_code == 200
+    assert response.headers["cache-control"] == "no-store, max-age=0"
+    assert response.json()["item"]["automation_enabled"] is False
+    assert availability_before.status_code == 200
+    assert availability_before.json()["effective_enabled"] is False
+    assert updated.status_code == 200
+    assert updated.headers["etag"] == '"2"'
+    assert updated.json()["effective_enabled"] is True
+    assert availability_after.status_code == 200
+    assert availability_after.json()["effective_enabled"] is True
 
 
 async def test_automation_read_keeps_sales_in_self_scope_and_admin_in_organization_scope() -> None:

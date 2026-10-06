@@ -12,6 +12,7 @@ describe('navigation hybride — capacités réelles', () => {
     expect(new Set(ids).size).toBe(ids.length)
     expect(ids.sort()).toEqual(routes.filter(route => route.navigation !== false).map(route => route.id).sort())
     expect(ids).toContain('automation')
+    expect(model.groups.find(group => group.id === 'administration').routes.map(route => route.id)).toContain('automation-settings')
   })
   it('garde les groupes à un lien et filtre à partir des capacités, pas du rôle', () => {
     const model = navigationModel({ ...session, capabilities: ['google:search', 'imports:read'] }, 'en-CA')
@@ -20,6 +21,7 @@ describe('navigation hybride — capacités réelles', () => {
     expect(model.groups.map(group => [group.label, group.routes.map(route => route.id)])).toEqual([
       ['Acquisition', ['google-place-search']], ['Data and audit', ['import-history']],
     ])
+    expect(model.groups.flatMap(group => group.routes.map(route => route.id))).not.toContain('automation-settings')
   })
   it('distingue les deux capacités plateforme sans organisation', () => {
     const model = navigationModel({ active_organization: null, capabilities: ['platform:audit:read', 'google:search'] })
@@ -31,5 +33,13 @@ describe('navigation hybride — capacités réelles', () => {
   it('conserve Automatisation active dans la navigation globale depuis ses sous-pages', () => {
     expect(navigationRouteId({ id: 'automation-playbooks' })).toBe('automation')
     expect(navigationRouteId({ id: 'automation-exceptions' })).toBe('automation')
+  })
+  it('retire l’entrée globale quand l’organisation suspend Automation mais conserve le réglage admin', () => {
+    const model = navigationModel({
+      ...session,
+      automation_available: false,
+    })
+    expect(model.direct.map((route) => route.id)).not.toContain('automation')
+    expect(model.groups.find((group) => group.id === 'administration').routes.map((route) => route.id)).toContain('automation-settings')
   })
 })

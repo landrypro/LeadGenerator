@@ -87,6 +87,7 @@ export function AppRouter({ invitationToken = '' }) {
         session={auth.session}
         onLogout={auth.logout}
         onOrganizationUpdated={auth.updateActiveOrganizationSummary}
+        onAutomationAvailabilityChanged={auth.updateAutomationAvailability}
         onSessionInvalidated={auth.invalidateSession}
         routeParams={route.params ?? {}}
       />

@@ -47,6 +47,11 @@ from ....infrastructure.postgres.automation_reader import (
     AutomationReader,
     AutomationReadUnavailable,
 )
+from ....infrastructure.postgres.automation_settings import (
+    AutomationSettingsRejected,
+    AutomationSettingsUnavailable,
+    AutomationSettingsVersionConflict,
+)
 from ..dependencies import ContainerDependency, RequestAuthentication, required_authentication
 from ..responses import NO_STORE_HEADERS, api_error
 from ..security import require_csrf_token, require_json_content_type, require_trusted_origin
@@ -103,9 +108,95 @@ class SurfaceTelemetryRequest(BaseModel):
     surface: Literal["today", "playbooks", "exceptions"]
 
 
+class AutomationSettingsRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    schema_version: Literal[1]
+    automation_enabled: bool
+    expected_version: int = Field(ge=0)
+
+
 _READ_QUERY_KEYS = frozenset({"limit", "cursor", "state"})
 _EXCEPTION_STATES = frozenset({"open", "in_progress", "resolved", "abandoned"})
 _PLAYBOOK_CODES = frozenset({"new_prospect", "proposal_pending", "forgotten_opportunity"})
+
+
+@router.get("/settings")
+async def get_automation_settings(request: Request, container: ContainerDependency) -> Response:
+    try:
+        authentication, membership, _capabilities, context = await _settings_context(request, container)
+        if container.automation_settings is None:
+            raise AutomationSettingsUnavailable
+        item = await container.automation_settings.get(context=context)
+    except Exception as error:
+        response = _settings_error(request, error)
+        if response is not None:
+            return response
+        raise
+    del authentication, membership
+    return JSONResponse(
+        jsonable_encoder(_settings_payload(container, item)),
+        headers=NO_STORE_HEADERS,
+    )
+
+
+@router.get("/availability")
+async def get_automation_availability(request: Request, container: ContainerDependency) -> Response:
+    """Expose the tenant-scoped switch used to decide whether Automation is navigable."""
+    try:
+        _authentication, membership, _capabilities, context = await _read_context(request, container)
+        if container.automation_settings is None:
+            raise AutomationSettingsUnavailable
+        item = await container.automation_settings.get(context=context)
+    except Exception as error:
+        response = _read_error(request, error)
+        if response is not None:
+            return response
+        raise
+
+    organization_enabled = bool(item.automation_enabled)
+    global_enabled = bool(container.settings.automation_enabled)
+    rollout_enabled = bool(container.settings.automation_rollout_enabled_for(membership.organization_id))
+    return JSONResponse(
+        {
+            "schema_version": 1,
+            "global_enabled": global_enabled,
+            "organization_enabled": organization_enabled,
+            "rollout_enabled": rollout_enabled,
+            "effective_enabled": global_enabled and rollout_enabled and organization_enabled,
+        },
+        headers=NO_STORE_HEADERS,
+    )
+
+
+@router.patch("/settings")
+async def update_automation_settings(
+    payload: AutomationSettingsRequest,
+    request: Request,
+    container: ContainerDependency,
+) -> Response:
+    try:
+        require_json_content_type(request)
+        authentication, membership, _capabilities, context = await _settings_context(request, container)
+        require_trusted_origin(request, container.settings.cors_allowed_origins)
+        require_csrf_token(request, authentication.identity.csrf_token)
+        if container.automation_settings is None:
+            raise AutomationSettingsUnavailable
+        item = await container.automation_settings.update(
+            context=context,
+            automation_enabled=payload.automation_enabled,
+            expected_version=payload.expected_version,
+        )
+    except Exception as error:
+        response = _settings_error(request, error)
+        if response is not None:
+            return response
+        raise
+    del membership
+    return JSONResponse(
+        jsonable_encoder(_settings_payload(container, item)),
+        headers={**NO_STORE_HEADERS, "ETag": f'"{item.version}"'},
+    )
 
 
 @router.get("/playbooks")
@@ -566,6 +657,49 @@ async def _read_context(
     )
 
 
+async def _settings_context(
+    request: Request, container: ContainerDependency
+) -> tuple[RequestAuthentication, MembershipIdentity, tuple[str, ...], TenantContext]:
+    authentication = await required_authentication(request, container)
+    membership = authentication.identity.active_membership
+    capabilities = capabilities_for(authentication.identity.user, membership)
+    if membership is None or not membership.is_active or "automation:settings:manage" not in capabilities:
+        raise PermissionError
+    return (
+        authentication,
+        membership,
+        capabilities,
+        TenantContext(
+            actor_id=authentication.identity.user.id,
+            organization_id=membership.organization_id,
+            request_id=getattr(request.state, "request_id", "unknown"),
+        ),
+    )
+
+
+def _settings_payload(container: ContainerDependency, item: object) -> dict[str, object]:
+    from ....infrastructure.postgres.automation_settings import AutomationSettingsView
+
+    value = item if isinstance(item, AutomationSettingsView) else None
+    assert value is not None
+    return {
+        "schema_version": 1,
+        "item": {
+            "id": value.id,
+            "organization_id": value.organization_id,
+            "automation_enabled": value.automation_enabled,
+            "suspension_generation": value.suspension_generation,
+            "version": value.version,
+            "created_at": value.created_at,
+            "updated_at": value.updated_at,
+        },
+        "global_enabled": container.settings.automation_enabled,
+        "assistant_enabled": container.settings.automation_assistant_enabled,
+        "rollout_mode": container.settings.automation_rollout_mode,
+        "effective_enabled": container.settings.automation_enabled and value.automation_enabled,
+    }
+
+
 def _reader(container: ContainerDependency) -> AutomationReader:
     if container.automation_reader is None:
         raise AutomationReadUnavailable
@@ -864,6 +998,32 @@ def _read_error(request: Request, error: Exception) -> JSONResponse | None:
         return api_error(request, 404, "automation_resource_not_found", "Ressource Automation introuvable.")
     if isinstance(error, AutomationReadUnavailable):
         return api_error(request, 503, "automation_read_unavailable", "Lecture Automation indisponible.")
+    if isinstance(error, AutomationSettingsUnavailable):
+        return api_error(request, 503, "automation_settings_unavailable", "Les paramètres Automation sont indisponibles.")
+    return None
+
+
+def _settings_error(request: Request, error: Exception) -> JSONResponse | None:
+    if isinstance(error, AuthenticationRequired):
+        return api_error(request, 401, "authentication_required", "Authentification requise.")
+    if isinstance(error, AuthenticationServiceUnavailable):
+        return api_error(request, 503, "authentication_unavailable", "Authentification indisponible.")
+    if isinstance(error, CsrfValidationFailed):
+        return api_error(request, 403, "csrf_failed", "La protection de la session a refusé la requête.")
+    if isinstance(error, (PermissionError, AutomationSettingsRejected)):
+        return api_error(request, 403, "automation_settings_forbidden", "Paramètres Automation non autorisés.")
+    if isinstance(error, AutomationSettingsVersionConflict):
+        return api_error(
+            request,
+            409,
+            "automation_settings_version_conflict",
+            "Les paramètres Automation ont changé. Actualisez avant de réessayer.",
+            fields={"version": str(error.current_version)},
+        )
+    if isinstance(error, AutomationSettingsUnavailable):
+        return api_error(request, 503, "automation_settings_unavailable", "Les paramètres Automation sont indisponibles.")
+    if isinstance(error, ValueError):
+        return api_error(request, 422, "automation_settings_invalid", "Les paramètres Automation sont invalides.")
     return None
 
 

@@ -5,7 +5,7 @@ const mobileIds = ['dashboard', 'tasks', 'prospects', 'pipeline']
 const groups = [
   { id: 'acquisition', labels: { 'fr-CA': 'Acquisition', 'en-CA': 'Acquisition' }, ids: ['google-place-search', 'compliance-sources'] },
   { id: 'data', labels: { 'fr-CA': 'Données et audit', 'en-CA': 'Data and audit' }, ids: ['usage', 'retention-imports', 'import-history', 'exports', 'tenant-audit'] },
-  { id: 'administration', labels: { 'fr-CA': 'Administration', 'en-CA': 'Administration' }, ids: ['organization', 'members'] },
+  { id: 'administration', labels: { 'fr-CA': 'Administration', 'en-CA': 'Administration' }, ids: ['organization', 'members', 'automation-settings'] },
 ]
 
 export function navigationModel(session, locale = 'fr-CA') {

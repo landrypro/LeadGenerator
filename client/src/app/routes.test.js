@@ -30,6 +30,7 @@ describe('routes CRM', () => {
       exports: '/app/exports',
       account: '/app/account',
       organization: '/app/admin/organization',
+      automationSettings: '/app/admin/automation',
       users: '/app/admin/users',
       platformOrganizations: '/app/platform/organizations',
       audit: '/app/audit',
@@ -58,6 +59,7 @@ describe('routes CRM', () => {
       '/app/search',
       '/app/admin/organization',
       '/app/admin/users',
+      '/app/admin/automation',
       '/app/audit',
       '/app/platform/organizations',
       '/app/platform/audit',
@@ -69,6 +71,7 @@ describe('routes CRM', () => {
     expect(findRoute('/app/automation')?.redirectTo).toBe('/app/automation/today')
     expect(findRoute('/app/automation/playbooks')?.requiredCapability).toBe('automation:read:self')
     expect(findRoute('/app/automation/exceptions')?.requiredCapability).toBe('automation:read:self')
+    expect(findRoute('/app/admin/automation')?.requiredCapability).toBe('automation:settings:manage')
     expect(findRoute('/app/audit')?.requiredCapability).toBe('audit:read')
     expect(findRoute('/app/platform/audit')?.requiredCapability).toBe('platform:audit:read')
     expect(findRoute('/app/prospects')?.requiredCapability).toBe('prospects:read')
@@ -101,6 +104,15 @@ describe('routes CRM', () => {
       'account',
     ])
     expect(canAccessRoute(findRoute('/app/search'), tenant)).toBe(true)
+
+    const suspendedAutomation = session({
+      activeOrganization: { id: 'org-1', name: 'Entreprise' },
+      capabilities: ['automation:plan:create', 'automation:read:self', 'automation:settings:manage'],
+      automationAvailable: false,
+    })
+    expect(canAccessRoute(findRoute('/app/automation/today'), suspendedAutomation)).toBe(false)
+    expect(canAccessRoute(findRoute('/app/admin/automation'), suspendedAutomation)).toBe(true)
+    expect(navigationRoutes(suspendedAutomation).map((route) => route.id)).not.toContain('automation')
 
     const pipelineUser = session({ activeOrganization: { id: 'org-1', name: 'Entreprise' }, capabilities: ['pipeline:read'] })
     expect(navigationRoutes(pipelineUser).map((route) => route.id)).toEqual(['pipeline', 'account'])
@@ -146,6 +158,10 @@ describe('routes CRM', () => {
 })
 
 
-function session({ activeOrganization, capabilities = [] }) {
-  return { active_organization: activeOrganization, capabilities }
+function session({ activeOrganization, capabilities = [], automationAvailable }) {
+  return {
+    active_organization: activeOrganization,
+    capabilities,
+    ...(automationAvailable === undefined ? {} : { automation_available: automationAvailable }),
+  }
 }

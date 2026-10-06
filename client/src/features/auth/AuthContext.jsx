@@ -24,19 +24,33 @@ export function AuthProvider({ children }) {
     setSwitchingOrganization(false)
   }, [])
 
-  const installSession = useCallback((nextSession) => {
-    sessionGenerationRef.current += 1
+  const installSession = useCallback(async (nextSession, signal) => {
+    const installationGeneration = ++sessionGenerationRef.current
     configureHttpSecurity({ token: nextSession.csrf_token, onUnauthorized: clearSession })
-    setSession(nextSession)
+    let installedSession = nextSession
+    const capabilities = nextSession.capabilities ?? []
+    const canReadAutomation = capabilities.includes('automation:read:self') || capabilities.includes('automation:plan:create')
+    if (nextSession.active_organization && canReadAutomation && typeof authApi.getAutomationAvailability === 'function') {
+      try {
+        const availability = await authApi.getAutomationAvailability(signal)
+        installedSession = { ...nextSession, automation_available: availability.effective_enabled === true }
+      } catch (error) {
+        if (error?.name === 'AbortError') throw error
+        // Do not make a failed availability probe log the user out. The route
+        // capability checks remain the server-side source of truth.
+      }
+    }
+    if (sessionGenerationRef.current !== installationGeneration) return null
+    setSession(installedSession)
     setStatus('authenticated')
-    return nextSession
+    return installedSession
   }, [clearSession])
 
   useEffect(() => {
     const controller = new AbortController()
     configureHttpSecurity({ onUnauthorized: clearSession })
     authApi.me(controller.signal)
-      .then(installSession)
+      .then((nextSession) => installSession(nextSession, controller.signal))
       .catch((error) => {
         if (error?.name !== 'AbortError') clearSession()
       })
@@ -77,7 +91,7 @@ export function AuthProvider({ children }) {
       try {
         const nextSession = await authApi.switchOrganization(membershipId, controller.signal)
         if (sessionGenerationRef.current !== expectedGeneration) return null
-        return installSession(nextSession)
+        return installSession(nextSession, controller.signal)
       } finally {
         if (switchPromiseRef.current === switchPromise) {
           switchPromiseRef.current = null
@@ -120,6 +134,10 @@ export function AuthProvider({ children }) {
     })
   }, [])
 
+  const updateAutomationAvailability = useCallback((available) => {
+    setSession((currentSession) => currentSession ? { ...currentSession, automation_available: available === true } : currentSession)
+  }, [])
+
   const value = useMemo(
     () => ({
       status,
@@ -131,6 +149,7 @@ export function AuthProvider({ children }) {
       switchOrganization,
       switchingOrganization,
       updateActiveOrganizationSummary,
+      updateAutomationAvailability,
     }),
     [
       status,
@@ -142,6 +161,7 @@ export function AuthProvider({ children }) {
       switchOrganization,
       switchingOrganization,
       updateActiveOrganizationSummary,
+      updateAutomationAvailability,
     ],
   )
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>

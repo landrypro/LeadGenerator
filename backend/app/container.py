@@ -113,6 +113,7 @@ from .infrastructure.postgres.automation_lifecycle import AutomationPlaybookLife
 from .infrastructure.postgres.automation_preflight import AutomationPreflightRunner
 from .infrastructure.postgres.automation_reader import AutomationReader
 from .infrastructure.postgres.automation_runtime import AutomationRuntime
+from .infrastructure.postgres.automation_settings import AutomationOrganizationSettings
 from .infrastructure.postgres.connector_management import MetaConnectorManagement
 from .infrastructure.postgres.connector_pilot import MetaLeadWebhookService
 from .infrastructure.postgres.export_service import ExportService
@@ -145,6 +146,7 @@ class AppContainer:
     meta_connector_management: MetaConnectorManagement | None = None
     create_manual_prospect: CreateManualProspectUseCase | None = None
     automation_runtime: AutomationRuntime | None = None
+    automation_settings: AutomationOrganizationSettings | None = None
     automation_reader: AutomationReader | None = None
     automation_preflight_runner: AutomationPreflightRunner | None = None
     automation_playbook_lifecycle: AutomationPlaybookLifecycle | None = None

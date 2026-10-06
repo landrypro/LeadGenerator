@@ -107,6 +107,7 @@ class AuditAction(StrEnum):
     OPPORTUNITY_REOPENED = "opportunity.reopened"
     CONNECTOR_INGESTION_ADMITTED = "connector.ingestion_admitted"
     CONNECTOR_INGESTION_COMPLETED = "connector.ingestion_completed"
+    AUTOMATION_ORGANIZATION_SETTINGS_CHANGED = "automation.organization_settings_changed"
 
 
 _ENTITY_TYPE_PATTERN = re.compile(r"^[a-z][a-z0-9_]{0,63}$", re.ASCII)
@@ -250,6 +251,7 @@ _TENANT_ACTIONS = frozenset(
         AuditAction.OPPORTUNITY_REOPENED,
         AuditAction.CONNECTOR_INGESTION_ADMITTED,
         AuditAction.CONNECTOR_INGESTION_COMPLETED,
+        AuditAction.AUTOMATION_ORGANIZATION_SETTINGS_CHANGED,
     }
 )
 _PLATFORM_ACTIONS = frozenset(set(AuditAction) - _TENANT_ACTIONS)
@@ -325,6 +327,7 @@ _ACTION_ENTITY_TYPES = {
     AuditAction.OPPORTUNITY_REOPENED: "opportunity",
     AuditAction.CONNECTOR_INGESTION_ADMITTED: "connector_ingestion",
     AuditAction.CONNECTOR_INGESTION_COMPLETED: "connector_ingestion",
+    AuditAction.AUTOMATION_ORGANIZATION_SETTINGS_CHANGED: "automation_organization_settings",
 }
 
 
@@ -922,6 +925,31 @@ class AuditMetadataPolicy:
                     "result_code",
                 )
             return result
+
+        if action is AuditAction.AUTOMATION_ORGANIZATION_SETTINGS_CHANGED:
+            cls._require_keys(
+                values,
+                {"previous_enabled", "new_enabled", "previous_version", "new_version", "suspension_generation"},
+            )
+            if type(values["previous_enabled"]) is not bool or type(values["new_enabled"]) is not bool:
+                raise InvalidAuditMetadata("Les états Automation doivent être booléens.")
+            previous_version = values["previous_version"]
+            new_version = values["new_version"]
+            suspension_generation = values["suspension_generation"]
+            version_values = (previous_version, new_version, suspension_generation)
+            if any(not isinstance(value, int) or isinstance(value, bool) or value < 0 for value in version_values):
+                raise InvalidAuditMetadata("Les versions Automation doivent être des entiers positifs ou nuls.")
+            if not isinstance(previous_version, int) or not isinstance(new_version, int):
+                raise InvalidAuditMetadata("Les versions Automation doivent être des entiers positifs ou nuls.")
+            if new_version < 1 or new_version <= previous_version:
+                raise InvalidAuditMetadata("La version Automation résultante est invalide.")
+            return {
+                "previous_enabled": values["previous_enabled"],
+                "new_enabled": values["new_enabled"],
+                "previous_version": previous_version,
+                "new_version": new_version,
+                "suspension_generation": suspension_generation,
+            }
 
         if action in {AuditAction.CONTACT_ARCHIVED, AuditAction.CONTACT_CHANNEL_ARCHIVED}:
             cls._require_keys(values, {"previous_version", "archive_reason_code"}, {"channels_archived"})

@@ -17,6 +17,13 @@ export const authApi = {
     })
   },
 
+  getAutomationAvailability(signal) {
+    return request('/api/automation/availability', {
+      signal,
+      fallbackMessage: 'Impossible de vérifier la disponibilité Automation.',
+    })
+  },
+
   logout(signal) {
     return postJson('/api/auth/logout', {}, {
       signal,

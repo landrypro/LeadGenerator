@@ -728,6 +728,13 @@ footer a:hover { color: #147da5; text-decoration: underline; }
 .organization-switcher select:disabled { cursor: wait; opacity: .72; }
 .organization-switch-error { position: absolute; z-index: 100; top: calc(100% + 9px); right: 8px; width: min(310px, 80vw); padding: 9px 11px; color: #934739; background: #fff3ef; border: 1px solid #efc8c0; border-radius: 9px; box-shadow: 0 10px 28px rgba(111,54,44,.12); font-size: 9px; line-height: 1.4; }
 .organization-grid { display: grid; grid-template-columns: minmax(0, .9fr) minmax(0, 1.1fr); gap: 18px; align-items: start; }
+.automation-settings-grid { align-items: stretch; }
+.automation-settings-control { display: flex; flex-direction: column; }
+.automation-settings-state { margin: 0 0 12px; }
+.automation-settings-confirm { margin-top: 14px; padding: 13px; border: 1px solid #cfe2e8; border-radius: 11px; background: #f7fbfc; }
+.automation-settings-confirm p { margin: 0 0 11px; color: #49636d; font-size: 11px; line-height: 1.5; }
+.automation-settings-boundary { display: grid; gap: 4px; margin-top: auto; padding-top: 18px; color: #617882; font-size: 10px; line-height: 1.5; }
+.automation-settings-boundary strong { color: #315866; }
 .organization-details > div { display: grid; grid-template-columns: minmax(100px, .7fr) minmax(0, 1.3fr); align-items: start; gap: 16px; }
 .organization-details dt { margin: 2px 0 0; }
 .organization-details dd { text-align: right; }

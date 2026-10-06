@@ -58,6 +58,7 @@ AUTOMATION_CAPABILITIES_BY_ROLE: dict[MembershipRole, tuple[str, ...]] = {
         "automation:exceptions:resolve:self",
         "automation:exceptions:resolve:organization",
         "automation:approvals:decide",
+        "automation:settings:manage",
     ),
     MembershipRole.MANAGER: (
         "automation:read:self",

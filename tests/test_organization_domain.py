@@ -129,9 +129,10 @@ def user(*memberships: MembershipIdentity, platform: bool = False) -> UserIdenti
                 "automation:playbooks:activate",
                 "automation:playbooks:suspend",
                 "automation:exceptions:resolve:self",
-                "automation:exceptions:resolve:organization",
-                "automation:approvals:decide",
-            ),
+                    "automation:exceptions:resolve:organization",
+                    "automation:approvals:decide",
+                    "automation:settings:manage",
+                ),
         ),
         (
             MembershipRole.MANAGER,

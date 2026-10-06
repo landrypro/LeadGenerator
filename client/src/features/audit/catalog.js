@@ -9,6 +9,7 @@ export const TENANT_ACTIONS = Object.freeze([
   ['invitation.revoked', 'Invitation révoquée'],
   ['invitation.accepted', 'Invitation acceptée'],
   ['organization.activated', 'Organisation activée'],
+  ['automation.organization_settings_changed', 'Paramètres Automation modifiés'],
   ['prospect.created', 'Prospect créé'],
   ['prospect.updated', 'Prospect modifié'],
   ['prospect.archived', 'Prospect archivé'],
@@ -36,15 +37,16 @@ export const ENTITY_TYPES = Object.freeze([
   ['pipeline_stage_setting', 'Paramètre d’étape'],
   ['usage_report', 'Rapport d’usage'],
   ['connector_ingestion', 'Ingestion connecteur'],
+  ['automation_organization_settings', 'Paramètres Automation'],
 ])
 
 const TENANT_ACTIONS_EN = Object.freeze([
   ['organization.updated', 'Organization updated'], ['account.organization_preference_changed', 'Active organization changed'], ['membership.role_changed', 'Member role changed'], ['membership.status_changed', 'Member status changed'], ['invitation.created', 'Invitation created'], ['invitation.resend_requested', 'Invitation resend requested'], ['invitation.delivery_completed', 'Invitation delivery completed'], ['invitation.revoked', 'Invitation revoked'], ['invitation.accepted', 'Invitation accepted'], ['organization.activated', 'Organization activated'], ['prospect.created', 'Prospect created'], ['prospect.updated', 'Prospect updated'], ['prospect.archived', 'Prospect archived'], ['prospect.stage_changed', 'Sales stage changed'], ['pipeline.stage_settings_updated', 'Stage settings updated'], ['usage.report_viewed', 'Organization usage report viewed'], ['connector.ingestion_admitted', 'Connector ingestion admitted'], ['connector.ingestion_completed', 'Connector ingestion completed'],
 ])
 const PLATFORM_ACTIONS_EN = Object.freeze([
-  ['organization.provisioned', 'Organization provisioned'], ['organization.initial_invitation.created', 'Initial invitation created'], ['organization.initial_invitation.resend_requested', 'Initial resend requested'], ['organization.initial_invitation.delivery_completed', 'Initial invitation delivery completed'], ['organization.initial_invitation.revoked', 'Initial invitation revoked'],
+  ['organization.provisioned', 'Organization provisioned'], ['organization.initial_invitation.created', 'Initial invitation created'], ['organization.initial_invitation.resend_requested', 'Initial resend requested'], ['organization.initial_invitation.delivery_completed', 'Initial invitation delivery completed'], ['organization.initial_invitation.revoked', 'Initial invitation revoked'], ['automation.organization_settings_changed', 'Automation settings changed'],
 ])
-const ENTITY_TYPES_EN = Object.freeze([['organization', 'Organization'], ['membership', 'Membership'], ['invitation', 'Invitation'], ['user', 'Account'], ['prospect', 'Prospect'], ['pipeline_stage_setting', 'Stage setting'], ['usage_report', 'Usage report'], ['connector_ingestion', 'Connector ingestion']])
+const ENTITY_TYPES_EN = Object.freeze([['organization', 'Organization'], ['membership', 'Membership'], ['invitation', 'Invitation'], ['user', 'Account'], ['prospect', 'Prospect'], ['pipeline_stage_setting', 'Stage setting'], ['usage_report', 'Usage report'], ['connector_ingestion', 'Connector ingestion'], ['automation_organization_settings', 'Automation settings']])
 
 const ACTION_LABELS = Object.freeze(Object.fromEntries([...TENANT_ACTIONS, ...PLATFORM_ACTIONS]))
 const ACTION_LABELS_EN = Object.freeze(Object.fromEntries([...TENANT_ACTIONS_EN, ...PLATFORM_ACTIONS_EN]))
@@ -165,6 +167,14 @@ export function metadataRows(event) {
       break
     case 'membership.status_changed':
       rows = [['Ancien état', STATUS_LABELS[metadata.previous_status]], ['Nouvel état', STATUS_LABELS[metadata.new_status]]]
+      break
+    case 'automation.organization_settings_changed':
+      rows = [
+        ['État précédent', metadata.previous_enabled ? 'Activée' : 'Suspendue'],
+        ['Nouvel état', metadata.new_enabled ? 'Activée' : 'Suspendue'],
+        ['Version', versionChange(metadata.previous_version, metadata.new_version)],
+        ['Génération de suspension', metadata.suspension_generation],
+      ]
       break
     case 'invitation.created':
     case 'organization.initial_invitation.created':

@@ -2,6 +2,25 @@ import { postJson, request } from '../../../shared/api/httpClient'
 
 
 export const automationApi = {
+  getSettings(signal) {
+    return request('/api/automation/settings', {
+      signal,
+      fallbackMessage: 'Impossible de charger les paramètres Automation.',
+    })
+  },
+  updateSettings(automationEnabled, expectedVersion, signal) {
+    return request('/api/automation/settings', {
+      method: 'PATCH',
+      signal,
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        schema_version: 1,
+        automation_enabled: automationEnabled,
+        expected_version: expectedVersion,
+      }),
+      fallbackMessage: 'Impossible de modifier les paramètres Automation.',
+    })
+  },
   recordSurfaceOpened(surface, signal) {
     return postJson('/api/automation/telemetry/surfaces', { schema_version: 1, surface }, {
       signal,

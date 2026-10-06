@@ -159,6 +159,7 @@ from .infrastructure.postgres.automation_lifecycle import AutomationPlaybookLife
 from .infrastructure.postgres.automation_preflight import AutomationPreflightRunner
 from .infrastructure.postgres.automation_reader import AutomationReader
 from .infrastructure.postgres.automation_runtime import AutomationRuntime
+from .infrastructure.postgres.automation_settings import AutomationOrganizationSettings
 from .infrastructure.postgres.connector_management import MetaConnectorManagement
 from .infrastructure.postgres.connector_pilot import MetaLeadWebhookService
 from .infrastructure.postgres.dashboard_reader import PostgresDashboardReader
@@ -365,6 +366,7 @@ def build_container(settings: Settings) -> AppContainer:
     csv_file_store: TemporaryCsvFileStore | None = None
     import_history: ImportHistoryReader | None = None
     automation_reader: AutomationReader | None = None
+    automation_settings: AutomationOrganizationSettings | None = None
     automation_preflight_runner: AutomationPreflightRunner | None = None
     automation_playbook_lifecycle: AutomationPlaybookLifecycle | None = None
     automation_exception_resolution: AutomationExceptionResolution | None = None
@@ -580,6 +582,7 @@ def build_container(settings: Settings) -> AppContainer:
             idempotency_secret=settings.job_idempotency_hmac_key.encode("utf-8"),
         )
         automation_reader = AutomationReader(database.session_factory)
+        automation_settings = AutomationOrganizationSettings(database.session_factory)
         automation_preflight_runner = AutomationPreflightRunner(
             database.session_factory,
             global_enabled=settings.automation_enabled,
@@ -722,6 +725,7 @@ def build_container(settings: Settings) -> AppContainer:
         create_manual_prospect=create_manual_prospect,
         automation_runtime=automation_runtime if database is not None else None,
         automation_reader=automation_reader if database is not None else None,
+        automation_settings=automation_settings if database is not None else None,
         automation_preflight_runner=automation_preflight_runner if database is not None else None,
         automation_playbook_lifecycle=automation_playbook_lifecycle if database is not None else None,
         automation_exception_resolution=automation_exception_resolution if database is not None else None,
