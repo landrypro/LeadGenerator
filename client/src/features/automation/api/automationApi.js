@@ -27,6 +27,18 @@ export const automationApi = {
       fallbackMessage: 'Impossible d’enregistrer la navigation Automation.',
     })
   },
+  getToday(signal) {
+    return request('/api/automation/today', {
+      signal,
+      fallbackMessage: 'Impossible de charger les priorités CRM du jour.',
+    })
+  },
+  getSuggestions(signal) {
+    return request('/api/automation/suggestions', {
+      signal,
+      fallbackMessage: 'Impossible de charger les suggestions Automation.',
+    })
+  },
   listPlaybooks(signal) {
     return request('/api/automation/playbooks', {
       signal,

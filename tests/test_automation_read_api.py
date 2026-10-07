@@ -41,6 +41,14 @@ class AutomationReader:
     def __init__(self) -> None:
         self.playbook_scopes: list[bool] = []
         self.exception_scopes: list[bool] = []
+        self.today_scopes: list[bool] = []
+
+    async def get_today(self, _context: object, **kwargs: object) -> dict[str, object]:
+        self.today_scopes.append(bool(kwargs["organization_scope"]))
+        return {
+            "counts": {"open_prospects": 2, "due_tasks": 1, "overdue_tasks": 0, "open_opportunities": 1},
+            "items": [{"id": uuid4(), "kind": "prospect", "label": "CRM prospect", "stage": "new"}],
+        }
 
     async def list_playbooks(self, _context: object, **kwargs: object) -> dict[str, object]:
         self.playbook_scopes.append(bool(kwargs["organization_scope"]))
@@ -157,24 +165,34 @@ class ExceptionResolution:
 class SettingsService:
     def __init__(self, *, organization_id: UUID) -> None:
         self.item = AutomationSettingsView(
-            id=uuid4(), organization_id=organization_id, automation_enabled=False,
-            suspension_generation=0, version=1, created_at=None, updated_at=None,
+            id=uuid4(),
+            organization_id=organization_id,
+            automation_enabled=False,
+            suspension_generation=0,
+            version=1,
+            created_at=None,
+            updated_at=None,
         )
 
     async def get(self, *, context: object) -> AutomationSettingsView:
         del context
         return self.item
 
-    async def update(self, *, context: object, automation_enabled: bool, expected_version: int) -> AutomationSettingsView:
+    async def update(
+        self, *, context: object, automation_enabled: bool, expected_version: int
+    ) -> AutomationSettingsView:
         del context
         if expected_version != self.item.version:
             raise AutomationSettingsVersionConflict(self.item.version)
         self.item = AutomationSettingsView(
-            id=self.item.id, organization_id=self.item.organization_id,
+            id=self.item.id,
+            organization_id=self.item.organization_id,
             automation_enabled=automation_enabled,
-            suspension_generation=self.item.suspension_generation + int(self.item.automation_enabled and not automation_enabled),
+            suspension_generation=self.item.suspension_generation
+            + int(self.item.automation_enabled and not automation_enabled),
             version=self.item.version + int(self.item.automation_enabled != automation_enabled),
-            created_at=self.item.created_at, updated_at=self.item.updated_at,
+            created_at=self.item.created_at,
+            updated_at=self.item.updated_at,
         )
         return self.item
 
@@ -243,24 +261,51 @@ async def test_automation_read_requires_session_and_keeps_responses_private() ->
     assert response.json()["items"][0]["state"] == "open"
 
 
+async def test_automation_today_returns_the_tenant_scoped_crm_projection() -> None:
+    application, reader, _runner = build_app()
+    async with AsyncClient(transport=ASGITransport(app=application), base_url="http://test") as client:
+        client.cookies.set("prospect_session", "automation-session")
+        response = await client.get("/api/automation/today")
+
+    assert response.status_code == 200
+    assert response.headers["cache-control"] == "no-store, max-age=0"
+    assert response.json()["counts"]["open_prospects"] == 2
+    assert response.json()["items"][0]["label"] == "CRM prospect"
+    assert reader.today_scopes == [False]
+
+
 async def test_automation_settings_is_admin_only_and_versioned() -> None:
     organization_id, user_id = uuid4(), uuid4()
     membership = MembershipIdentity(
-        id=uuid4(), organization_id=organization_id, organization_name="QA", role=MembershipRole.ADMIN,
-        status=MembershipStatus.ACTIVE, organization_status=OrganizationStatus.ACTIVE,
-        created_at=datetime(2026, 10, 1, tzinfo=UTC), organization_locale="fr-CA",
+        id=uuid4(),
+        organization_id=organization_id,
+        organization_name="QA",
+        role=MembershipRole.ADMIN,
+        status=MembershipStatus.ACTIVE,
+        organization_status=OrganizationStatus.ACTIVE,
+        created_at=datetime(2026, 10, 1, tzinfo=UTC),
+        organization_locale="fr-CA",
     )
     identity = AuthenticatedIdentity(
         user=UserIdentity(
-            id=user_id, email="automation-admin@example.ca", display_name="Admin", password_hash="hash",
-            status=UserStatus.ACTIVE, platform_role=None, last_active_organization_id=organization_id,
-            version=1, memberships=(membership,),
-        ), active_membership=membership, csrf_token="csrf",
+            id=user_id,
+            email="automation-admin@example.ca",
+            display_name="Admin",
+            password_hash="hash",
+            status=UserStatus.ACTIVE,
+            platform_role=None,
+            last_active_organization_id=organization_id,
+            version=1,
+            memberships=(membership,),
+        ),
+        active_membership=membership,
+        csrf_token="csrf",
     )
     settings_service = SettingsService(organization_id=organization_id)
     container = AppContainer(
         settings=Settings(cors_allowed_origins=("http://test",), automation_enabled=True),
-        search_google_places=object(), get_map_snapshot=object(),
+        search_google_places=object(),
+        get_map_snapshot=object(),
         get_current_session=CurrentSession(identity),  # type: ignore[arg-type]
         automation_settings=settings_service,  # type: ignore[arg-type]
     )
@@ -361,7 +406,16 @@ async def test_preflight_requires_manager_capability_and_creates_only_a_prefligh
             headers={"Origin": "http://test", "X-CSRF-Token": "csrf"},
         )
 
-    admin_application, _admin_reader, admin_runner = build_app(MembershipRole.ADMIN)
+    disabled_application, _disabled_reader, disabled_runner = build_app(MembershipRole.ADMIN)
+    async with AsyncClient(transport=ASGITransport(app=disabled_application), base_url="http://test") as client:
+        client.cookies.set("prospect_session", "automation-session")
+        disabled_response = await client.post(
+            "/api/automation/playbooks/new_prospect/preflights",
+            json={"schema_version": 1, "idempotency_key": "preflight-disabled"},
+            headers={"Origin": "http://test", "X-CSRF-Token": "csrf"},
+        )
+
+    admin_application, _admin_reader, admin_runner = build_app(MembershipRole.ADMIN, automation_enabled=True)
     async with AsyncClient(transport=ASGITransport(app=admin_application), base_url="http://test") as client:
         client.cookies.set("prospect_session", "automation-session")
         admin_response = await client.post(
@@ -372,6 +426,9 @@ async def test_preflight_requires_manager_capability_and_creates_only_a_prefligh
 
     assert sales_response.status_code == 403
     assert sales_runner.calls == []
+    assert disabled_response.status_code == 409
+    assert disabled_response.json()["error"]["code"] == "automation_preflight_disabled"
+    assert disabled_runner.calls == []
     assert admin_response.status_code == 201
     assert admin_response.headers["cache-control"] == "no-store, max-age=0"
     assert admin_response.json()["item"]["subject_count"] == 0
@@ -385,6 +442,15 @@ async def test_playbook_lifecycle_requires_capability_csrf_and_if_match() -> Non
         sales_response = await client.post(
             "/api/automation/playbooks/new_prospect/suspend",
             json={"schema_version": 1, "idempotency_key": "suspend-sales", "reason_code": "operator_request"},
+            headers={"Origin": "http://test", "X-CSRF-Token": "csrf", "If-Match": '"1"'},
+        )
+
+    disabled_application, _disabled_reader, _disabled_runner = build_app(MembershipRole.ADMIN)
+    async with AsyncClient(transport=ASGITransport(app=disabled_application), base_url="http://test") as client:
+        client.cookies.set("prospect_session", "automation-session")
+        disabled_response = await client.post(
+            "/api/automation/playbooks/new_prospect/suspend",
+            json={"schema_version": 1, "idempotency_key": "suspend-disabled", "reason_code": "operator_request"},
             headers={"Origin": "http://test", "X-CSRF-Token": "csrf", "If-Match": '"1"'},
         )
 
@@ -408,6 +474,8 @@ async def test_playbook_lifecycle_requires_capability_csrf_and_if_match() -> Non
         )
 
     assert sales_response.status_code == 403
+    assert disabled_response.status_code == 409
+    assert disabled_response.json()["error"]["code"] == "automation_lifecycle_disabled"
     assert invalid_response.status_code == 422
     assert suspended_response.status_code == 200
     assert suspended_response.headers["cache-control"] == "no-store, max-age=0"

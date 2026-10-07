@@ -1,11 +1,10 @@
 from __future__ import annotations
 
-import re
-import unicodedata
 from collections.abc import Mapping
 
 from ...application.ports.assistant import AssistantInterpretationRequest, AssistantProviderUnavailable
 from ...domain.assistant import AssistantIntentCode, guided_assistant_payload
+from ...domain.assistant_catalog import ASSISTANT_GUIDED_CODES, classify_catalog_intent, normalize_assistant_text
 
 
 class FakeAssistantInterpreter:
@@ -27,12 +26,7 @@ class FakeAssistantInterpreter:
             code = AssistantIntentCode.UNSUPPORTED_REQUEST
         return (
             guided_assistant_payload(code, maximum_scope=request.maximum_scope_hint)
-            if code
-            in {
-                AssistantIntentCode.SCOPE_OPEN_PROSPECTS,
-                AssistantIntentCode.REBALANCE_OPEN_PROSPECTS,
-                AssistantIntentCode.PREPARE_NEW_PROSPECT_FOLLOWUP,
-            }
+            if code in ASSISTANT_GUIDED_CODES
             else _non_guided_payload(code, request.maximum_scope_hint)
         )
 
@@ -56,24 +50,7 @@ def _classify(text: str) -> AssistantIntentCode:
         for value in ("proposition en attente", "pending proposal", "occasion oubliee", "forgotten opportunity")
     ):
         return AssistantIntentCode.UNSUPPORTED_REQUEST
-    if any(
-        value in text
-        for value in ("statut automatisation", "etat automatisation", "automation status", "prevol", "feu")
-    ):
-        return AssistantIntentCode.EXPLAIN_AUTOMATION_STATUS
-    if any(
-        value in text for value in ("repart", "redistrib", "charge", "entre mon equipe", "among my team", "rebalance")
-    ):
-        return AssistantIntentCode.REBALANCE_OPEN_PROSPECTS
-    if any(
-        value in text for value in ("relance", "suivi", "follow up", "follow-up", "nouveaux prospects", "new prospects")
-    ):
-        return AssistantIntentCode.PREPARE_NEW_PROSPECT_FOLLOWUP
-    if any(
-        value in text for value in ("prospects en cours", "prospects ouverts", "open prospects", "current prospects")
-    ):
-        return AssistantIntentCode.SCOPE_OPEN_PROSPECTS
-    return AssistantIntentCode.CLARIFY_REQUEST
+    return classify_catalog_intent(text) or AssistantIntentCode.CLARIFY_REQUEST
 
 
 def _non_guided_payload(code: AssistantIntentCode, maximum_scope: int) -> dict[str, object]:
@@ -111,6 +88,4 @@ def _non_guided_payload(code: AssistantIntentCode, maximum_scope: int) -> dict[s
 
 
 def _normalize(value: str) -> str:
-    folded = unicodedata.normalize("NFKD", value.casefold())
-    without_marks = "".join(character for character in folded if not unicodedata.combining(character))
-    return re.sub(r"\s+", " ", without_marks).strip()
+    return normalize_assistant_text(value)

@@ -13,6 +13,7 @@ from backend.app.application.use_cases.assistant import CreateAssistantPlanComma
 from backend.app.domain.assistant import (
     AssistantFallbackReason,
     AssistantIntentCode,
+    AssistantPlanItem,
     AssistantResultCode,
     AssistantValidationError,
     parse_assistant_intent,
@@ -48,7 +49,20 @@ class Reader:
 
     async def resolve(self, context: TenantContext, **_: object) -> AssistantScopeSnapshot:
         del context
-        return AssistantScopeSnapshot(resolved_count=75, organization_enabled=True)
+        return AssistantScopeSnapshot(
+            resolved_count=75,
+            organization_enabled=True,
+            items=(
+                AssistantPlanItem(
+                    id=UUID(int=10),
+                    kind="prospect",
+                    label="Atelier Alpha",
+                    stage="new",
+                    priority=3,
+                    updated_at=datetime(2026, 10, 3, 11, tzinfo=UTC),
+                ),
+            ),
+        )
 
 
 class SlowInterpreter:
@@ -92,8 +106,19 @@ def test_free_text_builds_a_bounded_read_only_plan() -> None:
     assert outcome.plan is not None
     assert outcome.plan.resolved_count == 75
     assert outcome.plan.bounded_count == 50
+    assert outcome.plan.next_cursor is None
+    assert outcome.plan.items[0].label == "Atelier Alpha"
+    assert outcome.plan.items[0].stage == "new"
     assert outcome.plan.not_performed_codes == ("no_crm_write", "no_preflight", "no_job", "no_external_send")
     assert protection.reservations == 1
+
+
+def test_free_text_understands_today_prospects_request() -> None:
+    outcome = asyncio.run(use_case(Protection()).execute(command(text="Les prospects du jour")))
+
+    assert outcome.result_code is AssistantResultCode.PLAN_READY
+    assert outcome.intent is not None
+    assert outcome.intent.intent_code is AssistantIntentCode.SCOPE_OPEN_PROSPECTS
 
 
 def test_guided_suggestion_bypasses_provider_quota() -> None:

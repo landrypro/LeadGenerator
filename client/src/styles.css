@@ -1056,10 +1056,33 @@ footer a:hover { color: #147da5; text-decoration: underline; }
 .automation-command textarea {
   box-sizing: border-box;
   margin-top: 0.5rem;
-  min-height: 8rem;
+  min-height: 5rem;
   resize: vertical;
   width: 100%;
 }
+
+.automation-command__field { position: relative; }
+.automation-suggestion-list {
+  position: absolute;
+  z-index: 20;
+  top: calc(100% - 0.5rem);
+  left: 0;
+  right: 0;
+  display: grid;
+  gap: 2px;
+  max-height: 220px;
+  margin: 0;
+  padding: 5px;
+  overflow-y: auto;
+  list-style: none;
+  border: 1px solid #cfe0e6;
+  border-radius: 9px;
+  background: #fff;
+  box-shadow: 0 10px 25px #142b3a22;
+}
+.automation-suggestion-list li { display: grid; gap: 2px; padding: 8px 10px; border-radius: 6px; color: #173746; cursor: pointer; }
+.automation-suggestion-list li:hover, .automation-suggestion-list li[aria-selected='true'] { background: #ecf6f9; }
+.automation-suggestion-list li span { color: #58747f; font-size: 12px; }
 
 .automation-command__footer {
   align-items: center;
@@ -1067,6 +1090,20 @@ footer a:hover { color: #147da5; text-decoration: underline; }
   gap: 1rem;
   justify-content: space-between;
   margin-top: 0.75rem;
+}
+
+.automation-suggestions h2 {
+  margin-top: 0;
+  font-size: 18px;
+}
+.automation-suggestions .button-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.automation-suggestions .secondary-button {
+  padding: 8px 11px;
+  font-size: 11px;
 }
 
 .automation-plan {
@@ -1085,6 +1122,12 @@ footer a:hover { color: #147da5; text-decoration: underline; }
   font-weight: 700;
   margin: 0;
 }
+.automation-result-message { max-width: 760px; color: #58747f; line-height: 1.55; }
+.automation-plan-items { display: grid; gap: 8px; margin: 0 0 18px; padding: 0; list-style: none; }
+.automation-plan-items li { display: grid; gap: 3px; padding: 10px 12px; border: 1px solid #d8e8eb; border-radius: 9px; background: #f7fbfc; }
+.automation-plan-items li strong { color: #315567; font-size: 12px; }
+.automation-plan-items li span { color: #58747f; font-size: 12px; }
+.error-banner .link-button { margin-left: auto; }
 
 /* AUT-COR-01/02 — coque et états honnêtes de l’Automatisation. */
 .automation-workspace { width: min(100%, 1240px); display: grid; grid-template-columns: 236px minmax(0, 1fr); align-items: start; gap: 26px; padding: 28px clamp(25px, 4vw, 58px) 34px; margin: 0 auto; }

@@ -54,18 +54,22 @@ class AutomationOrganizationSettings:
             async with self._sessions.begin() as session:
                 await _set_tenant(session, context)
                 row = (
-                    await session.execute(
-                        text(
-                            """
+                    (
+                        await session.execute(
+                            text(
+                                """
                             SELECT id, organization_id, automation_enabled, suspension_generation,
                                    version, created_at, updated_at
                             FROM public.automation_organization_settings
                             WHERE organization_id = :organization_id
                             """
-                        ),
-                        {"organization_id": context.organization_id},
+                            ),
+                            {"organization_id": context.organization_id},
+                        )
                     )
-                ).mappings().first()
+                    .mappings()
+                    .first()
+                )
         except SQLAlchemyError as error:
             raise AutomationSettingsUnavailable from error
         if row is None:

@@ -11,6 +11,7 @@ const COPY = {
     status: 'Prévol et activation non disponibles', availability: 'Cette organisation ne possède pas encore de configuration active.',
     loading: 'Chargement de la configuration disponible…', error: 'Impossible de charger la configuration des Playbooks. Réessayez plus tard.',
     configured: 'Configuration enregistrée', preflight: 'Dernier Prévol :', states: { draft: 'Brouillon', preflight_required: 'Prévol requis', ready: 'Prêt à vérifier', active_prepare: 'Actif — préparer', suspended: 'Suspendu', retired: 'Retiré' },
+    crmCount: 'Objets CRM correspondants',
     runPreflight: 'Lancer un Prévol', runningPreflight: 'Prévol en cours…', preflightDone: 'Prévol enregistré sans effet CRM ni envoi externe.',
     activate: 'Activer en mode préparer', suspend: 'Suspendre', resume: 'Reprendre : nouveau Prévol requis',
     confirm: 'Confirmer', cancel: 'Annuler', confirmTransition: 'Confirmez cette transition. Elle ne crée aucun effet CRM ni envoi externe.',
@@ -27,6 +28,7 @@ const COPY = {
     status: 'Preflight and activation are unavailable', availability: 'This organization does not yet have an active configuration.',
     loading: 'Loading available configuration…', error: 'Unable to load Playbook configuration. Try again later.',
     configured: 'Configuration recorded', preflight: 'Latest Preflight:', states: { draft: 'Draft', preflight_required: 'Preflight required', ready: 'Ready to review', active_prepare: 'Active — prepare', suspended: 'Suspended', retired: 'Retired' },
+    crmCount: 'Matching CRM objects',
     runPreflight: 'Run Preflight', runningPreflight: 'Preflight running…', preflightDone: 'Preflight recorded without a CRM effect or external send.',
     activate: 'Activate in prepare mode', suspend: 'Suspend', resume: 'Resume: new Preflight required',
     confirm: 'Confirm', cancel: 'Cancel', confirmTransition: 'Confirm this transition. It creates no CRM effect or external send.',
@@ -65,6 +67,7 @@ export function AutomationPlaybooksPage({ session }) {
   }, [copy.error, locale])
 
   const configuredByCode = new Map((page.items || []).map(item => [item.code, item]))
+  const liveScopes = page.live_scopes || {}
   const canRunPreflight = page.preflight_enabled === true
     && (session.capabilities?.includes('automation:preflights:run') ?? false)
   const canActivate = page.lifecycle_enabled === true
@@ -133,6 +136,7 @@ export function AutomationPlaybooksPage({ session }) {
         const availability = item
           ? `${copy.configured} · ${state}${item.latest_preflight_state ? ` · ${copy.preflight} ${item.latest_preflight_state}` : ''}`
           : copy.availability
+        const liveScope = liveScopes[['new_prospect', 'proposal_pending', 'forgotten_opportunity'][index]]
         const command = item?.state === 'ready' && canActivate
           ? 'activate'
           : item?.state === 'active_prepare' && canSuspend
@@ -145,6 +149,7 @@ export function AutomationPlaybooksPage({ session }) {
         <p>{description}</p>
         <p className="automation-unavailable-status">{state}</p>
         <p className="form-help">{availability}</p>
+        {liveScope && <p className="form-help">{copy.crmCount} : {liveScope.subject_count ?? 0}</p>}
         {item && canRunPreflight && <button
           type="button"
           className="secondary-button"

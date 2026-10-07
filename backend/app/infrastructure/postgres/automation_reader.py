@@ -37,15 +37,21 @@ class AutomationReader:
         context: TenantContext,
         *,
         organization_scope: bool,
+        membership_id: UUID | None = None,
         limit: int,
         cursor: UUID | None,
     ) -> dict[str, Any]:
         # La configuration d'un Playbook est une donnée d'organisation. Les
         # commerciaux obtiennent le catalogue local côté client, sans révéler
-        # l'état, les versions ni les Prévols de leur organisation.
-        if not organization_scope:
-            return {"items": [], "next_cursor": None}
+        # l'état, les versions ni les Prévols de leur organisation. Les
+        # volumes CRM restent toutefois visibles car ils sont une projection
+        # de lecture, non une configuration Automation.
         try:
+            live_scopes = await self.live_playbook_scopes(
+                context, membership_id=membership_id or context.actor_id, organization_scope=organization_scope
+            )
+            if not organization_scope:
+                return {"items": [], "next_cursor": None, "live_scopes": live_scopes}
             async with SqlAlchemyTenantUnitOfWork(self._sessions, context, snapshot_readonly=True) as unit:
                 anchor = await self._anchor(unit.session, "automation_playbooks", cursor) if cursor else None
                 rows = (
@@ -92,12 +98,196 @@ class AutomationReader:
                 )
         except SQLAlchemyError as error:
             raise AutomationReadUnavailable from error
-        return _page(rows, limit)
+        page = _page(rows, limit)
+        page["live_scopes"] = live_scopes
+        return page
+
+    async def get_today(
+        self,
+        context: TenantContext,
+        *,
+        membership_id: UUID,
+        organization_scope: bool,
+        limit: int = 5,
+    ) -> dict[str, Any]:
+        """Read-only projection of the CRM objects that merit attention today."""
+        scope = "(:organization_scope OR p.owner_id = :membership_id)"
+        task_scope = "(:organization_scope OR t.assigned_membership_id = :membership_id)"
+        opportunity_scope = "(:organization_scope OR o.owner_membership_id = :membership_id)"
+        params = {
+            "organization_scope": organization_scope,
+            "membership_id": membership_id,
+            "limit": limit,
+        }
+        try:
+            async with SqlAlchemyTenantUnitOfWork(self._sessions, context, snapshot_readonly=True) as unit:
+                counts = (
+                    (
+                        await unit.session.execute(
+                            text(
+                                f"""
+                            SELECT
+                              (SELECT count(*) FROM prospects p
+                               WHERE p.archived_at IS NULL
+                                 AND p.stage_code NOT IN ('won', 'lost', 'archived')
+                                 AND {scope}) AS open_prospects,
+                              (SELECT count(*) FROM prospect_tasks t
+                               JOIN prospects p ON p.organization_id = t.organization_id AND p.id = t.prospect_id
+                               WHERE t.status = 'open' AND t.due_at <= CURRENT_TIMESTAMP
+                                 AND p.archived_at IS NULL AND {task_scope}) AS due_tasks,
+                              (SELECT count(*) FROM prospect_tasks t
+                               JOIN prospects p ON p.organization_id = t.organization_id AND p.id = t.prospect_id
+                               WHERE t.status = 'open' AND t.due_at < CURRENT_TIMESTAMP
+                                 AND p.archived_at IS NULL AND {task_scope}) AS overdue_tasks,
+                              (SELECT count(*) FROM opportunities o
+                               JOIN prospects p ON p.organization_id = o.organization_id AND p.id = o.prospect_id
+                               WHERE o.stage_code NOT IN ('won', 'lost')
+                                 AND p.archived_at IS NULL AND {opportunity_scope}) AS open_opportunities
+                            """
+                            ),
+                            params,
+                        )
+                    )
+                    .mappings()
+                    .one()
+                )
+                task_rows = (
+                    (
+                        await unit.session.execute(
+                            text(
+                                f"""
+                                SELECT t.id, t.title AS label, t.priority, t.due_at,
+                                       p.id AS prospect_id, p.internal_alias AS prospect_label,
+                                       'task' AS kind, 'open' AS stage
+                                FROM prospect_tasks t
+                                JOIN prospects p ON p.organization_id = t.organization_id AND p.id = t.prospect_id
+                                WHERE t.status = 'open' AND p.archived_at IS NULL AND {task_scope}
+                                ORDER BY t.due_at ASC, t.priority DESC, t.id
+                                LIMIT :limit
+                                """
+                            ),
+                            params,
+                        )
+                    )
+                    .mappings()
+                    .all()
+                )
+                prospect_rows = (
+                    (
+                        await unit.session.execute(
+                            text(
+                                f"""
+                                SELECT p.id, p.internal_alias AS label, p.priority, p.updated_at,
+                                       p.stage_code AS stage, 'prospect' AS kind
+                                FROM prospects p
+                                WHERE p.archived_at IS NULL
+                                  AND p.stage_code NOT IN ('won', 'lost', 'archived')
+                                  AND {scope}
+                                ORDER BY p.priority DESC, p.updated_at DESC, p.id
+                                LIMIT :limit
+                                """
+                            ),
+                            params,
+                        )
+                    )
+                    .mappings()
+                    .all()
+                )
+                opportunity_rows = (
+                    (
+                        await unit.session.execute(
+                            text(
+                                f"""
+                                SELECT o.id, o.name AS label, o.stage_code AS stage,
+                                       o.expected_close_on, p.internal_alias AS prospect_label,
+                                       'opportunity' AS kind
+                                FROM opportunities o
+                                JOIN prospects p ON p.organization_id = o.organization_id AND p.id = o.prospect_id
+                                WHERE o.stage_code NOT IN ('won', 'lost')
+                                  AND p.archived_at IS NULL AND {opportunity_scope}
+                                ORDER BY o.expected_close_on ASC, o.updated_at DESC, o.id
+                                LIMIT :limit
+                                """
+                            ),
+                            params,
+                        )
+                    )
+                    .mappings()
+                    .all()
+                )
+        except SQLAlchemyError as error:
+            raise AutomationReadUnavailable from error
+
+        items = [dict(row) for row in (*task_rows, *prospect_rows, *opportunity_rows)]
+        items.sort(
+            key=lambda item: (
+                str(item.get("due_at") or item.get("expected_close_on") or item.get("updated_at") or ""),
+                item["kind"],
+            )
+        )
+        return {
+            "counts": {
+                key: int(counts[key] or 0)
+                for key in ("open_prospects", "due_tasks", "overdue_tasks", "open_opportunities")
+            },
+            "items": items[:limit],
+        }
+
+    async def live_playbook_scopes(
+        self, context: TenantContext, *, membership_id: UUID, organization_scope: bool
+    ) -> dict[str, dict[str, int]]:
+        """Return counts from canonical CRM tables without creating playbook rows."""
+        prospect_scope = "(:organization_scope OR p.owner_id = :membership_id)"
+        opportunity_scope = "(:organization_scope OR o.owner_membership_id = :membership_id)"
+        params = {"organization_scope": organization_scope, "membership_id": membership_id}
+        try:
+            async with SqlAlchemyTenantUnitOfWork(self._sessions, context, snapshot_readonly=True) as unit:
+                row = (
+                    (
+                        await unit.session.execute(
+                            text(
+                                f"""
+                            SELECT
+                              (SELECT count(*) FROM prospects p
+                               WHERE p.archived_at IS NULL AND p.stage_code = 'new' AND {prospect_scope}) AS new_prospect,
+                              (SELECT count(*) FROM opportunities o
+                               JOIN prospects p ON p.organization_id = o.organization_id AND p.id = o.prospect_id
+                               WHERE o.stage_code = 'proposal' AND p.archived_at IS NULL AND {opportunity_scope}) AS proposal_pending,
+                              (SELECT count(*) FROM opportunities o
+                               JOIN prospects p ON p.organization_id = o.organization_id AND p.id = o.prospect_id
+                               WHERE o.stage_code IN ('discovery', 'qualification', 'proposal', 'negotiation')
+                                 AND p.archived_at IS NULL AND {opportunity_scope}
+                                 AND NOT EXISTS (
+                                   SELECT 1 FROM prospect_activities a
+                                   WHERE a.organization_id = o.organization_id AND a.prospect_id = o.prospect_id
+                                     AND a.occurred_at >= CURRENT_TIMESTAMP - INTERVAL '14 days'
+                                 )
+                                 AND NOT EXISTS (
+                                   SELECT 1 FROM prospect_tasks t
+                                   WHERE t.organization_id = o.organization_id AND t.prospect_id = o.prospect_id
+                                     AND t.status = 'open'
+                                 )) AS forgotten_opportunity
+                            """
+                            ),
+                            params,
+                        )
+                    )
+                    .mappings()
+                    .one()
+                )
+        except SQLAlchemyError as error:
+            raise AutomationReadUnavailable from error
+        return {
+            code: {"subject_count": int(row[code] or 0)}
+            for code in ("new_prospect", "proposal_pending", "forgotten_opportunity")
+        }
 
     async def get_playbook(
-        self, context: TenantContext, *, code: str, organization_scope: bool
+        self, context: TenantContext, *, code: str, organization_scope: bool, membership_id: UUID | None = None
     ) -> dict[str, Any] | None:
-        page = await self.list_playbooks(context, organization_scope=organization_scope, limit=100, cursor=None)
+        page = await self.list_playbooks(
+            context, organization_scope=organization_scope, membership_id=membership_id, limit=100, cursor=None
+        )
         return next((item for item in page["items"] if item["code"] == code), None)
 
     async def list_exceptions(
@@ -120,8 +310,14 @@ class AutomationReader:
                                 """
                             SELECT e.id, e.decision_id, e.subject_type, e.subject_id, e.exception_code,
                                    e.state, e.assigned_membership_id, e.resolution_code, e.version,
+                                   COALESCE(pr.internal_alias, op.name) AS subject_label,
+                                   COALESCE(pr.stage_code, op.stage_code) AS subject_stage,
                                    e.created_at, e.updated_at
                             FROM automation_exceptions e
+                            LEFT JOIN prospects pr ON e.subject_type = 'prospect'
+                              AND pr.organization_id = e.organization_id AND pr.id = e.subject_id
+                            LEFT JOIN opportunities op ON e.subject_type = 'opportunity'
+                              AND op.organization_id = e.organization_id AND op.id = e.subject_id
                             WHERE (:organization_scope OR e.assigned_membership_id = :membership_id
                                    OR (e.state = 'open' AND e.assigned_membership_id IS NULL))
                               AND (CAST(:state AS text) IS NULL OR e.state = CAST(:state AS text))
@@ -163,12 +359,19 @@ class AutomationReader:
                         await unit.session.execute(
                             text(
                                 """
-                            SELECT id, decision_id, subject_type, subject_id, exception_code, state,
-                                   assigned_membership_id, resolution_code, version, created_at, updated_at
-                            FROM automation_exceptions
-                            WHERE id = :id
-                              AND (:organization_scope OR assigned_membership_id = :membership_id
-                                   OR (state = 'open' AND assigned_membership_id IS NULL))
+                            SELECT e.id, e.decision_id, e.subject_type, e.subject_id, e.exception_code, e.state,
+                                   e.assigned_membership_id, e.resolution_code, e.version,
+                                   COALESCE(pr.internal_alias, op.name) AS subject_label,
+                                   COALESCE(pr.stage_code, op.stage_code) AS subject_stage,
+                                   e.created_at, e.updated_at
+                            FROM automation_exceptions e
+                            LEFT JOIN prospects pr ON e.subject_type = 'prospect'
+                              AND pr.organization_id = e.organization_id AND pr.id = e.subject_id
+                            LEFT JOIN opportunities op ON e.subject_type = 'opportunity'
+                              AND op.organization_id = e.organization_id AND op.id = e.subject_id
+                            WHERE e.id = :id
+                              AND (:organization_scope OR e.assigned_membership_id = :membership_id
+                                   OR (e.state = 'open' AND e.assigned_membership_id IS NULL))
                             """
                             ),
                             {

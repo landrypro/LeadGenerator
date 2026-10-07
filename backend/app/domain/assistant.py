@@ -4,8 +4,10 @@ from __future__ import annotations
 
 from collections.abc import Mapping
 from dataclasses import dataclass
+from datetime import datetime
 from enum import StrEnum
-from typing import Final
+from typing import Final, Literal
+from uuid import UUID
 
 
 class AssistantValidationError(ValueError):
@@ -58,6 +60,7 @@ GUIDED_ASSISTANT_INTENTS: Final = (
     AssistantIntentCode.REBALANCE_OPEN_PROSPECTS,
     AssistantIntentCode.PREPARE_NEW_PROSPECT_FOLLOWUP,
 )
+ASSISTANT_PLAN_ITEM_LIMIT: Final = 5
 ASSISTANT_INTENT_FIELDS: Final = frozenset(
     {
         "schema_version",
@@ -92,6 +95,20 @@ class AssistantPlan:
     control_codes: tuple[str, ...]
     not_performed_codes: tuple[str, ...]
     next_step_code: str
+    items: tuple[AssistantPlanItem, ...] = ()
+    next_cursor: str | None = None
+
+
+@dataclass(frozen=True, slots=True)
+class AssistantPlanItem:
+    """Minimal CRM projection that can be shown in a read-only plan."""
+
+    id: UUID
+    kind: Literal["prospect"]
+    label: str
+    stage: str
+    priority: int
+    updated_at: datetime
 
 
 @dataclass(frozen=True, slots=True)

@@ -9,6 +9,7 @@ from uuid import UUID
 
 from ...domain.assistant import (
     ACTIVE_ASSISTANT_INTENTS,
+    ASSISTANT_PLAN_ITEM_LIMIT,
     GUIDED_ASSISTANT_INTENTS,
     AssistantFallbackReason,
     AssistantIntent,
@@ -50,6 +51,7 @@ class CreateAssistantPlanCommand:
     user_text: str | None
     suggestion_code: str | None
     can_read_organization: bool
+    rollout_enabled: bool = True
 
 
 class CreateAssistantPlanUseCase:
@@ -77,7 +79,11 @@ class CreateAssistantPlanUseCase:
         self._metrics = metrics or NullMetricsRecorder()
 
     async def execute(self, command: CreateAssistantPlanCommand) -> AssistantPlanOutcome:
-        if not self._global_enabled or not await self._reader.organization_enabled(command.context):
+        if (
+            not self._global_enabled
+            or not command.rollout_enabled
+            or not await self._reader.organization_enabled(command.context)
+        ):
             raise AssistantDisabled
         if command.locale not in {"fr-CA", "en-CA"}:
             raise AssistantCommandInvalid("La locale Assistant est invalide.")
@@ -179,6 +185,7 @@ class CreateAssistantPlanUseCase:
             collective=(
                 command.can_read_organization and intent.intent_code is AssistantIntentCode.REBALANCE_OPEN_PROSPECTS
             ),
+            item_limit=min(intent.scope_limit, ASSISTANT_PLAN_ITEM_LIMIT),
         )
         if not snapshot.organization_enabled:
             raise AssistantDisabled
@@ -193,6 +200,8 @@ class CreateAssistantPlanUseCase:
                 control_codes=("read_only", "server_resolved_scope", "no_provider_tools"),
                 not_performed_codes=("no_crm_write", "no_preflight", "no_job", "no_external_send"),
                 next_step_code="review_plan",
+                items=snapshot.items,
+                next_cursor=snapshot.next_cursor,
             ),
             suggestion_codes=(),
         )

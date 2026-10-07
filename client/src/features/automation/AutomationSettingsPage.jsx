@@ -42,7 +42,7 @@ export function AutomationSettingsPage({ session, onAutomationAvailabilityChange
     try {
       const nextSettings = await automationApi.getSettings(signal)
       setSettings(nextSettings)
-      onAutomationAvailabilityChanged?.(nextSettings.effective_enabled === true)
+      onAutomationAvailabilityChanged?.(nextSettings)
     } catch (cause) { if (cause?.name !== 'AbortError') setError(toUserMessage(cause, copy.unavailable)) }
     finally { if (!signal?.aborted) setLoading(false) }
   }, [copy.unavailable, onAutomationAvailabilityChanged])
@@ -59,7 +59,7 @@ export function AutomationSettingsPage({ session, onAutomationAvailabilityChange
     try {
       const updated = await automationApi.updateSettings(pendingValue, settings.item.version)
       setSettings(current => ({ ...current, ...updated }))
-      onAutomationAvailabilityChanged?.(updated.effective_enabled === true)
+      onAutomationAvailabilityChanged?.(updated)
       setPendingValue(null)
       setNotice(copy.saved)
     } catch (cause) {

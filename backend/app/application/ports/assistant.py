@@ -6,7 +6,7 @@ from datetime import datetime
 from typing import Literal, Protocol
 from uuid import UUID
 
-from ...domain.assistant import AssistantIntentCode, AssistantScopeKind
+from ...domain.assistant import AssistantIntentCode, AssistantPlanItem, AssistantScopeKind
 from ..tenancy import TenantContext
 
 
@@ -59,6 +59,8 @@ class AssistantProtection(Protocol):
 class AssistantScopeSnapshot:
     resolved_count: int | None
     organization_enabled: bool
+    items: tuple[AssistantPlanItem, ...] = ()
+    next_cursor: str | None = None
 
 
 class AssistantScopeReader(Protocol):
@@ -72,6 +74,7 @@ class AssistantScopeReader(Protocol):
         intent_code: AssistantIntentCode,
         scope_kind: AssistantScopeKind,
         collective: bool,
+        item_limit: int = 5,
     ) -> AssistantScopeSnapshot: ...
 
 

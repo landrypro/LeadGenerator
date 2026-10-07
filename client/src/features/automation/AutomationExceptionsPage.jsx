@@ -14,6 +14,7 @@ const COPY = {
     notice: 'Cet état est une absence de donnée confirmée. Un problème de chargement sera affiché comme une erreur récupérable, et non comme un état vide.',
     loading: 'Chargement des entrées et exceptions…', error: 'Impossible de charger les entrées et exceptions. Réessayez plus tard.',
     currentTitle: 'Entrées et exceptions à traiter', stateLabels: { open: 'Ouverte', in_progress: 'En traitement', resolved: 'Résolue', abandoned: 'Abandonnée' },
+    subject: 'Objet CRM',
     claim: 'Prendre en charge', resolve: 'Résoudre', abandon: 'Abandonner', reconcile: 'Réconcilier sans retry',
     confirm: 'Confirmer', cancel: 'Annuler', confirmText: 'Confirmez cette décision humaine. Aucun effet CRM ni retry automatique ne sera déclenché.',
     actionDone: 'Exception mise à jour sans effet CRM ni retry automatique.',
@@ -26,6 +27,7 @@ const COPY = {
     notice: 'This is a confirmed absence of data. A loading problem will be displayed as a recoverable error, not as an empty state.',
     loading: 'Loading entries and exceptions…', error: 'Unable to load entries and exceptions. Try again later.',
     currentTitle: 'Entries and exceptions to review', stateLabels: { open: 'Open', in_progress: 'In progress', resolved: 'Resolved', abandoned: 'Abandoned' },
+    subject: 'CRM object',
     claim: 'Claim', resolve: 'Resolve', abandon: 'Abandon', reconcile: 'Reconcile without retry',
     confirm: 'Confirm', cancel: 'Cancel', confirmText: 'Confirm this human decision. No CRM effect or automatic retry will be triggered.',
     actionDone: 'Exception updated without a CRM effect or automatic retry.',
@@ -105,7 +107,10 @@ export function AutomationExceptionsPage({ session }) {
       <h2 id="automation-exceptions-current-title">{copy.currentTitle}</h2>
       <ul className="automation-state-list">
         {page.items.map(item => <li key={item.id} className="automation-exception-item">
-          <strong>{item.exception_code}</strong> · {copy.stateLabels[item.state] || item.state}
+          <strong>{item.subject_label || item.exception_code}</strong>
+          {item.subject_label && <span className="form-help">{copy.subject} · {item.exception_code}</span>}
+          {!item.subject_label && <> · {copy.stateLabels[item.state] || item.state}</>}
+          {item.subject_label && <> · {copy.stateLabels[item.state] || item.state}</>}
           {pendingCommand?.id !== item.id && commandsFor(item).map(command => <button
             key={command}
             type="button"

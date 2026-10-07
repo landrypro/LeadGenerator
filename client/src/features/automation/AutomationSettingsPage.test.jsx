@@ -17,6 +17,7 @@ const settings = {
   schema_version: 1,
   global_enabled: true,
   assistant_enabled: true,
+  assistant_available: false,
   rollout_mode: 'all',
   effective_enabled: false,
   item: {
@@ -37,6 +38,7 @@ describe('AutomationSettingsPage', () => {
     automationApi.updateSettings.mockResolvedValue({
       ...settings,
       effective_enabled: true,
+      assistant_available: true,
       item: { ...settings.item, automation_enabled: true, version: 2 },
     })
     render(<AutomationSettingsPage session={session()} onAutomationAvailabilityChanged={onAutomationAvailabilityChanged} />)
@@ -48,7 +50,10 @@ describe('AutomationSettingsPage', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Confirmer' }))
 
     await waitFor(() => expect(automationApi.updateSettings).toHaveBeenCalledWith(true, 1))
-    expect(onAutomationAvailabilityChanged).toHaveBeenCalledWith(true)
+    expect(onAutomationAvailabilityChanged).toHaveBeenLastCalledWith(expect.objectContaining({
+      effective_enabled: true,
+      assistant_available: true,
+    }))
     expect(await screen.findByRole('status')).toHaveTextContent('enregistrés')
   })
 

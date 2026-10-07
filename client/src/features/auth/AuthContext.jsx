@@ -33,7 +33,11 @@ export function AuthProvider({ children }) {
     if (nextSession.active_organization && canReadAutomation && typeof authApi.getAutomationAvailability === 'function') {
       try {
         const availability = await authApi.getAutomationAvailability(signal)
-        installedSession = { ...nextSession, automation_available: availability.effective_enabled === true }
+        installedSession = {
+          ...nextSession,
+          automation_available: availability.effective_enabled === true,
+          automation_assistant_available: availability.assistant_available === true,
+        }
       } catch (error) {
         if (error?.name === 'AbortError') throw error
         // Do not make a failed availability probe log the user out. The route
@@ -134,8 +138,18 @@ export function AuthProvider({ children }) {
     })
   }, [])
 
-  const updateAutomationAvailability = useCallback((available) => {
-    setSession((currentSession) => currentSession ? { ...currentSession, automation_available: available === true } : currentSession)
+  const updateAutomationAvailability = useCallback((availability) => {
+    setSession((currentSession) => {
+      if (!currentSession) return currentSession
+      if (typeof availability === 'boolean') {
+        return { ...currentSession, automation_available: availability }
+      }
+      return {
+        ...currentSession,
+        automation_available: availability?.effective_enabled === true,
+        automation_assistant_available: availability?.assistant_available === true,
+      }
+    })
   }, [])
 
   const value = useMemo(

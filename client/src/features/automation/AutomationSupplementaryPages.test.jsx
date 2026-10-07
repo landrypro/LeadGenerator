@@ -32,6 +32,22 @@ describe('coque Automatisation et états honnêtes', () => {
     expect(screen.getByText(/Aucun envoi externe/i)).toBeInTheDocument()
   })
 
+  it('affiche les volumes CRM sans créer de configuration Playbook', async () => {
+    automationApi.listPlaybooks.mockResolvedValue({
+      items: [],
+      live_scopes: {
+        new_prospect: { subject_count: 3 },
+        proposal_pending: { subject_count: 1 },
+        forgotten_opportunity: { subject_count: 0 },
+      },
+    })
+    render(<AutomationPlaybooksPage session={session} />)
+
+    expect(await screen.findAllByText(/Objets CRM correspondants/)).toHaveLength(3)
+    expect(screen.getByText('Objets CRM correspondants : 3')).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: /Activer|Suspendre|Prévol/ })).not.toBeInTheDocument()
+  })
+
   it('distingue un état vide d’une promesse de traitement automatique', async () => {
     render(<AutomationExceptionsPage session={session} />)
 
@@ -61,7 +77,7 @@ describe('coque Automatisation et états honnêtes', () => {
       items: [{ code: 'new_prospect', state: 'preflight_required', latest_preflight_state: 'valid' }],
     })
     automationApi.listExceptions.mockResolvedValue({
-      items: [{ id: 'exception-1', exception_code: 'owner_unavailable', state: 'open' }],
+      items: [{ id: 'exception-1', exception_code: 'owner_unavailable', subject_label: 'Atelier Alpha', subject_stage: 'new', state: 'open' }],
     })
 
     const { unmount } = render(<AutomationPlaybooksPage session={session} />)
@@ -72,7 +88,9 @@ describe('coque Automatisation et états honnêtes', () => {
 
     render(<AutomationExceptionsPage session={session} />)
     expect(await screen.findByRole('heading', { name: 'Entrées et exceptions à traiter' })).toBeInTheDocument()
-    expect(screen.getByRole('listitem')).toHaveTextContent('owner_unavailable · Ouverte')
+    expect(screen.getByRole('listitem')).toHaveTextContent('Atelier Alpha')
+    expect(screen.getByRole('listitem')).toHaveTextContent('owner_unavailable')
+    expect(screen.getByRole('listitem')).toHaveTextContent('Ouverte')
   })
 
   it('autorise seulement le Prévol persistant aux rôles habilités, sans action d’activation', async () => {

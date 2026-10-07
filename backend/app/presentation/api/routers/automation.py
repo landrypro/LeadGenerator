@@ -20,6 +20,7 @@ from ....application.use_cases.assistant import (
     AssistantDisabled,
     CreateAssistantPlanCommand,
 )
+from ....domain.assistant_catalog import ASSISTANT_SUGGESTION_CODES, catalog_entry
 from ....domain.identity import MembershipIdentity, capabilities_for
 from ....infrastructure.postgres.automation_exception_resolution import (
     AutomationExceptionRejected,
@@ -157,6 +158,7 @@ async def get_automation_availability(request: Request, container: ContainerDepe
     organization_enabled = bool(item.automation_enabled)
     global_enabled = bool(container.settings.automation_enabled)
     rollout_enabled = bool(container.settings.automation_rollout_enabled_for(membership.organization_id))
+    assistant_enabled = bool(container.settings.automation_assistant_enabled)
     return JSONResponse(
         {
             "schema_version": 1,
@@ -164,9 +166,78 @@ async def get_automation_availability(request: Request, container: ContainerDepe
             "organization_enabled": organization_enabled,
             "rollout_enabled": rollout_enabled,
             "effective_enabled": global_enabled and rollout_enabled and organization_enabled,
+            # The Automation workspace can remain readable while plan preparation is
+            # deliberately closed. Clients must use this dedicated switch before
+            # exposing the Assistant command form.
+            "assistant_available": global_enabled and assistant_enabled and rollout_enabled and organization_enabled,
         },
         headers=NO_STORE_HEADERS,
     )
+
+
+@router.get("/suggestions")
+async def list_assistant_suggestions(request: Request, container: ContainerDependency) -> Response:
+    """Expose the closed Assistant catalogue for the active tenant and locale."""
+    try:
+        _authentication, membership, capabilities, context = await _read_context(request, container)
+        if "automation:plan:create" not in capabilities:
+            raise PermissionError
+        if container.automation_settings is None:
+            raise AutomationSettingsUnavailable
+        item = await container.automation_settings.get(context=context)
+        if not _assistant_available(
+            container,
+            membership.organization_id,
+            organization_enabled=bool(item.automation_enabled),
+        ):
+            raise AssistantDisabled
+        items = [
+            {
+                "code": entry.code.value,
+                "label": entry.label(membership.organization_locale),
+                "prompt": entry.prompt(membership.organization_locale),
+                "scope_kind": entry.scope_kind.value,
+                "required_capability": entry.required_capability,
+            }
+            for code in ASSISTANT_SUGGESTION_CODES
+            if (entry := catalog_entry(code)).required_capability in capabilities
+        ]
+    except AssistantDisabled:
+        return api_error(request, 409, "automation_assistant_disabled", "L’assistant est désactivé.")
+    except Exception as error:
+        response = _read_error(request, error)
+        if response is not None:
+            return response
+        raise
+    return JSONResponse(
+        {"schema_version": 1, "items": items},
+        headers=NO_STORE_HEADERS,
+    )
+
+
+@router.get("/today")
+async def get_today(request: Request, container: ContainerDependency) -> Response:
+    """Expose a bounded, tenant-scoped projection of live CRM priorities."""
+    try:
+        _authentication, membership, capabilities, context = await _read_context(request, container)
+        reader = _reader(container)
+        method = getattr(reader, "get_today", None)
+        payload = (
+            await method(
+                context,
+                membership_id=membership.id,
+                organization_scope="automation:read:organization" in capabilities,
+                limit=5,
+            )
+            if method is not None
+            else {"counts": {}, "items": []}
+        )
+    except Exception as error:
+        response = _read_error(request, error)
+        if response is not None:
+            return response
+        raise
+    return JSONResponse(jsonable_encoder({"schema_version": 1, **payload}), headers=NO_STORE_HEADERS)
 
 
 @router.patch("/settings")
@@ -209,6 +280,7 @@ async def list_playbooks(request: Request, container: ContainerDependency) -> Re
         page = await _reader(container).list_playbooks(
             context,
             organization_scope="automation:read:organization" in capabilities,
+            membership_id=membership.id,
             limit=_read_limit(params),
             cursor=_read_cursor(params),
         )
@@ -252,6 +324,7 @@ async def get_playbook(code: str, request: Request, container: ContainerDependen
             context,
             code=code,
             organization_scope="automation:read:organization" in capabilities,
+            membership_id=membership.id,
         )
         if item is None:
             raise LookupError
@@ -282,10 +355,7 @@ async def run_preflight(
         capabilities = capabilities_for(authentication.identity.user, membership)
         if membership is None or not membership.is_active or "automation:preflights:run" not in capabilities:
             raise PermissionError
-        if (
-            container.settings.automation_rollout_mode != "all"
-            and not container.settings.automation_rollout_enabled_for(membership.organization_id)
-        ):
+        if not container.settings.automation_rollout_enabled_for(membership.organization_id):
             raise AutomationPreflightDisabled
         if container.automation_preflight_runner is None:
             raise AutomationPreflightUnavailable
@@ -572,6 +642,7 @@ async def create_intent_plan(
                 user_text=payload.user_text,
                 suggestion_code=payload.suggestion_code,
                 can_read_organization="automation:read:organization" in capabilities,
+                rollout_enabled=container.settings.automation_rollout_enabled_for(membership.organization_id),
             )
         )
     except AuthenticationRequired:
@@ -594,7 +665,7 @@ async def create_intent_plan(
         if str(error) != "assistant_unavailable":
             raise
         return api_error(request, 503, "assistant_unavailable", "L’assistant est indisponible.")
-    return JSONResponse(_outcome_payload(outcome), headers=NO_STORE_HEADERS)
+    return JSONResponse(jsonable_encoder(_outcome_payload(outcome)), headers=NO_STORE_HEADERS)
 
 
 def _outcome_payload(outcome: object) -> dict[str, object]:
@@ -625,6 +696,18 @@ def _outcome_payload(outcome: object) -> dict[str, object]:
                 "title_key": plan.title_key,
                 "resolved_count": plan.resolved_count,
                 "bounded_count": plan.bounded_count,
+                "items": [
+                    {
+                        "id": item.id,
+                        "kind": item.kind,
+                        "label": item.label,
+                        "stage": item.stage,
+                        "priority": item.priority,
+                        "updated_at": item.updated_at,
+                    }
+                    for item in plan.items
+                ],
+                "next_cursor": plan.next_cursor,
                 "control_codes": list(plan.control_codes),
                 "not_performed_codes": list(plan.not_performed_codes),
                 "next_step_code": plan.next_step_code,
@@ -695,9 +778,33 @@ def _settings_payload(container: ContainerDependency, item: object) -> dict[str,
         },
         "global_enabled": container.settings.automation_enabled,
         "assistant_enabled": container.settings.automation_assistant_enabled,
+        "assistant_available": _assistant_available(
+            container,
+            value.organization_id,
+            organization_enabled=value.automation_enabled,
+        ),
         "rollout_mode": container.settings.automation_rollout_mode,
-        "effective_enabled": container.settings.automation_enabled and value.automation_enabled,
+        "effective_enabled": (
+            container.settings.automation_enabled
+            and container.settings.automation_rollout_enabled_for(value.organization_id)
+            and value.automation_enabled
+        ),
     }
+
+
+def _assistant_available(
+    container: ContainerDependency,
+    organization_id: UUID,
+    *,
+    organization_enabled: bool,
+) -> bool:
+    """Return the single server-side eligibility rule for Assistant reads and plans."""
+    return bool(
+        container.settings.automation_enabled
+        and container.settings.automation_assistant_enabled
+        and container.settings.automation_rollout_enabled_for(organization_id)
+        and organization_enabled
+    )
 
 
 def _reader(container: ContainerDependency) -> AutomationReader:
@@ -727,10 +834,7 @@ async def _transition_playbook(
         capability = "automation:playbooks:suspend" if command == "suspend" else "automation:playbooks:activate"
         if membership is None or not membership.is_active or capability not in capabilities:
             raise PermissionError
-        if (
-            container.settings.automation_rollout_mode != "all"
-            and not container.settings.automation_rollout_enabled_for(membership.organization_id)
-        ):
+        if not container.settings.automation_rollout_enabled_for(membership.organization_id):
             raise AutomationLifecycleDisabled
         outcome = await _lifecycle(container).transition(
             context=TenantContext(
@@ -999,7 +1103,9 @@ def _read_error(request: Request, error: Exception) -> JSONResponse | None:
     if isinstance(error, AutomationReadUnavailable):
         return api_error(request, 503, "automation_read_unavailable", "Lecture Automation indisponible.")
     if isinstance(error, AutomationSettingsUnavailable):
-        return api_error(request, 503, "automation_settings_unavailable", "Les paramètres Automation sont indisponibles.")
+        return api_error(
+            request, 503, "automation_settings_unavailable", "Les paramètres Automation sont indisponibles."
+        )
     return None
 
 
@@ -1021,7 +1127,9 @@ def _settings_error(request: Request, error: Exception) -> JSONResponse | None:
             fields={"version": str(error.current_version)},
         )
     if isinstance(error, AutomationSettingsUnavailable):
-        return api_error(request, 503, "automation_settings_unavailable", "Les paramètres Automation sont indisponibles.")
+        return api_error(
+            request, 503, "automation_settings_unavailable", "Les paramètres Automation sont indisponibles."
+        )
     if isinstance(error, ValueError):
         return api_error(request, 422, "automation_settings_invalid", "Les paramètres Automation sont invalides.")
     return None
