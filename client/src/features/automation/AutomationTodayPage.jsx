@@ -11,10 +11,10 @@ const COPY = {
     title: 'Automatisation — Aujourd’hui', intro: 'Décrivez ce que vous souhaitez examiner. L’assistant prépare uniquement un plan en lecture seule.',
     label: 'Votre demande', placeholder: 'Ex. : montre-moi les prospects ouverts qui me sont attribués', submit: 'Préparer un plan', loading: 'Préparation…',
     suggestions: 'Suggestions guidées', scope_open_prospects: 'Cadrer mes prospects ouverts', rebalance_open_prospects: 'Étudier un rééquilibrage', prepare_new_prospect_followup: 'Préparer le suivi des nouveaux prospects',
-    ready: 'Plan proposé', clarification_required: 'Précisez votre demande', intent_not_supported: 'Cette demande n’est pas prise en charge dans IMP-A5.', fallback_guided: 'Le mode libre est temporairement indisponible. Utilisez une suggestion guidée.', scopeLabel: 'Périmètre examiné :', scopeAssigned: 'prospects ouverts qui vous sont attribués', scopeOrganization: 'prospects ouverts de l’organisation active', scopeNew: 'nouveaux prospects de votre périmètre', scopeStatus: 'état de l’automatisation',
+    ready: 'Plan proposé', clarification_required: 'Précisez votre demande', intent_not_supported: 'Cette demande n’est pas prise en charge par l’automatisation.', fallback_guided: 'Le mode libre est temporairement indisponible. Utilisez une suggestion guidée.', scopeLabel: 'Périmètre examiné :', scopeAssigned: 'prospects ouverts qui vous sont attribués', scopeOrganization: 'prospects ouverts de l’organisation active', scopeNew: 'nouveaux prospects de votre périmètre', scopeStatus: 'état de l’automatisation',
     planMessage: 'Voici une proposition en lecture seule à partir du périmètre autorisé.', clarificationMessage: 'Essayez une formulation proposée ci-dessous, par exemple « Montre-moi les prospects ouverts ».', unsupportedMessage: 'Aucune action n’a été exécutée. Choisissez une suggestion guidée pour rester dans le périmètre disponible.', fallbackMessage: 'Le mode libre n’a pas pu être interprété. Choisissez une suggestion guidée pour obtenir un plan déterministe.',
-    resolved: 'Éléments trouvés', bounded: 'Éléments retenus', controls: 'Garde-fous appliqués', noEffects: 'Ce qui n’a pas été fait', prepare: 'Préparer ce plan', prepared: 'Plan marqué comme prêt dans cet écran. Aucune donnée ni tâche n’a été créée.',
-    planItems: 'Éléments CRM du plan', noResultsTitle: 'Aucun élément CRM trouvé', noResultsMessage: 'Le périmètre autorisé ne contient aucun élément correspondant à cette demande.', itemsUnavailableTitle: 'Éléments non affichés', itemsUnavailableMessage: 'Le plan contient des éléments, mais aucun détail n’est disponible dans cette vue bornée.', retry: 'Réessayer',
+    resolved: 'Éléments trouvés', bounded: 'Éléments retenus', controls: 'Garde-fous appliqués', controlMessages: { read_only: 'Lecture seule : aucune modification ne peut être enregistrée.', server_resolved_scope: 'Périmètre vérifié par le serveur : seules les données autorisées sont consultées.', no_provider_tools: 'Aucun outil externe : aucune action ni communication externe n’est déclenchée.' }, noEffects: 'Ce qui n’a pas été fait', noEffectMessages: { no_crm_write: 'Aucune écriture dans le CRM.', no_preflight: 'Aucune prévol ni activation de workflow.', no_job: 'Aucun traitement en arrière-plan.', no_external_send: 'Aucun envoi ou contact externe.' }, prepare: 'Préparer ce plan', prepared: 'Plan marqué comme prêt dans cet écran. Aucune donnée ni tâche n’a été créée.',
+    planItems: 'Éléments CRM du plan', noResultsTitle: 'Aucun élément CRM trouvé', noResultsMessage: 'Le périmètre autorisé ne contient aucun élément correspondant à cette demande.', itemsUnavailableTitle: 'Éléments non affichés', itemsUnavailableMessage: 'Le plan contient des éléments, mais aucun détail n’est disponible dans cette vue bornée.', statusTitle: 'État actuel de l’automatisation', statusEnabledMessage: 'Automatisation active pour l’organisation active. Assistant disponible pour préparer des plans en lecture seule. Aucune écriture CRM, tâche ou communication externe ne sera effectuée.', retry: 'Réessayer',
     assistantUnavailableTitle: 'Préparation de plans indisponible', assistantUnavailableMessage: 'L’assistant n’est pas activé pour cette organisation ou cet environnement. Les données CRM restent consultables, sans préparation de plan.',
     counter: 'caractères sur 500', error: 'Impossible de préparer le plan.',
     crmTitle: 'Données CRM en direct', crmOpenProspects: 'Prospects ouverts', crmDueTasks: 'Tâches à échéance', crmOverdueTasks: 'Tâches en retard', crmOpenOpportunities: 'Opportunités ouvertes',
@@ -25,10 +25,10 @@ const COPY = {
     title: 'Automation — Today', intro: 'Describe what you want to review. The assistant only prepares a read-only plan.',
     label: 'Your request', placeholder: 'E.g. show my assigned open prospects', submit: 'Prepare a plan', loading: 'Preparing…', suggestions: 'Guided suggestions',
     scope_open_prospects: 'Scope my open prospects', rebalance_open_prospects: 'Review a rebalance', prepare_new_prospect_followup: 'Prepare new prospect follow-up',
-    ready: 'Proposed plan', clarification_required: 'Clarify your request', intent_not_supported: 'This request is not supported in IMP-A5.', fallback_guided: 'Free text is temporarily unavailable. Use a guided suggestion.', scopeLabel: 'Scope reviewed:', scopeAssigned: 'your assigned open prospects', scopeOrganization: 'open prospects in the active organization', scopeNew: 'new prospects in your scope', scopeStatus: 'automation status',
+    ready: 'Proposed plan', clarification_required: 'Clarify your request', intent_not_supported: 'This request is not supported by automation.', fallback_guided: 'Free text is temporarily unavailable. Use a guided suggestion.', scopeLabel: 'Scope reviewed:', scopeAssigned: 'your assigned open prospects', scopeOrganization: 'open prospects in the active organization', scopeNew: 'new prospects in your scope', scopeStatus: 'automation status',
     planMessage: 'Here is a read-only proposal based on the authorized scope.', clarificationMessage: 'Try one of the suggestions below, for example “Show me my open prospects”.', unsupportedMessage: 'No action was executed. Choose a guided suggestion to stay within the available scope.', fallbackMessage: 'Free text could not be interpreted. Choose a guided suggestion to get a deterministic plan.',
-    resolved: 'Items found', bounded: 'Items included', controls: 'Applied safeguards', noEffects: 'What was not done', prepare: 'Prepare this plan', prepared: 'Plan marked ready on this screen. No data or task was created.',
-    planItems: 'CRM items in this plan', noResultsTitle: 'No CRM items found', noResultsMessage: 'The authorized scope contains no item matching this request.', itemsUnavailableTitle: 'Items not displayed', itemsUnavailableMessage: 'The plan contains items, but no detail is available in this bounded view.', retry: 'Try again',
+    resolved: 'Items found', bounded: 'Items included', controls: 'Applied safeguards', controlMessages: { read_only: 'Read-only: no change can be saved.', server_resolved_scope: 'Server-verified scope: only authorized data is read.', no_provider_tools: 'No external tools: no external action or communication is triggered.' }, noEffects: 'What was not done', noEffectMessages: { no_crm_write: 'No CRM write was performed.', no_preflight: 'No preflight or workflow activation was performed.', no_job: 'No background job was created.', no_external_send: 'No external message or contact was sent.' }, prepare: 'Prepare this plan', prepared: 'Plan marked ready on this screen. No data or task was created.',
+    planItems: 'CRM items in this plan', noResultsTitle: 'No CRM items found', noResultsMessage: 'The authorized scope contains no item matching this request.', itemsUnavailableTitle: 'Items not displayed', itemsUnavailableMessage: 'The plan contains items, but no detail is available in this bounded view.', statusTitle: 'Current automation status', statusEnabledMessage: 'Automation is active for the active organization. The assistant can prepare read-only plans. No CRM write, task, or external communication will be performed.', retry: 'Try again',
     assistantUnavailableTitle: 'Plan preparation unavailable', assistantUnavailableMessage: 'The assistant is not enabled for this organization or environment. CRM data remains available without plan preparation.',
     counter: 'characters out of 500', error: 'Could not prepare the plan.',
     crmTitle: 'Live CRM data', crmOpenProspects: 'Open prospects', crmDueTasks: 'Due tasks', crmOverdueTasks: 'Overdue tasks', crmOpenOpportunities: 'Open opportunities',
@@ -94,7 +94,12 @@ export function AutomationTodayPage({ session }) {
     finally { setLoading(false) }
   }
   const submit = (event) => { event.preventDefault(); if (text.trim()) requestPlan({ input_mode: 'free_text', user_text: text.trim(), suggestion_code: null }) }
-  const suggestions = outcome?.suggestion_codes?.length ? outcome.suggestion_codes : GUIDED
+  const allowedCatalogCodes = useMemo(
+    () => new Set(catalogSuggestions.map(item => item?.code).filter(code => typeof code === 'string')),
+    [catalogSuggestions],
+  )
+  const suggestions = (outcome?.suggestion_codes?.length ? outcome.suggestion_codes : GUIDED)
+    .filter(code => allowedCatalogCodes.size === 0 || allowedCatalogCodes.has(code))
   const matchingSuggestions = useMemo(() => {
     const query = normalizeSuggestionText(text.trim())
     if (query.length < 1) return []
@@ -147,7 +152,7 @@ export function AutomationTodayPage({ session }) {
   const planItems = Array.isArray(outcome?.plan?.items) ? outcome.plan.items : []
 
   return <AutomationWorkspace activeSection="today" locale={locale}>
-    <header className="automation-page-heading"><p className="eyebrow">IMP-A5</p><h1>{copy.title}</h1><p>{copy.intro}</p></header>
+    <header className="automation-page-heading"><p className="eyebrow">Automatisation</p><h1>{copy.title}</h1><p>{copy.intro}</p></header>
     {error && <ErrorBanner><span>{error}</span>{lastRequest && <button type="button" className="link-button" disabled={loading} onClick={() => requestPlan(lastRequest)}>{copy.retry}</button>}</ErrorBanner>}
     {!assistantAvailable && <section className="surface-card automation-empty-state" aria-labelledby="assistant-unavailable-title">
       <h2 id="assistant-unavailable-title">{copy.assistantUnavailableTitle}</h2>
@@ -213,13 +218,14 @@ export function AutomationTodayPage({ session }) {
       <h2>{outcomeTitle}</h2>
       <p className="automation-result-message" role="status">{outcomeMessage}</p>
       {outcomeScope && <p className="form-help automation-result-scope"><strong>{copy.scopeLabel}</strong> {outcomeScope}</p>}
-      {outcome.plan && <><dl className="automation-plan"><div><dt>{copy.resolved}</dt><dd>{outcome.plan.resolved_count ?? '—'}</dd></div><div><dt>{copy.bounded}</dt><dd>{outcome.plan.bounded_count ?? '—'}</dd></div></dl>
+      {outcome.intent?.scope_kind === 'automation_status' && <div className="automation-empty-state automation-boundary" role="status"><h3>{copy.statusTitle}</h3><p>{copy.statusEnabledMessage}</p></div>}
+      {outcome.plan && <>{outcome.intent?.scope_kind !== 'automation_status' && <dl className="automation-plan"><div><dt>{copy.resolved}</dt><dd>{outcome.plan.resolved_count ?? '—'}</dd></div><div><dt>{copy.bounded}</dt><dd>{outcome.plan.bounded_count ?? '—'}</dd></div></dl>}
         {planHasCrmResolution && outcome.plan.resolved_count === 0 && <div className="automation-empty-state automation-boundary" role="status"><h3>{copy.noResultsTitle}</h3><p>{copy.noResultsMessage}</p></div>}
         {planHasCrmResolution && outcome.plan.resolved_count > 0 && planItems.length > 0 && <><h3>{copy.planItems}</h3><ul className="automation-plan-items">{planItems.map(item => <li key={`${item.kind}-${item.id}`}><strong>{copy.itemTypes[item.kind] || item.kind}</strong><span>{item.label}{item.stage ? ` · ${item.stage}` : ''}{item.priority !== undefined && item.priority !== null ? ` · ${item.priority}` : ''}</span></li>)}</ul></>}
         {planHasCrmResolution && outcome.plan.resolved_count > 0 && planItems.length === 0 && <div className="automation-empty-state automation-boundary" role="status"><h3>{copy.itemsUnavailableTitle}</h3><p>{copy.itemsUnavailableMessage}</p></div>}
-        <h3>{copy.controls}</h3><ul>{(outcome.plan.control_codes ?? []).map(code => <li key={code}>{code.replaceAll('_', ' ')}</li>)}</ul>
-        <h3>{copy.noEffects}</h3><ul>{(outcome.plan.not_performed_codes ?? []).map(code => <li key={code}>{code.replaceAll('_', ' ')}</li>)}</ul>
-        <button type="button" className="primary-button" onClick={() => setPrepared(true)}>{copy.prepare}</button>{prepared && <p role="status">{copy.prepared}</p>}</>}
+        <h3>{copy.controls}</h3><ul>{(outcome.plan.control_codes ?? []).map(code => <li key={code}>{copy.controlMessages[code] ?? code.replaceAll('_', ' ')}</li>)}</ul>
+        <h3>{copy.noEffects}</h3><ul>{(outcome.plan.not_performed_codes ?? []).map(code => <li key={code}>{copy.noEffectMessages[code] ?? code.replaceAll('_', ' ')}</li>)}</ul>
+        {outcome.intent?.scope_kind !== 'automation_status' && <><button type="button" className="primary-button" onClick={() => setPrepared(true)}>{copy.prepare}</button>{prepared && <p role="status">{copy.prepared}</p>}</>}</>}
     </section>}
   </AutomationWorkspace>
 }

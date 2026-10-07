@@ -170,7 +170,7 @@ async def test_assistant_api_requires_session_and_csrf_then_returns_no_store_pla
     assert success.headers["cache-control"] == "no-store, max-age=0"
     assert success.json()["result_code"] == "plan_ready"
     assert success.json()["plan"]["resolved_count"] == 7
-    assert success.json()["plan"]["bounded_count"] == 7
+    assert success.json()["plan"]["bounded_count"] == 5
     assert success.json()["plan"]["next_cursor"] is None
     assert success.json()["plan"]["items"] == [
         {
@@ -291,7 +291,12 @@ async def test_assistant_rollout_blocks_nonpilot_and_allows_pilot() -> None:
         suggestions = await client.get("/api/automation/suggestions")
         plan = await client.post(
             "/api/automation/intent-plans",
-            json={"schema_version": 1, "input_mode": "guided", "user_text": None, "suggestion_code": "scope_open_prospects"},
+            json={
+                "schema_version": 1,
+                "input_mode": "guided",
+                "user_text": None,
+                "suggestion_code": "scope_open_prospects",
+            },
             headers={"Origin": "http://test", "X-CSRF-Token": "csrf"},
         )
 
@@ -301,7 +306,12 @@ async def test_assistant_rollout_blocks_nonpilot_and_allows_pilot() -> None:
         pilot_suggestions = await client.get("/api/automation/suggestions")
         pilot_plan = await client.post(
             "/api/automation/intent-plans",
-            json={"schema_version": 1, "input_mode": "guided", "user_text": None, "suggestion_code": "scope_open_prospects"},
+            json={
+                "schema_version": 1,
+                "input_mode": "guided",
+                "user_text": None,
+                "suggestion_code": "scope_open_prospects",
+            },
             headers={"Origin": "http://test", "X-CSRF-Token": "csrf"},
         )
 

@@ -30,7 +30,7 @@ describe('AutomationTodayPage', () => {
       result_code: 'plan_ready', suggestion_codes: [],
       intent: { scope_kind: 'assigned_open_prospects' },
       plan: {
-        resolved_count: 75, bounded_count: 50,
+        resolved_count: 75, bounded_count: 5,
         control_codes: ['read_only'], not_performed_codes: ['no_crm_write', 'no_job'],
       },
     })
@@ -116,6 +116,19 @@ describe('AutomationTodayPage', () => {
     expect(screen.getByText('Prospects ouverts').nextElementSibling).toHaveTextContent('4')
   })
 
+  it('ne propose pas le rééquilibrage quand le catalogue filtré par rôle l’exclut', async () => {
+    automationApi.getSuggestions.mockResolvedValue({
+      items: [
+        { code: 'scope_open_prospects', label: 'Prospects ouverts', prompt: 'Montre-moi les prospects ouverts' },
+        { code: 'prepare_new_prospect_followup', label: 'Nouveaux prospects à suivre', prompt: 'Prépare le suivi des nouveaux prospects' },
+      ],
+    })
+    render(<AutomationTodayPage session={session} />)
+
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Cadrer mes prospects ouverts' })).toBeInTheDocument())
+    expect(screen.queryByRole('button', { name: 'Étudier un rééquilibrage' })).not.toBeInTheDocument()
+  })
+
   it('affiche les éléments CRM du plan et leur état borné', async () => {
     automationApi.createPlan.mockResolvedValue({
       result_code: 'plan_ready', suggestion_codes: [],
@@ -156,12 +169,29 @@ describe('AutomationTodayPage', () => {
     expect(screen.getByRole('button', { name: 'Cadrer mes prospects ouverts' })).toBeInTheDocument()
   })
 
+  it('affiche un état concret pour la demande de statut', async () => {
+    automationApi.createPlan.mockResolvedValue({
+      result_code: 'plan_ready', suggestion_codes: [],
+      intent: { scope_kind: 'automation_status' },
+      plan: { resolved_count: null, bounded_count: null, control_codes: ['read_only'], not_performed_codes: ['no_crm_write'] },
+    })
+    render(<AutomationTodayPage session={session} />)
+    fireEvent.change(screen.getByLabelText('Votre demande'), { target: { value: 'Explique le statut de l’automatisation' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Préparer un plan' }))
+
+    expect(await screen.findByRole('heading', { name: 'État actuel de l’automatisation' })).toBeInTheDocument()
+    expect(screen.getByText(/Automatisation active pour l’organisation active/)).toBeInTheDocument()
+    expect(screen.getByText(/Lecture seule : aucune modification/)).toBeInTheDocument()
+    expect(screen.getByText('Aucune écriture dans le CRM.')).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Préparer ce plan' })).not.toBeInTheDocument()
+  })
+
   it('affiche le refus explicite et le repli guidé', async () => {
     automationApi.createPlan.mockResolvedValueOnce({ result_code: 'intent_not_supported', suggestion_codes: [], plan: null })
     render(<AutomationTodayPage session={session} />)
     fireEvent.change(screen.getByLabelText('Votre demande'), { target: { value: 'Supprime mes prospects' } })
     fireEvent.click(screen.getByRole('button', { name: 'Préparer un plan' }))
-    expect(await screen.findByRole('heading', { name: 'Cette demande n’est pas prise en charge dans IMP-A5.' })).toBeInTheDocument()
+    expect(await screen.findByRole('heading', { name: 'Cette demande n’est pas prise en charge par l’automatisation.' })).toBeInTheDocument()
     expect(screen.getByText(/Aucune action n’a été exécutée/)).toBeInTheDocument()
 
     automationApi.createPlan.mockResolvedValueOnce({ result_code: 'fallback_guided', suggestion_codes: ['scope_open_prospects'], plan: null })
@@ -199,7 +229,7 @@ describe('AutomationTodayPage', () => {
     fireEvent.change(screen.getByLabelText('Your request'), { target: { value: 'Delete my prospects' } })
     fireEvent.click(screen.getByRole('button', { name: 'Prepare a plan' }))
 
-    expect(await screen.findByRole('heading', { name: 'This request is not supported in IMP-A5.' })).toBeInTheDocument()
+    expect(await screen.findByRole('heading', { name: 'This request is not supported by automation.' })).toBeInTheDocument()
     expect(screen.getByText(/No action was executed/)).toBeInTheDocument()
   })
 })
