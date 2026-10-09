@@ -55,6 +55,8 @@ class AcceptanceResultCode(StrEnum):
     EXISTING_ACCOUNT = "existing_account"
     ACCOUNT_MISMATCH = "account_mismatch"
     MEMBERSHIP_REACTIVATION_REQUIRED = "membership_reactivation_required"
+    SEAT_LIMIT_REACHED = "seat_limit_reached"
+    SEAT_ENTITLEMENT_UNAVAILABLE = "seat_entitlement_unavailable"
 
 
 @dataclass(frozen=True, slots=True)

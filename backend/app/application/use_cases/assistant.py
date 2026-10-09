@@ -189,7 +189,15 @@ class CreateAssistantPlanUseCase:
         )
         if not snapshot.organization_enabled:
             raise AssistantDisabled
-        bounded = min(snapshot.resolved_count, intent.scope_limit) if snapshot.resolved_count is not None else None
+        # `items` is deliberately limited to the first five CRM projections;
+        # bounded_count must describe that same retained plan, not the larger
+        # interpreter scope limit (which would make the UI report misleading
+        # counts such as 11 retained while showing only five items).
+        bounded = (
+            min(snapshot.resolved_count, ASSISTANT_PLAN_ITEM_LIMIT, intent.scope_limit)
+            if snapshot.resolved_count is not None
+            else None
+        )
         return AssistantPlanOutcome(
             result_code=AssistantResultCode.PLAN_READY,
             intent=intent,

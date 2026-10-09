@@ -107,6 +107,40 @@ class ProvisioningServiceUnavailable(RuntimeError):
     """Le stockage nécessaire au provisioning est indisponible."""
 
 
+class CatalogServiceUnavailable(RuntimeError):
+    """Le stockage transactionnel du catalogue est indisponible."""
+
+
+class CatalogResourceNotFound(RuntimeError):
+    """Le plan, la version ou le contrat interne n’existe pas."""
+
+
+class CatalogResourceConflict(RuntimeError):
+    """La mutation créerait une ressource commerciale concurrente."""
+
+
+class CatalogConcurrentUpdate(RuntimeError):
+    def __init__(self, current_version: int | None = None) -> None:
+        super().__init__("La ressource commerciale a changé depuis sa lecture.")
+        self.current_version = current_version
+
+
+class CatalogInvalidTransition(RuntimeError):
+    """La transition commerciale demandée n’est pas autorisée."""
+
+
+class CatalogApprovalRequired(RuntimeError):
+    """La publication doit être approuvée par un autre administrateur."""
+
+
+class CatalogInvalidContract(ValueError):
+    """La commande commerciale est incompatible avec le contrat courant."""
+
+
+class CatalogSafetyCeilingExceeded(ValueError):
+    """La dérogation proposée dépasse un plafond technique explicite."""
+
+
 class InvitationDeliveryUnavailable(RuntimeError):
     """Aucun transport d’invitation autorisé n’est configuré."""
 
@@ -299,6 +333,14 @@ class MembershipAlreadyActive(RuntimeError):
 
 class InvitationAlreadyPending(RuntimeError):
     """Une invitation non terminale existe déjà pour ce destinataire."""
+
+
+class SeatLimitReached(RuntimeError):
+    """La réservation ou l'activation dépasserait la capacité de sièges."""
+
+
+class SeatEntitlementUnavailable(RuntimeError):
+    """La limite de sièges ne peut pas être déterminée de manière sûre."""
 
 
 class OrganizationNotActive(RuntimeError):

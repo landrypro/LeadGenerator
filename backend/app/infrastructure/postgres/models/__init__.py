@@ -9,6 +9,15 @@ from .automation import (
     AutomationPreflightModel,
 )
 from .base import NAMING_CONVENTION, Base
+from .catalog import (
+    CatalogMutationOperationModel,
+    EntitlementSafetyCeilingModel,
+    OrganizationPlanContractModel,
+    PlanCatalogModel,
+    PlanContractOverrideModel,
+    PlanEntitlementModel,
+    PlanVersionModel,
+)
 from .connector import (
     ConnectorIngestionModel,
     ConnectorIngestionOutcomeModel,
@@ -52,6 +61,7 @@ __all__ = [
     "AutomationPlaybookVersionModel",
     "AutomationPreflightModel",
     "Base",
+    "CatalogMutationOperationModel",
     "ConnectorIngestionModel",
     "ConnectorIngestionOutcomeModel",
     "ContactChannelModel",
@@ -61,6 +71,7 @@ __all__ = [
     "CsvImportQuarantineModel",
     "CsvImportRunModel",
     "CsvImportSessionModel",
+    "EntitlementSafetyCeilingModel",
     "ExportArtifactModel",
     "ExportRequestModel",
     "InvitationDeliveryAttemptModel",
@@ -72,7 +83,12 @@ __all__ = [
     "OpportunityEventModel",
     "OpportunityModel",
     "OrganizationModel",
+    "OrganizationPlanContractModel",
     "PipelineStageSettingModel",
+    "PlanCatalogModel",
+    "PlanContractOverrideModel",
+    "PlanEntitlementModel",
+    "PlanVersionModel",
     "ProspectActivityModel",
     "ProspectModel",
     "ProspectStageTransitionModel",

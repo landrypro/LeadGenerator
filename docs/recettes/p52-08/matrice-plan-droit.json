@@ -1,0 +1,22 @@
+{
+  "schema_version": "P52-08.1",
+  "source": "synthetic",
+  "commercial_prices_included": false,
+  "value_policy": "Les valeurs de droit sont fournies exclusivement par les fixtures synthétiques versionnées ; aucune valeur commerciale n’est archivée ici.",
+  "plan_matrix": [
+    {"plan_code": "freemium", "entitlement_set": "closed_registry", "commercial_values": "not_assigned"},
+    {"plan_code": "starter", "entitlement_set": "closed_registry", "commercial_values": "not_assigned"},
+    {"plan_code": "business", "entitlement_set": "closed_registry", "commercial_values": "not_assigned"},
+    {"plan_code": "custom", "entitlement_set": "closed_registry", "commercial_values": "not_assigned"}
+  ],
+  "entitlements": [
+    {"key": "seats.active_members.max", "kind": "limit", "unit": "seat", "scope": "organization"},
+    {"key": "seats.pending_invitations.max", "kind": "limit", "unit": "reserved_seat", "scope": "organization"},
+    {"key": "prospects.active.max", "kind": "limit", "unit": "prospect", "scope": "organization"},
+    {"key": "exports.monthly.max", "kind": "limit", "unit": "export", "scope": "period"},
+    {"key": "imports.rows_per_run.max", "kind": "limit", "unit": "row", "scope": "run"},
+    {"key": "google.paid_calls.enabled", "kind": "switch", "unit": "boolean", "scope": "organization"},
+    {"key": "automation.prepare.enabled", "kind": "switch", "unit": "boolean", "scope": "organization"},
+    {"key": "automation.execute.enabled", "kind": "switch", "unit": "boolean", "scope": "organization"}
+  ]
+}

@@ -11,6 +11,7 @@ from .audited_unit_of_work import (
     SqlAlchemyPlatformAuditedUnitOfWork,
     SqlAlchemyTenantAuditedUnitOfWork,
 )
+from .catalog_unit_of_work import SqlAlchemyCatalogAuditedUnitOfWork
 from .database import PostgresDatabase
 from .identity_repository import SqlAlchemyIdentityRepository
 from .identity_unit_of_work import SqlAlchemyIdentityUnitOfWork
@@ -28,6 +29,7 @@ __all__ = [
     "SqlAlchemyActorUnitOfWork",
     "SqlAlchemyAuditEventReader",
     "SqlAlchemyAuditRecorder",
+    "SqlAlchemyCatalogAuditedUnitOfWork",
     "SqlAlchemyIdentityRepository",
     "SqlAlchemyIdentityUnitOfWork",
     "SqlAlchemyInvitationAcceptanceUnitOfWork",

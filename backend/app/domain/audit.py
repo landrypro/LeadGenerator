@@ -108,6 +108,14 @@ class AuditAction(StrEnum):
     CONNECTOR_INGESTION_ADMITTED = "connector.ingestion_admitted"
     CONNECTOR_INGESTION_COMPLETED = "connector.ingestion_completed"
     AUTOMATION_ORGANIZATION_SETTINGS_CHANGED = "automation.organization_settings_changed"
+    CATALOG_PLAN_CREATED = "catalog.plan_created"
+    CATALOG_PLAN_VERSION_CREATED = "catalog.plan_version_created"
+    CATALOG_PLAN_VERSION_PUBLISHED = "catalog.plan_version_published"
+    CATALOG_CONTRACT_ATTACHED = "catalog.contract_attached"
+    CATALOG_CONTRACT_STATE_CHANGED = "catalog.contract_state_changed"
+    CATALOG_CONTRACT_OVERRIDE_PROPOSED = "catalog.contract_override_proposed"
+    CATALOG_CONTRACT_OVERRIDE_APPROVED = "catalog.contract_override_approved"
+    CATALOG_CONTRACT_OVERRIDE_REVOKED = "catalog.contract_override_revoked"
 
 
 _ENTITY_TYPE_PATTERN = re.compile(r"^[a-z][a-z0-9_]{0,63}$", re.ASCII)
@@ -328,6 +336,14 @@ _ACTION_ENTITY_TYPES = {
     AuditAction.CONNECTOR_INGESTION_ADMITTED: "connector_ingestion",
     AuditAction.CONNECTOR_INGESTION_COMPLETED: "connector_ingestion",
     AuditAction.AUTOMATION_ORGANIZATION_SETTINGS_CHANGED: "automation_organization_settings",
+    AuditAction.CATALOG_PLAN_CREATED: "plan_catalog",
+    AuditAction.CATALOG_PLAN_VERSION_CREATED: "plan_version",
+    AuditAction.CATALOG_PLAN_VERSION_PUBLISHED: "plan_version",
+    AuditAction.CATALOG_CONTRACT_ATTACHED: "organization_plan_contract",
+    AuditAction.CATALOG_CONTRACT_STATE_CHANGED: "organization_plan_contract",
+    AuditAction.CATALOG_CONTRACT_OVERRIDE_PROPOSED: "plan_contract_override",
+    AuditAction.CATALOG_CONTRACT_OVERRIDE_APPROVED: "plan_contract_override",
+    AuditAction.CATALOG_CONTRACT_OVERRIDE_REVOKED: "plan_contract_override",
 }
 
 
@@ -357,6 +373,93 @@ class AuditMetadataPolicy:
             raise InvalidAuditMetadata("Les métadonnées d’audit doivent être un objet.")
 
         values = dict(metadata)
+        if action is AuditAction.CATALOG_PLAN_CREATED:
+            cls._require_keys(values, {"plan_code", "display_order"})
+            display_order = values["display_order"]
+            if not isinstance(display_order, int) or isinstance(display_order, bool) or display_order < 0:
+                raise InvalidAuditMetadata("display_order est invalide.")
+            return {
+                "plan_code": cls._choice(
+                    values["plan_code"], frozenset({"freemium", "starter", "business", "custom"}), "plan_code"
+                ),
+                "display_order": display_order,
+            }
+
+        if action in {AuditAction.CATALOG_PLAN_VERSION_CREATED, AuditAction.CATALOG_PLAN_VERSION_PUBLISHED}:
+            cls._require_keys(values, {"plan_id", "version_number"})
+            version_number = values["version_number"]
+            if not isinstance(version_number, int) or isinstance(version_number, bool) or version_number < 1:
+                raise InvalidAuditMetadata("version_number est invalide.")
+            return {"plan_id": cls._uuid(values["plan_id"], "plan_id"), "version_number": version_number}
+
+        if action is AuditAction.CATALOG_CONTRACT_ATTACHED:
+            cls._require_keys(values, {"organization_id", "plan_version_id", "state"})
+            return {
+                "organization_id": cls._uuid(values["organization_id"], "organization_id"),
+                "plan_version_id": cls._uuid(values["plan_version_id"], "plan_version_id"),
+                "state": cls._choice(values["state"], frozenset({"pending", "active"}), "state"),
+            }
+
+        if action is AuditAction.CATALOG_CONTRACT_STATE_CHANGED:
+            cls._require_keys(values, {"organization_id", "new_state", "version"})
+            version = values["version"]
+            if not isinstance(version, int) or isinstance(version, bool) or version < 1:
+                raise InvalidAuditMetadata("version est invalide.")
+            return {
+                "organization_id": cls._uuid(values["organization_id"], "organization_id"),
+                "new_state": cls._choice(values["new_state"], frozenset({"active", "suspended", "ended"}), "new_state"),
+                "version": version,
+            }
+
+        if action is AuditAction.CATALOG_CONTRACT_OVERRIDE_PROPOSED:
+            cls._require_keys(values, {"organization_id", "contract_id", "entitlement_key"})
+            return {
+                "organization_id": cls._uuid(values["organization_id"], "organization_id"),
+                "contract_id": cls._uuid(values["contract_id"], "contract_id"),
+                "entitlement_key": cls._choice(
+                    values["entitlement_key"],
+                    frozenset(
+                        {
+                            "seats.active_members.max",
+                            "seats.pending_invitations.max",
+                            "prospects.active.max",
+                            "exports.monthly.max",
+                            "imports.rows_per_run.max",
+                            "google.paid_calls.enabled",
+                            "automation.prepare.enabled",
+                            "automation.execute.enabled",
+                        }
+                    ),
+                    "entitlement_key",
+                ),
+            }
+
+        if action in {AuditAction.CATALOG_CONTRACT_OVERRIDE_APPROVED, AuditAction.CATALOG_CONTRACT_OVERRIDE_REVOKED}:
+            cls._require_keys(values, {"organization_id", "contract_id", "entitlement_key", "version"})
+            version = values["version"]
+            if not isinstance(version, int) or isinstance(version, bool) or version < 1:
+                raise InvalidAuditMetadata("version est invalide.")
+            return {
+                "organization_id": cls._uuid(values["organization_id"], "organization_id"),
+                "contract_id": cls._uuid(values["contract_id"], "contract_id"),
+                "entitlement_key": cls._choice(
+                    values["entitlement_key"],
+                    frozenset(
+                        {
+                            "seats.active_members.max",
+                            "seats.pending_invitations.max",
+                            "prospects.active.max",
+                            "exports.monthly.max",
+                            "imports.rows_per_run.max",
+                            "google.paid_calls.enabled",
+                            "automation.prepare.enabled",
+                            "automation.execute.enabled",
+                        }
+                    ),
+                    "entitlement_key",
+                ),
+                "version": version,
+            }
         if action is AuditAction.ORGANIZATION_UPDATED:
             cls._require_keys(values, {"changed_fields"})
             changed_fields = values["changed_fields"]

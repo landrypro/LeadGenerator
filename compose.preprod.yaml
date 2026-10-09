@@ -102,7 +102,7 @@ services:
     depends_on:
       app:
         condition: service_healthy
-    env_file: .env.preprod
+    env_file: ${PREPROD_ENV_FILE:-.env.preprod}
     environment:
       PREPROD_DOMAIN: ${PREPROD_DOMAIN:?PREPROD_DOMAIN is required}
     ports:

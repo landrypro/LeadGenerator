@@ -16,6 +16,8 @@ from ..errors import (
     InvitationInvalid,
     InvitationRateLimited,
     MembershipReactivationRequired,
+    SeatEntitlementUnavailable,
+    SeatLimitReached,
     SessionCreationFailedAfterAcceptance,
 )
 from ..ports import (
@@ -236,6 +238,10 @@ def _accepted_or_raise(result: AcceptanceGatewayResult) -> AcceptedInvitation:
         raise InvitationAccountMismatch
     if result.code is AcceptanceResultCode.MEMBERSHIP_REACTIVATION_REQUIRED:
         raise MembershipReactivationRequired
+    if result.code is AcceptanceResultCode.SEAT_LIMIT_REACHED:
+        raise SeatLimitReached
+    if result.code is AcceptanceResultCode.SEAT_ENTITLEMENT_UNAVAILABLE:
+        raise SeatEntitlementUnavailable
     if result.accepted is None:
         raise InvitationInvalid
     return result.accepted

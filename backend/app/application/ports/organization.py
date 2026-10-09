@@ -42,6 +42,8 @@ class CreateMemberInvitationResultCode(StrEnum):
     MEMBERSHIP_REACTIVATION_REQUIRED = "membership_reactivation_required"
     INVITATION_ALREADY_PENDING = "invitation_already_pending"
     ORGANIZATION_NOT_ACTIVE = "organization_not_active"
+    SEAT_LIMIT_REACHED = "seat_limit_reached"
+    SEAT_ENTITLEMENT_UNAVAILABLE = "seat_entitlement_unavailable"
 
 
 class MemberInvitationMutationResultCode(StrEnum):

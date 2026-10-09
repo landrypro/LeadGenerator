@@ -1,0 +1,25 @@
+{
+  "schema_version": "P52-08.1",
+  "source": "synthetic",
+  "contains_pii": false,
+  "contains_provider_secrets": false,
+  "activation_authorized": false,
+  "external_effects": {
+    "email": false,
+    "payment": false,
+    "checkout": false,
+    "provider_network": false
+  },
+  "scenarios": [
+    {"id": "P52-CAT-01"},
+    {"id": "P52-CAT-02"},
+    {"id": "P52-ENT-01"},
+    {"id": "P52-ENT-02"},
+    {"id": "P52-SEAT-01"},
+    {"id": "P52-SEAT-02"},
+    {"id": "P52-RLS-01"},
+    {"id": "P52-AUD-01"},
+    {"id": "P52-API-01"},
+    {"id": "P52-NOEXT-01"}
+  ]
+}

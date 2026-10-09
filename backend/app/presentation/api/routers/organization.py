@@ -24,6 +24,8 @@ from ....application.errors import (
     OrganizationResourceNotFound,
     OrganizationVersionConflict,
     ProvisioningOutcomeUnknown,
+    SeatEntitlementUnavailable,
+    SeatLimitReached,
 )
 from ....application.ports import InvitationListState
 from ....application.tenancy import TenantContext
@@ -340,6 +342,8 @@ def _organization_error(request: Request, error: Exception) -> Response | None:
         return api_error(request, 409, "invitation_already_accepted", "L’invitation a déjà été acceptée.")
     if isinstance(error, OrganizationNotActive):
         return api_error(request, 409, "organization_not_active", "L’organisation n’est pas active.")
+    if isinstance(error, SeatLimitReached):
+        return api_error(request, 409, "seat_limit_reached", "La limite de sièges de l’organisation est atteinte.")
     if isinstance(error, InvitationRateLimited):
         return api_error(
             request,
@@ -362,7 +366,9 @@ def _organization_error(request: Request, error: Exception) -> Response | None:
             "invitation_outcome_unknown",
             "Le résultat a peut-être été validé. Répétez la même clé de requête.",
         )
-    if isinstance(error, (AuthenticationServiceUnavailable, OrganizationAdministrationUnavailable)):
+    if isinstance(
+        error, (AuthenticationServiceUnavailable, OrganizationAdministrationUnavailable, SeatEntitlementUnavailable)
+    ):
         return api_error(
             request,
             503,

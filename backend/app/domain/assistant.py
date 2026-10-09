@@ -60,6 +60,13 @@ GUIDED_ASSISTANT_INTENTS: Final = (
     AssistantIntentCode.REBALANCE_OPEN_PROSPECTS,
     AssistantIntentCode.PREPARE_NEW_PROSPECT_FOLLOWUP,
 )
+# The guided action buttons deliberately stay focused on CRM plans. The
+# autocomplete catalogue also exposes the read-only status explanation, whose
+# code is valid when submitted directly in guided mode.
+EXECUTABLE_ASSISTANT_SUGGESTIONS: Final = (
+    *GUIDED_ASSISTANT_INTENTS,
+    AssistantIntentCode.EXPLAIN_AUTOMATION_STATUS,
+)
 ASSISTANT_PLAN_ITEM_LIMIT: Final = 5
 ASSISTANT_INTENT_FIELDS: Final = frozenset(
     {
@@ -211,7 +218,7 @@ def parse_assistant_intent(
 
 
 def guided_assistant_payload(intent_code: AssistantIntentCode, *, maximum_scope: int) -> dict[str, object]:
-    if intent_code not in GUIDED_ASSISTANT_INTENTS:
+    if intent_code not in EXECUTABLE_ASSISTANT_SUGGESTIONS:
         raise AssistantValidationError("La suggestion Assistant est inconnue.")
     playbook, scope, clarification, clarification_key, explanation = _EXPECTED[intent_code]
     return {

@@ -338,6 +338,7 @@ def capabilities_for(identity: UserIdentity, active_membership: MembershipIdenti
                 "platform:organizations:create",
                 "platform:organizations:manage",
                 "platform:audit:read",
+                "platform:catalog:manage",
             )
         )
     if active_membership is not None and active_membership.is_active:

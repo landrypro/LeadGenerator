@@ -67,6 +67,136 @@ class OrganizationResponse(BaseModel):
     updated_at: datetime
 
 
+CatalogPlanCode = Literal["freemium", "starter", "business", "custom"]
+CatalogCurrency = Literal["CAD", "USD", "EUR", "XAF"]
+CatalogEntitlementKey = Literal[
+    "seats.active_members.max",
+    "seats.pending_invitations.max",
+    "prospects.active.max",
+    "exports.monthly.max",
+    "imports.rows_per_run.max",
+    "google.paid_calls.enabled",
+    "automation.prepare.enabled",
+    "automation.execute.enabled",
+]
+
+
+class CatalogEntitlementRequest(StrictCommand):
+    key: CatalogEntitlementKey
+    value_kind: Literal["limit", "switch"]
+    integer_value: int | None = Field(default=None, ge=0)
+    boolean_value: bool | None = None
+
+
+class CreateCatalogPlanRequest(StrictCommand):
+    code: CatalogPlanCode
+    display_order: int = Field(ge=0)
+    operation_id: UUID
+
+
+class CreateCatalogPlanVersionRequest(StrictCommand):
+    plan_id: UUID
+    version_number: int = Field(ge=1)
+    currency: CatalogCurrency
+    billing_cycle: Literal["monthly", "annual", "custom_contract"]
+    amount_excluding_tax_minor: int = Field(ge=0)
+    effective_from: datetime
+    effective_until: datetime | None = None
+    entitlements: list[CatalogEntitlementRequest] = Field(min_length=8, max_length=8)
+    operation_id: UUID
+
+
+class AttachOrganizationPlanContractRequest(StrictCommand):
+    organization_id: UUID
+    plan_version_id: UUID
+    state: Literal["pending", "active"]
+    effective_from: datetime
+    effective_until: datetime | None = None
+    operation_id: UUID
+
+
+class ChangeCatalogContractStateRequest(StrictCommand):
+    version: int = Field(ge=1)
+    state: Literal["active", "suspended", "ended"]
+    operation_id: UUID
+
+
+class ProposeCatalogContractOverrideRequest(CatalogEntitlementRequest):
+    contract_id: UUID
+    justification: str = Field(min_length=1, max_length=512)
+    starts_at: datetime
+    ends_at: datetime
+    operation_id: UUID
+
+
+class VersionedCatalogCommand(StrictCommand):
+    version: int = Field(ge=1)
+    operation_id: UUID
+
+
+class CatalogPlanResponse(BaseModel):
+    id: UUID
+    code: str
+    state: str
+    display_order: int
+    version: int
+
+
+class CatalogPlanVersionResponse(BaseModel):
+    id: UUID
+    plan_id: UUID
+    version_number: int
+    state: str
+    currency: str
+    billing_cycle: str
+    effective_from: datetime
+    effective_until: datetime | None
+    version: int
+
+
+class OrganizationPlanContractResponse(BaseModel):
+    id: UUID
+    state: str
+    currency: str
+    effective_from: datetime
+    effective_until: datetime | None
+    version: int
+
+
+class CatalogContractOverrideResponse(BaseModel):
+    id: UUID
+    contract_id: UUID
+    entitlement_key: str
+    value_kind: str
+    integer_value: int | None
+    boolean_value: bool | None
+    state: str
+    starts_at: datetime
+    ends_at: datetime
+    version: int
+
+
+class EntitlementProvenanceResponse(BaseModel):
+    source: str
+    applied: bool
+
+
+class OrganizationEntitlementResponse(BaseModel):
+    key: str
+    code: str
+    value_kind: str | None
+    integer_value: int | None
+    boolean_value: bool | None
+    source: str | None
+    reason: str | None
+    provenance: list[EntitlementProvenanceResponse]
+
+
+class OrganizationCatalogResponse(BaseModel):
+    contract: OrganizationPlanContractResponse | None
+    entitlements: list[OrganizationEntitlementResponse]
+
+
 class MemberUserResponse(BaseModel):
     id: UUID
     email: str

@@ -39,6 +39,8 @@ from ..errors import (
     OrganizationSwitchForbidden,
     OrganizationVersionConflict,
     ProvisioningOutcomeUnknown,
+    SeatEntitlementUnavailable,
+    SeatLimitReached,
     SessionRotationFailed,
 )
 from ..ports import (
@@ -382,6 +384,10 @@ class CreateMemberInvitationUseCase:
             raise InvitationAlreadyPending
         if result.code is CreateMemberInvitationResultCode.ORGANIZATION_NOT_ACTIVE:
             raise OrganizationNotActive
+        if result.code is CreateMemberInvitationResultCode.SEAT_LIMIT_REACHED:
+            raise SeatLimitReached
+        if result.code is CreateMemberInvitationResultCode.SEAT_ENTITLEMENT_UNAVAILABLE:
+            raise SeatEntitlementUnavailable
         if result.invitation is None:
             raise OrganizationAdministrationUnavailable("L’invitation créée est absente.")
         if result.code is CreateMemberInvitationResultCode.REPLAYED:

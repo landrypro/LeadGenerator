@@ -42,7 +42,7 @@ def _classify(text: str) -> AssistantIntentCode:
         "send immediately",
         "workflow libre",
         "custom workflow",
-        # Les demandes d’écriture ou de suppression sortent explicitement du
+        # Les demandes d'ecriture ou de suppression sortent explicitement du
         # périmètre IMP-A5 et doivent être refusées, jamais clarifiées.
         "supprime",
         "supprimer",

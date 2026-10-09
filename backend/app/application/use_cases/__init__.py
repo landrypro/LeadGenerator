@@ -11,6 +11,13 @@ from .activities import (
 from .audit import AuditEventPage, ListPlatformAuditEventsUseCase, ListTenantAuditEventsUseCase
 from .authentication import GetCurrentSessionUseCase, LoginOutcome, LoginUseCase, LogoutUseCase
 from .bootstrap_platform_admin import BootstrapPlatformAdministratorUseCase
+from .catalog import (
+    AttachOrganizationPlanContractCommand,
+    CatalogAdministrationUseCases,
+    CreateCatalogPlanCommand,
+    CreateCatalogPlanVersionCommand,
+    GetOrganizationCatalogUseCase,
+)
 from .check_readiness import CheckReadinessUseCase, ReadinessReport
 from .csv_import import (
     ConfirmCsvImportUseCase,
@@ -136,14 +143,18 @@ __all__ = [
     "ArchivedChannelOutcome",
     "ArchivedContactOutcome",
     "ArchivedProspectOutcome",
+    "AttachOrganizationPlanContractCommand",
     "AuditEventPage",
     "BootstrapPlatformAdministratorUseCase",
     "CancelImportDeclarationUseCase",
+    "CatalogAdministrationUseCases",
     "ChangeContactPermissionUseCase",
     "ChangeOrganizationStatusUseCase",
     "CheckReadinessUseCase",
     "ConfirmCsvImportUseCase",
     "CreateActivityUseCase",
+    "CreateCatalogPlanCommand",
+    "CreateCatalogPlanVersionCommand",
     "CreateContactChannelUseCase",
     "CreateContactUseCase",
     "CreateManualProspectUseCase",
@@ -167,6 +178,7 @@ __all__ = [
     "GetImportDeclarationUseCase",
     "GetMapSnapshotUseCase",
     "GetOpportunityUseCase",
+    "GetOrganizationCatalogUseCase",
     "GetOrganizationUseCase",
     "GetPipelineBoardUseCase",
     "GetProspectUseCase",

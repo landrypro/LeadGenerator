@@ -82,6 +82,37 @@ class EntitlementDecisionCode(StrEnum):
     SAFETY_CEILING_EXCEEDED = "safety_ceiling_exceeded"
 
 
+class EntitlementDecisionReason(StrEnum):
+    """Mot stable, sans donnée commerciale, qui explique une décision fermée."""
+
+    CONTRACT_NOT_ACTIVE = "contract_not_active"
+    AMBIGUOUS_ACTIVE_CONTRACT = "ambiguous_active_contract"
+    CATALOG_VERSION_NOT_PUBLISHED = "catalog_version_not_published"
+    CATALOG_VERSION_NOT_EFFECTIVE = "catalog_version_not_effective"
+    CONTRACT_CURRENCY_MISMATCH = "contract_currency_mismatch"
+    PLAN_ENTITLEMENT_MISSING = "plan_entitlement_missing"
+    OVERRIDE_EXPIRED = "override_expired"
+    OVERRIDE_NOT_APPROVED = "override_not_approved"
+    OVERRIDE_KIND_MISMATCH = "override_kind_mismatch"
+    SAFETY_CEILING_EXCEEDED = "safety_ceiling_exceeded"
+
+
+class EntitlementProvenanceSource(StrEnum):
+    CONTRACT = "contract"
+    PLAN_VERSION = "plan_version"
+    OVERRIDE = "override"
+    SAFETY_CEILING = "safety_ceiling"
+
+
+@dataclass(frozen=True, slots=True)
+class EntitlementProvenance:
+    """Une source examinée par le calcul, dans son ordre de priorité."""
+
+    source: EntitlementProvenanceSource
+    applied: bool
+    reason: EntitlementDecisionReason | None = None
+
+
 @dataclass(frozen=True, slots=True)
 class EntitlementDefinition:
     key: EntitlementKey
@@ -166,6 +197,8 @@ class EffectiveEntitlement:
     key: EntitlementKey
     value: EntitlementValue | None
     source: str
+    provenance: tuple[EntitlementProvenance, ...] = ()
+    reason: EntitlementDecisionReason | None = None
 
     @property
     def allowed(self) -> bool:
@@ -184,25 +217,95 @@ def resolve_effective_entitlement(
     override: EntitlementOverride | None,
     now: datetime,
     safety_ceiling: EntitlementValue | None = None,
+    contract_reason: EntitlementDecisionReason = EntitlementDecisionReason.CONTRACT_NOT_ACTIVE,
 ) -> EffectiveEntitlement:
     """Résout un droit sans jamais inventer de valeur en cas d'ambiguïté."""
 
     if not contract_is_active:
-        return EffectiveEntitlement(EntitlementDecisionCode.DENY_UNKNOWN_CONTRACT, key, None, "none")
+        return EffectiveEntitlement(
+            EntitlementDecisionCode.DENY_UNKNOWN_CONTRACT,
+            key,
+            None,
+            "none",
+            (EntitlementProvenance(EntitlementProvenanceSource.CONTRACT, False, contract_reason),),
+            contract_reason,
+        )
     if plan_value is None or plan_value.key is not key:
-        return EffectiveEntitlement(EntitlementDecisionCode.ENTITLEMENT_UNKNOWN, key, None, "none")
+        return EffectiveEntitlement(
+            EntitlementDecisionCode.ENTITLEMENT_UNKNOWN,
+            key,
+            None,
+            "none",
+            (
+                EntitlementProvenance(EntitlementProvenanceSource.CONTRACT, True),
+                EntitlementProvenance(
+                    EntitlementProvenanceSource.PLAN_VERSION,
+                    False,
+                    EntitlementDecisionReason.PLAN_ENTITLEMENT_MISSING,
+                ),
+            ),
+            EntitlementDecisionReason.PLAN_ENTITLEMENT_MISSING,
+        )
 
+    provenance: list[EntitlementProvenance] = [
+        EntitlementProvenance(EntitlementProvenanceSource.CONTRACT, True),
+        EntitlementProvenance(
+            EntitlementProvenanceSource.PLAN_VERSION, override is None or not override.applies_at(now)
+        ),
+    ]
     candidate = override.value if override is not None and override.applies_at(now) else plan_value
     source = "override" if candidate is not plan_value else "plan_version"
+    if override is not None:
+        override_reason = (
+            EntitlementDecisionReason.OVERRIDE_EXPIRED
+            if override.state is OverrideState.ACTIVE and now >= override.ends_at
+            else None
+        )
+        provenance.append(
+            EntitlementProvenance(
+                EntitlementProvenanceSource.OVERRIDE,
+                candidate is not plan_value,
+                None if candidate is not plan_value else override_reason,
+            )
+        )
     if safety_ceiling is not None:
         if safety_ceiling.key is not key or safety_ceiling.kind is not candidate.kind:
             raise CatalogValidationError("Le plafond de sûreté n'est pas compatible avec le droit.")
         if candidate.kind is EntitlementKind.LIMIT:
             assert candidate.integer_value is not None and safety_ceiling.integer_value is not None
             if candidate.integer_value > safety_ceiling.integer_value:
-                return EffectiveEntitlement(EntitlementDecisionCode.SAFETY_CEILING_EXCEEDED, key, None, source)
+                provenance.append(
+                    EntitlementProvenance(
+                        EntitlementProvenanceSource.SAFETY_CEILING,
+                        False,
+                        EntitlementDecisionReason.SAFETY_CEILING_EXCEEDED,
+                    )
+                )
+                return EffectiveEntitlement(
+                    EntitlementDecisionCode.SAFETY_CEILING_EXCEEDED,
+                    key,
+                    None,
+                    source,
+                    tuple(provenance),
+                    EntitlementDecisionReason.SAFETY_CEILING_EXCEEDED,
+                )
         elif candidate.boolean_value and not safety_ceiling.boolean_value:
-            return EffectiveEntitlement(EntitlementDecisionCode.SAFETY_CEILING_EXCEEDED, key, None, source)
+            provenance.append(
+                EntitlementProvenance(
+                    EntitlementProvenanceSource.SAFETY_CEILING,
+                    False,
+                    EntitlementDecisionReason.SAFETY_CEILING_EXCEEDED,
+                )
+            )
+            return EffectiveEntitlement(
+                EntitlementDecisionCode.SAFETY_CEILING_EXCEEDED,
+                key,
+                None,
+                source,
+                tuple(provenance),
+                EntitlementDecisionReason.SAFETY_CEILING_EXCEEDED,
+            )
+        provenance.append(EntitlementProvenance(EntitlementProvenanceSource.SAFETY_CEILING, True))
     code = (
         EntitlementDecisionCode.ALLOWED
         if (
@@ -212,4 +315,4 @@ def resolve_effective_entitlement(
         )
         else EntitlementDecisionCode.ENTITLEMENT_DISABLED
     )
-    return EffectiveEntitlement(code, key, candidate, source)
+    return EffectiveEntitlement(code, key, candidate, source, tuple(provenance))

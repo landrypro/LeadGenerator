@@ -38,6 +38,7 @@ from .application.use_cases import (
     ArchiveImportDeclarationUseCase,
     ArchiveProspectUseCase,
     CancelImportDeclarationUseCase,
+    CatalogAdministrationUseCases,
     ChangeContactPermissionUseCase,
     ChangeOrganizationStatusUseCase,
     CheckReadinessUseCase,
@@ -63,6 +64,7 @@ from .application.use_cases import (
     GetImportDeclarationUseCase,
     GetMapSnapshotUseCase,
     GetOpportunityUseCase,
+    GetOrganizationCatalogUseCase,
     GetOrganizationUseCase,
     GetPipelineBoardUseCase,
     GetProspectUseCase,
@@ -160,6 +162,7 @@ from .infrastructure.postgres.automation_preflight import AutomationPreflightRun
 from .infrastructure.postgres.automation_reader import AutomationReader
 from .infrastructure.postgres.automation_runtime import AutomationRuntime
 from .infrastructure.postgres.automation_settings import AutomationOrganizationSettings
+from .infrastructure.postgres.catalog_reader import SqlAlchemyOrganizationCatalogReader
 from .infrastructure.postgres.connector_management import MetaConnectorManagement
 from .infrastructure.postgres.connector_pilot import MetaLeadWebhookService
 from .infrastructure.postgres.dashboard_reader import PostgresDashboardReader
@@ -187,6 +190,7 @@ from .presentation.api.routers import (
     audit_router,
     auth_router,
     automation_router,
+    catalog_router,
     connectors_router,
     dashboard_router,
     exports_router,
@@ -294,6 +298,8 @@ def build_container(settings: Settings) -> AppContainer:
     get_current_session: GetCurrentSessionUseCase | None = None
     logout: LogoutUseCase | None = None
     create_organization: CreateOrganizationUseCase | None = None
+    catalog_administration: CatalogAdministrationUseCases | None = None
+    get_organization_catalog: GetOrganizationCatalogUseCase | None = None
     list_platform_organizations: ListPlatformOrganizationsUseCase | None = None
     suspend_organization: ChangeOrganizationStatusUseCase | None = None
     reactivate_organization: ChangeOrganizationStatusUseCase | None = None
@@ -488,6 +494,10 @@ def build_container(settings: Settings) -> AppContainer:
             audited_unit_of_work_factory=database.platform_audited_unit_of_work,
         )
         list_platform_organizations = ListPlatformOrganizationsUseCase(provisioning_gateway, clock)
+        catalog_administration = CatalogAdministrationUseCases(database.catalog_audited_unit_of_work, clock)
+        get_organization_catalog = GetOrganizationCatalogUseCase(
+            SqlAlchemyOrganizationCatalogReader(database.tenant_unit_of_work), clock
+        )
         suspend_organization = ChangeOrganizationStatusUseCase(
             provisioning_gateway,
             clock,
@@ -711,6 +721,8 @@ def build_container(settings: Settings) -> AppContainer:
         get_current_session=get_current_session,
         logout=logout,
         create_organization=create_organization,
+        catalog_administration=catalog_administration,
+        get_organization_catalog=get_organization_catalog,
         list_platform_organizations=list_platform_organizations,
         suspend_organization=suspend_organization,
         reactivate_organization=reactivate_organization,
@@ -975,6 +987,7 @@ def create_app(
     app.include_router(metrics_router)
     app.include_router(auth_router)
     app.include_router(automation_router)
+    app.include_router(catalog_router)
     app.include_router(dashboard_router)
     app.include_router(import_history_router)
     app.include_router(exports_router)

@@ -20,6 +20,7 @@ from .application.use_cases import (
     ArchiveImportDeclarationUseCase,
     ArchiveProspectUseCase,
     CancelImportDeclarationUseCase,
+    CatalogAdministrationUseCases,
     ChangeContactPermissionUseCase,
     ChangeOrganizationStatusUseCase,
     CheckReadinessUseCase,
@@ -45,6 +46,7 @@ from .application.use_cases import (
     GetImportDeclarationUseCase,
     GetMapSnapshotUseCase,
     GetOpportunityUseCase,
+    GetOrganizationCatalogUseCase,
     GetOrganizationUseCase,
     GetPipelineBoardUseCase,
     GetProspectUseCase,
@@ -133,6 +135,8 @@ class AppContainer:
     get_current_session: GetCurrentSessionUseCase | None = None
     logout: LogoutUseCase | None = None
     create_organization: CreateOrganizationUseCase | None = None
+    catalog_administration: CatalogAdministrationUseCases | None = None
+    get_organization_catalog: GetOrganizationCatalogUseCase | None = None
     list_platform_organizations: ListPlatformOrganizationsUseCase | None = None
     suspend_organization: ChangeOrganizationStatusUseCase | None = None
     reactivate_organization: ChangeOrganizationStatusUseCase | None = None

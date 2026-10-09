@@ -12,6 +12,8 @@ from ....application.errors import (
     InvitationRateLimited,
     MembershipReactivationRequired,
     ProvisioningServiceUnavailable,
+    SeatEntitlementUnavailable,
+    SeatLimitReached,
     SessionConflict,
     SessionCreationFailedAfterAcceptance,
 )
@@ -130,6 +132,8 @@ def _invitation_error(request: Request, error: Exception) -> Response | None:
     if isinstance(error, (SessionConflict, MembershipReactivationRequired)):
         code = "session_conflict" if isinstance(error, SessionConflict) else "membership_reactivation_required"
         return api_error(request, 409, code, "Cette invitation nécessite une action préalable sur le compte.")
+    if isinstance(error, SeatLimitReached):
+        return api_error(request, 409, "seat_limit_reached", "La limite de sièges de l’organisation est atteinte.")
     if isinstance(error, InvitationRateLimited):
         return api_error(
             request,
@@ -145,7 +149,9 @@ def _invitation_error(request: Request, error: Exception) -> Response | None:
             "session_creation_failed_after_acceptance",
             "L’invitation est acceptée. Reconnectez-vous lorsque le service sera disponible.",
         )
-    if isinstance(error, (AuthenticationServiceUnavailable, ProvisioningServiceUnavailable)):
+    if isinstance(
+        error, (AuthenticationServiceUnavailable, ProvisioningServiceUnavailable, SeatEntitlementUnavailable)
+    ):
         return api_error(
             request,
             503,

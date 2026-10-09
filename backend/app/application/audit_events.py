@@ -165,6 +165,18 @@ def _entity_type(action: AuditAction) -> str:
         return "csv_import_run"
     if action is AuditAction.USAGE_REPORT_VIEWED:
         return "usage_report"
+    if action is AuditAction.CATALOG_PLAN_CREATED:
+        return "plan_catalog"
+    if action in {AuditAction.CATALOG_PLAN_VERSION_CREATED, AuditAction.CATALOG_PLAN_VERSION_PUBLISHED}:
+        return "plan_version"
+    if action in {AuditAction.CATALOG_CONTRACT_ATTACHED, AuditAction.CATALOG_CONTRACT_STATE_CHANGED}:
+        return "organization_plan_contract"
+    if action in {
+        AuditAction.CATALOG_CONTRACT_OVERRIDE_PROPOSED,
+        AuditAction.CATALOG_CONTRACT_OVERRIDE_APPROVED,
+        AuditAction.CATALOG_CONTRACT_OVERRIDE_REVOKED,
+    }:
+        return "plan_contract_override"
     if action is AuditAction.EXPORT_RULE_CHANGED:
         return "source_export_rule"
     if action in {

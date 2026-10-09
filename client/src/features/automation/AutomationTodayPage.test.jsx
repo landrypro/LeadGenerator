@@ -40,7 +40,12 @@ describe('AutomationTodayPage', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Préparer un plan' }))
 
     expect(await screen.findByRole('heading', { name: 'Plan proposé' })).toBeInTheDocument()
-    expect(screen.getByText(/Périmètre examiné : prospects ouverts qui vous sont attribués/)).toBeInTheDocument()
+    expect(
+      screen.getByText(
+        (_, element) => element?.classList.contains('automation-result-scope')
+          && element.textContent?.replace(/\s+/g, ' ').trim() === 'Périmètre examiné : prospects ouverts qui vous sont attribués',
+      ),
+    ).toBeInTheDocument()
     expect(automationApi.createPlan).toHaveBeenCalledWith({
       input_mode: 'free_text', user_text: 'Montre mes prospects ouverts', suggestion_code: null,
     })

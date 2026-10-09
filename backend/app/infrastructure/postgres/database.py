@@ -15,6 +15,7 @@ from .audited_unit_of_work import (
     SqlAlchemyPlatformAuditedUnitOfWork,
     SqlAlchemyTenantAuditedUnitOfWork,
 )
+from .catalog_unit_of_work import SqlAlchemyCatalogAuditedUnitOfWork
 from .identity_unit_of_work import SqlAlchemyIdentityUnitOfWork
 from .prospect_unit_of_work import SqlAlchemyProspectUnitOfWork
 from .tenant_unit_of_work import SqlAlchemyTenantUnitOfWork
@@ -80,6 +81,9 @@ class PostgresDatabase:
 
     def platform_audited_unit_of_work(self, context: ActorContext) -> SqlAlchemyPlatformAuditedUnitOfWork:
         return SqlAlchemyPlatformAuditedUnitOfWork(self._session_factory, context)
+
+    def catalog_audited_unit_of_work(self, context: ActorContext) -> SqlAlchemyCatalogAuditedUnitOfWork:
+        return SqlAlchemyCatalogAuditedUnitOfWork(self._session_factory, context)
 
     def actor_audited_unit_of_work(self, context: ActorContext) -> SqlAlchemyActorAuditedUnitOfWork:
         return SqlAlchemyActorAuditedUnitOfWork(self._session_factory, context)
