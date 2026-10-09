@@ -1,9 +1,11 @@
 # Manuel utilisateur Marketteo CRM
 
-**Version :** 0.12
-**État :** phase 4.6 clôturée localement avec GO produit ; preuve Azure requise avant la phase 5
-**Date de référence :** 30 septembre 2026
+**Version :** 0.13
+**État :** phase 4.6 clôturée localement ; Pré-Phase 5 Automatisation autorisée en P4-Lite sous réserves
+**Date de référence :** 6 octobre 2026
 **Public :** commerciaux, gestionnaires, administrateurs d'organisation et administrateurs de plateforme
+
+Cette édition est alignée sur le dernier commit documentaire `9f174b8` (« document spécification Pre-Phase 5 ») et sur les routes Automatisation présentes dans l'application locale.
 
 > Les libellés visibles de l'application utilisent désormais la marque Marketteo CRM. Les identifiants techniques historiques peuvent encore contenir `prospect` ou `LeadGenerator` afin de préserver les installations existantes.
 
@@ -38,7 +40,9 @@ Lorsqu'un résultat est ajouté au CRM, Marketteo conserve la référence Google
   changent ni les droits commerciaux ni les limites affichées.
 - La recette locale de phase 4.6 a validé les parcours E2E-01 à E2E-12, le verrou qualité sans skip et les contrôles d'accessibilité ; le pipeline Azure doit encore publier les preuves sur le commit de clôture avant l'entrée en phase 5.
 - L'activation du connecteur Meta avec un compte réel reste `BLOCKED_EXTERNAL` jusqu'à l'autorisation externe, la revue de l'application et la validation des permissions officielles. Le pilote local simulé ne vaut pas activation fournisseur.
-- La phase 5 est cadrée mais non disponible dans l'application : préproduction, abonnements, facturation, restauration, essais de charge et déploiement progressif restent à décider et à implémenter.
+- La Pré-Phase 5 Automatisation expose désormais les surfaces « Aujourd'hui », « Playbooks » et « Entrées et exceptions ». Elles sont documentées comme P4-Lite : les flags sont désactivés par défaut, le fournisseur IA est simulé et aucune communication externe, réattribution automatique ou modification silencieuse du pipeline n'est exécutée.
+- La préparation d'un plan Automatisation reste une proposition temporaire en lecture seule. Elle ne crée ni prospect, ni tâche, ni brouillon persistant et ne lance aucun appel OpenAI réel.
+- La phase 5 générale reste cadrée mais non disponible dans l'application : préproduction, abonnements, facturation, restauration, essais de charge et déploiement progressif restent à décider et à implémenter.
 
 ## 2. Accéder à l'application
 
@@ -539,15 +543,57 @@ Le corps Meta n'est pas conservé. La référence de lead est chiffrée puis dé
 ![Pipeline commercial phase 4](images/pipeline-phase4.png)
 *Figure 15 — Pipeline commercial avec les étapes, compteurs et actions de réouverture.*
 
-## 12. Administrer une organisation
+## 12. Préparer l'automatisation (Pré-Phase 5)
 
-### 12.1 Consulter ou modifier l'organisation
+La Pré-Phase 5 ajoute une surface Automatisation au CRM sans créer un second CRM. Elle prépare et explique des actions contrôlées ; elle ne décide pas à la place d'un humain et ne communique pas avec un contact externe.
+
+> **État produit au 6 octobre 2026.** La Porte 4 est clôturée avec un **GO avec réserves**. La tranche `P4-Lite` peut être préparée avec des données synthétiques, un faux fournisseur IA et des flags désactivés par défaut. Cette édition décrit les écrans livrés et leurs limites ; elle ne vaut pas autorisation d'activation, de staging ou de production.
+
+### 12.1 Ouvrir « Aujourd'hui »
+
+Dans le menu « Automatisation », sélectionnez « Aujourd'hui » (`/app/automation/today`). L'écran affiche l'identifiant `IMP-A5`, un champ « Votre demande » limité à 500 caractères et trois suggestions guidées :
+
+1. « Cadrer mes prospects ouverts » ;
+2. « Étudier un rééquilibrage » ;
+3. « Préparer le suivi des nouveaux prospects ».
+
+Décrivez un besoin de lecture ou sélectionnez une suggestion, puis choisissez « Préparer un plan ». Le résultat attendu est un plan explicable, temporaire et en lecture seule. Dans l'environnement où les flags sont désactivés, l'application affiche « L'assistant est désactivé. » et n'exécute aucun effet CRM ou externe. Une erreur d'API doit rester lisible et ne doit jamais être interprétée comme un plan validé.
+
+### 12.2 Examiner les « Playbooks »
+
+L'onglet « Playbooks » présente les trois parcours cadrés par la Pré-Phase 5 : « Nouveau prospect », « Proposition en attente » et « Occasion oubliée ». Chaque carte indique si un Prévol est requis et si une configuration active existe.
+
+- Sans configuration active, l'écran indique que le Prévol et l'activation ne sont pas disponibles ; aucun compteur ou bouton d'activation fictif ne doit être déduit.
+- Si une organisation pilote est explicitement autorisée, un administrateur peut préparer un Prévol, activer le mode « préparer » ou suspendre un Playbook selon les capacités et la garde de version.
+- Même dans ce mode, Marketteo n'envoie pas de courriel, SMS ou message social, ne réattribue pas automatiquement une fiche, ne fusionne pas de doublon et ne déplace pas silencieusement le pipeline.
+
+### 12.3 Traiter les « Entrées et exceptions »
+
+La page « Entrées et exceptions » regroupe les cas qui demandent une décision humaine. Les états suivis sont « Ouverte », « En traitement », « À vérifier », « Résolue » et « Abandonnée ».
+
+Prenez en charge une entrée, vérifiez le contexte et utilisez uniquement un motif fermé proposé par l'interface pour la résoudre ou l'abandonner. Une exception `effect_uncertain` doit rester en vérification : il n'y a ni nouvelle tentative aveugle, ni réattribution, ni second effet CRM automatique. Si aucune entrée n'est disponible, l'état vide « Aucune entrée ou exception à traiter » est normal et distinct d'une erreur de chargement.
+
+### 12.4 Limites, rôles et retour arrière
+
+L'accès dépend de la capacité `automation:plan:create` et de l'organisation active. Les règles d'arrêt sont prioritaires : `AUTOMATION_ENABLED=false` et `AUTOMATION_ROLLOUT_MODE=off` restent les valeurs de référence en préproduction et en production. Toute suspension ou reprise doit être versionnée et auditée ; la reprise impose un nouveau Prévol frais.
+
+La version actuelle autorise le faux fournisseur déterministe, la minimisation des preuves, les fixtures synthétiques, l'idempotence et le rollback local. Elle n'autorise pas l'appel OpenAI réel, la persistance de phrases libres, les connecteurs sociaux, les brouillons envoyables, l'envoi externe, la réattribution automatique ou l'activation générale pour une organisation cliente. Les réserves de contrat, quotas, rétention, capacité, environnement isolé et preuve Azure restent ouvertes.
+
+![Navigation mobile Marketteo CRM — capture récente](images/navigation-mobile-phase4.png)
+*Figure 16 — Capture récente de la navigation mobile : le panneau « Acquisition », « Données et audit » et « Administration » reste regroupé ; le lien « Manuel » est disponible en bas du panneau.*
+
+![Journal d'activité Marketteo CRM — capture récente](images/journal-activite-phase4.png)
+*Figure 17 — Capture récente du journal d'activité : période, action, type d'entité, identifiant exact et acteur sont filtrables pour contrôler les opérations sensibles.*
+
+## 13. Administrer une organisation
+
+### 13.1 Consulter ou modifier l'organisation
 
 Ouvrez « Organisation » pour consulter le nom, la langue, le fuseau horaire, l'état et la date de création. L'administrateur peut modifier le nom, la langue et le fuseau horaire IANA, puis enregistrer.
 
 Si l'écran signale « Une version plus récente existe », rechargez les données avant de reprendre vos changements. Ce contrôle évite d'écraser la modification d'un autre utilisateur.
 
-### 12.2 Gérer les membres
+### 13.2 Gérer les membres
 
 Ouvrez « Membres », puis l'onglet « Membres ».
 
@@ -555,7 +601,7 @@ Ouvrez « Membres », puis l'onglet « Membres ».
 - L'administrateur peut sélectionner « Modifier », changer le rôle ou l'état et confirmer l'action sensible.
 - Le dernier administrateur actif de l'organisation ne peut pas être désactivé ou rétrogradé sans remplacement.
 
-### 12.3 Inviter une personne
+### 13.3 Inviter une personne
 
 Dans l'onglet « Invitations » :
 
@@ -566,7 +612,7 @@ Dans l'onglet « Invitations » :
 
 L'administrateur peut renvoyer ou révoquer une invitation lorsqu'une action est proposée. Un renvoi invalide l'ancien lien. Aucun jeton d'invitation n'est affiché dans le navigateur.
 
-### 12.4 Consulter le journal d'activité
+### 13.4 Consulter le journal d'activité
 
 Ouvrez « Journal d'activité ». Vous pouvez filtrer par période, action, type d'entité, identifiant exact et acteur.
 
@@ -579,9 +625,9 @@ Ouvrez « Journal d'activité ». Vous pouvez filtrer par période, action, type
 Le journal présente les changements validés de l'organisation active. Il ne remplace pas une sauvegarde et n'autorise pas la modification des événements.
 
 ![Journal d'activité Marketteo CRM](images/journal-activite.png)
-*Figure 16 — Journal d'activité avec période, action, type d'entité, identifiant et acteur filtrables.*
+*Figure 18 — Journal d'activité avec période, action, type d'entité, identifiant et acteur filtrables.*
 
-## 13. Mon compte et session
+## 14. Mon compte et session
 
 Ouvrez « Compte » ou sélectionnez votre nom dans l'en-tête pour consulter :
 
@@ -592,11 +638,11 @@ Ouvrez « Compte » ou sélectionnez votre nom dans l'en-tête pour consulter :
 
 Sélectionnez « Se déconnecter » lorsque vous avez terminé, particulièrement sur un appareil partagé. Les informations de session ne sont pas enregistrées dans le stockage du navigateur.
 
-## 14. Administration de la plateforme
+## 15. Administration de la plateforme
 
 Cette section s'adresse uniquement aux administrateurs de plateforme.
 
-### 14.1 Provisionner une organisation
+### 15.1 Provisionner une organisation
 
 1. ouvrez « Plateforme » ;
 2. saisissez le nom de l'organisation, la langue et le fuseau horaire IANA ;
@@ -608,11 +654,11 @@ L'administrateur initial reçoit un lien à usage unique. Si une intention de re
 
 Selon les actions disponibles, un administrateur de plateforme peut renvoyer ou révoquer l'invitation initiale, suspendre une organisation ou la réactiver. Chaque opération sensible demande une justification ou une confirmation et est auditée.
 
-### 14.2 Consulter l'audit plateforme
+### 15.2 Consulter l'audit plateforme
 
 Ouvrez « Audit plateforme ». Utilisez les filtres de période, action, type d'entité, identifiant et acteur comme dans le journal d'une organisation. L'audit plateforme reste séparé des données propres aux organisations et s'affiche en UTC.
 
-## 15. Dépannage de premier niveau
+## 16. Dépannage de premier niveau
 
 ### Une page n'apparaît pas dans le menu
 
@@ -690,6 +736,23 @@ Ouvrez « Historique des imports » et consultez les numéros de lignes, les cod
 valeurs brutes ne sont pas restituées. Corrigez le fichier source, vérifiez de nouveau l'acquisition et relancez un lot
 distinct ; le rejeu idempotent ne doit pas créer de doublon.
 
+### « L'assistant est désactivé. » s'affiche
+
+C'est le comportement attendu lorsque le flag global ou celui de l'organisation est désactivé. Vérifiez l'organisation
+active et demandez à l'administrateur si une tranche pilote est autorisée ; ne tentez pas de contourner le message par une
+adresse directe. Aucun plan ni effet CRM n'a été produit.
+
+### Un Playbook indique que le Prévol ou l'activation est indisponible
+
+Une configuration active et un Prévol frais sont nécessaires. L'interface peut donc afficher les trois cartes sans proposer
+de commande. Il ne s'agit pas d'un incident et cela ne vaut pas autorisation d'activer une organisation cliente.
+
+### Une entrée d'exception reste « À vérifier »
+
+Conservez l'exception en traitement et vérifiez la corrélation et l'idempotence avec l'administrateur. Ne relancez pas
+manuellement un effet incertain et ne créez pas un doublon pour « tester » la reprise ; le retour arrière doit rester
+auditable.
+
 ## 17. État de sortie de la phase 4
 
 La phase 4.6 a été clôturée localement le 30 septembre 2026 avec un **GO produit**. Cette décision signifie que les
@@ -723,6 +786,9 @@ sont pas exposés dans les indicateurs, les exports ou les journaux.
 - La preuve Azure de la révision de clôture, la préproduction, les essais de charge/coûts, la sauvegarde/restauration
   et le lancement progressif restent des portes de phase 5. Une mention dans une spécification n'est pas une fonction
   accessible dans le produit.
+- Pour l'Automatisation, la campagne locale du 5 octobre 2026 confirme le rendu des trois surfaces et le refus sûr
+  lorsque les flags sont désactivés ; la préparation d'un plan avec l'organisation de démonstration reste bloquée par la
+  garde organisationnelle. Ce résultat ne constitue pas un GO d'activation.
 
 Pour signaler un écart, indiquez l'organisation active, le rôle, l'heure, le parcours concerné et le message affiché.
 N'ajoutez jamais de mot de passe, jeton, courriel réel ou contenu de prospect dans un ticket ou une capture.
@@ -765,10 +831,27 @@ N'ajoutez jamais de mot de passe, jeton, courriel réel ou contenu de prospect d
 
 **Activation externe** : autorisation et revue d'un fournisseur réel, distinctes de la simulation locale du connecteur.
 
+**Automatisation — Aujourd'hui** : surface de préparation d'un plan explicable, temporaire et en lecture seule ; elle ne
+crée pas d'objet CRM et ne contacte aucun tiers.
+
+**Feu relationnel** : décision déterministe qui classe une action selon les permissions, oppositions, limites et données
+connues ; une information inconnue ou contradictoire ne devient jamais un feu vert implicite.
+
+**P4-Lite** : tranche de Pré-Phase 5 limitée aux fixtures synthétiques, au faux fournisseur, aux garde-fous et au
+rollback local ; les flags sont désactivés par défaut.
+
+**Prévol** : vérification versionnée et fraîche d'un Playbook avant toute préparation ou activation autorisée.
+
+**Playbook** : parcours métier borné, versionné et suspendable ; il ne s'agit pas d'un constructeur libre de workflows.
+
+**Exception** : cas nécessitant une décision humaine (par exemple responsable indisponible ou effet incertain), avec état,
+motif fermé, audit et idempotence.
+
 ## 19. Historique du document
 
 | Version | Date | État | Résumé |
 |---|---|---|---|
+| 0.13 | 6 octobre 2026 | P4-Lite sous réserves — flags désactivés | Mise à jour sur le dernier commit d'automatisation : surfaces Aujourd'hui, Playbooks et Entrées et exceptions, limites du faux fournisseur et de la Porte 4, dépannage dédié et deux captures récentes ajoutées |
 | 0.12 | 30 septembre 2026 | GO local — preuve Azure requise | Clôture de la phase 4.6 : parcours E2E-01 à E2E-12, verrou qualité, accessibilité, worker, imports/exports, usage, isolation et limites de l'activation Meta réelle ; ajout du bilan de sortie et des captures phase 4 conservées |
 | 0.11 | 26 septembre 2026 | À valider | Mise à jour phase 4 : tableau de bord, usage, imports/exports, connexions Meta, navigation responsive et six nouvelles captures d'écran de l'application |
 | 0.10 | 18 septembre 2026 | À valider | Couverture complète de la phase 3.4 : portefeuille, création, édition, responsable, cycle de vie, alignement, conflits et six nouvelles captures d'écran |

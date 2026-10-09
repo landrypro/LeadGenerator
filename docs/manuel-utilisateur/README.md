@@ -4,14 +4,14 @@
 
 Ce dossier est la source de référence du manuel utilisateur de Marketteo CRM. Il doit rester synchronisé avec les écrans livrés, les capacités par rôle et les règles de conformité réellement appliquées par l'application.
 
-L'édition 0.12 couvre l'état fonctionnel observé dans le dépôt et l'application au 30 septembre 2026. Elle intègre la clôture locale de la recette Phase 4.6 (GO produit), tout en signalant la preuve Azure encore requise avant l'entrée en phase 5. Elle s'adresse aux commerciaux, gestionnaires, administrateurs d'organisation et administrateurs de plateforme.
+L'édition 0.13 couvre l'état fonctionnel observé dans le dépôt et l'application au 6 octobre 2026. Elle intègre la clôture locale de la recette Phase 4.6 et les surfaces Automatisation de la Pré-Phase 5 (P4-Lite sous réserves), tout en signalant les flags désactivés, la preuve Azure et les réserves OpenAI encore requises. Elle s'adresse aux commerciaux, gestionnaires, administrateurs d'organisation et administrateurs de plateforme.
 
 ## Livrables
 
 - `MANUEL_UTILISATEUR.md` : source éditoriale versionnée ;
 - `MATRICE_COUVERTURE.md` : couverture des écrans, rôles et captures ;
-- `Marketteo_CRM_Manuel_Utilisateur_v0.12.docx` : édition Word illustrée ;
-- `Marketteo_CRM_Manuel_Utilisateur_v0.12.html` : édition HTML publiée dans l'application ;
+- `Marketteo_CRM_Manuel_Utilisateur_v0.13.docx` : édition Word illustrée ;
+- `Marketteo_CRM_Manuel_Utilisateur_v0.13.html` : édition HTML publiée dans l'application ;
 - `scripts/build_user_manual.py` : générateur reproductible du document Word ;
 - `scripts/build_user_manual_html.py` : générateur reproductible de l'édition HTML.
 
@@ -57,9 +57,12 @@ Sont documentés :
 - navigation par catégories, menu responsive, barre mobile et accès intégré au manuel ;
 - recette finale de phase 4.6 : parcours E2E-01 à E2E-12, reprise du worker, déduplication/quarantaine, exports privés, quotas et indisponibilités réversibles, connecteur Meta simulé, isolation RLS, accessibilité et purge logique ;
 - état de sortie : GO local du 30 septembre 2026, preuve Azure requise sur le commit de clôture et statut `BLOCKED_EXTERNAL` pour l'activation Meta réelle ;
+- Pré-Phase 5 Automatisation : « Aujourd'hui », « Playbooks » et « Entrées et exceptions », Prévol, exceptions, audit, rollback et limites du faux fournisseur ;
+- état Porte 4 : `GO avec réserves` pour P4-Lite uniquement, flags désactivés par défaut, données synthétiques et aucun effet externe ;
+- deux captures récentes fournies le 26 septembre 2026, rattachées à la navigation mobile et au journal d'activité ;
 - limites actuelles et dépannage de premier niveau.
 
-Ne sont pas décrits comme disponibles : export des contenus Google, facturation, conversion de devises, notifications externes, activation Meta réelle sans autorisation externe, preuve Azure non publiée, préproduction, paiements et automatisations futures de la phase 5.
+Ne sont pas décrits comme disponibles : export des contenus Google, facturation, conversion de devises, notifications externes, activation Meta réelle sans autorisation externe, preuve Azure non publiée, préproduction, paiements, appel OpenAI réel, connecteurs sociaux, envois externes, activation générale des Playbooks, réattribution automatique et automatisations futures hors P4-Lite.
 
 ## Cycle de mise à jour
 
@@ -86,8 +89,8 @@ Une édition est publiable lorsque :
 
 ## Décisions encore requises avant une édition 1.0
 
-- publier la preuve Azure sur le commit de clôture 4.6 et valider l'édition 0.12 et ses 16 captures ;
+- publier la preuve Azure sur le commit de clôture 4.6 et valider l'édition 0.13 et ses captures ;
 - fournir l'URL de production et le canal officiel de soutien ;
 - faire valider les consignes de conformité par la personne responsable ;
 - confirmer si l'administration de plateforme doit rester dans le même manuel ou devenir un guide séparé ;
-- décider le périmètre de la phase 5 (préproduction, plans, sièges, paiements, restauration et lancement progressif).
+- décider le périmètre de la phase 5 (préproduction, plans, sièges, paiements, restauration, lancement progressif, contrat OpenAI et élargissement des flags).
