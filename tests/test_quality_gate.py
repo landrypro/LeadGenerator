@@ -13,13 +13,13 @@ from scripts.quality_gate import (
 
 
 def test_quality_gate_alembic_expectations_track_the_current_head() -> None:
-    expected_revision = "20261008_0050"
+    expected_revision = "20261009_0051"
     local_gate = Path("scripts/Test-QualityGateLocal.ps1").read_text(encoding="utf-8")
     pipeline = Path("azure-pipelines.yml").read_text(encoding="utf-8")
 
     assert f"$expectedAlembicRevision = '{expected_revision}'" in local_gate
     assert f"expectedAlembicRevision: '{expected_revision}'" in pipeline
-    assert "P53-01 ajoute uniquement les registres domaine" in local_gate
+    assert "P53-02 ajoute le schéma billing" in local_gate
     assert "Invoke-QualityStep 'P53-01 socle métier'" in local_gate
     assert "Invoke-QualityStep 'Zéro skip P53-01'" in local_gate
     assert "pytest-p53-01.xml" in local_gate

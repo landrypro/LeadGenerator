@@ -9,6 +9,17 @@ from .automation import (
     AutomationPreflightModel,
 )
 from .base import NAMING_CONVENTION, Base
+from .billing import (
+    BillingCommandModel,
+    BillingCustomerModel,
+    BillingEventInboxModel,
+    BillingEventModel,
+    BillingReconciliationDifferenceModel,
+    BillingReconciliationRunModel,
+    BillingRefundModel,
+    SubscriptionModel,
+    SubscriptionTransitionModel,
+)
 from .catalog import (
     CatalogMutationOperationModel,
     EntitlementSafetyCeilingModel,
@@ -61,6 +72,13 @@ __all__ = [
     "AutomationPlaybookVersionModel",
     "AutomationPreflightModel",
     "Base",
+    "BillingCommandModel",
+    "BillingCustomerModel",
+    "BillingEventInboxModel",
+    "BillingEventModel",
+    "BillingReconciliationDifferenceModel",
+    "BillingReconciliationRunModel",
+    "BillingRefundModel",
     "CatalogMutationOperationModel",
     "ConnectorIngestionModel",
     "ConnectorIngestionOutcomeModel",
@@ -99,6 +117,8 @@ __all__ = [
     "ProviderConnectorContractModel",
     "SourceExportRuleModel",
     "SourceProviderModel",
+    "SubscriptionModel",
+    "SubscriptionTransitionModel",
     "UsageDailyCounterModel",
     "UsageOperationEventModel",
     "UserInvitationModel",
