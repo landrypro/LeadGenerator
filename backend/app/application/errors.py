@@ -1,3 +1,14 @@
+from ..domain.billing import BillingErrorCode
+
+
+class BillingOperationError(RuntimeError):
+    """Erreur P5.3 munie d'un code public stable, sans détail fournisseur."""
+
+    def __init__(self, code: BillingErrorCode) -> None:
+        super().__init__(code.value)
+        self.code = code
+
+
 class GoogleSearchInProgress(RuntimeError):
     """Une recherche Google est déjà en cours pour le même acteur locataire."""
 
