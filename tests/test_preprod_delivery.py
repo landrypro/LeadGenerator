@@ -98,6 +98,7 @@ def test_preprod_compose_only_accepts_an_immutable_application_image() -> None:
     assert "build:" not in compose
     assert "PREPROD_APP_IMAGE" in compose
     assert "PREPROD_ENV_FILE" in compose
+    assert "env_file: ${PREPROD_ENV_FILE:-.env.preprod}" in compose
     assert ":latest" not in compose
 
 
@@ -110,6 +111,9 @@ def test_preprod_pipeline_is_manual_and_gates_preprod_deployment() -> None:
     assert "aws ecr describe-images" in pipeline
     assert 'environment: "marketteo-preproduction"' in pipeline
     assert "preprod-backup.sh" in pipeline
+    assert "${{ parameters.releaseGitSha }}" in pipeline
+    assert "${ parameters." not in pipeline
+    assert "eq(${{ parameters.deployPreproduction }}, true)" in pipeline
 
 
 def test_parameter_store_renderer_keeps_secret_values_out_of_the_template() -> None:

@@ -958,6 +958,11 @@ async def test_imp_a6_concurrent_workers_and_restart_keep_one_internal_task() ->
             assigned_membership_id=fixture.membership_a_id,
             idempotency_key="a6-concurrent-workers",
         )
+        # La course porte sur la réclamation atomique, non sur l'ouverture TCP
+        # du conteneur PostgreSQL. Préparer les deux pools évite un timeout
+        # intermittent de connexion sur une machine locale chargée.
+        async with worker_a.engine.connect(), worker_b.engine.connect():
+            pass
         results = await asyncio.gather(
             automation_worker(worker_a).run_once(),
             automation_worker(worker_b).run_once(),

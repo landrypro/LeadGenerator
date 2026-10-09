@@ -25,9 +25,7 @@ from backend.app.domain.assistant_catalog import (
         ("Explique le statut de l’automatisation", AssistantIntentCode.EXPLAIN_AUTOMATION_STATUS),
     ],
 )
-def test_catalog_classifies_canonical_phrases_and_aliases(
-    phrase: str, expected: AssistantIntentCode
-) -> None:
+def test_catalog_classifies_canonical_phrases_and_aliases(phrase: str, expected: AssistantIntentCode) -> None:
     assert classify_catalog_intent(phrase) is expected
 
 
@@ -46,7 +44,9 @@ def test_catalog_is_closed_and_metadata_is_complete() -> None:
     )
     assert all(entry.aliases for entry in ASSISTANT_CATALOG)
     assert all(entry.required_capability for entry in ASSISTANT_CATALOG)
-    assert catalog_entry(AssistantIntentCode.SCOPE_OPEN_PROSPECTS).scope_kind is AssistantScopeKind.ASSIGNED_OPEN_PROSPECTS
+    assert (
+        catalog_entry(AssistantIntentCode.SCOPE_OPEN_PROSPECTS).scope_kind is AssistantScopeKind.ASSIGNED_OPEN_PROSPECTS
+    )
 
 
 def test_catalog_does_not_guess_unknown_requests() -> None:

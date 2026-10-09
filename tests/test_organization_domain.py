@@ -129,10 +129,10 @@ def user(*memberships: MembershipIdentity, platform: bool = False) -> UserIdenti
                 "automation:playbooks:activate",
                 "automation:playbooks:suspend",
                 "automation:exceptions:resolve:self",
-                    "automation:exceptions:resolve:organization",
-                    "automation:approvals:decide",
-                    "automation:settings:manage",
-                ),
+                "automation:exceptions:resolve:organization",
+                "automation:approvals:decide",
+                "automation:settings:manage",
+            ),
         ),
         (
             MembershipRole.MANAGER,
@@ -244,6 +244,7 @@ def test_platform_role_does_not_grant_implicit_tenant_capabilities() -> None:
         "platform:organizations:create",
         "platform:organizations:manage",
         "platform:audit:read",
+        "platform:catalog:manage",
     )
 
 

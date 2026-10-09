@@ -5,7 +5,7 @@ from datetime import UTC, datetime, timedelta
 from uuid import uuid4
 
 import pytest
-from sqlalchemy import delete, inspect, text
+from sqlalchemy import inspect, text
 
 from backend.app.application.errors import PlatformAdministratorAlreadyExists
 from backend.app.application.use_cases import (
@@ -18,7 +18,6 @@ from backend.app.application.use_cases import (
 from backend.app.domain.identity import UserIdentity
 from backend.app.infrastructure.clock import SystemClock
 from backend.app.infrastructure.postgres import PostgresDatabase
-from backend.app.infrastructure.postgres.models import UserModel
 from backend.app.infrastructure.redis import (
     RedisInvitationRateLimiter,
     RedisLoginRateLimiter,
@@ -181,6 +180,10 @@ async def test_real_identity_login_session_and_logout_workflow() -> None:
             password_hasher,
             clock,
         )
+        # La course vérifie le verrou transactionnel du bootstrap, pas la
+        # création simultanée de sockets Docker au délai de deux secondes.
+        async with database.engine.connect(), database.engine.connect():
+            pass
         results = await asyncio.gather(
             bootstrap.execute(email=email, display_name="Admin intégration", password=password),
             bootstrap.execute(
@@ -192,6 +195,7 @@ async def test_real_identity_login_session_and_logout_workflow() -> None:
         )
         created_users = [result for result in results if isinstance(result, UserIdentity)]
         conflicts = [result for result in results if isinstance(result, PlatformAdministratorAlreadyExists)]
+        assert len(created_users) + len(conflicts) == len(results), [type(result).__name__ for result in results]
         assert len(created_users) == 1
         assert len(conflicts) == 1
         user = created_users[0]
@@ -224,7 +228,16 @@ async def test_real_identity_login_session_and_logout_workflow() -> None:
     finally:
         if user_id is not None:
             async with owner_database.engine.begin() as connection:
-                await connection.execute(delete(UserModel).where(UserModel.id == user_id))
+                await connection.execute(
+                    text("UPDATE users SET platform_role = NULL WHERE id = :user_id"), {"user_id": user_id}
+                )
+                await connection.execute(
+                    text(
+                        "DELETE FROM users WHERE id = :user_id "
+                        "AND NOT EXISTS (SELECT 1 FROM audit_events WHERE actor_id = :user_id)"
+                    ),
+                    {"user_id": user_id},
+                )
             await sessions.revoke_user(user_id)
         await redis.close()
         await database.close()

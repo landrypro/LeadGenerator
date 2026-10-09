@@ -85,21 +85,7 @@ async def cleanup(
             text("SELECT id FROM organizations WHERE creation_request_id = :request_id"),
             {"request_id": request_id},
         )
-        accepted_users = []
         if organization_id is not None:
-            accepted_users = list(
-                (
-                    await connection.scalars(
-                        text(
-                            """
-                            SELECT DISTINCT accepted_by FROM user_invitations
-                            WHERE organization_id = :organization_id AND accepted_by IS NOT NULL
-                            """
-                        ),
-                        {"organization_id": organization_id},
-                    )
-                ).all()
-            )
             await connection.execute(
                 text("DELETE FROM invitation_delivery_attempts WHERE organization_id = :organization_id"),
                 {"organization_id": organization_id},
@@ -108,9 +94,20 @@ async def cleanup(
                 text("DELETE FROM organizations WHERE id = :organization_id"),
                 {"organization_id": organization_id},
             )
-        for user_id in set(accepted_users) | set(extra_user_ids):
-            await connection.execute(text("DELETE FROM users WHERE id = :user_id"), {"user_id": user_id})
-        await connection.execute(text("DELETE FROM users WHERE id = :actor_id"), {"actor_id": actor_id})
+        # L'audit est append-only : ne supprimons un acteur synthétique que s'il
+        # n'est référencé par aucun événement. Les autres vivent uniquement dans
+        # la base Docker jetable de cette exécution.
+        for user_id in set(extra_user_ids) | {actor_id}:
+            await connection.execute(
+                text("UPDATE users SET platform_role = NULL WHERE id = :user_id"), {"user_id": user_id}
+            )
+            await connection.execute(
+                text(
+                    "DELETE FROM users WHERE id = :user_id "
+                    "AND NOT EXISTS (SELECT 1 FROM audit_events WHERE actor_id = :user_id)"
+                ),
+                {"user_id": user_id},
+            )
 
 
 async def test_concurrent_provisioning_and_acceptance_are_exactly_once_and_rls_safe() -> None:

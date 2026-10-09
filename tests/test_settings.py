@@ -1,3 +1,5 @@
+from uuid import UUID, uuid4
+
 import pytest
 
 from backend.app.config import DEFAULT_CORS_ORIGINS, Settings
@@ -105,6 +107,24 @@ def test_settings_enable_imp_a5_assistant_only_with_local_automation() -> None:
     assert settings.automation_assistant_daily_budget == 500
     assert settings.automation_assistant_timeout_seconds == 2
     assert settings.automation_assistant_max_scope == 50
+
+
+def test_settings_rollout_modes_are_explicit_and_tenant_scoped() -> None:
+    pilot = uuid4()
+    other = uuid4()
+    settings = Settings(
+        automation_enabled=True,
+        automation_rollout_mode="pilot",
+        automation_pilot_organization_ids=(str(pilot),),
+    )
+
+    assert settings.automation_rollout_enabled_for(UUID(str(pilot))) is True
+    assert settings.automation_rollout_enabled_for(other) is False
+    assert Settings(automation_enabled=True, automation_rollout_mode="all").automation_rollout_enabled_for(other)
+    assert not Settings(automation_enabled=True, automation_rollout_mode="off").automation_rollout_enabled_for(pilot)
+
+    with pytest.raises(ValueError, match="organisation pilote"):
+        Settings(automation_enabled=True, automation_rollout_mode="pilot")
 
 
 def test_settings_reject_non_fake_or_non_local_assistant() -> None:

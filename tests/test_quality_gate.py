@@ -12,6 +12,16 @@ from scripts.quality_gate import (
 )
 
 
+def test_quality_gate_alembic_expectations_track_the_current_head() -> None:
+    expected_revision = "20261008_0050"
+    local_gate = Path("scripts/Test-QualityGateLocal.ps1").read_text(encoding="utf-8")
+    pipeline = Path("azure-pipelines.yml").read_text(encoding="utf-8")
+
+    assert f"$expectedAlembicRevision = '{expected_revision}'" in local_gate
+    assert f"expectedAlembicRevision: '{expected_revision}'" in pipeline
+    assert "P52-07 expose l'API interne" in local_gate
+
+
 def test_junit_gate_accepts_zero_skip_and_rejects_one(tmp_path: Path) -> None:
     report = tmp_path / "report.xml"
     report.write_text('<testsuites><testsuite tests="2" skipped="0" /></testsuites>', encoding="utf-8")

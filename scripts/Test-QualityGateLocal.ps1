@@ -38,8 +38,10 @@ $qualityClient = Join-Path $qualityRoot 'client'
 $qualityNpmCache = Join-Path $qualityRoot 'npm-cache'
 $vitestReport = Join-Path $testResults 'vitest.xml'
 $projectName = 'prospect-crm-quality'
-# Révision courante attendue après l'exécuteur contrôlé Automation IMP-A4.
-$expectedAlembicRevision = '20261003_0034'
+# P52-07 expose l'API interne et la vue tenant minimale sans migration de schéma.
+# La tête Alembic reste donc celle de P52-06 ; pytest réel couvre les contrats
+# HTTP, les conflits versionnés et la preuve PostgreSQL RLS de cette étape.
+$expectedAlembicRevision = '20261008_0050'
 $script:resolvedDockerMode = $null
 $script:wslWorkspace = $null
 $script:wslDistribution = $null
@@ -149,7 +151,8 @@ function Invoke-VitestWithWorkerStartupRetry {
 function Invoke-PytestWithTransientDatabaseConnectionRetry {
     param(
         [string]$PythonCommand,
-        [string[]]$Arguments
+        [string[]]$Arguments,
+        [string]$JunitReport
     )
 
     # Les tests d'integration ouvrent et ferment de nombreuses connexions reelles.
@@ -168,23 +171,56 @@ function Invoke-PytestWithTransientDatabaseConnectionRetry {
         }
 
         $outputText = $pytestOutput | Out-String
+        $junitText = ""
+        if (Test-Path -LiteralPath $JunitReport) {
+            $junitText = Get-Content -LiteralPath $JunitReport -Raw
+        }
+
+        # Pytest n'imprime pas toujours la pile interne complete en sortie console.
+        # Son rapport JUnit est deja produit a cet instant et conserve la signature
+        # exacte du timeout asyncpg d'amorcage de connexion PostgreSQL.
+        $retryEvidence = "$outputText`n$junitText"
         $isAsyncpgConnectionStartupTimeout = (
-            ($outputText -match 'asyncpg[\\/]connect_utils\.py') -and
-            ($outputText -match 'asyncio\.exceptions\.CancelledError') -and
+            ($retryEvidence -match 'asyncpg[\\/]connect_utils\.py') -and
+            ($retryEvidence -match 'asyncio\.exceptions\.CancelledError') -and
             # Pytest imprime le chemin du module et TimeoutError sur deux lignes
             # distinctes dans son traceback. Les rechercher séparément garde la
             # reprise limitée au timeout d'amorcage TCP asyncpg.
-            ($outputText -match 'asyncio[\\/]timeouts\.py') -and
-            ($outputText -match 'TimeoutError')
+            ($retryEvidence -match 'asyncio[\\/]timeouts\.py') -and
+            ($retryEvidence -match 'TimeoutError')
         )
         if ($attempt -ge 2 -or -not $isAsyncpgConnectionStartupTimeout) {
             $global:LASTEXITCODE = $pytestExitCode
             return
         }
 
-        Write-Warning "PostgreSQL est devenu injoignable pendant l'amorcage TCP asyncpg. Reprise unique de pytest."
+        Write-Warning "PostgreSQL est devenu injoignable pendant l'amorcage TCP asyncpg. Reconstruction de la base isolée avant la reprise unique de pytest."
+        Reset-QualityDatabaseForPytestRetry
         $attempt++
     }
+}
+
+function Reset-QualityDatabaseForPytestRetry {
+    # Un test interrompu peut avoir déjà écrit des données append-only d'audit.
+    # Rejouer pytest sur cette même base pourrait transformer une panne de transport
+    # en faux conflit fonctionnel. La reprise repart donc du même état vierge que le
+    # premier essai, avec des rôles et migrations réellement rejoués.
+    Invoke-DockerCli -Arguments @('compose', '-p', $projectName, '-f', (Get-ComposeFileArgument), 'down', '--volumes', '--remove-orphans')
+    if ($LASTEXITCODE -ne 0) { throw 'Le nettoyage de la base isolée avant reprise pytest a échoué.' }
+
+    Invoke-DockerCli -Arguments @('compose', '-p', $projectName, '-f', (Get-ComposeFileArgument), 'up', '-d', '--wait')
+    if ($LASTEXITCODE -ne 0) { throw 'Le redémarrage de la base isolée avant reprise pytest a échoué.' }
+
+    Invoke-DockerCli -Arguments @('compose', '-p', $projectName, '-f', (Get-ComposeFileArgument), 'run', '--rm', 'database-role-provisioner')
+    if ($LASTEXITCODE -ne 0) { throw 'Le provisionnement des rôles avant reprise pytest a échoué.' }
+
+    Wait-TestTcpPort -HostName $script:testDependencyHost -Port $TestPostgresPort -ServiceName 'PostgreSQL'
+    Wait-TestTcpPort -HostName $script:testDependencyHost -Port $TestMailpitApiPort -ServiceName 'Mailpit'
+    Invoke-AlembicWithTransientDatabaseConnectionRetry `
+        -PythonCommand $python `
+        -AlembicConfig (Join-Path $workspace 'backend\alembic.ini') `
+        -Arguments @('upgrade', 'head')
+    if ($LASTEXITCODE -ne 0) { throw 'La reconstruction Alembic avant reprise pytest a échoué.' }
 }
 
 function Invoke-AlembicWithTransientDatabaseConnectionRetry {
@@ -536,13 +572,36 @@ try {
         try {
             Invoke-PytestWithTransientDatabaseConnectionRetry `
                 -PythonCommand $python `
-                -Arguments @('-p', 'no:cacheprovider', "--basetemp=$pytestTemp", '--junitxml=test-results/pytest-quality.xml')
+                -Arguments @('-p', 'no:cacheprovider', "--basetemp=$pytestTemp", '--junitxml=test-results/pytest-quality.xml') `
+                -JunitReport (Join-Path $workspace 'test-results\pytest-quality.xml')
         }
         finally {
             Pop-Location
         }
     }
     Invoke-QualityStep 'Zéro skip backend' { & $python (Join-Path $workspace 'scripts\quality_gate.py') junit-no-skips (Join-Path $testResults 'pytest-quality.xml') }
+    Invoke-QualityStep 'Preuves IMP-A6' {
+        $gitRevision = (git -C $workspace rev-parse HEAD).Trim()
+        if ($LASTEXITCODE -ne 0) { throw 'La révision Git IMP-A6 est introuvable.' }
+        & $python (Join-Path $workspace 'scripts\quality_gate.py') automation-evidence `
+            (Join-Path $workspace 'docs\automatisation\fixtures\imp-a6\manifest.json') `
+            (Join-Path $testResults 'pytest-quality.xml') `
+            (Join-Path $testResults 'alembic-current.txt') `
+            (Join-Path $testResults 'automation-imp-a6\evidence.json') `
+            $expectedAlembicRevision `
+            $gitRevision
+    }
+    Invoke-QualityStep 'Preuves P52-08' {
+        $gitRevision = (git -C $workspace rev-parse HEAD).Trim()
+        if ($LASTEXITCODE -ne 0) { throw 'La révision Git P52-08 est introuvable.' }
+        & $python (Join-Path $workspace 'scripts\quality_gate.py') p52-08-evidence `
+            (Join-Path $workspace 'docs\recettes\p52-08\manifest.json') `
+            (Join-Path $testResults 'pytest-quality.xml') `
+            (Join-Path $testResults 'alembic-current.txt') `
+            (Join-Path $testResults 'p52-08\evidence.json') `
+            $expectedAlembicRevision `
+            $gitRevision
+    }
     Invoke-QualityStep 'Préparation frontend isolée' {
         Initialize-QualityClient
         $global:LASTEXITCODE = 0
@@ -590,8 +649,10 @@ try {
         "- Date UTC : $([DateTime]::UtcNow.ToString('u'))"
         "- Mode Docker : $script:resolvedDockerMode"
         "- Révision Alembic attendue : $expectedAlembicRevision"
+        '- P52-07 : contrats API internes, réponses minimisées et preuve RLS exécutés par pytest réel.'
+        '- P52-08 : recette synthétique archivée dans `p52-08/evidence.json`.'
         '- Verdict automatisé : VERT'
-        '- Rapports : `pytest-quality.xml`, `vitest.xml`, `alembic-current.txt`'
+        '- Rapports : `pytest-quality.xml`, `p52-08/evidence.json`, `vitest.xml`, `alembic-current.txt`'
     )
     Set-Content -LiteralPath (Join-Path $testResults 'quality-summary.md') -Value $summary -Encoding utf8
     Write-Host "`nVerrou qualité local : VERT" -ForegroundColor Green
