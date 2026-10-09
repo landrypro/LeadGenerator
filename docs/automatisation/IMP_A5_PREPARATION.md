@@ -180,7 +180,7 @@ Règles :
     "plan": {
       "title_key": "plan_scope_open_prospects",
       "resolved_count": 12,
-      "bounded_count": 12,
+      "bounded_count": 5,
       "control_codes": ["read_only", "server_resolved_scope"],
       "not_performed_codes": ["no_crm_write", "no_preflight", "no_external_send"],
       "next_step_code": "review_plan"
