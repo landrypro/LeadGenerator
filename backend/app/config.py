@@ -26,6 +26,7 @@ GOOGLE_SEARCH_QUOTA_POLICY_CODE_PATTERN: Final = re.compile(r"[a-z0-9_]{3,64}")
 INSTANCE_ID_PATTERN: Final = re.compile(r"[A-Za-z0-9_.-]{1,128}")
 RELEASE_GIT_SHA_PATTERN: Final = re.compile(r"[0-9a-f]{7,40}")
 RELEASE_IMAGE_DIGEST_PATTERN: Final = re.compile(r"sha256:[0-9a-f]{64}")
+BILLING_PROVIDER_MODES: Final = frozenset({"disabled", "simulated", "stripe_sandbox"})
 
 
 @dataclass(frozen=True, slots=True)
@@ -105,6 +106,10 @@ class Settings:
     meta_lead_reference_encryption_key: str = field(default="", repr=False)
     meta_graph_access_token: str = field(default="", repr=False)
     meta_graph_api_base_url: str = "https://graph.facebook.com"
+    billing_provider_mode: str = "disabled"
+    billing_simulator_webhook_secret: str = field(default="", repr=False)
+    billing_simulator_previous_webhook_secret: str = field(default="", repr=False)
+    billing_webhook_tolerance_seconds: int = 300
     log_format: str = "text"
     instance_id: str = ""
     metrics_enabled: bool = False
@@ -123,6 +128,24 @@ class Settings:
             raise ValueError("META_LEAD_ADS_SIMULATOR_ENABLED est réservé au développement et au test.")
         if self.meta_lead_ads_simulator_enabled and not self.meta_lead_ads_enabled:
             raise ValueError("META_LEAD_ADS_SIMULATOR_ENABLED exige META_LEAD_ADS_ENABLED=true.")
+        if self.billing_provider_mode not in BILLING_PROVIDER_MODES:
+            raise ValueError("BILLING_PROVIDER_MODE doit être disabled, simulated ou stripe_sandbox.")
+        if self.billing_provider_mode == "simulated" and self.app_env not in {"development", "test"}:
+            raise ValueError("BILLING_PROVIDER_MODE=simulated est réservé au développement et au test.")
+        if (
+            self.billing_provider_mode == "simulated"
+            and len(self.billing_simulator_webhook_secret.encode("utf-8")) < 32
+        ):
+            raise ValueError("BILLING_SIMULATOR_WEBHOOK_SECRET doit contenir au moins 32 octets en mode simulated.")
+        if (
+            self.billing_simulator_previous_webhook_secret
+            and len(self.billing_simulator_previous_webhook_secret.encode("utf-8")) < 32
+        ):
+            raise ValueError("BILLING_SIMULATOR_PREVIOUS_WEBHOOK_SECRET doit contenir au moins 32 octets.")
+        if self.billing_simulator_previous_webhook_secret and not self.billing_simulator_webhook_secret:
+            raise ValueError("Le secret webhook Billing courant est obligatoire avant une rotation.")
+        if self.billing_webhook_tolerance_seconds != 300:
+            raise ValueError("BILLING_WEBHOOK_TOLERANCE_SECONDS doit rester fixé à 300.")
         if self.automation_assistant_enabled and self.app_env not in {"development", "test"}:
             raise ValueError("AUTOMATION_ASSISTANT_ENABLED est réservé au développement et au test pour IMP-A5.")
         if self.automation_assistant_enabled and not self.automation_enabled:
@@ -399,6 +422,12 @@ class Settings:
             meta_graph_api_base_url=values.get("META_GRAPH_API_BASE_URL", "https://graph.facebook.com")
             .strip()
             .rstrip("/"),
+            billing_provider_mode=values.get("BILLING_PROVIDER_MODE", "disabled").strip().lower(),
+            billing_simulator_webhook_secret=values.get("BILLING_SIMULATOR_WEBHOOK_SECRET", "").strip(),
+            billing_simulator_previous_webhook_secret=values.get(
+                "BILLING_SIMULATOR_PREVIOUS_WEBHOOK_SECRET", ""
+            ).strip(),
+            billing_webhook_tolerance_seconds=int(values.get("BILLING_WEBHOOK_TOLERANCE_SECONDS", "300")),
             log_format=values.get("LOG_FORMAT", "json" if app_env in {"staging", "production"} else "text")
             .strip()
             .lower(),

@@ -17,6 +17,7 @@ from .billing import (
     BillingReconciliationDifferenceModel,
     BillingReconciliationRunModel,
     BillingRefundModel,
+    BillingWebhookCollisionModel,
     SubscriptionModel,
     SubscriptionTransitionModel,
 )
@@ -79,6 +80,7 @@ __all__ = [
     "BillingReconciliationDifferenceModel",
     "BillingReconciliationRunModel",
     "BillingRefundModel",
+    "BillingWebhookCollisionModel",
     "CatalogMutationOperationModel",
     "ConnectorIngestionModel",
     "ConnectorIngestionOutcomeModel",

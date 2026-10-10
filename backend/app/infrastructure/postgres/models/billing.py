@@ -125,6 +125,34 @@ class BillingEventInboxModel(Base):
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=text("CURRENT_TIMESTAMP"))
 
 
+class BillingWebhookCollisionModel(Base):
+    __tablename__ = "billing_webhook_collisions"
+    __table_args__ = (
+        CheckConstraint(_PROVIDER_CHECK, name="provider"),
+        CheckConstraint("char_length(btrim(provider_event_id)) BETWEEN 1 AND 255", name="reference"),
+        CheckConstraint(
+            "existing_payload_digest ~ '^[a-f0-9]{64}$' AND conflicting_payload_digest ~ '^[a-f0-9]{64}$' "
+            "AND existing_payload_digest <> conflicting_payload_digest",
+            name="digests",
+        ),
+        Index(
+            "uq_billing_webhook_collisions_digest",
+            "provider",
+            "provider_event_id",
+            "conflicting_payload_digest",
+            unique=True,
+        ),
+    )
+
+    id: Mapped[UUID] = mapped_column(primary_key=True, default=uuid4, server_default=text("gen_random_uuid()"))
+    provider: Mapped[str] = mapped_column(String(16))
+    provider_event_id: Mapped[str] = mapped_column(String(255))
+    existing_payload_digest: Mapped[str] = mapped_column(CHAR(64))
+    conflicting_payload_digest: Mapped[str] = mapped_column(CHAR(64))
+    received_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=text("CURRENT_TIMESTAMP"))
+
+
 class SubscriptionModel(Base):
     __tablename__ = "subscriptions"
     __table_args__ = (

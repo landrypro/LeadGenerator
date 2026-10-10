@@ -1,6 +1,7 @@
 from .audit import router as audit_router
 from .auth import router as auth_router
 from .automation import router as automation_router
+from .billing import router as billing_router
 from .catalog import router as catalog_router
 from .connectors import router as connectors_router
 from .dashboard import router as dashboard_router
@@ -22,6 +23,7 @@ __all__ = [
     "audit_router",
     "auth_router",
     "automation_router",
+    "billing_router",
     "catalog_router",
     "connectors_router",
     "dashboard_router",

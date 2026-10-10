@@ -8,6 +8,7 @@ def test_billing_schema_is_registered_in_alembic_target_metadata() -> None:
         "billing_commands",
         "billing_customers",
         "billing_event_inbox",
+        "billing_webhook_collisions",
         "billing_events",
         "billing_reconciliation_differences",
         "billing_reconciliation_runs",

@@ -173,6 +173,30 @@ def test_settings_enable_meta_simulator_only_for_local_environments() -> None:
         )
 
 
+def test_settings_keep_billing_disabled_by_default_and_limit_the_simulator_to_local_environments() -> None:
+    assert Settings().billing_provider_mode == "disabled"
+
+    simulated = Settings(
+        app_env="test",
+        billing_provider_mode="simulated",
+        billing_simulator_webhook_secret="s" * 32,
+    )
+    assert simulated.billing_provider_mode == "simulated"
+    assert "s" * 32 not in repr(simulated)
+
+    with pytest.raises(ValueError, match="réservé"):
+        Settings(
+            app_env="staging",
+            redis_url="redis://redis:6379/0",
+            billing_provider_mode="simulated",
+            billing_simulator_webhook_secret="s" * 32,
+        )
+    with pytest.raises(ValueError, match="BILLING_PROVIDER_MODE"):
+        Settings(billing_provider_mode="real")
+    with pytest.raises(ValueError, match="32 octets"):
+        Settings(billing_provider_mode="simulated", billing_simulator_webhook_secret="short")
+
+
 def test_local_settings_default_export_idempotency_key() -> None:
     settings = Settings.from_env({"APP_ENV": "development"})
 

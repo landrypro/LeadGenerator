@@ -3,6 +3,7 @@ from __future__ import annotations
 import asyncio
 from collections.abc import AsyncIterator, Awaitable, Callable
 from contextlib import asynccontextmanager, suppress
+from datetime import UTC, datetime
 from pathlib import Path
 from time import perf_counter
 from uuid import uuid4
@@ -130,6 +131,7 @@ from .config import Settings
 from .container import AppContainer
 from .infrastructure.assistant.fake import FakeAssistantInterpreter
 from .infrastructure.audit_pagination import HmacAuditCursorCodec
+from .infrastructure.billing.webhooks import BillingWebhookAdmissionService, SimulatedBillingWebhookVerifier
 from .infrastructure.clock import SystemClock
 from .infrastructure.google.location import GoogleLocationResolver
 from .infrastructure.google.places import (
@@ -162,6 +164,7 @@ from .infrastructure.postgres.automation_preflight import AutomationPreflightRun
 from .infrastructure.postgres.automation_reader import AutomationReader
 from .infrastructure.postgres.automation_runtime import AutomationRuntime
 from .infrastructure.postgres.automation_settings import AutomationOrganizationSettings
+from .infrastructure.postgres.billing_webhook_inbox import SqlAlchemyBillingEventInbox
 from .infrastructure.postgres.catalog_reader import SqlAlchemyOrganizationCatalogReader
 from .infrastructure.postgres.connector_management import MetaConnectorManagement
 from .infrastructure.postgres.connector_pilot import MetaLeadWebhookService
@@ -190,6 +193,7 @@ from .presentation.api.routers import (
     audit_router,
     auth_router,
     automation_router,
+    billing_router,
     catalog_router,
     connectors_router,
     dashboard_router,
@@ -396,7 +400,22 @@ def build_container(settings: Settings) -> AppContainer:
     get_dashboard_summary: GetDashboardSummaryUseCase | None = None
     get_usage_report: GetUsageReportUseCase | None = None
     get_current_usage: GetCurrentUsageUseCase | None = None
+    billing_webhook_admission: BillingWebhookAdmissionService | None = None
     usage_store = PostgresUsageStore(database.session_factory, metrics) if database is not None else None
+    if database is not None and settings.billing_provider_mode == "simulated":
+        billing_webhook_admission = BillingWebhookAdmissionService(
+            SimulatedBillingWebhookVerifier(
+                current_secret=settings.billing_simulator_webhook_secret.encode("utf-8"),
+                previous_secret=(
+                    settings.billing_simulator_previous_webhook_secret.encode("utf-8")
+                    if settings.billing_simulator_previous_webhook_secret
+                    else None
+                ),
+                tolerance_seconds=settings.billing_webhook_tolerance_seconds,
+            ),
+            SqlAlchemyBillingEventInbox(database.session_factory),
+            clock=lambda: datetime.now(UTC),
+        )
     meta_lead_webhooks = MetaLeadWebhookService(database.session_factory, settings) if database is not None else None
     meta_connector_management = (
         MetaConnectorManagement(database.session_factory, settings) if database is not None else None
@@ -732,6 +751,7 @@ def build_container(settings: Settings) -> AppContainer:
         get_usage_report=get_usage_report,
         get_current_usage=get_current_usage,
         usage_store=usage_store,
+        billing_webhook_admission=billing_webhook_admission,
         meta_lead_webhooks=meta_lead_webhooks,
         meta_connector_management=meta_connector_management,
         create_manual_prospect=create_manual_prospect,
@@ -986,6 +1006,7 @@ def create_app(
     app.include_router(health_router)
     app.include_router(metrics_router)
     app.include_router(auth_router)
+    app.include_router(billing_router)
     app.include_router(automation_router)
     app.include_router(catalog_router)
     app.include_router(dashboard_router)

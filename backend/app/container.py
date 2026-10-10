@@ -109,6 +109,7 @@ from .application.use_cases.assistant import CreateAssistantPlanUseCase
 from .application.use_cases.dashboard import GetDashboardSummaryUseCase
 from .application.use_cases.usage import GetCurrentUsageUseCase, GetUsageReportUseCase
 from .config import Settings
+from .infrastructure.billing.webhooks import BillingWebhookAdmissionService
 from .infrastructure.google.location import GoogleLocationResolver
 from .infrastructure.postgres.automation_exception_resolution import AutomationExceptionResolution
 from .infrastructure.postgres.automation_lifecycle import AutomationPlaybookLifecycle
@@ -146,6 +147,7 @@ class AppContainer:
     get_usage_report: GetUsageReportUseCase | None = None
     get_current_usage: GetCurrentUsageUseCase | None = None
     usage_store: UsageStore | None = None
+    billing_webhook_admission: BillingWebhookAdmissionService | None = None
     meta_lead_webhooks: MetaLeadWebhookService | None = None
     meta_connector_management: MetaConnectorManagement | None = None
     create_manual_prospect: CreateManualProspectUseCase | None = None
