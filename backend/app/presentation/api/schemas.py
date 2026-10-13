@@ -11,6 +11,18 @@ class StrictCommand(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
 
+class BillingRefundRequest(StrictCommand):
+    organization_id: UUID
+    subscription_id: UUID
+    approved: Literal[True]
+    justification_code: Literal["policy_within_14_days"]
+
+
+class BillingRefundResponse(BaseModel):
+    refund_id: UUID
+    state: Literal["approved"]
+
+
 class LoginRequest(StrictCommand):
     email: str = Field(min_length=3, max_length=254)
     password: str = Field(min_length=1, max_length=128)
@@ -211,6 +223,20 @@ class MemberResponse(BaseModel):
     version: int
     created_at: datetime
     updated_at: datetime
+
+
+class BillingCheckoutSessionRequest(StrictCommand):
+    plan_version_id: UUID
+    return_target: Literal["subscription"] = "subscription"
+
+
+class BillingPortalSessionRequest(StrictCommand):
+    return_target: Literal["subscription"] = "subscription"
+
+
+class BillingSessionResponse(BaseModel):
+    url: str
+    expires_at: datetime
 
 
 class MemberPageResponse(BaseModel):

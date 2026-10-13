@@ -67,6 +67,7 @@ def user(*memberships: MembershipIdentity, platform: bool = False) -> UserIdenti
                 "usage:read:organization",
                 "organization:read",
                 "organization:update",
+                "billing:manage",
                 "members:read",
                 "members:manage",
                 "invitations:read",
@@ -245,6 +246,7 @@ def test_platform_role_does_not_grant_implicit_tenant_capabilities() -> None:
         "platform:organizations:manage",
         "platform:audit:read",
         "platform:catalog:manage",
+        "platform:billing:manage",
     )
 
 

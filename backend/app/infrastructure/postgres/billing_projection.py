@@ -43,6 +43,22 @@ class BillingProjectionWorker:
                 )
         return True
 
+    async def run_lifecycle_once(self) -> bool:
+        """Applique une seule échéance de grâce durable, sans lecture directe des tables."""
+
+        async with self._sessions.begin() as session:
+            subscription_id = await session.scalar(text("SELECT app_private.claim_billing_lifecycle_timer()"))
+        if subscription_id is None:
+            return False
+        async with self._sessions.begin() as session:
+            result = await session.scalar(
+                text("SELECT app_private.project_billing_lifecycle_timer(:subscription_id)"),
+                {"subscription_id": subscription_id},
+            )
+        if result not in {"grace_started", "suspended", "unchanged", "lost_claim"}:
+            raise RuntimeError("billing_lifecycle_invalid_result")
+        return True
+
 
 def _result_code(value: object) -> str:
     decoded = json.loads(value) if isinstance(value, str) else value

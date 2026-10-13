@@ -131,6 +131,9 @@ class SimulatedBillingProviderGateway(BillingProviderGateway):
         self._checkout_subscriptions[reference] = subscription_reference
         session = CheckoutSession(
             provider_checkout_reference=reference,
+            provider_customer_reference=customer_reference,
+            provider_subscription_reference=subscription_reference,
+            subscription=snapshot,
             checkout_url=f"http://billing-simulator.local/checkout/{reference}",
             expires_at=now + _SESSION_TTL,
         )
@@ -198,7 +201,9 @@ class SimulatedBillingProviderGateway(BillingProviderGateway):
             provider=BillingProvider.SIMULATED,
             provider_event_id=self._reference("event", "refund", idempotency_key),
             event_type=BillingEventType.REFUND_SUCCEEDED,
-            provider_object_reference=self._reference("payment", command.provider_payment_reference),
+            # La référence de paiement demeure opaque et ne sort jamais de l'API.
+            # Elle doit toutefois rester joignable à la commande durable lors du webhook.
+            provider_object_reference=command.provider_payment_reference,
             provider_created_at=now,
         )
         self._events[event.provider_event_id] = event

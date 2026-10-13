@@ -184,7 +184,11 @@ class Worker:
             await self._automation.cancel(claim, context)
 
     async def run_once(self) -> bool:
-        billing_processed = await self._billing.run_once() if self._billing is not None else False
+        billing_processed = False
+        if self._billing is not None:
+            billing_processed = await self._billing.run_once()
+            if not billing_processed:
+                billing_processed = await self._billing.run_lifecycle_once()
         claim = await self._queue.claim(SUPPORTED_CONTRACTS)
         if claim is None:
             return billing_processed

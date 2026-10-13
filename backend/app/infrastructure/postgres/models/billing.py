@@ -173,6 +173,11 @@ class SubscriptionModel(Base):
         CheckConstraint("current_period_end > current_period_start", name="period"),
         CheckConstraint("provider_version > 0", name="provider_version_positive"),
         CheckConstraint("version > 0", name="version_positive"),
+        CheckConstraint(
+            "(grace_policy_version IS NULL AND grace_started_at IS NULL AND grace_ends_at IS NULL) OR "
+            "(grace_policy_version = 1 AND grace_started_at IS NOT NULL AND grace_ends_at = grace_started_at + interval '7 days')",
+            name="grace_window",
+        ),
         Index(
             "uq_subscriptions_current_org",
             "organization_id",
@@ -180,6 +185,7 @@ class SubscriptionModel(Base):
             postgresql_where=text(f"state IN ({_SUBSCRIPTION_STATES})"),
         ),
         Index("ix_subscriptions_org_state", "organization_id", "state", "current_period_end"),
+        Index("ix_subscriptions_grace_due", "grace_ends_at", postgresql_where=text("state='grace_period'")),
     )
 
     id: Mapped[UUID] = mapped_column(primary_key=True, default=uuid4, server_default=text("gen_random_uuid()"))
@@ -193,6 +199,9 @@ class SubscriptionModel(Base):
     current_period_start: Mapped[datetime] = mapped_column(DateTime(timezone=True))
     current_period_end: Mapped[datetime] = mapped_column(DateTime(timezone=True))
     cancel_at_period_end: Mapped[bool] = mapped_column(Boolean, server_default=text("false"))
+    grace_policy_version: Mapped[int | None] = mapped_column(SmallInteger)
+    grace_started_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    grace_ends_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     provider_updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
     provider_version: Mapped[int] = mapped_column(BigInteger, server_default=text("1"))
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=text("CURRENT_TIMESTAMP"))

@@ -144,6 +144,7 @@ class AuthenticatedIdentity:
     user: UserIdentity
     active_membership: MembershipIdentity | None
     csrf_token: str
+    session_issued_at: datetime | None = None
 
 
 CAPABILITIES_BY_ROLE: dict[MembershipRole, tuple[str, ...]] = {
@@ -154,6 +155,7 @@ CAPABILITIES_BY_ROLE: dict[MembershipRole, tuple[str, ...]] = {
         "usage:read:organization",
         "organization:read",
         "organization:update",
+        "billing:manage",
         "members:read",
         "members:manage",
         "invitations:read",
@@ -339,6 +341,7 @@ def capabilities_for(identity: UserIdentity, active_membership: MembershipIdenti
                 "platform:organizations:manage",
                 "platform:audit:read",
                 "platform:catalog:manage",
+                "platform:billing:manage",
             )
         )
     if active_membership is not None and active_membership.is_active:

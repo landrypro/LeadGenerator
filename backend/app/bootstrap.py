@@ -125,12 +125,15 @@ from .application.use_cases import (
     ValidateCsvImportUseCase,
 )
 from .application.use_cases.assistant import CreateAssistantPlanUseCase
+from .application.use_cases.billing import BillingSessionUseCases
+from .application.use_cases.billing_refunds import BillingRefundUseCases
 from .application.use_cases.dashboard import GetDashboardSummaryUseCase
 from .application.use_cases.usage import GetCurrentUsageUseCase, GetUsageReportUseCase
 from .config import Settings
 from .container import AppContainer
 from .infrastructure.assistant.fake import FakeAssistantInterpreter
 from .infrastructure.audit_pagination import HmacAuditCursorCodec
+from .infrastructure.billing import build_billing_provider_gateway
 from .infrastructure.billing.webhooks import BillingWebhookAdmissionService, SimulatedBillingWebhookVerifier
 from .infrastructure.clock import SystemClock
 from .infrastructure.google.location import GoogleLocationResolver
@@ -164,6 +167,8 @@ from .infrastructure.postgres.automation_preflight import AutomationPreflightRun
 from .infrastructure.postgres.automation_reader import AutomationReader
 from .infrastructure.postgres.automation_runtime import AutomationRuntime
 from .infrastructure.postgres.automation_settings import AutomationOrganizationSettings
+from .infrastructure.postgres.billing_commands import SqlAlchemyBillingCommandRepository
+from .infrastructure.postgres.billing_refunds import SqlAlchemyBillingRefundRepository
 from .infrastructure.postgres.billing_webhook_inbox import SqlAlchemyBillingEventInbox
 from .infrastructure.postgres.catalog_reader import SqlAlchemyOrganizationCatalogReader
 from .infrastructure.postgres.connector_management import MetaConnectorManagement
@@ -401,7 +406,21 @@ def build_container(settings: Settings) -> AppContainer:
     get_usage_report: GetUsageReportUseCase | None = None
     get_current_usage: GetCurrentUsageUseCase | None = None
     billing_webhook_admission: BillingWebhookAdmissionService | None = None
+    billing_sessions: BillingSessionUseCases | None = None
+    billing_refunds: BillingRefundUseCases | None = None
     usage_store = PostgresUsageStore(database.session_factory, metrics) if database is not None else None
+    if database is not None and settings.billing_provider_mode in {"disabled", "simulated"}:
+        billing_clock = SystemClock()
+        billing_sessions = BillingSessionUseCases(
+            SqlAlchemyBillingCommandRepository(database.tenant_unit_of_work),
+            build_billing_provider_gateway(settings, clock=billing_clock.now),
+            billing_clock,
+        )
+        billing_refunds = BillingRefundUseCases(
+            SqlAlchemyBillingRefundRepository(database.actor_unit_of_work),
+            build_billing_provider_gateway(settings, clock=billing_clock.now),
+            billing_clock,
+        )
     if database is not None and settings.billing_provider_mode == "simulated":
         billing_webhook_admission = BillingWebhookAdmissionService(
             SimulatedBillingWebhookVerifier(
@@ -752,6 +771,8 @@ def build_container(settings: Settings) -> AppContainer:
         get_current_usage=get_current_usage,
         usage_store=usage_store,
         billing_webhook_admission=billing_webhook_admission,
+        billing_sessions=billing_sessions,
+        billing_refunds=billing_refunds,
         meta_lead_webhooks=meta_lead_webhooks,
         meta_connector_management=meta_connector_management,
         create_manual_prospect=create_manual_prospect,

@@ -8,9 +8,9 @@ from enum import StrEnum
 from typing import Protocol
 from uuid import UUID
 
-from ...domain.billing import BillingEventType, BillingPeriod, BillingProvider, SubscriptionState
+from ...domain.billing import BillingErrorCode, BillingEventType, BillingPeriod, BillingProvider, SubscriptionState
 from ...domain.catalog import CurrencyCode
-from ..tenancy import TenantContext
+from ..tenancy import ActorContext, TenantContext
 
 
 class BillingCommandKind(StrEnum):
@@ -29,6 +29,13 @@ class BillingCommandReservationCode(StrEnum):
     RESERVED = "reserved"
     REPLAYED = "replayed"
     CONFLICT = "conflict"
+
+
+class BillingCommandState(StrEnum):
+    RESERVED = "reserved"
+    SUCCEEDED = "succeeded"
+    UNKNOWN = "unknown"
+    FAILED = "failed"
 
 
 class BillingWebhookAdmissionCode(StrEnum):
@@ -86,6 +93,9 @@ class CheckoutSession:
     """Résultat minimal : la vraie URL demeure éphémère et non journalisable."""
 
     provider_checkout_reference: str
+    provider_customer_reference: str
+    provider_subscription_reference: str
+    subscription: NormalizedSubscriptionSnapshot
     checkout_url: str
     expires_at: datetime
 
@@ -131,6 +141,28 @@ class BillingCommandReservation:
     command_id: UUID
 
 
+@dataclass(frozen=True, slots=True)
+class BillingCheckoutPreparation:
+    command_id: UUID
+    state: BillingCommandState
+    command: BillingCheckoutCommand
+
+
+@dataclass(frozen=True, slots=True)
+class BillingPortalPreparation:
+    command_id: UUID
+    state: BillingCommandState
+    command: BillingPortalCommand
+
+
+@dataclass(frozen=True, slots=True)
+class BillingRefundPreparation:
+    command_id: UUID
+    refund_id: UUID
+    state: BillingCommandState
+    command: BillingRefundCommand
+
+
 class BillingProviderGateway(Protocol):
     async def create_checkout(self, *, command: BillingCheckoutCommand, idempotency_key: str) -> CheckoutSession: ...
 
@@ -160,14 +192,66 @@ class SubscriptionRepository(Protocol):
 
 
 class BillingCommandRepository(Protocol):
-    async def reserve(
+    async def prepare_checkout(
         self,
         *,
         context: TenantContext,
-        kind: BillingCommandKind,
-        idempotency_key: str,
+        command_id: UUID,
+        plan_version_id: UUID,
+        idempotency_key_digest: str,
         request_fingerprint: str,
-    ) -> BillingCommandReservation: ...
+        now: datetime,
+    ) -> BillingCheckoutPreparation: ...
+
+    async def prepare_portal(
+        self,
+        *,
+        context: TenantContext,
+        command_id: UUID,
+        idempotency_key_digest: str,
+        request_fingerprint: str,
+        now: datetime,
+    ) -> BillingPortalPreparation: ...
+
+    async def complete_checkout(
+        self,
+        *,
+        context: TenantContext,
+        preparation: BillingCheckoutPreparation,
+        session: CheckoutSession,
+    ) -> None: ...
+
+    async def complete_portal(
+        self,
+        *,
+        context: TenantContext,
+        preparation: BillingPortalPreparation,
+        session: PortalSession,
+    ) -> None: ...
+
+    async def mark_failed(self, *, context: TenantContext, command_id: UUID, reason: BillingErrorCode) -> None: ...
+
+    async def mark_unknown(self, *, context: TenantContext, command_id: UUID) -> None: ...
+
+
+class BillingRefundRepository(Protocol):
+    async def prepare_refund(
+        self,
+        *,
+        context: ActorContext,
+        organization_id: UUID,
+        subscription_id: UUID,
+        command_id: UUID,
+        idempotency_key_digest: str,
+        request_fingerprint: str,
+        now: datetime,
+    ) -> BillingRefundPreparation: ...
+
+    async def complete_refund(
+        self, *, context: ActorContext, preparation: BillingRefundPreparation, provider_event_id: str
+    ) -> None: ...
+
+    async def mark_refund(self, *, context: ActorContext, command_id: UUID, unknown: bool) -> None: ...
 
 
 class BillingReconciliationGateway(Protocol):

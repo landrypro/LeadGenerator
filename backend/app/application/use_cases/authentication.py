@@ -117,6 +117,7 @@ class LoginUseCase:
                 user=user,
                 active_membership=active_membership,
                 csrf_token=created_session.record.csrf_token,
+                session_issued_at=created_session.record.issued_at,
             ),
             session=created_session,
         )
@@ -155,6 +156,7 @@ class GetCurrentSessionUseCase:
             user=user,
             active_membership=active_membership,
             csrf_token=session.csrf_token,
+            session_issued_at=session.issued_at,
         )
 
 

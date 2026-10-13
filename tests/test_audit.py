@@ -176,6 +176,41 @@ def test_billing_transition_audit_keeps_only_closed_state_codes() -> None:
     }
 
 
+@pytest.mark.parametrize(
+    ("action", "kind"),
+    [
+        (AuditAction.BILLING_CHECKOUT_REQUESTED, "checkout"),
+        (AuditAction.BILLING_CHECKOUT_SESSION_CREATED, "checkout"),
+        (AuditAction.BILLING_PORTAL_REQUESTED, "portal"),
+        (AuditAction.BILLING_PORTAL_SESSION_CREATED, "portal"),
+    ],
+)
+def test_billing_session_audit_never_accepts_provider_references(action: AuditAction, kind: str) -> None:
+    event = _draft(
+        action=action,
+        entity_type="billing_command",
+        metadata={"command_kind": kind, "replayed": False},
+    )
+
+    assert event.metadata == {"command_kind": kind, "replayed": False}
+    with pytest.raises(InvalidAuditMetadata):
+        _draft(
+            action=action,
+            entity_type="billing_command",
+            metadata={"command_kind": kind, "replayed": False, "provider_reference": "forbidden"},
+        )
+
+
+def test_billing_checkout_refusal_audit_uses_only_a_closed_reason_code() -> None:
+    event = _draft(
+        action=AuditAction.BILLING_CHECKOUT_REFUSED,
+        entity_type="billing_command",
+        metadata={"command_kind": "checkout", "reason_code": "billing_reconciliation_required"},
+    )
+
+    assert event.metadata == {"command_kind": "checkout", "reason_code": "billing_reconciliation_required"}
+
+
 class _StubSession:
     def __init__(self, result: object) -> None:
         self.result = result

@@ -106,6 +106,8 @@ from .application.use_cases import (
     ValidateCsvImportUseCase,
 )
 from .application.use_cases.assistant import CreateAssistantPlanUseCase
+from .application.use_cases.billing import BillingSessionUseCases
+from .application.use_cases.billing_refunds import BillingRefundUseCases
 from .application.use_cases.dashboard import GetDashboardSummaryUseCase
 from .application.use_cases.usage import GetCurrentUsageUseCase, GetUsageReportUseCase
 from .config import Settings
@@ -148,6 +150,8 @@ class AppContainer:
     get_current_usage: GetCurrentUsageUseCase | None = None
     usage_store: UsageStore | None = None
     billing_webhook_admission: BillingWebhookAdmissionService | None = None
+    billing_sessions: BillingSessionUseCases | None = None
+    billing_refunds: BillingRefundUseCases | None = None
     meta_lead_webhooks: MetaLeadWebhookService | None = None
     meta_connector_management: MetaConnectorManagement | None = None
     create_manual_prospect: CreateManualProspectUseCase | None = None

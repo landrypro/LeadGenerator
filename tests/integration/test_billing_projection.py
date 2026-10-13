@@ -59,7 +59,7 @@ def _payload(
 async def test_billing_projection_is_atomic_monotone_and_recoverable() -> None:
     worker_url, owner_url = _urls()
     worker, owner = _database(worker_url), _database(owner_url)
-    actor, organization, plan, plan_version, customer, subscription = (uuid4() for _ in range(6))
+    actor, approver, organization, plan, plan_version, customer, subscription = (uuid4() for _ in range(7))
     paid_inbox, stale_inbox, broken_inbox = uuid4(), uuid4(), uuid4()
     now = datetime.now(UTC).replace(microsecond=0)
     customer_reference = f"customer-{customer}"
@@ -79,28 +79,75 @@ async def test_billing_projection_is_atomic_monotone_and_recoverable() -> None:
                 text(
                     """
                     INSERT INTO users (id,email,email_normalized,display_name,password_hash,status,created_at,updated_at)
-                    VALUES (:actor,:email,:email,'Projection','hash','active',:now,:now);
+                    VALUES
+                      (:actor,:email,:email,'Projection','hash','active',:now,:now),
+                      (:approver,:approver_email,:approver_email,'Projection approval','hash','active',:now,:now)
+                    """
+                ),
+                {
+                    "actor": actor,
+                    "email": f"projection-{actor}@example.test",
+                    "approver": approver,
+                    "approver_email": f"projection-approval-{approver}@example.test",
+                    "now": now,
+                },
+            )
+            await connection.execute(
+                text(
+                    """
                     INSERT INTO organizations (id,name,timezone,status,created_by,activated_at,created_at,updated_at)
-                    VALUES (:organization,'Projection','America/Toronto','active',:actor,:now,:now,:now);
-                    INSERT INTO plan_catalog (id,code,state) VALUES (:plan,'custom','draft');
+                    VALUES (:organization,'Projection','America/Toronto','active',:actor,:now,:now,:now)
+                    """
+                ),
+                {"organization": organization, "actor": actor, "now": now},
+            )
+            await connection.execute(
+                text("INSERT INTO plan_catalog (id,code,state) VALUES (:plan,'custom','draft')"), {"plan": plan}
+            )
+            await connection.execute(
+                text(
+                    """
                     INSERT INTO plan_versions (
                       id,plan_id,version_number,state,currency,billing_cycle,amount_excluding_tax_minor,
                       effective_from,created_by_user_id,approved_by_user_id,published_at
-                    ) VALUES (:plan_version,:plan,1,'published','CAD','monthly',0,:now,:actor,:actor,:now);
+                    ) VALUES (:plan_version,:plan,1,'published','CAD','monthly',0,:now,:actor,:approver,:now)
+                    """
+                ),
+                {
+                    "plan_version": plan_version,
+                    "plan": plan,
+                    "actor": actor,
+                    "approver": approver,
+                    "now": now,
+                },
+            )
+            await connection.execute(
+                text(
+                    """
                     INSERT INTO billing_customers (id,organization_id,provider,provider_customer_reference)
-                    VALUES (:customer,:organization,'simulated',:customer_reference);
+                    VALUES (:customer,:organization,'simulated',:customer_reference)
+                    """
+                ),
+                {
+                    "customer": customer,
+                    "organization": organization,
+                    "customer_reference": customer_reference,
+                },
+            )
+            await connection.execute(
+                text(
+                    """
                     INSERT INTO subscriptions (
                       id,organization_id,billing_customer_id,provider,provider_subscription_reference,plan_version_id,
                       currency,state,current_period_start,current_period_end,provider_updated_at
                     ) VALUES (
                       :subscription,:organization,:customer,'simulated',:subscription_reference,:plan_version,
                       'CAD','pending_checkout',:previous,:now,:previous
-                    );
+                    )
                     """
                 ),
                 {
                     "actor": actor,
-                    "email": f"projection-{actor}@example.test",
                     "organization": organization,
                     "plan": plan,
                     "plan_version": plan_version,
@@ -247,6 +294,8 @@ async def test_billing_projection_is_atomic_monotone_and_recoverable() -> None:
             await connection.execute(text("DELETE FROM plan_versions WHERE id=:id"), {"id": plan_version})
             await connection.execute(text("DELETE FROM plan_catalog WHERE id=:id"), {"id": plan})
             await connection.execute(text("DELETE FROM organizations WHERE id=:id"), {"id": organization})
-            await connection.execute(text("DELETE FROM users WHERE id=:id"), {"id": actor})
+            await connection.execute(
+                text("DELETE FROM users WHERE id IN (:actor,:approver)"), {"actor": actor, "approver": approver}
+            )
         await worker.close()
         await owner.close()

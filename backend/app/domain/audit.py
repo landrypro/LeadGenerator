@@ -117,6 +117,20 @@ class AuditAction(StrEnum):
     CATALOG_CONTRACT_OVERRIDE_APPROVED = "catalog.contract_override_approved"
     CATALOG_CONTRACT_OVERRIDE_REVOKED = "catalog.contract_override_revoked"
     BILLING_SUBSCRIPTION_TRANSITION_APPLIED = "billing.subscription_transition_applied"
+    BILLING_CHECKOUT_REQUESTED = "billing.checkout_requested"
+    BILLING_CHECKOUT_SESSION_CREATED = "billing.checkout_session_created"
+    BILLING_CHECKOUT_REFUSED = "billing.checkout_refused"
+    BILLING_PORTAL_REQUESTED = "billing.portal_requested"
+    BILLING_PORTAL_SESSION_CREATED = "billing.portal_session_created"
+    BILLING_GRACE_STARTED = "billing.grace_started"
+    BILLING_GRACE_EXPIRED = "billing.grace_expired"
+    BILLING_CANCELLATION_SCHEDULED = "billing.cancellation_scheduled"
+    BILLING_CANCELLATION_REVOKED = "billing.cancellation_revoked"
+    BILLING_CANCELLATION_CONFIRMED = "billing.cancellation_confirmed"
+    BILLING_REFUND_REQUESTED = "billing.refund_requested"
+    BILLING_REFUND_APPROVED = "billing.refund_approved"
+    BILLING_REFUND_REJECTED = "billing.refund_rejected"
+    BILLING_REFUND_CONFIRMED = "billing.refund_confirmed"
 
 
 _ENTITY_TYPE_PATTERN = re.compile(r"^[a-z][a-z0-9_]{0,63}$", re.ASCII)
@@ -262,6 +276,16 @@ _TENANT_ACTIONS = frozenset(
         AuditAction.CONNECTOR_INGESTION_COMPLETED,
         AuditAction.AUTOMATION_ORGANIZATION_SETTINGS_CHANGED,
         AuditAction.BILLING_SUBSCRIPTION_TRANSITION_APPLIED,
+        AuditAction.BILLING_CHECKOUT_REQUESTED,
+        AuditAction.BILLING_CHECKOUT_SESSION_CREATED,
+        AuditAction.BILLING_CHECKOUT_REFUSED,
+        AuditAction.BILLING_PORTAL_REQUESTED,
+        AuditAction.BILLING_PORTAL_SESSION_CREATED,
+        AuditAction.BILLING_GRACE_STARTED,
+        AuditAction.BILLING_GRACE_EXPIRED,
+        AuditAction.BILLING_CANCELLATION_SCHEDULED,
+        AuditAction.BILLING_CANCELLATION_REVOKED,
+        AuditAction.BILLING_CANCELLATION_CONFIRMED,
     }
 )
 _PLATFORM_ACTIONS = frozenset(set(AuditAction) - _TENANT_ACTIONS)
@@ -339,6 +363,20 @@ _ACTION_ENTITY_TYPES = {
     AuditAction.CONNECTOR_INGESTION_COMPLETED: "connector_ingestion",
     AuditAction.AUTOMATION_ORGANIZATION_SETTINGS_CHANGED: "automation_organization_settings",
     AuditAction.BILLING_SUBSCRIPTION_TRANSITION_APPLIED: "subscription",
+    AuditAction.BILLING_CHECKOUT_REQUESTED: "billing_command",
+    AuditAction.BILLING_CHECKOUT_SESSION_CREATED: "billing_command",
+    AuditAction.BILLING_CHECKOUT_REFUSED: "billing_command",
+    AuditAction.BILLING_PORTAL_REQUESTED: "billing_command",
+    AuditAction.BILLING_PORTAL_SESSION_CREATED: "billing_command",
+    AuditAction.BILLING_GRACE_STARTED: "subscription",
+    AuditAction.BILLING_GRACE_EXPIRED: "subscription",
+    AuditAction.BILLING_CANCELLATION_SCHEDULED: "subscription",
+    AuditAction.BILLING_CANCELLATION_REVOKED: "subscription",
+    AuditAction.BILLING_CANCELLATION_CONFIRMED: "subscription",
+    AuditAction.BILLING_REFUND_REQUESTED: "billing_refund",
+    AuditAction.BILLING_REFUND_APPROVED: "billing_refund",
+    AuditAction.BILLING_REFUND_REJECTED: "billing_refund",
+    AuditAction.BILLING_REFUND_CONFIRMED: "billing_refund",
     AuditAction.CATALOG_PLAN_CREATED: "plan_catalog",
     AuditAction.CATALOG_PLAN_VERSION_CREATED: "plan_version",
     AuditAction.CATALOG_PLAN_VERSION_PUBLISHED: "plan_version",
@@ -435,6 +473,68 @@ class AuditMetadataPolicy:
                 ),
                 "previous_state": cls._choice(values["previous_state"], states, "previous_state"),
                 "next_state": cls._choice(values["next_state"], states, "next_state"),
+            }
+
+        if action in {
+            AuditAction.BILLING_CHECKOUT_REQUESTED,
+            AuditAction.BILLING_CHECKOUT_SESSION_CREATED,
+            AuditAction.BILLING_PORTAL_REQUESTED,
+            AuditAction.BILLING_PORTAL_SESSION_CREATED,
+        }:
+            cls._require_keys(values, {"command_kind", "replayed"})
+            expected_kind = (
+                "checkout"
+                if action in {AuditAction.BILLING_CHECKOUT_REQUESTED, AuditAction.BILLING_CHECKOUT_SESSION_CREATED}
+                else "portal"
+            )
+            if values["command_kind"] != expected_kind or type(values["replayed"]) is not bool:
+                raise InvalidAuditMetadata("Les métadonnées de commande Billing sont invalides.")
+            return {"command_kind": expected_kind, "replayed": values["replayed"]}
+
+        if action is AuditAction.BILLING_CHECKOUT_REFUSED:
+            cls._require_keys(values, {"command_kind", "reason_code"})
+            if values["command_kind"] != "checkout":
+                raise InvalidAuditMetadata("Le type de commande Billing est invalide.")
+            return {
+                "command_kind": "checkout",
+                "reason_code": cls._choice(
+                    values["reason_code"],
+                    frozenset(
+                        {
+                            "billing_provider_disabled",
+                            "billing_provider_unavailable",
+                            "billing_reconciliation_required",
+                        }
+                    ),
+                    "reason_code",
+                ),
+            }
+
+        if action in {
+            AuditAction.BILLING_GRACE_STARTED,
+            AuditAction.BILLING_GRACE_EXPIRED,
+            AuditAction.BILLING_CANCELLATION_SCHEDULED,
+            AuditAction.BILLING_CANCELLATION_REVOKED,
+            AuditAction.BILLING_CANCELLATION_CONFIRMED,
+        }:
+            cls._require_keys(values, {"previous_state", "next_state"})
+            states = frozenset({"past_due", "grace_period", "suspended", "active", "canceling", "canceled"})
+            return {
+                "previous_state": cls._choice(values["previous_state"], states, "previous_state"),
+                "next_state": cls._choice(values["next_state"], states, "next_state"),
+            }
+
+        if action in {
+            AuditAction.BILLING_REFUND_REQUESTED,
+            AuditAction.BILLING_REFUND_APPROVED,
+            AuditAction.BILLING_REFUND_REJECTED,
+            AuditAction.BILLING_REFUND_CONFIRMED,
+        }:
+            cls._require_keys(values, {"state"})
+            return {
+                "state": cls._choice(
+                    values["state"], frozenset({"requested", "approved", "rejected", "succeeded", "failed"}), "state"
+                )
             }
 
         if action is AuditAction.CATALOG_CONTRACT_OVERRIDE_PROPOSED:

@@ -21,6 +21,7 @@ def test_billing_schema_is_registered_in_alembic_target_metadata() -> None:
 
     assert {index.name for index in Base.metadata.tables["subscriptions"].indexes} == {
         "ix_subscriptions_org_state",
+        "ix_subscriptions_grace_due",
         "uq_subscriptions_current_org",
     }
     assert {index.name for index in Base.metadata.tables["billing_events"].indexes} == {
