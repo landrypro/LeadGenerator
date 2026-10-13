@@ -22,6 +22,7 @@ from ..config import Settings
 from ..infrastructure.imports import LocalTemporaryCsvFileStore
 from ..infrastructure.postgres import PostgresDatabase
 from ..infrastructure.postgres.automation_runtime import AutomationRuntime
+from ..infrastructure.postgres.billing_projection import BillingProjectionWorker
 from ..infrastructure.postgres.connector_pilot import MetaLeadProcessor
 from ..infrastructure.postgres.export_service import (
     ExportForbidden,
@@ -108,6 +109,11 @@ class Worker:
             global_enabled=config.automation_enabled,
             idempotency_secret=config.idempotency_secret,
         )
+        self._billing = (
+            BillingProjectionWorker(database.session_factory)
+            if (config.meta_settings or Settings()).billing_provider_mode == "simulated"
+            else None
+        )
 
     def stop(self) -> None:
         self._stop.set()
@@ -178,9 +184,10 @@ class Worker:
             await self._automation.cancel(claim, context)
 
     async def run_once(self) -> bool:
+        billing_processed = await self._billing.run_once() if self._billing is not None else False
         claim = await self._queue.claim(SUPPORTED_CONTRACTS)
         if claim is None:
-            return False
+            return billing_processed
         context = TenantContext(
             actor_id=claim.actor_id, organization_id=claim.organization_id, request_id=f"job-{claim.id}"
         )

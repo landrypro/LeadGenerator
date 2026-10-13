@@ -116,6 +116,7 @@ class AuditAction(StrEnum):
     CATALOG_CONTRACT_OVERRIDE_PROPOSED = "catalog.contract_override_proposed"
     CATALOG_CONTRACT_OVERRIDE_APPROVED = "catalog.contract_override_approved"
     CATALOG_CONTRACT_OVERRIDE_REVOKED = "catalog.contract_override_revoked"
+    BILLING_SUBSCRIPTION_TRANSITION_APPLIED = "billing.subscription_transition_applied"
 
 
 _ENTITY_TYPE_PATTERN = re.compile(r"^[a-z][a-z0-9_]{0,63}$", re.ASCII)
@@ -260,6 +261,7 @@ _TENANT_ACTIONS = frozenset(
         AuditAction.CONNECTOR_INGESTION_ADMITTED,
         AuditAction.CONNECTOR_INGESTION_COMPLETED,
         AuditAction.AUTOMATION_ORGANIZATION_SETTINGS_CHANGED,
+        AuditAction.BILLING_SUBSCRIPTION_TRANSITION_APPLIED,
     }
 )
 _PLATFORM_ACTIONS = frozenset(set(AuditAction) - _TENANT_ACTIONS)
@@ -336,6 +338,7 @@ _ACTION_ENTITY_TYPES = {
     AuditAction.CONNECTOR_INGESTION_ADMITTED: "connector_ingestion",
     AuditAction.CONNECTOR_INGESTION_COMPLETED: "connector_ingestion",
     AuditAction.AUTOMATION_ORGANIZATION_SETTINGS_CHANGED: "automation_organization_settings",
+    AuditAction.BILLING_SUBSCRIPTION_TRANSITION_APPLIED: "subscription",
     AuditAction.CATALOG_PLAN_CREATED: "plan_catalog",
     AuditAction.CATALOG_PLAN_VERSION_CREATED: "plan_version",
     AuditAction.CATALOG_PLAN_VERSION_PUBLISHED: "plan_version",
@@ -409,6 +412,29 @@ class AuditMetadataPolicy:
                 "organization_id": cls._uuid(values["organization_id"], "organization_id"),
                 "new_state": cls._choice(values["new_state"], frozenset({"active", "suspended", "ended"}), "new_state"),
                 "version": version,
+            }
+
+        if action is AuditAction.BILLING_SUBSCRIPTION_TRANSITION_APPLIED:
+            cls._require_keys(values, {"event_type", "next_state", "previous_state"})
+            states = frozenset(
+                {"pending_checkout", "active", "past_due", "grace_period", "suspended", "canceling", "canceled"}
+            )
+            return {
+                "event_type": cls._choice(
+                    values["event_type"],
+                    frozenset(
+                        {
+                            "checkout.completed",
+                            "subscription.snapshot",
+                            "invoice.paid",
+                            "invoice.payment_failed",
+                            "refund.succeeded",
+                        }
+                    ),
+                    "event_type",
+                ),
+                "previous_state": cls._choice(values["previous_state"], states, "previous_state"),
+                "next_state": cls._choice(values["next_state"], states, "next_state"),
             }
 
         if action is AuditAction.CATALOG_CONTRACT_OVERRIDE_PROPOSED:

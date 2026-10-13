@@ -159,6 +159,23 @@ def test_export_failure_audit_accepts_the_terminal_retry_code() -> None:
     assert event.metadata == {"dataset": "prospects", "error_code": "attempts_exhausted"}
 
 
+def test_billing_transition_audit_keeps_only_closed_state_codes() -> None:
+    event = _draft(
+        action=AuditAction.BILLING_SUBSCRIPTION_TRANSITION_APPLIED,
+        entity_type="subscription",
+        actor_kind=AuditActorKind.SYSTEM,
+        actor_id=None,
+        source=AuditSource.WORKER,
+        metadata={"event_type": "invoice.paid", "previous_state": "pending_checkout", "next_state": "active"},
+    )
+
+    assert event.metadata == {
+        "event_type": "invoice.paid",
+        "previous_state": "pending_checkout",
+        "next_state": "active",
+    }
+
+
 class _StubSession:
     def __init__(self, result: object) -> None:
         self.result = result
