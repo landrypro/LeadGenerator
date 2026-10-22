@@ -90,8 +90,17 @@ def _service() -> tuple[BillingSessionUseCases, _Repository, SimulatedBillingPro
 
 
 @pytest.mark.asyncio
-async def test_checkout_uses_only_server_selected_price_and_returns_minimized_grant() -> None:
+@pytest.mark.parametrize("currency", list(CurrencyCode))
+async def test_checkout_uses_only_server_selected_price_and_returns_minimized_grant(currency: CurrencyCode) -> None:
     service, repository, _, context = _service()
+    command = repository.checkout_command
+    repository.checkout_command = BillingCheckoutCommand(
+        command.organization_id,
+        command.plan_version_id,
+        currency,
+        command.provider_price_reference,
+        command.return_target,
+    )
 
     grant = await service.create_checkout(
         context=context,
@@ -105,7 +114,7 @@ async def test_checkout_uses_only_server_selected_price_and_returns_minimized_gr
     assert grant.url.startswith("http://billing-simulator.local/checkout/")
     assert grant.expires_at == NOW + timedelta(minutes=30)
     assert repository.completed_checkout is not None
-    assert repository.completed_checkout.subscription.currency is CurrencyCode.CAD
+    assert repository.completed_checkout.subscription.currency is currency
     assert (
         repository.completed_checkout.subscription.provider_price_reference
         == repository.checkout_command.provider_price_reference

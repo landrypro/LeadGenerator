@@ -1,12 +1,14 @@
 """Preuves P53-06 : idempotence concurrente et sélection commerciale serveur."""
 
 import asyncio
+import importlib
 import os
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from uuid import uuid4
 
 import pytest
 from sqlalchemy import text
+from sqlalchemy.exc import SQLAlchemyError
 
 from backend.app.application.errors import BillingOperationError
 from backend.app.application.ports.billing import BillingReturnTarget
@@ -42,7 +44,10 @@ def _database(url: str) -> PostgresDatabase:
     )
 
 
-async def test_concurrent_checkout_and_portal_are_durable_idempotent_and_minimized() -> None:
+@pytest.mark.parametrize("currency", ["CAD", "USD", "EUR", "XAF"])
+async def test_concurrent_checkout_and_portal_are_durable_idempotent_and_minimized(
+    currency: str, monkeypatch: pytest.MonkeyPatch
+) -> None:
     app_url, owner_url = _urls()
     app, owner = _database(app_url), _database(owner_url)
     actor, approver, organization, membership, plan, plan_version = (uuid4() for _ in range(6))
@@ -100,11 +105,12 @@ async def test_concurrent_checkout_and_portal_are_durable_idempotent_and_minimiz
                     INSERT INTO plan_versions (
                       id,plan_id,version_number,state,currency,billing_cycle,amount_excluding_tax_minor,
                       effective_from,created_by_user_id,approved_by_user_id,published_at
-                    ) VALUES (:version,:plan,1,'draft','CAD','monthly',4900,:now,:actor,:approver,:now)
+                    ) VALUES (:version,:plan,1,'draft',:currency,'monthly',4900,:now,:actor,:approver,:now)
                     """
                 ),
                 {
                     "version": plan_version,
+                    "currency": currency,
                     "plan": plan,
                     "actor": actor,
                     "approver": approver,
@@ -162,6 +168,9 @@ async def test_concurrent_checkout_and_portal_are_durable_idempotent_and_minimiz
         first, second = await asyncio.gather(
             service.create_checkout(**checkout_args), service.create_checkout(**checkout_args)
         )
+        with pytest.raises(BillingOperationError) as changed_version:
+            await service.create_checkout(**{**checkout_args, "plan_version_id": uuid4()})
+        assert changed_version.value.code is BillingErrorCode.COMMAND_CONFLICT
         with pytest.raises(BillingOperationError) as reused_key:
             await service.create_portal(
                 context=context,
@@ -201,6 +210,94 @@ async def test_concurrent_checkout_and_portal_are_durable_idempotent_and_minimiz
                 .mappings()
                 .one()
             )
+            stored_currency = await connection.scalar(
+                text("SELECT currency FROM subscriptions WHERE organization_id=:organization"),
+                {"organization": organization},
+            )
+            command_id = await connection.scalar(
+                text("SELECT id FROM billing_commands WHERE organization_id=:organization AND command_kind='checkout'"),
+                {"organization": organization},
+            )
+        async with app.tenant_unit_of_work(context) as unit:
+            bad_currency = "USD" if currency == "CAD" else "CAD"
+            params = {
+                "command": command_id,
+                "version": plan_version,
+                "currency": bad_currency,
+                "price": f"sim_price_{str(plan_version).replace('-', '')}",
+                "now": now,
+                "end": now + timedelta(days=30),
+            }
+            rejected = await unit.session.scalar(
+                text(
+                    """
+                    SELECT app_private.complete_billing_checkout(
+                      :command,:version,'simulated','fake-checkout','fake-customer','fake-subscription',
+                      :currency,:price,:now,:end,:now
+                    )
+                    """
+                ),
+                params,
+            )
+            assert rejected["code"] == "billing_catalog_version_unavailable"
+            params["currency"] = currency
+            params["price"] = "sim_price_forged"
+            rejected_price = await unit.session.scalar(
+                text(
+                    """
+                    SELECT app_private.complete_billing_checkout(
+                      :command,:version,'simulated','fake-checkout','fake-customer','fake-subscription',
+                      :currency,:price,:now,:end,:now
+                    )
+                    """
+                ),
+                params,
+            )
+            assert rejected_price["code"] == "billing_catalog_version_unavailable"
+            params["version"] = uuid4()
+            rejected_version = await unit.session.scalar(
+                text(
+                    """
+                    SELECT app_private.complete_billing_checkout(
+                      :command,:version,'simulated','fake-checkout','fake-customer','fake-subscription',
+                      :currency,:price,:now,:end,:now
+                    )
+                    """
+                ),
+                params,
+            )
+            assert rejected_version["code"] == "billing_command_conflict"
+
+        migration = importlib.import_module(
+            "backend.app.infrastructure.postgres.migrations.versions.20261021_0056_billing_checkout_multicurrency"
+        )
+        statements: list[str] = []
+
+        class CaptureOperations:
+            def execute(self, statement: str) -> None:
+                statements.append(statement)
+
+        with monkeypatch.context() as patch:
+            patch.setattr(migration, "op", CaptureOperations())
+            migration.downgrade()
+            downgrade_statements = list(statements)
+            statements.clear()
+            migration.upgrade()
+            upgrade_statements = list(statements)
+
+        # DDL PostgreSQL transactionnel : ne jamais modifier durablement la base de recette.
+        async with owner.engine.connect() as connection:
+            transaction = await connection.begin()
+            try:
+                await connection.exec_driver_sql(downgrade_statements[0])
+                if currency != "CAD":
+                    with pytest.raises(SQLAlchemyError, match="P53-06B rollback blocked"):
+                        await connection.exec_driver_sql(downgrade_statements[1])
+                else:
+                    for statement in downgrade_statements[1:] + upgrade_statements:
+                        await connection.exec_driver_sql(statement)
+            finally:
+                await transaction.rollback()
     finally:
         async with owner.engine.begin() as connection:
             await connection.execute(text("DELETE FROM audit_events WHERE organization_id=:id"), {"id": organization})
@@ -225,6 +322,7 @@ async def test_concurrent_checkout_and_portal_are_durable_idempotent_and_minimiz
         await owner.close()
 
     assert first == second
+    assert stored_currency == currency
     assert reused_key.value.code is BillingErrorCode.COMMAND_CONFLICT
     assert first.url.startswith("http://billing-simulator.local/checkout/")
     assert portal.url.startswith("http://billing-simulator.local/portal/")

@@ -1,5 +1,6 @@
 import hashlib
 import hmac
+from dataclasses import replace
 from datetime import UTC, datetime, timedelta
 from uuid import uuid4
 
@@ -81,9 +82,12 @@ async def test_simulator_uses_separate_idempotency_namespaces_for_checkout_and_p
 
 
 @pytest.mark.asyncio
-async def test_simulator_emits_a_deterministic_signed_webhook_without_network() -> None:
+@pytest.mark.parametrize("currency", list(CurrencyCode))
+async def test_simulator_emits_a_deterministic_signed_webhook_without_network(currency: CurrencyCode) -> None:
     gateway = _gateway()
-    checkout = await gateway.create_checkout(command=_checkout(), idempotency_key="checkout-1")
+    checkout = await gateway.create_checkout(
+        command=replace(_checkout(), currency=currency), idempotency_key="checkout-1"
+    )
 
     delivery = gateway.emit_webhook(
         checkout_reference=checkout.provider_checkout_reference,
@@ -101,6 +105,9 @@ async def test_simulator_emits_a_deterministic_signed_webhook_without_network() 
     assert signature == f"v1={expected}"
     assert delivery.event.event_type is BillingEventType.INVOICE_PAID
     assert snapshot.state is SubscriptionState.ACTIVE
+    assert snapshot.currency is currency
+    assert delivery.event.normalized_subscription is not None
+    assert delivery.event.normalized_subscription.currency is currency
     assert b"card" not in delivery.raw_body.lower()
 
 
