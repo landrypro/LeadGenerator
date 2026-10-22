@@ -34,14 +34,35 @@ $qualityBase = if ([string]::IsNullOrWhiteSpace($QualityTempRoot)) {
 }
 $qualityRoot = Join-Path $qualityBase ("marketteo-quality-{0}" -f ([guid]::NewGuid().ToString('N')))
 $pytestTemp = Join-Path $qualityRoot 'pytest-tmp'
+$p53PytestTemp = Join-Path $qualityRoot 'pytest-p53-01-tmp'
+$p53SimulatorPytestTemp = Join-Path $qualityRoot 'pytest-p53-03-tmp'
+$p53WebhookPytestTemp = Join-Path $qualityRoot 'pytest-p53-04-tmp'
+$p53ProjectionPytestTemp = Join-Path $qualityRoot 'pytest-p53-05-tmp'
+$p53CheckoutPytestTemp = Join-Path $qualityRoot 'pytest-p53-06-tmp'
+$p53LifecyclePytestTemp = Join-Path $qualityRoot 'pytest-p53-07-tmp'
 $qualityClient = Join-Path $qualityRoot 'client'
 $qualityNpmCache = Join-Path $qualityRoot 'npm-cache'
 $vitestReport = Join-Path $testResults 'vitest.xml'
+$p53PytestReport = Join-Path $testResults 'pytest-p53-01.xml'
+$p53SimulatorPytestReport = Join-Path $testResults 'pytest-p53-03.xml'
+$p53WebhookPytestReport = Join-Path $testResults 'pytest-p53-04.xml'
+$p53ProjectionPytestReport = Join-Path $testResults 'pytest-p53-05.xml'
+$p53CheckoutPytestReport = Join-Path $testResults 'pytest-p53-06.xml'
+$p53LifecyclePytestReport = Join-Path $testResults 'pytest-p53-07.xml'
 $projectName = 'prospect-crm-quality'
-# P52-07 expose l'API interne et la vue tenant minimale sans migration de schéma.
-# La tête Alembic reste donc celle de P52-06 ; pytest réel couvre les contrats
-# HTTP, les conflits versionnés et la preuve PostgreSQL RLS de cette étape.
-$expectedAlembicRevision = '20261008_0050'
+# P53-02 ajoute le schéma billing, les clés composites tenant, l'idempotence
+# durable et les ACL/RLS. La migration reste additive et n'active aucun fournisseur.
+# P53-03 ajoute exclusivement les adaptateurs disabled/simulated et le contrat
+# de webhooks synthétiques signés : aucun appel réseau fournisseur n'est admis.
+# P53-04 admet durablement les corps bruts signés, sans aucune projection
+# d'abonnement ni contact fournisseur réel.
+# P53-05 projette l'inbox par un worker transactionnel, sans checkout ni
+# fournisseur réel, et borne les reprises avant dead-letter.
+# P53-06 crée exclusivement des sessions Checkout/portail simulées, avec
+# idempotence durable, contrôle tenant/admin et réponses minimisées.
+# P53-07 ajoute exclusivement grâce serveur, annulation confirmée par webhook
+# et remboursement simulé plateforme, sans effet financier réel.
+$expectedAlembicRevision = '20261021_0056'
 $script:resolvedDockerMode = $null
 $script:wslWorkspace = $null
 $script:wslDistribution = $null
@@ -274,6 +295,9 @@ function Invoke-AlembicWithTransientDatabaseConnectionRetry {
             $stderrTask.GetAwaiter().GetResult()
         ) | Where-Object { -not [string]::IsNullOrWhiteSpace($_) }
         $alembicOutput | ForEach-Object { Write-Host $_ }
+        # Conserver la sortie complète rend un échec de migration diagnostiquable
+        # après le nettoyage des dépendances Docker dans le finally du verrou.
+        $alembicOutput | Set-Content -LiteralPath (Join-Path $testResults 'alembic-upgrade.log') -Encoding utf8
         if ($alembicExitCode -eq 0) {
             $global:LASTEXITCODE = 0
             return
@@ -567,6 +591,93 @@ try {
     Invoke-QualityStep 'Ruff' { & $python -m ruff check (Join-Path $workspace 'backend\app') (Join-Path $workspace 'tests') (Join-Path $workspace 'scripts\quality_gate.py') }
     Invoke-QualityStep 'Format Ruff' { & $python -m ruff format --check (Join-Path $workspace 'backend\app') (Join-Path $workspace 'tests') (Join-Path $workspace 'scripts\quality_gate.py') }
     Invoke-QualityStep 'mypy' { Push-Location $workspace; try { & $python -m mypy } finally { Pop-Location } }
+    Invoke-QualityStep 'P53-01 socle métier' {
+        Push-Location $workspace
+        try {
+            & $python -m pytest -p no:cacheprovider "--basetemp=$p53PytestTemp" `
+                --junitxml=test-results/pytest-p53-01.xml `
+                tests/test_billing_domain.py tests/test_billing_ports.py
+        }
+        finally {
+            Pop-Location
+        }
+    }
+    Invoke-QualityStep 'Zéro skip P53-01' {
+        & $python (Join-Path $workspace 'scripts\quality_gate.py') junit-no-skips $p53PytestReport
+    }
+    Invoke-QualityStep 'P53-03 simulateur billing' {
+        Push-Location $workspace
+        try {
+            & $python -m pytest -p no:cacheprovider "--basetemp=$p53SimulatorPytestTemp" `
+                --junitxml=test-results/pytest-p53-03.xml `
+                tests/test_billing_simulator.py tests/test_billing_domain.py tests/test_billing_ports.py tests/test_settings.py
+        }
+        finally {
+            Pop-Location
+        }
+    }
+    Invoke-QualityStep 'Zéro skip P53-03' {
+        & $python (Join-Path $workspace 'scripts\quality_gate.py') junit-no-skips $p53SimulatorPytestReport
+    }
+    Invoke-QualityStep 'P53-04 admission webhooks billing' {
+        Push-Location $workspace
+        try {
+            & $python -m pytest -p no:cacheprovider "--basetemp=$p53WebhookPytestTemp" `
+                --junitxml=test-results/pytest-p53-04.xml `
+                tests/test_billing_webhook_admission.py tests/test_billing_models.py tests/test_quality_gate.py
+        }
+        finally {
+            Pop-Location
+        }
+    }
+    Invoke-QualityStep 'Zéro skip P53-04' {
+        & $python (Join-Path $workspace 'scripts\quality_gate.py') junit-no-skips $p53WebhookPytestReport
+    }
+    Invoke-QualityStep 'P53-05 projection billing' {
+        Push-Location $workspace
+        try {
+            & $python -m pytest -p no:cacheprovider "--basetemp=$p53ProjectionPytestTemp" `
+                --junitxml=test-results/pytest-p53-05.xml `
+                tests/test_billing_projection.py tests/integration/test_billing_projection.py tests/test_audit.py tests/test_quality_gate.py
+        }
+        finally {
+            Pop-Location
+        }
+    }
+    Invoke-QualityStep 'Zéro skip P53-05' {
+        & $python (Join-Path $workspace 'scripts\quality_gate.py') junit-no-skips $p53ProjectionPytestReport
+    }
+    Invoke-QualityStep 'P53-06 checkout portail billing' {
+        Push-Location $workspace
+        try {
+            & $python -m pytest -p no:cacheprovider "--basetemp=$p53CheckoutPytestTemp" `
+                --junitxml=test-results/pytest-p53-06.xml `
+                tests/test_billing_sessions.py tests/test_billing_api.py `
+                tests/integration/test_billing_checkout_portal.py tests/test_audit.py `
+                tests/test_organization_domain.py tests/test_quality_gate.py
+        }
+        finally {
+            Pop-Location
+        }
+    }
+    Invoke-QualityStep 'Zéro skip P53-06' {
+        & $python (Join-Path $workspace 'scripts\quality_gate.py') junit-no-skips $p53CheckoutPytestReport
+    }
+    Invoke-QualityStep 'P53-07 grâce annulation remboursement billing' {
+        Push-Location $workspace
+        try {
+            & $python -m pytest -p no:cacheprovider "--basetemp=$p53LifecyclePytestTemp" `
+                --junitxml=test-results/pytest-p53-07.xml `
+                tests/test_billing_lifecycle.py tests/test_billing_api.py tests/test_audit.py `
+                tests/test_organization_domain.py tests/test_quality_gate.py
+        }
+        finally {
+            Pop-Location
+        }
+    }
+    Invoke-QualityStep 'Zéro skip P53-07' {
+        & $python (Join-Path $workspace 'scripts\quality_gate.py') junit-no-skips $p53LifecyclePytestReport
+    }
     Invoke-QualityStep 'pytest réel' {
         Push-Location $workspace
         try {
@@ -651,8 +762,15 @@ try {
         "- Révision Alembic attendue : $expectedAlembicRevision"
         '- P52-07 : contrats API internes, réponses minimisées et preuve RLS exécutés par pytest réel.'
         '- P52-08 : recette synthétique archivée dans `p52-08/evidence.json`.'
+        '- P53-01 : registres métier, ports fournisseur et codes d''erreur fermés prouvés dans `pytest-p53-01.xml`.'
+        '- P53-02 : schéma billing, RLS tenant et commandes idempotentes prouvés par pytest réel.'
+        '- P53-03 : simulateur local, adapter disabled et webhooks synthétiques sans réseau prouvés dans `pytest-p53-03.xml`.'
+        '- P53-04 : admission durable des webhooks signés, déduplication et quarantaine de collision prouvées dans `pytest-p53-04.xml`.'
+        '- P53-05 : worker de projection transactionnelle, ordre et dead-letter prouvés dans `pytest-p53-05.xml`.'
+        '- P53-06 : Checkout et portail simulés, idempotence durable et réponses minimisées prouvés dans `pytest-p53-06.xml`.'
+        '- P53-07 : grâce, annulation fournisseur et remboursement simulé prouvés dans `pytest-p53-07.xml`.'
         '- Verdict automatisé : VERT'
-        '- Rapports : `pytest-quality.xml`, `p52-08/evidence.json`, `vitest.xml`, `alembic-current.txt`'
+        '- Rapports : `pytest-quality.xml`, `pytest-p53-01.xml`, `pytest-p53-03.xml`, `pytest-p53-04.xml`, `pytest-p53-05.xml`, `pytest-p53-06.xml`, `pytest-p53-07.xml`, `p52-08/evidence.json`, `vitest.xml`, `alembic-upgrade.log`, `alembic-current.txt`'
     )
     Set-Content -LiteralPath (Join-Path $testResults 'quality-summary.md') -Value $summary -Encoding utf8
     Write-Host "`nVerrou qualité local : VERT" -ForegroundColor Green
