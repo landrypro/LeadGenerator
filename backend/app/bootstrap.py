@@ -126,6 +126,7 @@ from .application.use_cases import (
 )
 from .application.use_cases.assistant import CreateAssistantPlanUseCase
 from .application.use_cases.billing import BillingSessionUseCases
+from .application.use_cases.billing_reconciliation import BillingManualReconciliation
 from .application.use_cases.billing_refunds import BillingRefundUseCases
 from .application.use_cases.dashboard import GetDashboardSummaryUseCase
 from .application.use_cases.usage import GetCurrentUsageUseCase, GetUsageReportUseCase
@@ -168,6 +169,7 @@ from .infrastructure.postgres.automation_reader import AutomationReader
 from .infrastructure.postgres.automation_runtime import AutomationRuntime
 from .infrastructure.postgres.automation_settings import AutomationOrganizationSettings
 from .infrastructure.postgres.billing_commands import SqlAlchemyBillingCommandRepository
+from .infrastructure.postgres.billing_reconciliation import PostgresBillingManualReconciliationRepository
 from .infrastructure.postgres.billing_refunds import SqlAlchemyBillingRefundRepository
 from .infrastructure.postgres.billing_webhook_inbox import SqlAlchemyBillingEventInbox
 from .infrastructure.postgres.catalog_reader import SqlAlchemyOrganizationCatalogReader
@@ -408,6 +410,7 @@ def build_container(settings: Settings) -> AppContainer:
     billing_webhook_admission: BillingWebhookAdmissionService | None = None
     billing_sessions: BillingSessionUseCases | None = None
     billing_refunds: BillingRefundUseCases | None = None
+    billing_manual_reconciliation: BillingManualReconciliation | None = None
     usage_store = PostgresUsageStore(database.session_factory, metrics) if database is not None else None
     if database is not None and settings.billing_provider_mode in {"disabled", "simulated"}:
         billing_clock = SystemClock()
@@ -422,6 +425,9 @@ def build_container(settings: Settings) -> AppContainer:
             billing_clock,
         )
     if database is not None and settings.billing_provider_mode == "simulated":
+        billing_manual_reconciliation = BillingManualReconciliation(
+            PostgresBillingManualReconciliationRepository(database.actor_unit_of_work), SystemClock()
+        )
         billing_webhook_admission = BillingWebhookAdmissionService(
             SimulatedBillingWebhookVerifier(
                 current_secret=settings.billing_simulator_webhook_secret.encode("utf-8"),
@@ -773,6 +779,7 @@ def build_container(settings: Settings) -> AppContainer:
         billing_webhook_admission=billing_webhook_admission,
         billing_sessions=billing_sessions,
         billing_refunds=billing_refunds,
+        billing_manual_reconciliation=billing_manual_reconciliation,
         meta_lead_webhooks=meta_lead_webhooks,
         meta_connector_management=meta_connector_management,
         create_manual_prospect=create_manual_prospect,

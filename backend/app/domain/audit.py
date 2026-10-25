@@ -131,6 +131,9 @@ class AuditAction(StrEnum):
     BILLING_REFUND_APPROVED = "billing.refund_approved"
     BILLING_REFUND_REJECTED = "billing.refund_rejected"
     BILLING_REFUND_CONFIRMED = "billing.refund_confirmed"
+    BILLING_RECONCILIATION_DIFFERENCE_DETECTED = "billing.reconciliation_difference_detected"
+    BILLING_RECONCILIATION_CORRECTION_APPLIED = "billing.reconciliation_correction_applied"
+    BILLING_RECONCILIATION_REQUESTED = "billing.reconciliation_requested"
 
 
 _ENTITY_TYPE_PATTERN = re.compile(r"^[a-z][a-z0-9_]{0,63}$", re.ASCII)
@@ -286,6 +289,8 @@ _TENANT_ACTIONS = frozenset(
         AuditAction.BILLING_CANCELLATION_SCHEDULED,
         AuditAction.BILLING_CANCELLATION_REVOKED,
         AuditAction.BILLING_CANCELLATION_CONFIRMED,
+        AuditAction.BILLING_RECONCILIATION_DIFFERENCE_DETECTED,
+        AuditAction.BILLING_RECONCILIATION_CORRECTION_APPLIED,
     }
 )
 _PLATFORM_ACTIONS = frozenset(set(AuditAction) - _TENANT_ACTIONS)
@@ -377,6 +382,9 @@ _ACTION_ENTITY_TYPES = {
     AuditAction.BILLING_REFUND_APPROVED: "billing_refund",
     AuditAction.BILLING_REFUND_REJECTED: "billing_refund",
     AuditAction.BILLING_REFUND_CONFIRMED: "billing_refund",
+    AuditAction.BILLING_RECONCILIATION_DIFFERENCE_DETECTED: "billing_reconciliation_difference",
+    AuditAction.BILLING_RECONCILIATION_CORRECTION_APPLIED: "billing_reconciliation_difference",
+    AuditAction.BILLING_RECONCILIATION_REQUESTED: "billing_reconciliation_run",
     AuditAction.CATALOG_PLAN_CREATED: "plan_catalog",
     AuditAction.CATALOG_PLAN_VERSION_CREATED: "plan_version",
     AuditAction.CATALOG_PLAN_VERSION_PUBLISHED: "plan_version",
@@ -471,6 +479,49 @@ class AuditMetadataPolicy:
                     ),
                     "event_type",
                 ),
+                "previous_state": cls._choice(values["previous_state"], states, "previous_state"),
+                "next_state": cls._choice(values["next_state"], states, "next_state"),
+            }
+
+        if action is AuditAction.BILLING_RECONCILIATION_REQUESTED:
+            cls._require_keys(values, {"organization_id", "reason_code"})
+            return {
+                "organization_id": cls._uuid(values["organization_id"], "organization_id"),
+                "reason_code": cls._choice(
+                    values["reason_code"],
+                    frozenset({"payment_uncertain", "state_mismatch", "operator_review"}),
+                    "reason_code",
+                ),
+            }
+
+        if action is AuditAction.BILLING_RECONCILIATION_DIFFERENCE_DETECTED:
+            cls._require_keys(values, {"difference_code"})
+            return {
+                "difference_code": cls._choice(
+                    values["difference_code"],
+                    frozenset(
+                        {
+                            "local_stale",
+                            "provider_stale",
+                            "mapping_missing",
+                            "currency_mismatch",
+                            "price_mismatch",
+                            "unresolved",
+                        }
+                    ),
+                    "difference_code",
+                )
+            }
+
+        if action is AuditAction.BILLING_RECONCILIATION_CORRECTION_APPLIED:
+            cls._require_keys(values, {"difference_code", "next_state", "previous_state"})
+            states = frozenset(
+                {"pending_checkout", "active", "past_due", "grace_period", "suspended", "canceling", "canceled"}
+            )
+            if values["difference_code"] != "local_stale":
+                raise InvalidAuditMetadata("Le code de correction de réconciliation est invalide.")
+            return {
+                "difference_code": "local_stale",
                 "previous_state": cls._choice(values["previous_state"], states, "previous_state"),
                 "next_state": cls._choice(values["next_state"], states, "next_state"),
             }

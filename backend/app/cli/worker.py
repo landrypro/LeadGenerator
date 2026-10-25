@@ -12,17 +12,32 @@ import signal
 from collections.abc import Callable, Coroutine
 from contextlib import suppress
 from dataclasses import dataclass
+from datetime import UTC, datetime
 from typing import Any
 from uuid import UUID, uuid4
 
 from sqlalchemy import text
 
 from ..application.tenancy import TenantContext
+from ..application.use_cases.billing_reconciliation import (
+    BillingReconciliationClassifier,
+    BillingReconciliationInspection,
+    BillingReconciliationRunProcessor,
+    BillingReconciliationScheduler,
+    BillingReconciliationWorker,
+    ReconciliationScheduleKind,
+)
 from ..config import Settings
+from ..domain.billing import BillingProvider
 from ..infrastructure.imports import LocalTemporaryCsvFileStore
 from ..infrastructure.postgres import PostgresDatabase
 from ..infrastructure.postgres.automation_runtime import AutomationRuntime
 from ..infrastructure.postgres.billing_projection import BillingProjectionWorker
+from ..infrastructure.postgres.billing_reconciliation import (
+    PostgresBillingReconciliationLeaseRepository,
+    PostgresBillingReconciliationScheduleRepository,
+    PostgresSimulatedBillingSubscriptionReader,
+)
 from ..infrastructure.postgres.connector_pilot import MetaLeadProcessor
 from ..infrastructure.postgres.export_service import (
     ExportForbidden,
@@ -114,6 +129,24 @@ class Worker:
             if (config.meta_settings or Settings()).billing_provider_mode == "simulated"
             else None
         )
+        self._billing_reconciliation: BillingReconciliationWorker | None = None
+        self._billing_reconciliation_scheduler: BillingReconciliationScheduler | None = None
+        settings = config.meta_settings or Settings()
+        if settings.billing_provider_mode == "simulated":
+            leases = PostgresBillingReconciliationLeaseRepository(database.session_factory)
+            inspection = BillingReconciliationInspection(
+                PostgresSimulatedBillingSubscriptionReader(database.session_factory),
+                BillingReconciliationClassifier(),
+            )
+            self._billing_reconciliation = BillingReconciliationWorker(
+                leases=leases,
+                processor=BillingReconciliationRunProcessor(
+                    provider=BillingProvider.SIMULATED, inspection=inspection, repository=leases
+                ),
+            )
+            self._billing_reconciliation_scheduler = BillingReconciliationScheduler(
+                PostgresBillingReconciliationScheduleRepository(database.session_factory)
+            )
 
     def stop(self) -> None:
         self._stop.set()
@@ -189,6 +222,11 @@ class Worker:
             billing_processed = await self._billing.run_once()
             if not billing_processed:
                 billing_processed = await self._billing.run_lifecycle_once()
+        if self._billing_reconciliation is not None:
+            try:
+                billing_processed = await self._billing_reconciliation.run_once() or billing_processed
+            except Exception as error:
+                LOGGER.warning("billing_reconciliation_failed error_type=%s", type(error).__name__)
         claim = await self._queue.claim(SUPPORTED_CONTRACTS)
         if claim is None:
             return billing_processed
@@ -294,9 +332,18 @@ class Worker:
         last_cleanup = 0.0
         last_usage_purge = 0.0
         last_alert_check = 0.0
+        last_billing_schedule = float("-inf")
         loop = asyncio.get_running_loop()
         while not self._stop.is_set():
             await self._queue.touch_worker(self._worker_id)
+            if self._billing_reconciliation_scheduler is not None and loop.time() - last_billing_schedule >= 60:
+                try:
+                    now = datetime.now(UTC)
+                    for kind in ReconciliationScheduleKind:
+                        await self._billing_reconciliation_scheduler.schedule_next(kind=kind, now=now)
+                except Exception as error:
+                    LOGGER.warning("billing_reconciliation_schedule_failed error_type=%s", type(error).__name__)
+                last_billing_schedule = loop.time()
             if loop.time() - last_cleanup >= 300:
                 await self._queue.purge_expired(batch_size=100)
                 reconciled = await self._queue.reconcile_usage(batch_size=100)

@@ -8,6 +8,7 @@ import pytest
 
 from backend.app.cli import worker as worker_module
 from backend.app.cli.worker import Worker, WorkerConfig
+from backend.app.config import Settings
 from backend.app.infrastructure.postgres import PostgresDatabase
 from backend.app.infrastructure.postgres.job_queue import ClaimedJob, PostgresJobQueue
 
@@ -29,6 +30,24 @@ def _claim(*, job_type: str = "internal_probe", subject_type: str = "organizatio
         owner_token=uuid4(),
         cancel_requested=False,
     )
+
+
+@pytest.mark.asyncio
+async def test_reconciliation_worker_is_only_wired_for_simulated_mode() -> None:
+    queue = MagicMock(spec=PostgresJobQueue)
+    queue.claim = AsyncMock(return_value=None)
+    database = MagicMock(spec=PostgresDatabase)
+    disabled = Worker(queue, database, WorkerConfig("unused", "unused", b"x" * 32))
+    assert disabled._billing_reconciliation is None
+    assert disabled._billing_reconciliation_scheduler is None
+    settings = Settings(app_env="test", billing_provider_mode="simulated", billing_simulator_webhook_secret="x" * 32)
+    simulated = Worker(queue, database, WorkerConfig("unused", "unused", b"x" * 32, meta_settings=settings))
+    assert simulated._billing_reconciliation_scheduler is not None
+    assert simulated._billing_reconciliation is not None
+    simulated._billing = None
+    simulated._billing_reconciliation.run_once = AsyncMock(return_value=True)
+    assert await simulated.run_once() is True
+    simulated._billing_reconciliation.run_once.assert_awaited_once()
 
 
 @pytest.mark.asyncio

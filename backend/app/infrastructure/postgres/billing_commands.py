@@ -101,29 +101,54 @@ class SqlAlchemyBillingCommandRepository:
         session: CheckoutSession,
     ) -> None:
         snapshot = session.subscription
-        result = await self._json_call(
-            context,
-            """
-            SELECT app_private.complete_billing_checkout(
-              :command_id,:plan_version_id,'simulated',:checkout_reference,
-              :customer_reference,:subscription_reference,:currency,:price_reference,
-              :period_start,:period_end,:provider_updated_at
-            )
-            """,
-            {
-                "command_id": preparation.command_id,
-                "plan_version_id": preparation.command.plan_version_id,
-                "checkout_reference": session.provider_checkout_reference,
-                "customer_reference": session.provider_customer_reference,
-                "subscription_reference": session.provider_subscription_reference,
-                "currency": snapshot.currency.value,
-                "price_reference": snapshot.provider_price_reference,
-                "period_start": snapshot.period.starts_at,
-                "period_end": snapshot.period.ends_at,
-                "provider_updated_at": snapshot.provider_updated_at,
-            },
-        )
-        _require_completion(result)
+        parameters = {
+            "command_id": preparation.command_id,
+            "plan_version_id": preparation.command.plan_version_id,
+            "checkout_reference": session.provider_checkout_reference,
+            "customer_reference": session.provider_customer_reference,
+            "subscription_reference": session.provider_subscription_reference,
+            "currency": snapshot.currency.value,
+            "price_reference": snapshot.provider_price_reference,
+            "period_start": snapshot.period.starts_at,
+            "period_end": snapshot.period.ends_at,
+            "provider_updated_at": snapshot.provider_updated_at,
+        }
+        try:
+            async with self._tenant_unit_of_work_factory(context) as unit:
+                raw = await unit.session.scalar(
+                    text(
+                        """
+                        SELECT app_private.complete_billing_checkout(
+                          :command_id,:plan_version_id,'simulated',:checkout_reference,
+                          :customer_reference,:subscription_reference,:currency,:price_reference,
+                          :period_start,:period_end,:provider_updated_at
+                        )
+                        """
+                    ),
+                    parameters,
+                )
+                result = json.loads(raw) if isinstance(raw, str) else raw
+                if not isinstance(result, dict):
+                    raise BillingOperationError(BillingErrorCode.STATE_UNKNOWN)
+                _require_completion(cast(dict[str, object], result))
+                persisted = await unit.session.scalar(
+                    text(
+                        """
+                        SELECT app_private.record_simulated_billing_checkout_snapshot(
+                          :subscription_reference,:customer_reference,:price_reference,:currency,
+                          :period_start,:period_end,:provider_updated_at
+                        )
+                        """
+                    ),
+                    parameters,
+                )
+                if persisted is not True:
+                    raise BillingOperationError(BillingErrorCode.STATE_UNKNOWN)
+                await unit.commit()
+        except BillingOperationError:
+            raise
+        except SQLAlchemyError as error:
+            raise BillingOperationError(BillingErrorCode.PROVIDER_UNAVAILABLE) from error
 
     async def complete_portal(
         self,

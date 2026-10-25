@@ -40,6 +40,7 @@ $p53WebhookPytestTemp = Join-Path $qualityRoot 'pytest-p53-04-tmp'
 $p53ProjectionPytestTemp = Join-Path $qualityRoot 'pytest-p53-05-tmp'
 $p53CheckoutPytestTemp = Join-Path $qualityRoot 'pytest-p53-06-tmp'
 $p53LifecyclePytestTemp = Join-Path $qualityRoot 'pytest-p53-07-tmp'
+$p53ReconciliationPytestTemp = Join-Path $qualityRoot 'pytest-p53-08-tmp'
 $qualityClient = Join-Path $qualityRoot 'client'
 $qualityNpmCache = Join-Path $qualityRoot 'npm-cache'
 $vitestReport = Join-Path $testResults 'vitest.xml'
@@ -49,6 +50,7 @@ $p53WebhookPytestReport = Join-Path $testResults 'pytest-p53-04.xml'
 $p53ProjectionPytestReport = Join-Path $testResults 'pytest-p53-05.xml'
 $p53CheckoutPytestReport = Join-Path $testResults 'pytest-p53-06.xml'
 $p53LifecyclePytestReport = Join-Path $testResults 'pytest-p53-07.xml'
+$p53ReconciliationPytestReport = Join-Path $testResults 'pytest-p53-08.xml'
 $projectName = 'prospect-crm-quality'
 # P53-02 ajoute le schéma billing, les clés composites tenant, l'idempotence
 # durable et les ACL/RLS. La migration reste additive et n'active aucun fournisseur.
@@ -62,7 +64,9 @@ $projectName = 'prospect-crm-quality'
 # idempotence durable, contrôle tenant/admin et réponses minimisées.
 # P53-07 ajoute exclusivement grâce serveur, annulation confirmée par webhook
 # et remboursement simulé plateforme, sans effet financier réel.
-$expectedAlembicRevision = '20261021_0056'
+# P53-08 partage les preuves du simulateur et ne corrige qu'un local_stale
+# prouvé, dans la même transaction que l'observation et l'audit.
+$expectedAlembicRevision = '20261023_0058'
 $script:resolvedDockerMode = $null
 $script:wslWorkspace = $null
 $script:wslDistribution = $null
@@ -677,6 +681,22 @@ try {
     }
     Invoke-QualityStep 'Zéro skip P53-07' {
         & $python (Join-Path $workspace 'scripts\quality_gate.py') junit-no-skips $p53LifecyclePytestReport
+    }
+    Invoke-QualityStep 'P53-08 réconciliation billing' {
+        Push-Location $workspace
+        try {
+            & $python -m pytest -p no:cacheprovider "--basetemp=$p53ReconciliationPytestTemp" `
+                --junitxml=test-results/pytest-p53-08.xml `
+                tests/test_billing_reconciliation.py `
+                tests/integration/test_billing_reconciliation_observations.py `
+                tests/test_worker_lifecycle.py tests/test_audit.py tests/test_quality_gate.py
+        }
+        finally {
+            Pop-Location
+        }
+    }
+    Invoke-QualityStep 'Zéro skip P53-08' {
+        & $python (Join-Path $workspace 'scripts\quality_gate.py') junit-no-skips $p53ReconciliationPytestReport
     }
     Invoke-QualityStep 'pytest réel' {
         Push-Location $workspace

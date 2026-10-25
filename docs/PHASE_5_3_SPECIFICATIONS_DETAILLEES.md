@@ -106,6 +106,7 @@ et invariants suivants sont obligatoires.
 | `billing_commands` | tenant | Idempotence des checkout, portail et remboursement | Clé + empreinte uniques ; résultat minimal ; conflit si corps différent. |
 | `billing_event_inbox` | plateforme cloisonnée | Admission durable des webhooks | `(provider,event_id)` unique ; digest immuable ; statut fermé ; pas de payload brut dans les logs. |
 | `billing_events` | tenant | Événement normalisé applicable | Référence à l'inbox ; organisation résolue côté serveur ; schéma versionné. |
+| `simulated_billing_provider_subscriptions` | plateforme cloisonnée | Snapshot fournisseur synthétique partagé entre API et worker | Alimenté seulement par checkout finalisé ou webhook simulé admis ; horodatage monotone ; égalité contradictoire marquée ambiguë ; aucun accès table direct aux rôles applicatifs. |
 | `billing_reconciliation_runs` | plateforme/tenant | Exécution et résumé de comparaison | Fenêtre, curseur, compteurs, statut, sans snapshot sensible. |
 | `billing_reconciliation_differences` | tenant | Différence nécessitant correction ou revue | Code fermé, références opaques, résolution auditée. |
 | `billing_refunds` | tenant | Projection d'une demande/remboursement | Premier paiement seulement en V1, décision manuelle, idempotence, état fournisseur. |
@@ -342,9 +343,10 @@ dédiés. Aucun travail de mode réel n'appartient à ce plan.
 
 **État communiqué par le commanditaire :** P53-01 à P53-07 sont présents dans le dépôt. Pour `P53-06B`, le verrou
 qualité local a été rapporté vert sur l'état final testé, avec 44 parcours navigateur contrôlés et axe PASS. Le
-commit `75d1fdf` ne contient qu'une partie des éléments : la migration `20261021_0056`, le script du verrou et les
-documents concernés nécessitent un commit complémentaire. Ce résultat ne valide ni fournisseur réel,
-ni mise en préproduction ou en production. `P53-08` reste à préparer et n'est pas autorisé par ce verdict.
+commit `75d1fdf` contient une partie des éléments ; le commit complémentaire `9ea118e` comprend la migration
+`20261021_0056`, le script du verrou et les documents P5.3. Ce résultat ne valide ni fournisseur réel, ni mise en
+préproduction ou en production. Les quatre décisions de cadrage `P53-08` et le GO de développement sont confirmés ;
+le développement est en cours et aucune recette ni clôture `P53-08` ne sont acquises.
 
 ### 15.1 `P53-06B` — checkout simulé pour quatre devises
 
@@ -396,6 +398,52 @@ fictives ; aucun effacement de données d'un environnement partagé n'est autori
 **Condition de lancement commercial, hors de ce lot :** grilles HT signées pour chaque devise et chaque offre/cycle
 concerné, validation fiscale et territoriale, factures HT/taxes/TTC, compatibilité du fournisseur, preuves sandbox,
 et autorisation de mise en service. Les réserves P5.1 et Porte 4 restent inchangées.
+
+### 15.2 `P53-08` — réconciliation du paiement simulé
+
+**Décisions produit :** `P53-REC-D01` à `P53-REC-D04` sont confirmées dans le
+[registre P5.3](./PHASE_5_3_DECISIONS.md#4-précisions-approuvées-pour-p53-08--réconciliation). Le commanditaire a
+ensuite donné son GO explicite de développement. Le périmètre est local, synthétique, sans fournisseur externe ni
+argent réel.
+
+**Avancement :** la migration additive `20261023_0058` persiste un snapshot fournisseur synthétique partagé entre
+l'API et le worker. Le checkout finalisé crée la preuve initiale ; seuls les webhooks simulés admis après vérification
+de signature peuvent l'avancer. Un événement plus ancien ne la régresse pas et deux états différents au même instant
+la rendent ambiguë. Le worker relit cette preuve après redémarrage logique, sans accès direct à la table.
+
+Le processeur borné, les baux, fenêtres incrémentales/exhaustives, reprise, commande manuelle plateforme et audit sont
+raccordés. Une différence `local_stale` n'est corrigée que si l'événement admis, les références client/souscription,
+le prix, la devise, la période, l'annulation et la transition concordent. La mutation de souscription, l'historique,
+la résolution de la différence et `billing.reconciliation_correction_applied` sont alors atomiques. Les divergences
+de prix, devise, référence, horodatage ou état restent ouvertes sans second checkout ni remboursement.
+
+Les tests ciblés du 23 octobre couvrent les quatre devises, le prix incohérent, la lecture partagée, la correction,
+l'audit, les ACL, les baux et la commande manuelle. Les contrôles exécutés séparément sont verts : 563 tests backend,
+245 tests Vitest, 44 parcours navigateur avec axe PASS, Ruff, formatage, mypy, ESLint, build, audit npm et
+`alembic check`. Le downgrade/upgrade de `0058` a également réussi sur la base de test. Le verrou complet reste
+néanmoins à relancer depuis WSL/Docker ; ces contrôles séparés ne constituent pas un verdict de verrou complet.
+
+**Fonctionnement attendu :**
+
+1. Effectuer la réconciliation incrémentale toutes les 15 minutes, exhaustive quotidiennement et manuelle pour une
+   organisation ou référence ; contrôler l'autorisation plateforme et le motif de l'opération manuelle.
+2. Comparer références, statut, période, annulation, prix et devise ; classer les écarts selon les codes fermés du
+   contrat simulateur, pour CAD, USD, EUR et XAF sans conversion ni réécriture arbitraire de prix.
+3. Corriger `local_stale` uniquement lorsque l'état simulé et sa correspondance sont suffisamment certains ; la
+   correction est transactionnelle et auditée. Écart de devise, prix, référence manquante ou résultat ambigu :
+   conserver un écart à examiner, sans correction automatique ni régression d'une projection plus récente.
+4. En cas de résultat incertain, rechercher une preuve avant toute autre action et ne jamais créer de second checkout
+   ou remboursement pour résoudre l'incertitude ; conserver le dossier non résolu en l'absence de preuve fiable.
+5. Couvrir interruption et redémarrage par le snapshot synthétique durable ; sans preuve admise ou si le snapshot est
+   ambigu, rester non résolu.
+6. Fournir une commande/API interne auditée et des résultats minimisés ; l'interface utilisateur complète reste hors
+   de ce lot. Préserver isolation tenant, contrôles de rôle, CSRF lorsque applicable et absence de données sensibles.
+
+**Recette minimale :** tests PostgreSQL et simulateur sur les quatre devises ; synchronisation et correction auditée ;
+blocage des écarts prix/devise/référence et des états ambigus ; timeout avant/après effet sans double opération ;
+concurrence, idempotence, reprise après interruption, événements anciens, isolation inter-tenant et accès interdit ;
+tests de migration/rollback sur base jetable ; verrou complet sans skip. Les preuves ciblées sont acquises localement ;
+la clôture reste conditionnée au prochain verrou complet vert.
 
 ## 16. Definition of Ready
 

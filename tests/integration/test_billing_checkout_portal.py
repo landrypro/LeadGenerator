@@ -197,6 +197,9 @@ async def test_concurrent_checkout_and_portal_are_durable_idempotent_and_minimiz
                           (SELECT count(*) FROM billing_commands WHERE organization_id=:organization) AS commands,
                           (SELECT count(*) FROM billing_customers WHERE organization_id=:organization) AS customers,
                           (SELECT count(*) FROM subscriptions WHERE organization_id=:organization) AS subscriptions,
+                          (SELECT count(*) FROM simulated_billing_provider_subscriptions p
+                            JOIN subscriptions s ON s.provider_subscription_reference=p.provider_subscription_reference
+                            WHERE s.organization_id=:organization) AS provider_snapshots,
                           (SELECT count(*) FROM audit_events WHERE organization_id=:organization
                             AND action IN (
                               'billing.checkout_requested','billing.checkout_session_created',
@@ -301,6 +304,13 @@ async def test_concurrent_checkout_and_portal_are_durable_idempotent_and_minimiz
     finally:
         async with owner.engine.begin() as connection:
             await connection.execute(text("DELETE FROM audit_events WHERE organization_id=:id"), {"id": organization})
+            await connection.execute(
+                text(
+                    "DELETE FROM simulated_billing_provider_subscriptions WHERE provider_subscription_reference IN "
+                    "(SELECT provider_subscription_reference FROM subscriptions WHERE organization_id=:id)"
+                ),
+                {"id": organization},
+            )
             await connection.execute(text("DELETE FROM subscriptions WHERE organization_id=:id"), {"id": organization})
             await connection.execute(
                 text("DELETE FROM billing_customers WHERE organization_id=:id"), {"id": organization}
@@ -326,4 +336,10 @@ async def test_concurrent_checkout_and_portal_are_durable_idempotent_and_minimiz
     assert reused_key.value.code is BillingErrorCode.COMMAND_CONFLICT
     assert first.url.startswith("http://billing-simulator.local/checkout/")
     assert portal.url.startswith("http://billing-simulator.local/portal/")
-    assert dict(counts) == {"commands": 2, "customers": 1, "subscriptions": 1, "audits": 4}
+    assert dict(counts) == {
+        "commands": 2,
+        "customers": 1,
+        "subscriptions": 1,
+        "provider_snapshots": 1,
+        "audits": 4,
+    }

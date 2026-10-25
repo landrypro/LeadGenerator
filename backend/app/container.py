@@ -107,6 +107,7 @@ from .application.use_cases import (
 )
 from .application.use_cases.assistant import CreateAssistantPlanUseCase
 from .application.use_cases.billing import BillingSessionUseCases
+from .application.use_cases.billing_reconciliation import BillingManualReconciliation
 from .application.use_cases.billing_refunds import BillingRefundUseCases
 from .application.use_cases.dashboard import GetDashboardSummaryUseCase
 from .application.use_cases.usage import GetCurrentUsageUseCase, GetUsageReportUseCase
@@ -152,6 +153,7 @@ class AppContainer:
     billing_webhook_admission: BillingWebhookAdmissionService | None = None
     billing_sessions: BillingSessionUseCases | None = None
     billing_refunds: BillingRefundUseCases | None = None
+    billing_manual_reconciliation: BillingManualReconciliation | None = None
     meta_lead_webhooks: MetaLeadWebhookService | None = None
     meta_connector_management: MetaConnectorManagement | None = None
     create_manual_prospect: CreateManualProspectUseCase | None = None

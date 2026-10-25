@@ -211,6 +211,60 @@ def test_billing_checkout_refusal_audit_uses_only_a_closed_reason_code() -> None
     assert event.metadata == {"command_kind": "checkout", "reason_code": "billing_reconciliation_required"}
 
 
+def test_reconciliation_difference_audit_contains_only_the_closed_code() -> None:
+    event = _draft(
+        action=AuditAction.BILLING_RECONCILIATION_DIFFERENCE_DETECTED,
+        entity_type="billing_reconciliation_difference",
+        actor_kind=AuditActorKind.SYSTEM,
+        actor_id=None,
+        source=AuditSource.WORKER,
+        metadata={"difference_code": "currency_mismatch"},
+    )
+    assert event.metadata == {"difference_code": "currency_mismatch"}
+    with pytest.raises(InvalidAuditMetadata):
+        _draft(
+            action=AuditAction.BILLING_RECONCILIATION_DIFFERENCE_DETECTED,
+            entity_type="billing_reconciliation_difference",
+            actor_kind=AuditActorKind.SYSTEM,
+            actor_id=None,
+            source=AuditSource.WORKER,
+            metadata={"difference_code": "unresolved", "provider_reference": "forbidden"},
+        )
+
+
+def test_reconciliation_correction_audit_contains_only_closed_transition_data() -> None:
+    event = _draft(
+        action=AuditAction.BILLING_RECONCILIATION_CORRECTION_APPLIED,
+        entity_type="billing_reconciliation_difference",
+        actor_kind=AuditActorKind.SYSTEM,
+        actor_id=None,
+        source=AuditSource.WORKER,
+        metadata={
+            "difference_code": "local_stale",
+            "previous_state": "past_due",
+            "next_state": "active",
+        },
+    )
+    assert event.metadata == {
+        "difference_code": "local_stale",
+        "previous_state": "past_due",
+        "next_state": "active",
+    }
+    with pytest.raises(InvalidAuditMetadata):
+        _draft(
+            action=AuditAction.BILLING_RECONCILIATION_CORRECTION_APPLIED,
+            entity_type="billing_reconciliation_difference",
+            actor_kind=AuditActorKind.SYSTEM,
+            actor_id=None,
+            source=AuditSource.WORKER,
+            metadata={
+                "difference_code": "currency_mismatch",
+                "previous_state": "past_due",
+                "next_state": "active",
+            },
+        )
+
+
 class _StubSession:
     def __init__(self, result: object) -> None:
         self.result = result

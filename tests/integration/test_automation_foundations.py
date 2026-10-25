@@ -861,6 +861,32 @@ async def test_imp_a6_suspension_and_stale_rule_block_effect_before_write() -> N
     app_url, owner_url = database_urls()
     app, owner, worker = create_database(app_url), create_database(owner_url), create_database(worker_database_url())
     fixture = await create_fixture(owner)
+
+    async def run_admitted_job(job_id: UUID) -> None:
+        deadline = asyncio.get_running_loop().time() + 2
+        while True:
+            if await automation_worker(worker).run_once():
+                return
+            if asyncio.get_running_loop().time() >= deadline:
+                async with owner.engine.connect() as connection:
+                    job = (
+                        (
+                            await connection.execute(
+                                text(
+                                    "SELECT j.status,j.available_at,clock_timestamp() AS database_now,"
+                                    "s.queued_count,s.active_count FROM jobs j "
+                                    "JOIN job_scheduler_state s ON s.organization_id=j.organization_id "
+                                    "WHERE j.id=:job_id"
+                                ),
+                                {"job_id": job_id},
+                            )
+                        )
+                        .mappings()
+                        .one_or_none()
+                    )
+                pytest.fail(f"Le job Automation admis n'a pas été réclamé : {job}")
+            await asyncio.sleep(0.05)
+
     try:
         await enable_new_prospect_automation(owner, fixture)
         context = automation_context(fixture)
@@ -876,7 +902,7 @@ async def test_imp_a6_suspension_and_stale_rule_block_effect_before_write() -> N
                 text("UPDATE automation_organization_settings SET automation_enabled=false WHERE organization_id=:id"),
                 {"id": fixture.organization_a_id},
             )
-        assert await automation_worker(worker).run_once() is True
+        await run_admitted_job(suspended.job_id)
 
         await enable_new_prospect_automation(owner, fixture)
         stale = await automation_runtime(app).admit_manual(
@@ -908,7 +934,7 @@ async def test_imp_a6_suspension_and_stale_rule_block_effect_before_write() -> N
                     "member": fixture.membership_a_id,
                 },
             )
-        assert await automation_worker(worker).run_once() is True
+        await run_admitted_job(stale.job_id)
 
         async with owner.engine.connect() as connection:
             rows = (

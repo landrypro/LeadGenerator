@@ -7,6 +7,7 @@
 | Version | 1.0 — paquet approuvé |
 | Date de décision | 9 octobre 2026 |
 | Mise à jour des devises | 21 octobre 2026 — confirmation du commanditaire |
+| Décisions P53-08 | 22 octobre 2026 — quatre propositions confirmées par le commanditaire |
 | Statut | Cadrage et préparation du simulateur autorisés ; paiement réel interdit |
 | Autorité | Approbation produit donnée dans le cadre de la Phase 5 |
 | Dépendances | P5.2 validée par verrou vert, catalogue interne, moteur de droits, RLS et audit |
@@ -61,7 +62,28 @@ Le commanditaire a reconfirmé le 21 octobre 2026 la décision `P52-D02` :
 Cette confirmation remplace la restriction CAD seul consignée le 9 octobre et ne rend pas les versions P5.2 existantes
 mutables. Elle ne vaut ni validation des prérequis ni autorisation de paiement réel.
 
-## 4. Portes restant à signer avant le mode réel
+## 4. Précisions approuvées pour P53-08 — réconciliation
+
+Les quatre propositions ci-dessous précisent `P53-D15` pour le simulateur local. Le commanditaire a ensuite donné
+son GO explicite pour le développement de P53-08 ; celui-ci n'est pas une autorisation de mise en service.
+
+| ID | Décision approuvée | Limite de sécurité |
+| --- | --- | --- |
+| `P53-REC-D01` | Une projection locale en retard peut être corrigée automatiquement si l'état simulé et sa correspondance sont suffisamment certains. | Transaction et audit obligatoires ; en cas de doute, ou de différence de devise, prix ou référence, bloquer et demander un examen. |
+| `P53-REC-D02` | Rechercher une preuve du résultat d'une opération incertaine avant toute autre action. | Ne jamais créer un second checkout ou remboursement pour lever l'incertitude ; sans preuve suffisante, conserver le dossier non résolu. |
+| `P53-REC-D03` | Tester la reprise après interruption et redémarrage avec des moyens adaptés au simulateur. | Si l'état simulé ne peut être retrouvé de façon fiable, le signaler non résolu ; ne jamais inventer le résultat. |
+| `P53-REC-D04` | Réconciliation manuelle limitée à un administrateur plateforme, pour une organisation ou référence précise, avec motif obligatoire. | Commande/API interne auditée, données minimisées ; aucune interface utilisateur complète dans ce lot. |
+
+Les contrôles couvrent CAD, USD, EUR et XAF sans conversion. Les réserves P5.1 et Porte 4 et les portes d'activation
+restent inchangées ; ni Stripe réel ni donnée client ne sont autorisés par ces décisions.
+
+**Alignement d'implémentation du 23 octobre 2026 :** le snapshot fournisseur synthétique est désormais durable et
+partagé entre l'API et le worker. Il est alimenté par un checkout simulé finalisé ou un webhook simulé signé et admis.
+Une correction automatique reste limitée à `local_stale` prouvé et concordant ; elle résout la différence et écrit
+l'audit dans la même transaction. Cet alignement applique les décisions ci-dessus sans élargir leur portée. Le verrou
+complet de cet état reste à obtenir.
+
+## 5. Portes restant à signer avant le mode réel
 
 | Porte | Responsable attendu | Preuve requise | Statut |
 | --- | --- | --- | --- |
@@ -73,7 +95,7 @@ mutables. Elle ne vaut ni validation des prérequis ni autorisation de paiement 
 | Exploitation | Opérations | SLO, alertes, réconciliation, runbooks, sauvegarde et arrêt d'urgence | Bloquant — à obtenir |
 | Autorisation réelle | Sponsor désigné | SHA/digest, verrou vert, preuves sandbox et signatures ci-dessus | Bloquant — décision distincte |
 
-## 5. Références officielles consultées
+## 6. Références officielles consultées
 
 Références vérifiées le 9 octobre 2026 :
 
@@ -89,7 +111,7 @@ Références vérifiées le 9 octobre 2026 :
 Ces sources encadrent le choix technique. Elles ne remplacent pas un avis comptable, fiscal ou juridique adapté à
 l'entité vendeuse et aux territoires effectivement ouverts.
 
-## 6. Décision de passage
+## 7. Décision de passage
 
 Le lot peut passer à la **spécification et au développement P5.3 limité au simulateur et à Stripe sandbox**. Il ne
-peut pas passer au paiement réel tant que toutes les portes de la section 4 ne sont pas signées.
+peut pas passer au paiement réel tant que toutes les portes de la section 5 ne sont pas signées.

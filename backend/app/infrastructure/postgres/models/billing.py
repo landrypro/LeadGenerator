@@ -153,6 +153,33 @@ class BillingWebhookCollisionModel(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=text("CURRENT_TIMESTAMP"))
 
 
+class SimulatedBillingProviderSubscriptionModel(Base):
+    __tablename__ = "simulated_billing_provider_subscriptions"
+    __table_args__ = (
+        CheckConstraint("char_length(btrim(provider_subscription_reference)) BETWEEN 1 AND 255", name="reference"),
+        CheckConstraint("char_length(btrim(provider_customer_reference)) BETWEEN 1 AND 255", name="customer"),
+        CheckConstraint("char_length(btrim(provider_price_reference)) BETWEEN 1 AND 255", name="price"),
+        CheckConstraint("currency IN ('CAD','USD','EUR','XAF')", name="currency"),
+        CheckConstraint(f"state IN ({_SUBSCRIPTION_STATES})", name="state"),
+        CheckConstraint("current_period_end > current_period_start", name="period"),
+        UniqueConstraint("source_inbox_id", name="uq_simulated_provider_subscriptions_source_inbox"),
+    )
+
+    provider_subscription_reference: Mapped[str] = mapped_column(String(255), primary_key=True)
+    provider_customer_reference: Mapped[str] = mapped_column(String(255))
+    provider_price_reference: Mapped[str] = mapped_column(String(255))
+    currency: Mapped[str] = mapped_column(String(3))
+    state: Mapped[str] = mapped_column(String(24))
+    current_period_start: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    current_period_end: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    cancel_at_period_end: Mapped[bool] = mapped_column(Boolean, server_default=text("false"))
+    provider_updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    source_inbox_id: Mapped[UUID | None] = mapped_column(ForeignKey("billing_event_inbox.id", ondelete="RESTRICT"))
+    ambiguous: Mapped[bool] = mapped_column(Boolean, server_default=text("false"))
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=text("CURRENT_TIMESTAMP"))
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=text("CURRENT_TIMESTAMP"))
+
+
 class SubscriptionModel(Base):
     __tablename__ = "subscriptions"
     __table_args__ = (
@@ -287,6 +314,26 @@ class BillingReconciliationRunModel(Base):
         CheckConstraint("status IN ('pending','running','completed','failed','blocked')", name="status"),
         CheckConstraint("window_ended_at > window_started_at", name="window"),
         CheckConstraint("completed_at IS NULL OR started_at IS NOT NULL", name="completion"),
+        CheckConstraint(
+            "(lease_token IS NULL AND lease_expires_at IS NULL) OR "
+            "(lease_token IS NOT NULL AND lease_expires_at IS NOT NULL AND status = 'running')",
+            name="lease",
+        ),
+        CheckConstraint(
+            "(run_kind <> 'manual' AND requested_by IS NULL AND reason_code IS NULL AND request_key_digest IS NULL) OR "
+            "(run_kind = 'manual' AND ((requested_by IS NULL AND reason_code IS NULL AND request_key_digest IS NULL) OR "
+            "(requested_by IS NOT NULL AND reason_code IS NOT NULL "
+            "AND reason_code IN ('payment_uncertain','state_mismatch','operator_review') "
+            "AND request_key_digest IS NOT NULL AND request_key_digest ~ '^[a-f0-9]{64}$'))) ",
+            name="manual_request",
+        ),
+        Index(
+            "uq_billing_reconciliation_manual_key",
+            "requested_by",
+            "request_key_digest",
+            unique=True,
+            postgresql_where=text("request_key_digest IS NOT NULL"),
+        ),
     )
 
     id: Mapped[UUID] = mapped_column(primary_key=True, default=uuid4, server_default=text("gen_random_uuid()"))
@@ -298,6 +345,11 @@ class BillingReconciliationRunModel(Base):
     window_ended_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
     started_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     completed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    lease_token: Mapped[UUID | None] = mapped_column()
+    lease_expires_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    requested_by: Mapped[UUID | None] = mapped_column(ForeignKey("users.id", ondelete="RESTRICT"))
+    reason_code: Mapped[str | None] = mapped_column(String(24))
+    request_key_digest: Mapped[str | None] = mapped_column(CHAR(64))
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=text("CURRENT_TIMESTAMP"))
 
 

@@ -23,6 +23,15 @@ class BillingRefundResponse(BaseModel):
     state: Literal["approved"]
 
 
+class BillingReconciliationRequest(StrictCommand):
+    organization_id: UUID
+    reason_code: Literal["payment_uncertain", "state_mismatch", "operator_review"]
+
+
+class BillingReconciliationResponse(BaseModel):
+    run_id: UUID
+
+
 class LoginRequest(StrictCommand):
     email: str = Field(min_length=3, max_length=254)
     password: str = Field(min_length=1, max_length=128)

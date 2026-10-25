@@ -13,6 +13,7 @@ from ....application.errors import (
 )
 from ....application.ports.billing import BillingReturnTarget, BillingWebhookAdmissionCode
 from ....application.tenancy import ActorContext, TenantContext
+from ....application.use_cases.billing_reconciliation import ReconciliationReason
 from ....domain.billing import BillingErrorCode
 from ....domain.identity import capabilities_for
 from ....infrastructure.billing.webhooks import MAX_WEBHOOK_BODY_BYTES
@@ -21,6 +22,8 @@ from ..responses import NO_STORE_HEADERS, api_error
 from ..schemas import (
     BillingCheckoutSessionRequest,
     BillingPortalSessionRequest,
+    BillingReconciliationRequest,
+    BillingReconciliationResponse,
     BillingRefundRequest,
     BillingRefundResponse,
     BillingSessionResponse,
@@ -28,6 +31,38 @@ from ..schemas import (
 from ..security import require_csrf_token, require_json_content_type, require_trusted_origin
 
 router = APIRouter()
+
+
+@router.post("/api/platform/billing/reconciliations", response_model=BillingReconciliationResponse, status_code=202)
+async def request_billing_reconciliation(
+    request: Request,
+    container: ContainerDependency,
+    idempotency_key: str | None = Header(default=None, alias="Idempotency-Key", max_length=128),
+) -> Response:
+    try:
+        authentication = await _authenticated_mutation(request, container)
+        if idempotency_key is None:
+            raise ValueError("Idempotency-Key est obligatoire.")
+        payload = BillingReconciliationRequest.model_validate(await request.json())
+        if container.billing_manual_reconciliation is None:
+            raise BillingOperationError(BillingErrorCode.PROVIDER_DISABLED)
+        run_id = await container.billing_manual_reconciliation.request(
+            context=ActorContext(authentication.identity.user.id, getattr(request.state, "request_id", "unknown")),
+            organization_id=payload.organization_id,
+            reason=ReconciliationReason(payload.reason_code),
+            idempotency_key=idempotency_key,
+            authorized="platform:billing:manage"
+            in capabilities_for(authentication.identity.user, authentication.identity.active_membership),
+            session_issued_at=authentication.identity.session_issued_at,
+        )
+    except Exception as error:
+        response = _billing_api_error(request, error)
+        if response is not None:
+            return response
+        raise
+    return JSONResponse(
+        BillingReconciliationResponse(run_id=run_id).model_dump(mode="json"), status_code=202, headers=NO_STORE_HEADERS
+    )
 
 
 @router.post("/api/billing/checkout-session", response_model=BillingSessionResponse)

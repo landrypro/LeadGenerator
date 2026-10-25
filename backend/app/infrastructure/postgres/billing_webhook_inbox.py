@@ -39,8 +39,15 @@ class SqlAlchemyBillingEventInbox(BillingEventInbox):
                         "normalized_payload": json.dumps(normalized_event_payload(event), separators=(",", ":")),
                     },
                 )
-                await session.commit()
                 code = result.scalar_one()["code"]
+                if code == BillingWebhookAdmissionCode.ADMITTED.value:
+                    persisted = await session.scalar(
+                        text("SELECT app_private.record_simulated_billing_webhook_snapshot(:provider,:event_id)"),
+                        {"provider": event.provider.value, "event_id": event.provider_event_id},
+                    )
+                    if persisted is not True:
+                        raise BillingOperationError(BillingErrorCode.STATE_UNKNOWN)
+                await session.commit()
         except SQLAlchemyError as error:
             raise BillingOperationError(BillingErrorCode.PROVIDER_UNAVAILABLE) from error
         try:

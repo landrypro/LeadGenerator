@@ -18,6 +18,7 @@ from .billing import (
     BillingReconciliationRunModel,
     BillingRefundModel,
     BillingWebhookCollisionModel,
+    SimulatedBillingProviderSubscriptionModel,
     SubscriptionModel,
     SubscriptionTransitionModel,
 )
@@ -117,6 +118,7 @@ __all__ = [
     "ProvenanceRecordModel",
     "ProviderConnectorBindingModel",
     "ProviderConnectorContractModel",
+    "SimulatedBillingProviderSubscriptionModel",
     "SourceExportRuleModel",
     "SourceProviderModel",
     "SubscriptionModel",
