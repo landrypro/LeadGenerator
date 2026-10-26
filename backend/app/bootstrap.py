@@ -135,6 +135,7 @@ from .container import AppContainer
 from .infrastructure.assistant.fake import FakeAssistantInterpreter
 from .infrastructure.audit_pagination import HmacAuditCursorCodec
 from .infrastructure.billing import build_billing_provider_gateway
+from .infrastructure.billing.stripe_contract import StripeSandboxWebhookVerifier
 from .infrastructure.billing.webhooks import BillingWebhookAdmissionService, SimulatedBillingWebhookVerifier
 from .infrastructure.clock import SystemClock
 from .infrastructure.google.location import GoogleLocationResolver
@@ -408,14 +409,22 @@ def build_container(settings: Settings) -> AppContainer:
     get_usage_report: GetUsageReportUseCase | None = None
     get_current_usage: GetCurrentUsageUseCase | None = None
     billing_webhook_admission: BillingWebhookAdmissionService | None = None
+    billing_stripe_webhook_admission: BillingWebhookAdmissionService | None = None
     billing_sessions: BillingSessionUseCases | None = None
     billing_refunds: BillingRefundUseCases | None = None
     billing_manual_reconciliation: BillingManualReconciliation | None = None
     usage_store = PostgresUsageStore(database.session_factory, metrics) if database is not None else None
-    if database is not None and settings.billing_provider_mode in {"disabled", "simulated"}:
+    if database is not None and settings.billing_provider_mode in {"disabled", "simulated", "stripe_sandbox"}:
         billing_clock = SystemClock()
         billing_sessions = BillingSessionUseCases(
-            SqlAlchemyBillingCommandRepository(database.tenant_unit_of_work),
+            SqlAlchemyBillingCommandRepository(
+                database.tenant_unit_of_work,
+                stripe_price_references=(
+                    settings.stripe_sandbox_price_references
+                    if settings.billing_provider_mode == "stripe_sandbox"
+                    else None
+                ),
+            ),
             build_billing_provider_gateway(settings, clock=billing_clock.now),
             billing_clock,
         )
@@ -436,6 +445,16 @@ def build_container(settings: Settings) -> AppContainer:
                     if settings.billing_simulator_previous_webhook_secret
                     else None
                 ),
+                tolerance_seconds=settings.billing_webhook_tolerance_seconds,
+            ),
+            SqlAlchemyBillingEventInbox(database.session_factory),
+            clock=lambda: datetime.now(UTC),
+        )
+    if database is not None and settings.billing_provider_mode == "stripe_sandbox":
+        billing_stripe_webhook_admission = BillingWebhookAdmissionService(
+            StripeSandboxWebhookVerifier(
+                secret=settings.billing_stripe_webhook_secret,
+                previous_secret=settings.billing_stripe_previous_webhook_secret,
                 tolerance_seconds=settings.billing_webhook_tolerance_seconds,
             ),
             SqlAlchemyBillingEventInbox(database.session_factory),
@@ -777,6 +796,7 @@ def build_container(settings: Settings) -> AppContainer:
         get_current_usage=get_current_usage,
         usage_store=usage_store,
         billing_webhook_admission=billing_webhook_admission,
+        billing_stripe_webhook_admission=billing_stripe_webhook_admission,
         billing_sessions=billing_sessions,
         billing_refunds=billing_refunds,
         billing_manual_reconciliation=billing_manual_reconciliation,

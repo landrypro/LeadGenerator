@@ -9,6 +9,7 @@ from ....application.errors import (
     AuthenticationRequired,
     AuthenticationServiceUnavailable,
     BillingOperationError,
+    CatalogServiceUnavailable,
     CsrfValidationFailed,
 )
 from ....application.ports.billing import BillingReturnTarget, BillingWebhookAdmissionCode
@@ -20,6 +21,8 @@ from ....infrastructure.billing.webhooks import MAX_WEBHOOK_BODY_BYTES
 from ..dependencies import ContainerDependency, RequestAuthentication, required_authentication
 from ..responses import NO_STORE_HEADERS, api_error
 from ..schemas import (
+    BillingCheckoutOptionResponse,
+    BillingCheckoutOptionsResponse,
     BillingCheckoutSessionRequest,
     BillingPortalSessionRequest,
     BillingReconciliationRequest,
@@ -31,6 +34,46 @@ from ..schemas import (
 from ..security import require_csrf_token, require_json_content_type, require_trusted_origin
 
 router = APIRouter()
+
+
+@router.get("/api/billing/checkout-options", response_model=BillingCheckoutOptionsResponse)
+async def list_checkout_options(request: Request, container: ContainerDependency) -> Response:
+    try:
+        authentication = await required_authentication(request, container)
+        if "billing:manage" not in capabilities_for(
+            authentication.identity.user, authentication.identity.active_membership
+        ):
+            raise BillingOperationError(BillingErrorCode.CAPABILITY_REQUIRED)
+        if container.settings.billing_provider_mode != "stripe_sandbox":
+            raise BillingOperationError(BillingErrorCode.PROVIDER_DISABLED)
+        if container.get_organization_catalog is None:
+            raise CatalogServiceUnavailable
+        options = await container.get_organization_catalog.list_checkout_options(
+            context=_tenant_context(request, authentication), has_capability=True
+        )
+        configured_currencies = {
+            currency for currency, reference in container.settings.stripe_sandbox_price_references.items() if reference
+        }
+        payload = BillingCheckoutOptionsResponse(
+            options=[
+                BillingCheckoutOptionResponse(
+                    id=option.id,
+                    code=option.code.value,
+                    version_number=option.version_number,
+                    currency=option.currency.value,
+                    amount_minor=option.amount_minor,
+                    billing_cycle=option.billing_cycle,
+                )
+                for option in options
+                if option.currency.value in configured_currencies
+            ]
+        )
+    except Exception as error:
+        response = _billing_api_error(request, error)
+        if response is not None:
+            return response
+        raise
+    return JSONResponse(payload.model_dump(mode="json"), headers=NO_STORE_HEADERS)
 
 
 @router.post("/api/platform/billing/reconciliations", response_model=BillingReconciliationResponse, status_code=202)
@@ -192,6 +235,34 @@ async def admit_simulated_billing_webhook(request: Request, container: Container
     return JSONResponse({"status": "accepted"}, status_code=status_code, headers=NO_STORE_HEADERS)
 
 
+@router.post("/api/billing/webhooks/stripe", include_in_schema=False)
+async def admit_stripe_billing_webhook(request: Request, container: ContainerDependency) -> Response:
+    """Admission Stripe sandbox: signature Stripe brute, sans cookie ni CSRF."""
+
+    content_type = request.headers.get("content-type", "").partition(";")[0].strip().lower()
+    if content_type != "application/json":
+        return _error(request, BillingErrorCode.WEBHOOK_INVALID)
+    content_length = request.headers.get("content-length")
+    if content_length and (not content_length.isdecimal() or int(content_length) > MAX_WEBHOOK_BODY_BYTES):
+        return _error(request, BillingErrorCode.WEBHOOK_INVALID)
+    raw_body = await request.body()
+    if len(raw_body) > MAX_WEBHOOK_BODY_BYTES:
+        return _error(request, BillingErrorCode.WEBHOOK_INVALID)
+    if container.billing_stripe_webhook_admission is None:
+        return _error(request, BillingErrorCode.PROVIDER_DISABLED)
+    try:
+        result = await container.billing_stripe_webhook_admission.admit(
+            raw_body=raw_body,
+            signature_header=request.headers.get("stripe-signature", ""),
+        )
+    except BillingOperationError as error:
+        return _error(request, error.code)
+    if result is BillingWebhookAdmissionCode.COLLISION:
+        return _error(request, BillingErrorCode.EVENT_COLLISION)
+    status_code = 202 if result is BillingWebhookAdmissionCode.ADMITTED else 200
+    return JSONResponse({"status": "accepted"}, status_code=status_code, headers=NO_STORE_HEADERS)
+
+
 def _error(request: Request, code: BillingErrorCode) -> Response:
     messages = {
         BillingErrorCode.WEBHOOK_INVALID: "La livraison webhook est invalide.",
@@ -248,7 +319,7 @@ def _billing_api_error(request: Request, error: Exception) -> Response | None:
             error.code.value,
             messages.get(error.code, "La commande Billing a été refusée."),
         )
-    if isinstance(error, AuthenticationServiceUnavailable):
+    if isinstance(error, (AuthenticationServiceUnavailable, CatalogServiceUnavailable)):
         return api_error(request, 503, "billing_provider_unavailable", "Le service est temporairement indisponible.")
     if isinstance(error, (ValueError, TypeError)):
         return api_error(request, 422, "validation_failed", "La commande Billing est invalide.")

@@ -1,0 +1,28 @@
+import { postJson, request } from '../../../shared/api/httpClient'
+
+
+export const billingApi = {
+  checkoutOptions(signal) {
+    return request('/api/billing/checkout-options', {
+      signal,
+      cache: 'no-store',
+      fallbackMessage: 'Impossible de charger les offres de test.',
+    })
+  },
+  currentCatalog(signal) {
+    return request('/api/organization/catalog', {
+      signal,
+      cache: 'no-store',
+      fallbackMessage: 'Impossible de consulter le contrat courant.',
+    })
+  },
+  createCheckout(planVersionId, idempotencyKey) {
+    return postJson('/api/billing/checkout-session', {
+      plan_version_id: planVersionId,
+      return_target: 'subscription',
+    }, {
+      headers: { 'Idempotency-Key': idempotencyKey },
+      fallbackMessage: 'Impossible de créer la session Checkout.',
+    })
+  },
+}

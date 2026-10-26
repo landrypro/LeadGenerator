@@ -11,7 +11,7 @@ from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from ...application.errors import BillingOperationError
 from ...application.ports.billing import BillingEventInbox, BillingWebhookAdmissionCode, NormalizedBillingEvent
-from ...domain.billing import BillingErrorCode
+from ...domain.billing import BillingErrorCode, BillingProvider
 from ..billing.webhooks import normalized_event_payload
 
 
@@ -40,7 +40,7 @@ class SqlAlchemyBillingEventInbox(BillingEventInbox):
                     },
                 )
                 code = result.scalar_one()["code"]
-                if code == BillingWebhookAdmissionCode.ADMITTED.value:
+                if code == BillingWebhookAdmissionCode.ADMITTED.value and event.provider is BillingProvider.SIMULATED:
                     persisted = await session.scalar(
                         text("SELECT app_private.record_simulated_billing_webhook_snapshot(:provider,:event_id)"),
                         {"provider": event.provider.value, "event_id": event.provider_event_id},

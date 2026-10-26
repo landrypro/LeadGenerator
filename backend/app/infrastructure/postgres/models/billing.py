@@ -85,6 +85,41 @@ class BillingCommandModel(Base):
     version: Mapped[int] = mapped_column(Integer, server_default=text("1"))
 
 
+class StripeSandboxCheckoutSessionModel(Base):
+    """Session Stripe ouverte, sans abonnement local avant le webhook signé."""
+
+    __tablename__ = "stripe_sandbox_checkout_sessions"
+    __table_args__ = (
+        UniqueConstraint("billing_command_id", name="uq_stripe_sandbox_checkout_command"),
+        UniqueConstraint("provider_checkout_reference", name="uq_stripe_sandbox_checkout_reference"),
+        Index(
+            "ix_stripe_sandbox_checkout_pending",
+            "organization_id",
+            "completed_at",
+            postgresql_where=text("completed_at IS NULL"),
+        ),
+        CheckConstraint("currency IN ('CAD','USD','EUR','XAF')", name="currency"),
+        CheckConstraint(
+            "provider_checkout_reference ~ '^cs_test_[A-Za-z0-9_]+$' "
+            "AND provider_price_reference ~ '^price_[A-Za-z0-9_]+$'",
+            name="references",
+        ),
+    )
+
+    id: Mapped[UUID] = mapped_column(primary_key=True, default=uuid4, server_default=text("gen_random_uuid()"))
+    organization_id: Mapped[UUID] = mapped_column(ForeignKey("organizations.id", ondelete="RESTRICT"))
+    billing_command_id: Mapped[UUID] = mapped_column(ForeignKey("billing_commands.id", ondelete="RESTRICT"))
+    billing_customer_id: Mapped[UUID] = mapped_column(ForeignKey("billing_customers.id", ondelete="RESTRICT"))
+    plan_version_id: Mapped[UUID] = mapped_column(ForeignKey("plan_versions.id", ondelete="RESTRICT"))
+    provider_checkout_reference: Mapped[str] = mapped_column(String(255))
+    provider_price_reference: Mapped[str] = mapped_column(String(255))
+    currency: Mapped[str] = mapped_column(String(3))
+    expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    completed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=text("CURRENT_TIMESTAMP"))
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=text("CURRENT_TIMESTAMP"))
+
+
 class BillingEventInboxModel(Base):
     __tablename__ = "billing_event_inbox"
     __table_args__ = (

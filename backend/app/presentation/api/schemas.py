@@ -248,6 +248,19 @@ class BillingSessionResponse(BaseModel):
     expires_at: datetime
 
 
+class BillingCheckoutOptionResponse(BaseModel):
+    id: UUID
+    code: str
+    version_number: int
+    currency: str
+    amount_minor: int
+    billing_cycle: str
+
+
+class BillingCheckoutOptionsResponse(BaseModel):
+    options: list[BillingCheckoutOptionResponse]
+
+
 class MemberPageResponse(BaseModel):
     items: list[MemberResponse]
     next_cursor: str | None

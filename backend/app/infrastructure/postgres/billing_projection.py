@@ -29,9 +29,15 @@ class BillingProjectionWorker:
             return False
         try:
             async with self._sessions.begin() as session:
-                result = await session.scalar(
-                    text("SELECT app_private.project_billing_event(:inbox_id)"), {"inbox_id": inbox_id}
+                provider = await session.scalar(
+                    text("SELECT app_private.billing_event_provider(:inbox_id)"), {"inbox_id": inbox_id}
                 )
+                statement = (
+                    "SELECT app_private.project_stripe_sandbox_subscription_event(:inbox_id)"
+                    if provider == "stripe"
+                    else "SELECT app_private.project_billing_event(:inbox_id)"
+                )
+                result = await session.scalar(text(statement), {"inbox_id": inbox_id})
             result_code = _result_code(result)
             if result_code not in {"processed", "transitioned", "ignored", "lost_claim"}:
                 raise RuntimeError("billing_projection_invalid_result")

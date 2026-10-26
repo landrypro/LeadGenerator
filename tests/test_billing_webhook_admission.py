@@ -211,3 +211,26 @@ async def test_webhook_api_exposes_collision_as_409_without_provider_details() -
 
     assert response.status_code == 409
     assert response.json()["error"]["code"] == BillingErrorCode.EVENT_COLLISION.value
+
+
+@pytest.mark.asyncio
+async def test_stripe_webhook_api_uses_its_distinct_signature_header_and_admission() -> None:
+    admission = _Admission(BillingWebhookAdmissionCode.ADMITTED)
+    app = create_app(
+        container=AppContainer(
+            settings=Settings(),
+            search_google_places=object(),  # type: ignore[arg-type]
+            get_map_snapshot=object(),  # type: ignore[arg-type]
+            billing_stripe_webhook_admission=admission,  # type: ignore[arg-type]
+        )
+    )
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+        response = await client.post(
+            "/api/billing/webhooks/stripe",
+            content=b"{}",
+            headers={"content-type": "application/json", "stripe-signature": "stripe-opaque"},
+        )
+
+    assert response.status_code == 202
+    assert response.json() == {"status": "accepted"}
+    assert admission.calls == [(b"{}", "stripe-opaque")]

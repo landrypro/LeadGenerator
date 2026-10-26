@@ -27,8 +27,14 @@ from ...domain.catalog import CurrencyCode
 
 
 class SqlAlchemyBillingCommandRepository:
-    def __init__(self, tenant_unit_of_work_factory: Callable[[TenantContext], Any]) -> None:
+    def __init__(
+        self,
+        tenant_unit_of_work_factory: Callable[[TenantContext], Any],
+        *,
+        stripe_price_references: dict[str, str] | None = None,
+    ) -> None:
         self._tenant_unit_of_work_factory = tenant_unit_of_work_factory
+        self._stripe_price_references = stripe_price_references
 
     async def prepare_checkout(
         self,
@@ -42,7 +48,11 @@ class SqlAlchemyBillingCommandRepository:
     ) -> BillingCheckoutPreparation:
         result = await self._json_call(
             context,
-            "SELECT app_private.prepare_billing_checkout(:command_id,:plan_version_id,:key,:fingerprint,:now)",
+            (
+                "SELECT app_private.prepare_stripe_sandbox_checkout(:command_id,:plan_version_id,:key,:fingerprint,:now)"
+                if self._stripe_price_references is not None
+                else "SELECT app_private.prepare_billing_checkout(:command_id,:plan_version_id,:key,:fingerprint,:now)"
+            ),
             {
                 "command_id": command_id,
                 "plan_version_id": plan_version_id,
@@ -55,16 +65,48 @@ class SqlAlchemyBillingCommandRepository:
         try:
             returned_id = UUID(str(result["command_id"]))
             state = BillingCommandState(str(result["status"]))
+            currency = CurrencyCode(str(result["currency"]))
+            price_reference = str(result["provider_price_reference"])
+            if self._stripe_price_references is not None:
+                price_reference = self._stripe_price_references.get(currency.value, "")
+                if not price_reference:
+                    raise BillingOperationError(BillingErrorCode.CURRENCY_UNAVAILABLE)
+            amount_minor = result.get("amount_minor", 0)
+            if isinstance(amount_minor, bool) or not isinstance(amount_minor, int):
+                raise BillingOperationError(BillingErrorCode.STATE_UNKNOWN)
+            customer_reference = (
+                await self._stripe_customer_reference(context) if self._stripe_price_references is not None else None
+            )
             command = BillingCheckoutCommand(
                 organization_id=context.organization_id,
                 plan_version_id=UUID(str(result["plan_version_id"])),
-                currency=CurrencyCode(str(result["currency"])),
-                provider_price_reference=str(result["provider_price_reference"]),
+                currency=currency,
+                provider_price_reference=price_reference,
                 return_target=BillingReturnTarget.SUBSCRIPTION,
+                amount_minor=amount_minor,
+                billing_cycle=str(result.get("billing_cycle", "monthly")),
+                provider_customer_reference=customer_reference,
             )
         except (KeyError, TypeError, ValueError) as error:
             raise BillingOperationError(BillingErrorCode.STATE_UNKNOWN) from error
         return BillingCheckoutPreparation(returned_id, state, command)
+
+    async def _stripe_customer_reference(self, context: TenantContext) -> str | None:
+        try:
+            async with self._tenant_unit_of_work_factory(context) as unit:
+                reference = await unit.session.scalar(text("SELECT app_private.tenant_stripe_customer_reference()"))
+        except SQLAlchemyError as error:
+            raise BillingOperationError(BillingErrorCode.PROVIDER_UNAVAILABLE) from error
+        if reference is None:
+            return None
+        if (
+            not isinstance(reference, str)
+            or not reference.startswith("cus_")
+            or not reference.isascii()
+            or not reference.replace("_", "").isalnum()
+        ):
+            raise BillingOperationError(BillingErrorCode.STATE_UNKNOWN)
+        return reference
 
     async def prepare_portal(
         self,
@@ -101,6 +143,9 @@ class SqlAlchemyBillingCommandRepository:
         session: CheckoutSession,
     ) -> None:
         snapshot = session.subscription
+        if snapshot is None:
+            await self._complete_stripe_checkout(context=context, preparation=preparation, session=session)
+            return
         parameters = {
             "command_id": preparation.command_id,
             "plan_version_id": preparation.command.plan_version_id,
@@ -144,6 +189,39 @@ class SqlAlchemyBillingCommandRepository:
                 )
                 if persisted is not True:
                     raise BillingOperationError(BillingErrorCode.STATE_UNKNOWN)
+                await unit.commit()
+        except BillingOperationError:
+            raise
+        except SQLAlchemyError as error:
+            raise BillingOperationError(BillingErrorCode.PROVIDER_UNAVAILABLE) from error
+
+    async def _complete_stripe_checkout(
+        self, *, context: TenantContext, preparation: BillingCheckoutPreparation, session: CheckoutSession
+    ) -> None:
+        if self._stripe_price_references is None:
+            raise BillingOperationError(BillingErrorCode.STATE_UNKNOWN)
+        try:
+            async with self._tenant_unit_of_work_factory(context) as unit:
+                raw = await unit.session.scalar(
+                    text(
+                        "SELECT app_private.complete_stripe_sandbox_checkout("
+                        ":command_id,:plan_version_id,:checkout_reference,:customer_reference,"
+                        ":price_reference,:currency,:expires_at)"
+                    ),
+                    {
+                        "command_id": preparation.command_id,
+                        "plan_version_id": preparation.command.plan_version_id,
+                        "checkout_reference": session.provider_checkout_reference,
+                        "customer_reference": session.provider_customer_reference,
+                        "price_reference": preparation.command.provider_price_reference,
+                        "currency": preparation.command.currency.value,
+                        "expires_at": session.expires_at,
+                    },
+                )
+                result = json.loads(raw) if isinstance(raw, str) else raw
+                if not isinstance(result, dict):
+                    raise BillingOperationError(BillingErrorCode.STATE_UNKNOWN)
+                _require_completion(cast(dict[str, object], result))
                 await unit.commit()
         except BillingOperationError:
             raise

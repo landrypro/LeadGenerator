@@ -22,6 +22,10 @@ vi.mock('../features/platform/PlatformOrganizationsPage', () => ({
   PlatformOrganizationsPage: () => <main><h1>Organisations de la plateforme</h1></main>,
 }))
 
+vi.mock('../features/billing/BillingPage', () => ({
+  BillingPage: () => <main><h1>Facturation</h1></main>,
+}))
+
 
 describe('AppRouter', () => {
   beforeEach(() => window.localStorage.setItem(PUBLIC_LOCALE_STORAGE_KEY, 'fr-CA'))
@@ -115,6 +119,19 @@ describe('AppRouter', () => {
 
     expect(await screen.findByRole('heading', { name: 'Administration des membres' })).toBeInTheDocument()
     expect(screen.getByRole('link', { name: 'Membres' })).toHaveAttribute('aria-current', 'page')
+  })
+
+  it('réserve la page Billing aux responsables de facturation', async () => {
+    window.history.replaceState({}, '', '/app/billing')
+    renderRouter(authenticatedSession({
+      activeOrganization: { id: 'org-1', name: 'Entreprise' },
+      capabilities: ['billing:manage'],
+    }))
+    expect(await screen.findByRole('heading', { name: 'Facturation' })).toBeInTheDocument()
+
+    window.history.replaceState({}, '', '/app/account')
+    window.dispatchEvent(new PopStateEvent('popstate'))
+    expect(await screen.findByRole('heading', { name: 'Mon compte' })).toBeInTheDocument()
   })
 
   it('affiche une vraie page 404 pour une route inconnue', () => {

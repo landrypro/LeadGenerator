@@ -10,6 +10,8 @@ from ...config import Settings
 from ...domain.billing import BillingProviderMode
 from .disabled import DisabledBillingProviderGateway
 from .simulated import SimulatedBillingProviderGateway
+from .stripe_client import StripeSandboxClient
+from .stripe_sandbox import StripeSandboxProviderGateway
 
 
 def build_billing_provider_gateway(
@@ -34,4 +36,7 @@ def build_billing_provider_gateway(
             ),
             clock=clock,
         )
-    raise RuntimeError("L'adaptateur Stripe sandbox n'est pas encore implémenté.")
+    return StripeSandboxProviderGateway(
+        client=StripeSandboxClient(test_secret_key=settings.billing_stripe_test_secret_key),
+        return_origin=settings.public_app_url or "http://localhost:5173",
+    )

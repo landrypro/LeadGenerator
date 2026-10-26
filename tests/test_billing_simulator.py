@@ -19,6 +19,7 @@ from backend.app.infrastructure.billing import (
     DisabledBillingProviderGateway,
     SimulatedBillingProviderGateway,
     SimulatedWebhookScenario,
+    StripeSandboxProviderGateway,
     build_billing_provider_gateway,
 )
 
@@ -176,5 +177,13 @@ def test_billing_adapter_selection_has_no_silent_sandbox_fallback() -> None:
         ),
         SimulatedBillingProviderGateway,
     )
-    with pytest.raises(RuntimeError, match="sandbox"):
-        build_billing_provider_gateway(Settings(billing_provider_mode="stripe_sandbox"))
+    assert isinstance(
+        build_billing_provider_gateway(
+            Settings(
+                billing_provider_mode="stripe_sandbox",
+                billing_stripe_test_secret_key="sk_test_synthetic_only",
+                billing_stripe_webhook_secret="whsec_synthetic_only",
+            )
+        ),
+        StripeSandboxProviderGateway,
+    )

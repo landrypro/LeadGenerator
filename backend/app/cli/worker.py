@@ -126,7 +126,7 @@ class Worker:
         )
         self._billing = (
             BillingProjectionWorker(database.session_factory)
-            if (config.meta_settings or Settings()).billing_provider_mode == "simulated"
+            if (config.meta_settings or Settings()).billing_provider_mode in {"simulated", "stripe_sandbox"}
             else None
         )
         self._billing_reconciliation: BillingReconciliationWorker | None = None

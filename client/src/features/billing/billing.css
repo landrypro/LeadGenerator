@@ -1,0 +1,15 @@
+.billing-page { max-width: 780px; }
+.billing-sandbox-notice { display: flex; flex-wrap: wrap; gap: 6px 12px; padding: 13px 16px; margin-bottom: 18px; border: 1px solid #cfe8cf; border-radius: 12px; color: #285d38; background: #f2faef; font-size: 13px; }
+.billing-return-notice { padding: 13px 16px; margin: 0 0 18px; border: 1px solid #c7dfe7; border-radius: 12px; color: #245669; background: #f1f9fb; font-size: 13px; }
+.billing-card { max-width: 660px; }
+.billing-contract { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 10px; color: #49636d; font-size: 12px; }
+.billing-form { display: grid; gap: 10px; margin-top: 20px; }
+.billing-form label { color: #294c5b; font-size: 13px; font-weight: 700; }
+.billing-form input { width: 100%; min-width: 0; font-family: monospace; }
+.billing-form select { width: 100%; min-height: 44px; padding: 10px 12px; border: 1px solid #cfe0e6; border-radius: 12px; background: #fff; color: #12384b; }
+.billing-empty { margin: 0; padding: 12px 14px; border-radius: 10px; background: #fff8e8; color: #674b18; font-size: 13px; }
+.billing-options-error { display: grid; justify-items: start; gap: 8px; }
+.billing-form .primary-button { width: max-content; min-width: 190px; min-height: 44px; }
+.billing-checkout-link { display: grid; gap: 5px; margin-top: 20px; font-size: 13px; }
+.billing-checkout-link a { color: #126f92; font-weight: 700; }
+.billing-checkout-link small { color: #5f7984; }

@@ -109,6 +109,13 @@ class Settings:
     billing_provider_mode: str = "disabled"
     billing_simulator_webhook_secret: str = field(default="", repr=False)
     billing_simulator_previous_webhook_secret: str = field(default="", repr=False)
+    billing_stripe_test_secret_key: str = field(default="", repr=False)
+    billing_stripe_webhook_secret: str = field(default="", repr=False)
+    billing_stripe_previous_webhook_secret: str = field(default="", repr=False)
+    billing_stripe_price_cad_monthly: str = ""
+    billing_stripe_price_usd_monthly: str = ""
+    billing_stripe_price_eur_monthly: str = ""
+    billing_stripe_price_xaf_monthly: str = ""
     billing_webhook_tolerance_seconds: int = 300
     log_format: str = "text"
     instance_id: str = ""
@@ -132,6 +139,30 @@ class Settings:
             raise ValueError("BILLING_PROVIDER_MODE doit être disabled, simulated ou stripe_sandbox.")
         if self.billing_provider_mode == "simulated" and self.app_env not in {"development", "test"}:
             raise ValueError("BILLING_PROVIDER_MODE=simulated est réservé au développement et au test.")
+        if self.billing_provider_mode == "stripe_sandbox":
+            if self.app_env not in {"development", "test"}:
+                raise ValueError("BILLING_PROVIDER_MODE=stripe_sandbox est réservé au développement et au test.")
+            if not self.billing_stripe_test_secret_key.startswith("sk_test_"):
+                raise ValueError("BILLING_STRIPE_TEST_SECRET_KEY doit être une clé serveur de test.")
+            if not self.billing_stripe_webhook_secret.startswith("whsec_"):
+                raise ValueError("BILLING_STRIPE_WEBHOOK_SECRET doit être un secret de signature webhook.")
+            if not self.billing_stripe_test_secret_key.isascii() or "..." in self.billing_stripe_test_secret_key:
+                raise ValueError(
+                    "BILLING_STRIPE_TEST_SECRET_KEY contient une valeur d'exemple ; fournir la vraie clé de test."
+                )
+            if not self.billing_stripe_webhook_secret.isascii() or "..." in self.billing_stripe_webhook_secret:
+                raise ValueError(
+                    "BILLING_STRIPE_WEBHOOK_SECRET contient une valeur d'exemple ; fournir le secret du listener."
+                )
+        if self.billing_stripe_test_secret_key and not self.billing_stripe_test_secret_key.startswith("sk_test_"):
+            raise ValueError("Seule une clé Stripe de test est acceptée.")
+        if self.billing_stripe_previous_webhook_secret and not self.billing_stripe_previous_webhook_secret.startswith(
+            "whsec_"
+        ):
+            raise ValueError("Le secret webhook Stripe précédent est invalide.")
+        for reference in self.stripe_sandbox_price_references.values():
+            if reference and (not reference.startswith("price_") or not reference.isascii()):
+                raise ValueError("Les références de prix Stripe sandbox sont invalides.")
         if (
             self.billing_provider_mode == "simulated"
             and len(self.billing_simulator_webhook_secret.encode("utf-8")) < 32
@@ -301,6 +332,15 @@ class Settings:
         return self.google_maps_static_api_key or self.google_maps_api_key
 
     @property
+    def stripe_sandbox_price_references(self) -> dict[str, str]:
+        return {
+            "CAD": self.billing_stripe_price_cad_monthly,
+            "USD": self.billing_stripe_price_usd_monthly,
+            "EUR": self.billing_stripe_price_eur_monthly,
+            "XAF": self.billing_stripe_price_xaf_monthly,
+        }
+
+    @property
     def google_places_search_available(self) -> bool:
         """Indique si Text Search est disponible sans révéler sa configuration."""
         return self.google_places_simulator_enabled or bool(self.google_maps_api_key)
@@ -427,6 +467,13 @@ class Settings:
             billing_simulator_previous_webhook_secret=values.get(
                 "BILLING_SIMULATOR_PREVIOUS_WEBHOOK_SECRET", ""
             ).strip(),
+            billing_stripe_test_secret_key=values.get("BILLING_STRIPE_TEST_SECRET_KEY", "").strip(),
+            billing_stripe_webhook_secret=values.get("BILLING_STRIPE_WEBHOOK_SECRET", "").strip(),
+            billing_stripe_previous_webhook_secret=values.get("BILLING_STRIPE_PREVIOUS_WEBHOOK_SECRET", "").strip(),
+            billing_stripe_price_cad_monthly=values.get("BILLING_STRIPE_PRICE_CAD_MONTHLY", "").strip(),
+            billing_stripe_price_usd_monthly=values.get("BILLING_STRIPE_PRICE_USD_MONTHLY", "").strip(),
+            billing_stripe_price_eur_monthly=values.get("BILLING_STRIPE_PRICE_EUR_MONTHLY", "").strip(),
+            billing_stripe_price_xaf_monthly=values.get("BILLING_STRIPE_PRICE_XAF_MONTHLY", "").strip(),
             billing_webhook_tolerance_seconds=int(values.get("BILLING_WEBHOOK_TOLERANCE_SECONDS", "300")),
             log_format=values.get("LOG_FORMAT", "json" if app_env in {"staging", "production"} else "text")
             .strip()

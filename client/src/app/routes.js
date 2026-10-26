@@ -25,6 +25,7 @@ const TasksPage = lazyNamed(() => import('../features/prospects/TasksPage'), 'Ta
 const OpportunitiesPage = lazyNamed(() => import('../features/opportunities/OpportunitiesPage'), 'OpportunitiesPage')
 const DashboardPage = lazyNamed(() => import('../features/dashboard/DashboardPage'), 'DashboardPage')
 const UsagePage = lazyNamed(() => import('../features/usage/UsagePage'), 'UsagePage')
+const BillingPage = lazyNamed(() => import('../features/billing/BillingPage'), 'BillingPage')
 const AutomationTodayPage = lazyNamed(() => import('../features/automation/AutomationTodayPage'), 'AutomationTodayPage')
 const AutomationPlaybooksPage = lazyNamed(() => import('../features/automation/AutomationPlaybooksPage'), 'AutomationPlaybooksPage')
 const AutomationExceptionsPage = lazyNamed(() => import('../features/automation/AutomationExceptionsPage'), 'AutomationExceptionsPage')
@@ -42,6 +43,7 @@ export const CRM_PATHS = Object.freeze({
   automationPlaybooks: '/app/automation/playbooks',
   automationExceptions: '/app/automation/exceptions',
   usage: '/app/usage',
+  billing: '/app/billing',
   prospects: '/app/prospects',
   prospectNew: '/app/prospects/new',
   prospectDetail: '/app/prospects/:prospectId',
@@ -68,6 +70,7 @@ const ROUTE_MESSAGES = Object.freeze({
   'automation-playbooks': Object.freeze({ 'fr-CA': Object.freeze({ label: 'Playbooks', title: 'Automatisation — Playbooks' }), 'en-CA': Object.freeze({ label: 'Playbooks', title: 'Automation — Playbooks' }) }),
   'automation-exceptions': Object.freeze({ 'fr-CA': Object.freeze({ label: 'Entrées et exceptions', title: 'Automatisation — Entrées et exceptions' }), 'en-CA': Object.freeze({ label: 'Entries and exceptions', title: 'Automation — Entries and exceptions' }) }),
   usage: Object.freeze({ 'fr-CA': Object.freeze({ label: 'Usage', title: 'Quotas et rapports d’usage' }), 'en-CA': Object.freeze({ label: 'Usage', title: 'Usage quotas and reports' }) }),
+  billing: Object.freeze({ 'fr-CA': Object.freeze({ label: 'Facturation', title: 'Facturation — Sandbox' }), 'en-CA': Object.freeze({ label: 'Billing', title: 'Billing — Sandbox' }) }),
   'retention-imports': Object.freeze({ 'fr-CA': Object.freeze({ label: 'Conservation et imports', title: 'Conservation des données' }), 'en-CA': Object.freeze({ label: 'Retention and imports', title: 'Data retention' }) }),
   'import-history': Object.freeze({ 'fr-CA': Object.freeze({ label: 'Historique des imports', title: 'Historique des imports' }), 'en-CA': Object.freeze({ label: 'Import history', title: 'Import history' }) }),
   exports: Object.freeze({ 'fr-CA': Object.freeze({ label: 'Exports', title: 'Exports CSV' }), 'en-CA': Object.freeze({ label: 'Exports', title: 'CSV exports' }) }),
@@ -115,6 +118,10 @@ export const routes = Object.freeze([
   Object.freeze({
     id: 'usage', path: CRM_PATHS.usage, label: 'Usage', title: 'Quotas et rapports d’usage',
     requiredCapability: 'usage:read:self', requiresActiveOrganization: true, Component: UsagePage,
+  }),
+  Object.freeze({
+    id: 'billing', path: CRM_PATHS.billing, label: 'Facturation', title: 'Facturation — Sandbox',
+    requiredCapability: 'billing:manage', requiresActiveOrganization: true, Component: BillingPage,
   }),
   Object.freeze({
     id: 'retention-imports', path: CRM_PATHS.retention, label: 'Conservation et imports', title: 'Conservation des données', requiredCapability: 'retention:read', requiresActiveOrganization: true, Component: RetentionImportsPage,

@@ -31,6 +31,7 @@ from ..ports.catalog import (
     CatalogMutationResultCode,
     CatalogPlanVersionView,
     CatalogPlanView,
+    CheckoutPlanOption,
     OrganizationCatalogReader,
     OrganizationCatalogView,
     OrganizationPlanContractView,
@@ -142,6 +143,13 @@ class GetOrganizationCatalogUseCase:
         if not has_capability:
             raise InsufficientCapability
         return await self._reader.get_current(context=context, now=self._clock.now())
+
+    async def list_checkout_options(
+        self, *, context: TenantContext, has_capability: bool
+    ) -> tuple[CheckoutPlanOption, ...]:
+        if not has_capability:
+            raise InsufficientCapability
+        return await self._reader.list_checkout_options(context=context, now=self._clock.now())
 
 
 class CatalogAdministrationUseCases:

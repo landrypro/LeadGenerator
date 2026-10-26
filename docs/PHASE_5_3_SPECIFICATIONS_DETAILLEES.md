@@ -335,7 +335,7 @@ souscriptions ou audits.
 | `P53-06B` | P0 | Correction multidevise du checkout simulé | Quatre devises cohérentes, migration additive, retour arrière sûr et recette ci-dessous. |
 | `P53-08` | P0 | Réconciliation | Incrémentale, exhaustive, manuelle et différences classées. |
 | `P53-09` | P1 | Adaptateur Stripe sandbox | API épinglée, traduction normalisée, secrets et contrat. |
-| `P53-10` | P1 | Preuves et recette synthétique | Matrice, JUnit sans skip, absence de données sensibles/effet externe. |
+| `P53-10` | P1 | Preuves et recette synthétique | Matrice, JUnit sans skip, absence de données sensibles/effet externe ; [cadrage détaillé](./PHASE_5_3_P53_10_PREUVES_RECETTE_SYNTHETIQUE.md). |
 
 La correction `P53-06B` complète `P53-06` ; elle précède `P53-08` pour que la réconciliation soit conçue
 avec les quatre devises. `P53-09` ne commence qu'après validation du simulateur et disponibilité de secrets sandbox
@@ -346,7 +346,8 @@ qualité local a été rapporté vert sur l'état final testé, avec 44 parcours
 commit `75d1fdf` contient une partie des éléments ; le commit complémentaire `9ea118e` comprend la migration
 `20261021_0056`, le script du verrou et les documents P5.3. Ce résultat ne valide ni fournisseur réel, ni mise en
 préproduction ou en production. Les quatre décisions de cadrage `P53-08` et le GO de développement sont confirmés ;
-le développement est en cours et aucune recette ni clôture `P53-08` ne sont acquises.
+le commit `008c515` porte la réconciliation. Le verrou local du 24 octobre 2026 est vert avec les preuves ciblées et
+complètes. La consolidation transversale des preuves P5.3 reste l'objet de `P53-10`.
 
 ### 15.1 `P53-06B` — checkout simulé pour quatre devises
 
@@ -420,8 +421,9 @@ de prix, devise, référence, horodatage ou état restent ouvertes sans second c
 Les tests ciblés du 23 octobre couvrent les quatre devises, le prix incohérent, la lecture partagée, la correction,
 l'audit, les ACL, les baux et la commande manuelle. Les contrôles exécutés séparément sont verts : 563 tests backend,
 245 tests Vitest, 44 parcours navigateur avec axe PASS, Ruff, formatage, mypy, ESLint, build, audit npm et
-`alembic check`. Le downgrade/upgrade de `0058` a également réussi sur la base de test. Le verrou complet reste
-néanmoins à relancer depuis WSL/Docker ; ces contrôles séparés ne constituent pas un verdict de verrou complet.
+`alembic check`. Le downgrade/upgrade de `0058` a également réussi sur la base de test. Le verrou complet du
+24 octobre 2026 a ensuite été rapporté `VERT` ; `test-results/quality-summary.md` date cette exécution de
+`2026-10-24 22:16:15Z`. Le rapport n'est pas encore une matrice P53-10 scénario → cas JUnit → résultat.
 
 **Fonctionnement attendu :**
 
@@ -442,8 +444,16 @@ néanmoins à relancer depuis WSL/Docker ; ces contrôles séparés ne constitue
 **Recette minimale :** tests PostgreSQL et simulateur sur les quatre devises ; synchronisation et correction auditée ;
 blocage des écarts prix/devise/référence et des états ambigus ; timeout avant/après effet sans double opération ;
 concurrence, idempotence, reprise après interruption, événements anciens, isolation inter-tenant et accès interdit ;
-tests de migration/rollback sur base jetable ; verrou complet sans skip. Les preuves ciblées sont acquises localement ;
-la clôture reste conditionnée au prochain verrou complet vert.
+tests de migration/rollback sur base jetable ; verrou complet sans skip. Les preuves ciblées et le verrou complet sont
+acquis localement pour P53-08 ; leur consolidation en recette synthétique relève de P53-10.
+
+### 15.3 `P53-10` — consolidation des preuves locales
+
+Le [cadrage P53-10](./PHASE_5_3_P53_10_PREUVES_RECETTE_SYNTHETIQUE.md) définit la matrice des scénarios,
+les artefacts reproductibles et les contrôles de données sensibles et d'effet externe. Les quatre décisions de
+cadrage ont été confirmées le 24 octobre 2026 ; le développement et la recette restent à réaliser. Stripe sandbox
+(`P53-09`/`P53-SBX-01`) sera annexé séparément ; la recette locale ne vaut ni clôture
+technique globale P5.3, ni autorisation de mise en service.
 
 ## 16. Definition of Ready
 

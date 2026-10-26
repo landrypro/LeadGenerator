@@ -18,6 +18,7 @@ describe('routes CRM', () => {
       automationPlaybooks: '/app/automation/playbooks',
       automationExceptions: '/app/automation/exceptions',
       usage: '/app/usage',
+      billing: '/app/billing',
       prospects: '/app/prospects',
       prospectNew: '/app/prospects/new',
       prospectDetail: '/app/prospects/:prospectId',
@@ -46,6 +47,7 @@ describe('routes CRM', () => {
       '/app/automation/playbooks',
       '/app/automation/exceptions',
       '/app/usage',
+      '/app/billing',
       '/app/compliance/retention',
       '/app/imports/history',
       '/app/exports',
@@ -67,6 +69,7 @@ describe('routes CRM', () => {
     ])
     expect(findRoute('/app/platform/organizations')?.requiredCapability).toBe('platform:organizations:read')
     expect(findRoute('/app/usage')?.requiredCapability).toBe('usage:read:self')
+    expect(findRoute('/app/billing')?.requiredCapability).toBe('billing:manage')
     expect(findRoute('/app/automation/today')?.requiredCapability).toBe('automation:plan:create')
     expect(findRoute('/app/automation')?.redirectTo).toBe('/app/automation/today')
     expect(findRoute('/app/automation/playbooks')?.requiredCapability).toBe('automation:read:self')

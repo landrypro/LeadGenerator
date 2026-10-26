@@ -12,13 +12,14 @@ from sqlalchemy.exc import SQLAlchemyError
 
 from ...application.errors import CatalogServiceUnavailable
 from ...application.ports.catalog import (
+    CheckoutPlanOption,
     OrganizationCatalogReader,
     OrganizationCatalogView,
     OrganizationEntitlementDecisionView,
     OrganizationPlanContractView,
 )
 from ...application.tenancy import TenantContext
-from ...domain.catalog import ContractState, CurrencyCode, EntitlementKey, EntitlementKind
+from ...domain.catalog import ContractState, CurrencyCode, EntitlementKey, EntitlementKind, PlanCode
 
 
 class SqlAlchemyOrganizationCatalogReader(OrganizationCatalogReader):
@@ -62,6 +63,28 @@ class SqlAlchemyOrganizationCatalogReader(OrganizationCatalogReader):
             contract=self._contract(contract_row) if contract_row is not None else None,
             entitlements=tuple(decisions),
         )
+
+    async def list_checkout_options(self, *, context: TenantContext, now: datetime) -> tuple[CheckoutPlanOption, ...]:
+        try:
+            async with self._tenant_unit_of_work_factory(context) as unit:
+                rows = await unit.session.scalar(
+                    text("SELECT app_private.tenant_stripe_checkout_options(:now)"), {"now": now}
+                )
+            if not isinstance(rows, list):
+                raise CatalogServiceUnavailable("Le catalogue Checkout a retourné une réponse invalide.")
+            return tuple(
+                CheckoutPlanOption(
+                    id=UUID(str(item["id"])),
+                    code=PlanCode(item["code"]),
+                    version_number=int(item["version_number"]),
+                    currency=CurrencyCode(item["currency"]),
+                    amount_minor=int(item["amount_minor"]),
+                    billing_cycle=str(item["billing_cycle"]),
+                )
+                for item in rows
+            )
+        except (SQLAlchemyError, KeyError, TypeError, ValueError) as error:
+            raise CatalogServiceUnavailable from error
 
     @staticmethod
     def _contract(row: Any) -> OrganizationPlanContractView:

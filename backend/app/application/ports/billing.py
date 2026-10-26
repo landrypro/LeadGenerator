@@ -61,10 +61,17 @@ class BillingCheckoutCommand:
     currency: CurrencyCode
     provider_price_reference: str
     return_target: BillingReturnTarget
+    amount_minor: int = 0
+    billing_cycle: str = "monthly"
+    provider_customer_reference: str | None = None
 
     def __post_init__(self) -> None:
         if not self.provider_price_reference.strip():
             raise ValueError("La référence de prix fournisseur est obligatoire.")
+        if self.amount_minor < 0 or self.billing_cycle not in {"monthly", "annual"}:
+            raise ValueError("Le contrat de prix fournisseur est invalide.")
+        if self.provider_customer_reference is not None and not self.provider_customer_reference.strip():
+            raise ValueError("La référence client fournisseur est invalide.")
 
 
 @dataclass(frozen=True, slots=True)
@@ -94,8 +101,8 @@ class CheckoutSession:
 
     provider_checkout_reference: str
     provider_customer_reference: str
-    provider_subscription_reference: str
-    subscription: NormalizedSubscriptionSnapshot
+    provider_subscription_reference: str | None
+    subscription: NormalizedSubscriptionSnapshot | None
     checkout_url: str
     expires_at: datetime
 
@@ -127,6 +134,7 @@ class NormalizedBillingEvent:
     provider_object_reference: str
     provider_created_at: datetime
     normalized_subscription: NormalizedSubscriptionSnapshot | None = None
+    checkout_command_id: UUID | None = None
 
 
 @dataclass(frozen=True, slots=True)

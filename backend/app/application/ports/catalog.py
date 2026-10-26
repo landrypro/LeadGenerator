@@ -108,6 +108,16 @@ class OrganizationCatalogView:
 
 
 @dataclass(frozen=True, slots=True)
+class CheckoutPlanOption:
+    id: UUID
+    code: PlanCode
+    version_number: int
+    currency: CurrencyCode
+    amount_minor: int
+    billing_cycle: str
+
+
+@dataclass(frozen=True, slots=True)
 class CatalogMutationResult:
     code: CatalogMutationResultCode
     plan: CatalogPlanView | None = None
@@ -183,6 +193,10 @@ class CatalogMutationGateway(Protocol):
 
 class OrganizationCatalogReader(Protocol):
     async def get_current(self, *, context: TenantContext, now: datetime) -> OrganizationCatalogView: ...
+
+    async def list_checkout_options(
+        self, *, context: TenantContext, now: datetime
+    ) -> tuple[CheckoutPlanOption, ...]: ...
 
 
 class CatalogAuditedUnitOfWork(Protocol):

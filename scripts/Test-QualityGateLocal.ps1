@@ -66,7 +66,10 @@ $projectName = 'prospect-crm-quality'
 # et remboursement simulé plateforme, sans effet financier réel.
 # P53-08 partage les preuves du simulateur et ne corrige qu'un local_stale
 # prouvé, dans la même transaction que l'observation et l'audit.
-$expectedAlembicRevision = '20261023_0058'
+# P53-09 ajoute la session Checkout Stripe ; 0060 répare les droits de purge du worker ;
+# 0061 expose les offres mensuelles de test aux administrateurs Billing ;
+# 0062 permet de réutiliser le client Stripe déjà enregistré pour l'organisation.
+$expectedAlembicRevision = '20261025_0062'
 $script:resolvedDockerMode = $null
 $script:wslWorkspace = $null
 $script:wslDistribution = $null

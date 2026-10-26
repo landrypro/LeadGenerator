@@ -151,6 +151,7 @@ class AppContainer:
     get_current_usage: GetCurrentUsageUseCase | None = None
     usage_store: UsageStore | None = None
     billing_webhook_admission: BillingWebhookAdmissionService | None = None
+    billing_stripe_webhook_admission: BillingWebhookAdmissionService | None = None
     billing_sessions: BillingSessionUseCases | None = None
     billing_refunds: BillingRefundUseCases | None = None
     billing_manual_reconciliation: BillingManualReconciliation | None = None
