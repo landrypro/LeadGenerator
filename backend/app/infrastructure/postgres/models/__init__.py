@@ -19,6 +19,7 @@ from .billing import (
     BillingRefundModel,
     BillingWebhookCollisionModel,
     SimulatedBillingProviderSubscriptionModel,
+    StripeSandboxSyncModel,
     SubscriptionModel,
     SubscriptionTransitionModel,
 )
@@ -121,6 +122,7 @@ __all__ = [
     "SimulatedBillingProviderSubscriptionModel",
     "SourceExportRuleModel",
     "SourceProviderModel",
+    "StripeSandboxSyncModel",
     "SubscriptionModel",
     "SubscriptionTransitionModel",
     "UsageDailyCounterModel",

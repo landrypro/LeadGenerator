@@ -123,8 +123,65 @@ class StripeSandboxClient:
             raise BillingOperationError(BillingErrorCode.STATE_UNKNOWN)
         return result
 
+    async def read_object(self, kind: str, reference: str) -> dict[str, Any]:
+        path, prefix, object_type = {
+            "subscription": ("subscriptions", "sub_", "subscription"),
+            "invoice": ("invoices", "in_", "invoice"),
+            "checkout": ("checkout/sessions", "cs_test_", "checkout.session"),
+            "refund": ("refunds", "re_", "refund"),
+            "charge": ("charges", "ch_", "charge"),
+        }[kind]
+        self._require_reference(reference, prefix)
+        result = await self._request("GET", f"/v1/{path}/{reference}")
+        if result.get("id") != reference or result.get("object") != object_type:
+            raise BillingOperationError(BillingErrorCode.STATE_UNKNOWN)
+        # Refund has no livemode field; its charge is checked independently.
+        if kind != "refund" and result.get("livemode") is not False:
+            raise BillingOperationError(BillingErrorCode.STATE_UNKNOWN)
+        return result
+
+    async def invoice_for_payment(self, reference: str) -> dict[str, Any]:
+        self._require_reference(reference, "pi_")
+        result = await self._request(
+            "GET",
+            "/v1/invoice_payments",
+            params={
+                "payment[type]": "payment_intent",
+                "payment[payment_intent]": reference,
+                "status": "paid",
+                "limit": "100",
+            },
+        )
+        payments = result.get("data")
+        if result.get("has_more") is not False or not isinstance(payments, list) or len(payments) != 1:
+            raise BillingOperationError(BillingErrorCode.RECONCILIATION_REQUIRED)
+        payment = payments[0]
+        if payment.get("payment", {}).get("payment_intent") != reference or payment.get("status") != "paid":
+            raise BillingOperationError(BillingErrorCode.STATE_UNKNOWN)
+        return await self.read_object("invoice", payment["invoice"])
+
+    async def read_events(self, *, cursor: str | None, starts_at: datetime, ends_at: datetime) -> dict[str, Any]:
+        from .stripe_contract import STRIPE_PLANNED_WEBHOOK_EVENTS
+
+        params = {
+            "limit": "50",
+            "created[gte]": str(int(starts_at.timestamp())),
+            "created[lt]": str(int(ends_at.timestamp())),
+        }
+        params.update({f"types[{i}]": value for i, value in enumerate(STRIPE_PLANNED_WEBHOOK_EVENTS)})
+        if cursor is not None:
+            self._require_reference(cursor, "evt_")
+            params["starting_after"] = cursor
+        return await self._request("GET", "/v1/events", params=params)
+
     async def _request(
-        self, method: str, path: str, *, data: dict[str, str] | None = None, idempotency_key: str = ""
+        self,
+        method: str,
+        path: str,
+        *,
+        data: dict[str, str] | None = None,
+        idempotency_key: str = "",
+        params: dict[str, str] | None = None,
     ) -> dict[str, Any]:
         headers = {"Authorization": f"Bearer {self._key}", "Stripe-Version": STRIPE_API_VERSION}
         if idempotency_key:
@@ -132,9 +189,11 @@ class StripeSandboxClient:
         try:
             if self._client is None:
                 async with httpx.AsyncClient(base_url=_STRIPE_ORIGIN, timeout=10.0) as client:
-                    response = await client.request(method, path, data=data, headers=headers)
+                    response = await client.request(method, path, data=data, headers=headers, params=params)
             else:
-                response = await self._client.request(method, f"{_STRIPE_ORIGIN}{path}", data=data, headers=headers)
+                response = await self._client.request(
+                    method, f"{_STRIPE_ORIGIN}{path}", data=data, headers=headers, params=params
+                )
             if response.status_code >= 400:
                 code = (
                     BillingErrorCode.CATALOG_VERSION_UNAVAILABLE

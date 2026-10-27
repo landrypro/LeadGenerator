@@ -15,38 +15,66 @@ from sqlalchemy import text
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
+from ...application.errors import BillingOperationError
+from ..billing.stripe_resolution import StripeEventResolver
+
 LOGGER = logging.getLogger(__name__)
 
 
 class BillingProjectionWorker:
-    def __init__(self, sessions: async_sessionmaker[AsyncSession]) -> None:
+    def __init__(self, sessions: async_sessionmaker[AsyncSession], stripe: StripeEventResolver | None = None) -> None:
         self._sessions = sessions
+        self._stripe = stripe
 
     async def run_once(self) -> bool:
         async with self._sessions.begin() as session:
             inbox_id = await session.scalar(text("SELECT app_private.claim_billing_event()"))
         if inbox_id is None:
             return False
+        stripe_attempt: int | None = None
         try:
             async with self._sessions.begin() as session:
                 provider = await session.scalar(
                     text("SELECT app_private.billing_event_provider(:inbox_id)"), {"inbox_id": inbox_id}
                 )
-                statement = (
-                    "SELECT app_private.project_stripe_sandbox_subscription_event(:inbox_id)"
-                    if provider == "stripe"
-                    else "SELECT app_private.project_billing_event(:inbox_id)"
-                )
-                result = await session.scalar(text(statement), {"inbox_id": inbox_id})
+            if provider == "stripe":
+                async with self._sessions.begin() as session:
+                    read = await session.scalar(
+                        text("SELECT app_private.read_stripe_projection_event(:id)"), {"id": inbox_id}
+                    )
+                if read is None:
+                    return True
+                stripe_attempt = read["attempt"]
+                if self._stripe is None:
+                    raise RuntimeError("stripe_resolver_unavailable")
+                evidence = await self._stripe.resolve(read["payload"])
+                async with self._sessions.begin() as session:
+                    result = await session.scalar(
+                        text("SELECT app_private.project_stripe_sandbox_event(:id,:attempt,CAST(:evidence AS jsonb))"),
+                        {"id": inbox_id, "attempt": stripe_attempt, "evidence": json.dumps(evidence)},
+                    )
+            elif provider == "simulated":
+                async with self._sessions.begin() as session:
+                    result = await session.scalar(
+                        text("SELECT app_private.project_simulated_billing_event(:inbox_id)"), {"inbox_id": inbox_id}
+                    )
+            else:
+                raise RuntimeError("billing_projection_provider_unknown")
             result_code = _result_code(result)
             if result_code not in {"processed", "transitioned", "ignored", "lost_claim"}:
                 raise RuntimeError("billing_projection_invalid_result")
-        except (RuntimeError, SQLAlchemyError) as error:
+        except (RuntimeError, SQLAlchemyError, BillingOperationError) as error:
             LOGGER.warning("billing_projection_failed error_type=%s", type(error).__name__)
             async with self._sessions.begin() as session:
-                await session.scalar(
-                    text("SELECT app_private.fail_billing_event_projection(:inbox_id)"), {"inbox_id": inbox_id}
-                )
+                if stripe_attempt is not None:
+                    await session.scalar(
+                        text("SELECT app_private.fail_stripe_projection_event(:id,:attempt)"),
+                        {"id": inbox_id, "attempt": stripe_attempt},
+                    )
+                else:
+                    await session.scalar(
+                        text("SELECT app_private.fail_billing_event_projection(:inbox_id)"), {"inbox_id": inbox_id}
+                    )
         return True
 
     async def run_lifecycle_once(self) -> bool:

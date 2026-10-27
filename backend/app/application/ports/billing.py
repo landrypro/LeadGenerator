@@ -135,6 +135,7 @@ class NormalizedBillingEvent:
     provider_created_at: datetime
     normalized_subscription: NormalizedSubscriptionSnapshot | None = None
     checkout_command_id: UUID | None = None
+    provider_event_kind: str | None = None
 
 
 @dataclass(frozen=True, slots=True)

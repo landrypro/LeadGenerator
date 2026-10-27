@@ -80,6 +80,7 @@ class BillingEventType(StrEnum):
     INVOICE_PAID = "invoice.paid"
     INVOICE_PAYMENT_FAILED = "invoice.payment_failed"
     REFUND_SUCCEEDED = "refund.succeeded"
+    REFUND_UPDATED = "refund.updated"
 
 
 class BillingErrorCode(StrEnum):

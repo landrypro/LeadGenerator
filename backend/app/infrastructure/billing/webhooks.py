@@ -192,6 +192,8 @@ def normalized_event_payload(event: NormalizedBillingEvent) -> dict[str, Any]:
     """Projection minimale et bornée, sans conserver le corps original."""
 
     payload: dict[str, Any] = {"schema_version": 1, "provider_object_reference": event.provider_object_reference}
+    if event.provider_event_kind is not None:
+        payload["provider_event_kind"] = event.provider_event_kind
     if event.checkout_command_id is not None:
         payload["checkout_command_id"] = str(event.checkout_command_id)
     snapshot = event.normalized_subscription

@@ -63,32 +63,51 @@ class StripeSandboxWebhookVerifier(BillingWebhookVerifier):
         ):
             raise BillingOperationError(BillingErrorCode.WEBHOOK_INVALID)
         try:
-            payload = json.loads(raw_body)
-            if not isinstance(payload, dict) or payload.get("livemode") is not False:
-                raise ValueError
-            if payload.get("api_version") != STRIPE_API_VERSION:
-                raise BillingOperationError(BillingErrorCode.WEBHOOK_UNSUPPORTED)
-            event_type = payload.get("type")
-            # Les autres événements exigent encore la liaison durable Checkout
-            # et/ou un enrichissement de snapshot. Ne jamais les acquitter à vide.
-            if event_type not in _SUBSCRIPTION_EVENTS:
-                raise BillingOperationError(BillingErrorCode.WEBHOOK_UNSUPPORTED)
-            obj = payload["data"]["object"]
-            if not isinstance(obj, dict) or obj.get("livemode") is not False:
-                raise ValueError
-            return NormalizedBillingEvent(
-                provider=BillingProvider.STRIPE,
-                provider_event_id=_reference(payload["id"], "evt_"),
-                event_type=BillingEventType.SUBSCRIPTION_SNAPSHOT,
-                provider_object_reference=_reference(obj["id"]),
-                provider_created_at=_timestamp(payload["created"]),
-                normalized_subscription=subscription_snapshot_from_object(obj, _timestamp(payload["created"])),
-                checkout_command_id=_checkout_command_id(obj),
-            )
-        except BillingOperationError:
-            raise
-        except (KeyError, TypeError, ValueError, OverflowError, UnicodeDecodeError) as error:
+            return normalize_stripe_event(json.loads(raw_body))
+        except (ValueError, TypeError, UnicodeDecodeError) as error:
             raise BillingOperationError(BillingErrorCode.WEBHOOK_INVALID) from error
+
+
+def normalize_stripe_event(payload: Any) -> NormalizedBillingEvent:
+    """Shared by authenticated API replay and signed admission; never persists PII."""
+    try:
+        if not isinstance(payload, dict) or payload.get("livemode") is not False:
+            raise ValueError
+        if payload.get("api_version") != STRIPE_API_VERSION:
+            raise BillingOperationError(BillingErrorCode.WEBHOOK_UNSUPPORTED)
+        kind = payload.get("type")
+        if kind not in STRIPE_PLANNED_WEBHOOK_EVENTS:
+            raise BillingOperationError(BillingErrorCode.WEBHOOK_UNSUPPORTED)
+        obj = payload["data"]["object"]
+        if not isinstance(obj, dict):
+            raise ValueError
+        expected, prefix, event_type = {
+            "checkout.session.completed": ("checkout.session", "cs_test_", BillingEventType.CHECKOUT_COMPLETED),
+            "invoice.paid": ("invoice", "in_", BillingEventType.INVOICE_PAID),
+            "invoice.payment_failed": ("invoice", "in_", BillingEventType.INVOICE_PAYMENT_FAILED),
+            "refund.updated": ("refund", "re_", BillingEventType.REFUND_UPDATED),
+        }.get(kind, ("subscription", "sub_", BillingEventType.SUBSCRIPTION_SNAPSHOT))
+        if obj.get("object") != expected or (expected != "refund" and obj.get("livemode") is not False):
+            raise ValueError
+        if expected == "refund" and obj.get("livemode", False) is not False:
+            raise ValueError
+        created = _timestamp(payload["created"])
+        return NormalizedBillingEvent(
+            provider=BillingProvider.STRIPE,
+            provider_event_id=_reference(payload["id"], "evt_"),
+            event_type=event_type,
+            provider_object_reference=_reference(obj["id"], prefix),
+            provider_created_at=created,
+            normalized_subscription=subscription_snapshot_from_object(obj, created)
+            if kind in _SUBSCRIPTION_EVENTS
+            else None,
+            checkout_command_id=_checkout_command_id(obj) if kind in _SUBSCRIPTION_EVENTS else None,
+            provider_event_kind=kind,
+        )
+    except BillingOperationError:
+        raise
+    except (KeyError, TypeError, ValueError, OverflowError) as error:
+        raise BillingOperationError(BillingErrorCode.WEBHOOK_INVALID) from error
 
 
 def subscription_snapshot_from_object(obj: dict[str, Any], created_at: datetime) -> NormalizedSubscriptionSnapshot:
@@ -104,10 +123,12 @@ def subscription_snapshot_from_object(obj: dict[str, Any], created_at: datetime)
     currency = CurrencyCode(_reference(price["currency"]).upper())
     if currency.value.lower() != obj["currency"] or price.get("recurring") is None:
         raise ValueError
+    if not isinstance(obj["cancel_at_period_end"], bool):
+        raise ValueError
     status = obj["status"]
     if status == "canceled":
         state = SubscriptionState.CANCELED
-    elif obj["cancel_at_period_end"]:
+    elif status == "active" and obj["cancel_at_period_end"]:
         state = SubscriptionState.CANCELING
     elif status in {"active", "past_due", "unpaid", "incomplete", "incomplete_expired"}:
         state = {
@@ -132,7 +153,13 @@ def subscription_snapshot_from_object(obj: dict[str, Any], created_at: datetime)
 
 
 def _reference(value: object, prefix: str = "") -> str:
-    if not isinstance(value, str) or not 1 <= len(value) <= 255 or not value.startswith(prefix):
+    if (
+        not isinstance(value, str)
+        or not 1 <= len(value) <= 255
+        or not value.startswith(prefix)
+        or not value.isascii()
+        or not value.replace("_", "").isalnum()
+    ):
         raise ValueError
     return value
 

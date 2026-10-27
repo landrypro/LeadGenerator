@@ -34,7 +34,7 @@ from .base import Base
 
 _PROVIDER_CHECK = "provider IN ('simulated','stripe')"
 _SUBSCRIPTION_STATES = "'pending_checkout','active','past_due','grace_period','suspended','canceling','canceled'"
-_EVENT_TYPES = "'checkout.completed','subscription.snapshot','invoice.paid','invoice.payment_failed','refund.succeeded'"
+_EVENT_TYPES = "'checkout.completed','subscription.snapshot','invoice.paid','invoice.payment_failed','refund.succeeded','refund.updated'"
 
 
 class BillingCustomerModel(Base):
@@ -92,6 +92,7 @@ class StripeSandboxCheckoutSessionModel(Base):
     __table_args__ = (
         UniqueConstraint("billing_command_id", name="uq_stripe_sandbox_checkout_command"),
         UniqueConstraint("provider_checkout_reference", name="uq_stripe_sandbox_checkout_reference"),
+        UniqueConstraint("provider_subscription_reference", name="uq_stripe_checkout_subscription_reference"),
         Index(
             "ix_stripe_sandbox_checkout_pending",
             "organization_id",
@@ -111,6 +112,7 @@ class StripeSandboxCheckoutSessionModel(Base):
     billing_command_id: Mapped[UUID] = mapped_column(ForeignKey("billing_commands.id", ondelete="RESTRICT"))
     billing_customer_id: Mapped[UUID] = mapped_column(ForeignKey("billing_customers.id", ondelete="RESTRICT"))
     plan_version_id: Mapped[UUID] = mapped_column(ForeignKey("plan_versions.id", ondelete="RESTRICT"))
+    provider_subscription_reference: Mapped[str | None] = mapped_column(String(255))
     provider_checkout_reference: Mapped[str] = mapped_column(String(255))
     provider_price_reference: Mapped[str] = mapped_column(String(255))
     currency: Mapped[str] = mapped_column(String(3))
@@ -118,6 +120,22 @@ class StripeSandboxCheckoutSessionModel(Base):
     completed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=text("CURRENT_TIMESTAMP"))
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=text("CURRENT_TIMESTAMP"))
+
+
+class StripeSandboxSyncModel(Base):
+    __tablename__ = "stripe_sandbox_sync"
+    __table_args__ = (CheckConstraint("kind IN ('events','subscriptions')", name="kind"),)
+
+    kind: Mapped[str] = mapped_column(String(16), primary_key=True)
+    window_start: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    window_end: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    last_window_end: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    cursor_reference: Mapped[str | None] = mapped_column(String(255))
+    lease_token: Mapped[UUID | None] = mapped_column()
+    lease_until: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    next_run_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=text("CURRENT_TIMESTAMP"))
+    last_error_code: Mapped[str | None] = mapped_column(String(64))
+    completed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
 
 
 class BillingEventInboxModel(Base):
@@ -261,6 +279,8 @@ class SubscriptionModel(Base):
     current_period_start: Mapped[datetime] = mapped_column(DateTime(timezone=True))
     current_period_end: Mapped[datetime] = mapped_column(DateTime(timezone=True))
     cancel_at_period_end: Mapped[bool] = mapped_column(Boolean, server_default=text("false"))
+    stripe_observed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    stripe_paid_until: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     grace_policy_version: Mapped[int | None] = mapped_column(SmallInteger)
     grace_started_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     grace_ends_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))

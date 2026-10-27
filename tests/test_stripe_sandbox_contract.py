@@ -120,7 +120,7 @@ def test_api_version_and_live_event_are_rejected_after_signature() -> None:
         assert error.value.code is expected
 
 
-def test_checkout_and_invoice_cannot_be_acknowledged_without_durable_mapping() -> None:
+def test_malformed_checkout_and_invoice_are_rejected_before_durable_admission() -> None:
     verifier = StripeSandboxWebhookVerifier(secret=_SECRET, tolerance_seconds=300)
     for stripe_type in ("checkout.session.completed", "invoice.paid", "invoice.payment_failed"):
         payload = json.loads(_payload())
@@ -128,7 +128,7 @@ def test_checkout_and_invoice_cannot_be_acknowledged_without_durable_mapping() -
         raw = json.dumps(payload).encode()
         with pytest.raises(BillingOperationError) as error:
             verifier.verify(raw_body=raw, signature_header=_signed(raw), received_at=_NOW)
-        assert error.value.code is BillingErrorCode.WEBHOOK_UNSUPPORTED
+        assert error.value.code is BillingErrorCode.WEBHOOK_INVALID
 
 
 def test_rotated_webhook_secret_is_accepted_without_accepting_live_api_keys() -> None:

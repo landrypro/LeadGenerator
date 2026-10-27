@@ -29,6 +29,8 @@ from ..application.use_cases.billing_reconciliation import (
 )
 from ..config import Settings
 from ..domain.billing import BillingProvider
+from ..infrastructure.billing.stripe_client import StripeSandboxClient
+from ..infrastructure.billing.stripe_resolution import StripeEventResolver
 from ..infrastructure.imports import LocalTemporaryCsvFileStore
 from ..infrastructure.postgres import PostgresDatabase
 from ..infrastructure.postgres.automation_runtime import AutomationRuntime
@@ -46,6 +48,7 @@ from ..infrastructure.postgres.export_service import (
     ExportService,
 )
 from ..infrastructure.postgres.job_queue import ClaimedJob, PostgresJobQueue, _set_tenant
+from ..infrastructure.postgres.stripe_reconciliation import StripeSandboxReconciliation
 
 LOGGER = logging.getLogger("marketteo.worker")
 Handler = Callable[[ClaimedJob, TenantContext, PostgresJobQueue], Coroutine[Any, Any, str]]
@@ -124,8 +127,18 @@ class Worker:
             global_enabled=config.automation_enabled,
             idempotency_secret=config.idempotency_secret,
         )
+        settings = config.meta_settings or Settings()
+        stripe_client = (
+            StripeSandboxClient(test_secret_key=settings.billing_stripe_test_secret_key)
+            if settings.billing_provider_mode == "stripe_sandbox"
+            else None
+        )
+        stripe = StripeEventResolver(stripe_client) if stripe_client is not None else None
+        self._stripe_reconciliation = (
+            StripeSandboxReconciliation(database.session_factory, stripe_client) if stripe_client is not None else None
+        )
         self._billing = (
-            BillingProjectionWorker(database.session_factory)
+            BillingProjectionWorker(database.session_factory, stripe=stripe)
             if (config.meta_settings or Settings()).billing_provider_mode in {"simulated", "stripe_sandbox"}
             else None
         )
@@ -222,6 +235,11 @@ class Worker:
             billing_processed = await self._billing.run_once()
             if not billing_processed:
                 billing_processed = await self._billing.run_lifecycle_once()
+        if self._stripe_reconciliation is not None:
+            try:
+                billing_processed = await self._stripe_reconciliation.run_once() or billing_processed
+            except Exception as error:
+                LOGGER.warning("stripe_reconciliation_failed error_type=%s", type(error).__name__)
         if self._billing_reconciliation is not None:
             try:
                 billing_processed = await self._billing_reconciliation.run_once() or billing_processed
