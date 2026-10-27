@@ -451,7 +451,10 @@ acquis localement pour P53-08 ; leur consolidation en recette synthétique relè
 
 Le [cadrage P53-10](./PHASE_5_3_P53_10_PREUVES_RECETTE_SYNTHETIQUE.md) définit la matrice des scénarios,
 les artefacts reproductibles et les contrôles de données sensibles et d'effet externe. Les quatre décisions de
-cadrage ont été confirmées le 24 octobre 2026 ; le développement et la recette restent à réaliser. Stripe sandbox
+cadrage ont été confirmées le 24 octobre 2026 ; le manifeste, le générateur et les tests sont développés. Le
+verrou local a produit le 27 octobre 2026 une preuve automatisée verte des 20 scénarios avec 610 tests backend,
+253 tests Vitest et 44 parcours navigateur/axe conformes. Après cet alignement documentaire, une nouvelle preuve
+doit couvrir l'état source final ; les validations Produit/QA et Sécurité restent à recueillir. Stripe sandbox
 (`P53-09`/`P53-SBX-01`) sera annexé séparément ; la recette locale ne vaut ni clôture
 technique globale P5.3, ni autorisation de mise en service.
 

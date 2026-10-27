@@ -5,7 +5,7 @@
 | Produit | Marketteo CRM |
 | Phase | 5 — Préproduction et déploiement |
 | Version | 0.1 — proposition détaillée à valider |
-| Statut | Cadrage prêt ; développement des artefacts P5.1 autorisé le 4 octobre 2026, activation toujours conditionnée par les preuves Azure et les réserves Porte 4 |
+| Statut | P5.1 préparée, preuves opérationnelles reportées ; P5.2 validée localement ; P53-10 avec preuve automatisée locale verte le 27 octobre 2026, à renouveler sur l'état source final ; validation Produit/QA et Sécurité à recueillir ; aucune activation réelle autorisée |
 | Date | 30 septembre 2026 (UTC) |
 | Prérequis | GO local 4.6, verrou local vert, commit de clôture et pipeline Azure sur la même révision |
 | Source de périmètre | [`SPECIFICATION_CRM_V1.md`](SPECIFICATION_CRM_V1.md), Phase 5 et socle transversal d'abonnement |
@@ -111,9 +111,15 @@ La devise de lancement, la remise annuelle, la durée d'essai, l'exigence évent
 de grâce et la politique de remboursement sont des décisions commerciales explicites. Chaque valeur est configurée
 et versionnée ; aucune n'est codée en dur dans l'interface.
 
-La recommandation V1 est de lancer dans une seule devise commerciale et sans coupon libre créé depuis Marketteo. Les
-remises autorisées utilisent des références fournisseur approuvées. Les organisations restent provisionnées par un
+La décision P5.3 du 9 octobre 2026 retient aucun essai payant, aucune
+remise ou prorata automatique, une grâce de 7 jours, une annulation en fin de période et un remboursement manuel
+borné pour le premier paiement sous réserve des droits impératifs. Les organisations restent provisionnées par un
 administrateur de plateforme ; aucune inscription publique n'est ajoutée par la facturation.
+
+Le 21 octobre 2026, le commanditaire reconfirme CAD comme devise commerciale de référence et CAD, USD, EUR et XAF
+comme devises commercialisables dès le lancement. Cette décision remplace la restriction CAD seul consignée le
+9 octobre. Pour chaque devise, les prix, territoires, règles fiscales et conditions du fournisseur restent à valider ;
+la mise en service réelle reste soumise à une autorisation distincte.
 
 ## 4. Séquence d'implémentation
 
@@ -134,8 +140,9 @@ activer un paiement réel.
 
 Le contrat détaillé, les écarts de l'environnement existant, les décisions à confirmer et les scénarios de validation
 du lot sont définis dans [Phase 5.1 — Préproduction et mesure de référence](./PHASE_5_1_SPECIFICATIONS_DETAILLEES.md).
-Les décisions de cadrage 5.1 sont confirmées le 4 octobre 2026 ; elles ne modifient pas les prérequis Azure de la
-Phase 5 et ne valent pas un GO de développement.
+Les décisions de cadrage et le GO de développement P5.1 sont confirmés le 4 octobre 2026 ; les artefacts de dépôt et
+le verrou qualité local sont validés. Cela ne vaut ni mise en service Azure/AWS, ni activation préproduction, ni levée
+des réserves Porte 4.
 
 ### 5.1 Environnement
 
@@ -169,6 +176,11 @@ simulés pour la charge ; un échantillon réel n'est autorisé qu'avec budget, 
 
 ## 6. Lot 5.2 — Catalogue, pricing et droits
 
+Le contrat détaillé, les décisions Produit/Finance encore ouvertes, la frontière sans paiement et les scénarios de
+validation du lot sont définis dans [Phase 5.2 — Catalogue, pricing et droits](./PHASE_5_2_SPECIFICATIONS_DETAILLEES.md).
+Le **GO de développement P5.2 a été donné le 5 octobre 2026**. Il autorise uniquement le socle de données, le moteur
+interne et les preuves synthétiques. Il ne vaut ni GO de préproduction, ni GO de paiement, ni activation client.
+
 ### 6.1 Modèle de données
 
 | Table | Responsabilité minimale |
@@ -176,10 +188,11 @@ simulés pour la charge ; un échantillon réel n'est autorisé qu'avec budget, 
 | `plan_catalog` | Code stable `freemium`, `starter`, `business`, `custom`, état de publication et ordre d'affichage |
 | `plan_versions` | Version immuable, dates d'effet, devise, cycle, montant hors taxes et référence de prix fournisseur opaque |
 | `plan_entitlements` | Droit ou limite typée, valeur, unité, portée et version du plan |
-| `subscriptions` | Organisation, version de plan, fournisseur, référence externe opaque, état, période, annulation et version optimiste |
-| `subscription_overrides` | Dérogation contractuelle bornée, justification, approbateur, début et expiration |
-| `billing_event_inbox` | Identifiant fournisseur unique, type, empreinte, état de traitement et dates, sans corps sensible durable |
-| `billing_events` | Résultat métier audité d'un événement, entité et références techniques minimales |
+| `organization_plan_contracts` | Rattachement manuel d'une organisation à une version, devise, état, période et version optimiste ; aucun fournisseur |
+| `plan_contract_overrides` | Dérogation contractuelle bornée, justification, créateur, approbateur distinct, début et expiration |
+
+Les tables `subscriptions`, `billing_event_inbox` et `billing_events` relèvent de P5.3. Elles ne sont pas créées par
+P5.2 afin de maintenir l'absence totale de fournisseur, de paiement et de webhook.
 
 Une version de prix publiée est immuable. Une modification crée une nouvelle version et une nouvelle référence
 fournisseur. Une organisation existante conserve sa version jusqu'à une migration explicite, un renouvellement prévu
@@ -211,6 +224,26 @@ lectures CRM nécessaires à la récupération des données restent disponibles 
 
 ## 7. Lot 5.3 — Abonnement et fournisseur de paiement
 
+Le cadrage détaillé, le registre des décisions et le contrat du simulateur sont définis dans
+[Phase 5.3 — Abonnement et fournisseur de paiement](./PHASE_5_3_SPECIFICATIONS_DETAILLEES.md),
+[Registre des décisions P5.3](./PHASE_5_3_DECISIONS.md) et
+[Simulateur de paiement et webhooks](./PHASE_5_3_SIMULATEUR_PAIEMENT_WEBHOOKS.md).
+
+Le **GO de cadrage et de développement P5.3 limité au simulateur et à Stripe sandbox a été donné le 9 octobre
+2026**. Il ne vaut ni publication de prix commerciaux, ni paiement réel, ni validation fiscale/juridique, ni
+activation client. Le kill switch fournisseur reste actif par défaut.
+
+Au 24 octobre 2026, les lots locaux P53-01 à P53-08 sont présents : état simulé partagé, réconciliation
+périodique/manuelle et correction transactionnelle auditée. Le verrou qualité local complet est rapporté vert ; la
+consolidation scénario par scénario est préparée dans
+[P53-10 — preuves et recette synthétique](./PHASE_5_3_P53_10_PREUVES_RECETTE_SYNTHETIQUE.md). P53-09 et la preuve
+Stripe sandbox restent traités séparément, avec leurs prérequis et autorisations propres.
+
+Les décisions de cadrage `P53-10-D01` à `P53-10-D04` ont été approuvées le 24 octobre 2026. Le générateur et la
+matrice sont développés ; le verrou complet du 27 octobre a prouvé les 20 scénarios locaux et vérifié le paquet
+expurgé. Une nouvelle exécution doit couvrir l'état source final après l'alignement documentaire. La recette reste
+à valider par Produit/QA et Sécurité. La preuve Stripe sandbox reste reportée.
+
 ### 7.1 Critères de sélection du fournisseur
 
 Le fournisseur est sélectionné après comparaison documentée de :
@@ -231,9 +264,9 @@ spécification technique ne constitue pas un avis fiscal.
 
 ```mermaid
 stateDiagram-v2
-    [*] --> trialing
-    trialing --> active: paiement ou activation approuvée
-    trialing --> canceled: essai expiré sans conversion
+    [*] --> pending_checkout
+    pending_checkout --> active: paiement confirmé
+    pending_checkout --> canceled: checkout expiré ou abandonné
     active --> past_due: paiement échoué
     past_due --> active: paiement régularisé
     past_due --> grace_period: délai approuvé
@@ -241,7 +274,9 @@ stateDiagram-v2
     grace_period --> suspended: délai expiré
     active --> canceled: fin de période demandée
     suspended --> active: régularisation confirmée
-    canceled --> active: nouvel abonnement confirmé
+    active --> canceling: annulation fin de période
+    canceling --> canceled: période terminée
+    canceled --> pending_checkout: nouveau checkout autorisé
 ```
 
 Les événements du navigateur ne changent jamais l'état d'abonnement. Seul un webhook vérifié ou une réconciliation
@@ -396,18 +431,18 @@ la restauration chronométrée, le catalogue approuvé, les décisions fiscales/
 | ID | Proposition | Paramètre restant |
 | --- | --- | --- |
 | `P5-01` | Découper la phase en lots 5.1 à 5.6 dans l'ordre défini | Validation de la séquence |
-| `P5-02` | Utiliser un abonnement fixe par organisation avec enveloppe de sièges | Validation du modèle commercial |
-| `P5-03` | Exclure la facturation à l'usage et les dépassements automatiques de la V1 | Validation produit |
-| `P5-04` | Conserver Freemium, Starter, Business et Sur mesure | Montants, sièges et droits de chaque plan |
-| `P5-05` | Garder le Freemium sans appel Google payant par défaut | Quotas gratuits exacts |
-| `P5-06` | Versionner prix et droits ; aucune modification d'une version publiée | Politique de migration des anciens prix |
-| `P5-07` | Lancer dans une seule devise commerciale | Devise choisie |
-| `P5-08` | Utiliser checkout, portail, factures et taxes hébergés | Fournisseur de paiement et configuration fiscale |
-| `P5-09` | Provisionnement d'organisation réservé à la plateforme, sans inscription publique | Validation du parcours commercial |
-| `P5-10` | Compter membres actifs et invitations valides dans l'enveloppe de sièges | Quantités par plan |
-| `P5-11` | Appliquer les déclassements à la période suivante sans suppression de données | Fonctions autorisées après suspension |
-| `P5-12` | Fermer les opérations coûteuses si les droits ne peuvent pas être calculés | Liste exacte des opérations coûteuses |
-| `P5-13` | Exiger validation comptable et juridique des taxes, factures, remboursements et conditions | Responsables et échéances |
+| `P5-02` | Utiliser un abonnement fixe par organisation avec enveloppe de sièges | **Confirmé le 5 octobre 2026 : aucun prix par siège additionnel en V1.** |
+| `P5-03` | Exclure la facturation à l'usage et les dépassements automatiques de la V1 | **Confirmé le 5 octobre 2026 : refus contrôlé, sans achat ni créance automatique.** |
+| `P5-04` | Conserver Freemium, Starter, Business et Sur mesure | **Confirmé le 5 octobre 2026 : matrice synthétique en P5.2 ; prix, sièges et droits commerciaux réels validés séparément avec Finance.** |
+| `P5-05` | Garder le Freemium sans appel Google payant par défaut | **Confirmé le 5 octobre 2026 : droit Google payant à zéro/interdit pour Freemium.** |
+| `P5-06` | Versionner prix et droits ; aucune modification d'une version publiée | **Confirmé le 5 octobre 2026 : migration d'organisation manuelle, datée et auditée.** |
+| `P5-07` | Utiliser CAD comme devise commerciale de référence, sans conversion automatique | **Reconfirmé le 21 octobre 2026 : CAD, USD, EUR et XAF doivent être commercialisables dès le lancement ; prix, territoires, fiscalité et conditions fournisseur restent à valider pour chacune. Cette décision remplace la restriction CAD seul consignée le 9 octobre.** |
+| `P5-08` | Utiliser checkout, portail, factures et taxes hébergés | **Confirmé le 9 octobre 2026 : Stripe Billing est retenu pour le simulateur contractuel et la sandbox ; le mode réel reste soumis aux portes Finance/Juridique/Sécurité/Exploitation.** |
+| `P5-09` | Provisionnement d'organisation réservé à la plateforme, sans inscription publique | **Confirmé le 5 octobre 2026 : seule la plateforme rattache ou modifie un contrat.** |
+| `P5-10` | Compter membres actifs et invitations valides dans l'enveloppe de sièges | **Confirmé le 5 octobre 2026 : valeurs synthétiques par plan en P5.2, sans surallocation.** |
+| `P5-11` | Appliquer les déclassements à la période suivante sans suppression de données | **Confirmé le 5 octobre 2026 : ni suppression ni désactivation automatique de membre.** |
+| `P5-12` | Fermer les opérations coûteuses si les droits ne peuvent pas être calculés | **Confirmé le 5 octobre 2026 : invitations, imports, exports, Google, Automation et connecteurs coûteux ; lectures CRM conservées.** |
+| `P5-13` | Exiger validation comptable et juridique des taxes, factures, remboursements et conditions | **Processus confirmé le 9 octobre 2026 ; signatures et paramètres réels restent bloquants avant toute mise en service.** |
 | `P5-14` | Fixer les prix avec coûts P95, soutien, frais, risque et marge cible | Marge et hypothèses approuvées |
 | `P5-15` | Lancer par cohortes avec arrêt d'urgence et retour arrière | Taille des cohortes et fenêtre d'observation |
 | `P5-16` | Bloquer la production sans restauration, sécurité, charge/coûts et pipeline vert | RPO, RTO et SLO finaux |

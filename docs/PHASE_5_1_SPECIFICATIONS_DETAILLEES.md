@@ -4,8 +4,8 @@
 | --- | --- |
 | Produit | Marketteo CRM |
 | Phase | 5.1 — Préproduction et mesure de référence |
-| Version | 0.1 — proposition détaillée à valider |
-| Statut | Décisions de cadrage et GO explicite de développement confirmés le 4 octobre 2026 ; aucune activation autorisée |
+| Version | 0.1 — cadrage confirmé ; preuves opérationnelles reportées |
+| Statut | Décisions de cadrage confirmées le 4 octobre 2026 ; GO explicite de développement reconfirmé le 7 octobre 2026 ; mise en service AWS/Azure et preuves opérationnelles reportées à la porte de sortie de la Phase 5 ; aucune activation autorisée |
 | Dépendances | Phase 5, preuve Azure du commit de clôture 4.6, verrou local vert, registre des réserves Porte 4 |
 | Frontière | Préproduction, artefacts, secrets, sauvegarde/restauration, observabilité et coûts ; ni paiement, ni abonnement, ni activation client |
 
@@ -13,7 +13,9 @@
 
 Le lot 5.1 doit démontrer que la même version vérifiée peut être déployée, contrôlée, restaurée et mesurée dans un environnement de préproduction isolé. Il prépare les décisions de prix et de lancement, sans introduire de paiement, fournisseur de paiement, catalogue commercial ou activation client.
 
-Le **GO de développement limité au lot 5.1** a été reçu le 4 octobre 2026. Il ne vaut pas un GO de staging avec données client, un GO de production, ni une levée des réserves de Porte 4.
+Le **GO de développement limité au lot 5.1** a été reçu le 4 octobre 2026 et reconfirmé le 7 octobre 2026. Il ne vaut pas un GO de staging avec données client, un GO de production, ni une levée des réserves de Porte 4.
+
+La mise en service de l'environnement isolé AWS/Azure, ainsi que les preuves de déploiement, restauration, retour arrière, observabilité et coûts, sont reportées à la porte de sortie de la Phase 5. Les lots suivants peuvent avancer seulement dans les limites de leurs GO propres ; aucune activation, cohorte pilote ou donnée client ne peut s'appuyer sur ce report.
 
 ## 2. État actuel et écart à combler
 
@@ -238,7 +240,7 @@ Ce rapport alimente 5.2. Il ne fixe aucun prix ni engagement commercial.
 
 | ID | Décision confirmée le 4 octobre 2026 | Conséquence |
 | --- | --- | --- |
-| P5-01 | Respecter l'ordre 5.1 à 5.6 et ne pas commencer paiement/abonnement avant 5.2/5.3. | La préproduction précède tout travail commercial ou paiement. |
+| P5-01 | Respecter l'ordre 5.1 à 5.6 et ne pas commencer paiement/abonnement avant 5.2/5.3. | La mise en service de la préproduction précède toute activation commerciale ou paiement réel ; sa mise en œuvre et ses preuves opérationnelles sont reportées à la porte de sortie de la Phase 5. |
 | P51-D01 | Créer une préproduction distincte de QA, sans données client. | Réseau, secrets, base, volumes et DNS dédiés. |
 | P51-D02 | Déployer via AWS ECR une image privée par SHA et digest, jamais par tag mutable. | Aucun build serveur ; API, worker et migrations utilisent le même digest. |
 | P51-D03 | Utiliser Azure pour le pipeline et AWS Parameter Store SecureString pour les secrets. | Contrôles Azure, secrets AWS à droits minimaux et non affichables. |
@@ -246,9 +248,13 @@ Ce rapport alimente 5.2. Il ne fixe aucun prix ni engagement commercial.
 | P51-D05 | Mesurer coûts et charge sur profils synthétiques ; ne publier aucun SLO ni prix en 5.1. | Aucun fournisseur réel ni donnée client. |
 | P51-D06 | Conserver flags Automation désactivés et fournisseur IA fake durant tout 5.1. | Les réserves de Porte 4 restent actives. |
 
-Ces confirmations cadrent le lot ; elles ne constituent pas le GO de développement. Les coûts cloud, la création des
-ressources, le déploiement de services et tout accès à un fournisseur réel attendent votre autorisation explicite.
+Ces confirmations cadrent le lot ; le GO explicite de développement local a été donné séparément et reconfirmé le
+7 octobre 2026. Les coûts cloud, la création des ressources, le déploiement de services et tout accès à un fournisseur
+réel attendent une autorisation distincte.
 
 ## 14. Sortie vers 5.2
 
-Le lot 5.2 peut être préparé seulement lorsque 5.1 a produit un environnement reproductible et un rapport de coût de référence. Il reste soumis à ses propres décisions commerciales : plans, devise, sièges, quotas, prix, déclassement et soutien. La réussite de 5.1 ne permet pas de publier un prix, créer un checkout ou activer une organisation cliente.
+Les travaux locaux de 5.2 et des lots suivants peuvent avancer dans les limites de leurs GO propres, avec des données
+synthétiques. Les preuves opérationnelles de 5.1, dont l'environnement reproductible et le rapport de coût de
+référence, restent à produire à la porte de sortie de la Phase 5 avant toute activation ou mise en service. La réussite
+de 5.1 ne permet pas à elle seule de publier un prix, créer un checkout réel ou activer une organisation cliente.

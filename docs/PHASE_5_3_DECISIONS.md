@@ -8,6 +8,8 @@
 | Date de décision | 9 octobre 2026 |
 | Mise à jour des devises | 21 octobre 2026 — confirmation du commanditaire |
 | Décisions P53-08 | 22 octobre 2026 — quatre propositions confirmées par le commanditaire |
+| Décisions P53-10 | 24 octobre 2026 — `P53-10-D01` à `P53-10-D04` confirmées par le commanditaire |
+| Report de recette P53-09 | 26 octobre 2026 — `P53-09-D01` confirmé par le commanditaire |
 | Statut | Cadrage et préparation du simulateur autorisés ; paiement réel interdit |
 | Autorité | Approbation produit donnée dans le cadre de la Phase 5 |
 | Dépendances | P5.2 validée par verrou vert, catalogue interne, moteur de droits, RLS et audit |
@@ -81,7 +83,28 @@ restent inchangées ; ni Stripe réel ni donnée client ne sont autorisés par c
 partagé entre l'API et le worker. Il est alimenté par un checkout simulé finalisé ou un webhook simulé signé et admis.
 Une correction automatique reste limitée à `local_stale` prouvé et concordant ; elle résout la différence et écrit
 l'audit dans la même transaction. Cet alignement applique les décisions ci-dessus sans élargir leur portée. Le verrou
-complet de cet état reste à obtenir.
+local complet du 24 octobre 2026 a été rapporté vert ; la consolidation des preuves est préparée dans
+[P53-10](./PHASE_5_3_P53_10_PREUVES_RECETTE_SYNTHETIQUE.md). Ses décisions `P53-10-D01` à `P53-10-D04` sont
+approuvées le 24 octobre 2026. Après les interruptions Docker/WSL, le verrou complet du 27 octobre a produit une
+preuve automatisée verte pour les 20 scénarios locaux et un paquet expurgé vérifié. Une nouvelle exécution doit
+couvrir l'état source final après cet alignement documentaire ; les validations Produit/QA et Sécurité restent à obtenir.
+
+### 4.1 Décisions approuvées pour P53-10 — preuves et recette synthétique
+
+| ID | Décision | Limite |
+| --- | --- | --- |
+| `P53-10-D01` | La recette locale du simulateur est séparée de l'annexe Stripe sandbox P53-09. | `P53-SBX-01` reste ouvert ; aucune clôture globale P5.3 implicite. |
+| `P53-10-D02` | Le manifeste et la recette sont versionnés ; JUnit et `evidence.json` sont générés ; un paquet expurgé est archivé avec SHA-256. | Aucun secret, donnée client ou log brut sensible dans Git ou le paquet. |
+| `P53-10-D03` | L'absence d'effet externe est vérifiée par réseau bloqué ou instrumenté, avec inspection des artefacts. | Une déclaration seule ne suffit pas à établir cette preuve. |
+| `P53-10-D04` | Produit/QA et Sécurité valident la recette locale. | Les autorisations Stripe et de mise en service suivent leurs portes distinctes. |
+
+### 4.2 Décision de report de la recette Stripe sandbox P53-09
+
+| ID | Décision confirmée le 26 octobre 2026 | Portée / réserve |
+| --- | --- | --- |
+| `P53-09-D01` | Reprendre la recette de bout en bout du parcours Stripe **en sandbox** dans le cadre de la recette complète P5.3. La recette synthétique locale P53-10 peut avancer séparément. | P53-09 et `P53-SBX-01` restent ouverts. Le correctif Checkout et la migration `20261025_0062` ont passé le verrou qualité local, mais leur application à l'environnement WSL et le parcours Checkout → webhook n'ont pas encore été confirmés. Aucun GO technique global P5.3 ni aucune mise en service réelle ne découle de ce report. |
+
+À la reprise, appliquer la migration sur l'environnement WSL, vérifier Checkout et le webhook signé avec des données fictives, puis couvrir CAD, USD, EUR et XAF, les reprises/idempotences et les moyens de paiement disponibles pour le compte de test. Consigner les preuves et écarts dans l'annexe P53-09 avant toute décision de clôture globale.
 
 ## 5. Portes restant à signer avant le mode réel
 

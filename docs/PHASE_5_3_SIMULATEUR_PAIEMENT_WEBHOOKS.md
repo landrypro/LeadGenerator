@@ -195,6 +195,15 @@ La réconciliation compare identifiants, prix, devise, statut, période et annul
 `in_sync`, `local_stale`, `provider_stale`, `mapping_missing`, `currency_mismatch`, `price_mismatch`, `unresolved`.
 Elle peut corriger `local_stale` dans une transaction auditée ; les autres différences restent bloquées pour examen.
 
+Les précisions `P53-REC-D01` à `P53-REC-D04` sont confirmées : une correction locale automatique exige une
+correspondance et un état suffisamment certains ; toute ambiguïté ou divergence de devise, prix ou référence reste
+à examiner. Une opération au résultat incertain ne déclenche jamais un second checkout ou remboursement. L'accès
+manuel est réservé à la plateforme, limité à une organisation ou référence, motivé et audité ; aucune interface
+complète n'est incluse. Le snapshot fournisseur synthétique est partagé durablement entre l'API et le worker : le
+checkout finalisé l'initialise et un webhook simulé signé puis admis peut seul l'avancer. Une preuve absente ou
+ambiguë après redémarrage demeure non résolue. Voir les
+[spécifications P53-08](./PHASE_5_3_SPECIFICATIONS_DETAILLEES.md#152-p53-08--réconciliation-du-paiement-simulé).
+
 ## 10. Preuves minimales
 
 | ID | Preuve |
@@ -206,11 +215,14 @@ Elle peut corriger `local_stale` dans une transaction auditée ; les autres diff
 | `P53-WEB-04` | Collision d'identifiant avec digest différent est mise en quarantaine. |
 | `P53-REC-01` | Timeout après effet est résolu par réconciliation sans deuxième checkout. |
 | `P53-REC-02` | Divergence de devise ou de prix n'est jamais corrigée automatiquement. |
+| `P53-REC-03` | Reprise après interruption : résultat prouvé ou non résolu, jamais inventé ni doublé. |
+| `P53-REC-04` | Lancement manuel autorisé et audité ; autres rôles et périmètres non autorisés refusés. |
 | `P53-SEC-01` | Aucun secret, URL, corps brut ou donnée bancaire dans logs, audits, erreurs et JUnit. |
 | `P53-NOEXT-01` | Le mode simulé ne résout aucun DNS public et n'émet aucun email ou paiement. |
 
 ## 11. Conditions de sortie du simulateur
 
 Le simulateur est accepté lorsque toutes les preuves sont vertes sur base Docker neuve, sans skip, avec temps contrôlé,
-fixtures synthétiques, horloge injectable, absence d'effet externe et rapport archivé. Cette acceptation permet le
-passage à Stripe sandbox ; elle n'autorise toujours pas le mode réel.
+fixtures synthétiques, horloge injectable, absence d'effet externe et rapport archivé. La matrice et le protocole
+d'archivage sont préparés dans [P53-10 — preuves et recette synthétique](./PHASE_5_3_P53_10_PREUVES_RECETTE_SYNTHETIQUE.md).
+Cette acceptation permet le passage à Stripe sandbox ; elle n'autorise toujours pas le mode réel.
