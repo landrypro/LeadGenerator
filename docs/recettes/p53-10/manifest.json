@@ -1,0 +1,99 @@
+{
+  "schema_version": "P53-10.3",
+  "source": "synthetic",
+  "provider_modes": ["disabled", "simulated"],
+  "currencies": ["CAD", "USD", "EUR", "XAF"],
+  "contains_pii": false,
+  "contains_provider_secrets": false,
+  "activation_authorized": false,
+  "deferred_scenarios": ["P53-SBX-01"],
+  "scenarios": [
+    {
+      "id": "P53-CAT-01",
+      "oracles": [{"id": "server_price_authority", "cases": ["tests.test_billing_api::test_client_cannot_supply_amount_currency_provider_reference_or_return_url", "tests.test_billing_sessions::test_checkout_uses_only_server_selected_price_and_returns_minimized_grant[{currency}]"], "currencies": true}]
+    },
+    {
+      "id": "P53-CHK-01",
+      "oracles": [{"id": "concurrent_single_session", "cases": ["tests.integration.test_billing_checkout_portal::test_concurrent_checkout_and_portal_are_durable_idempotent_and_minimized[{currency}]"], "currencies": true}]
+    },
+    {
+      "id": "P53-CHK-02",
+      "oracles": [{"id": "timeout_no_second_checkout", "cases": ["tests.test_billing_sessions::test_timeout_after_possible_effect_marks_unknown_and_blocks_blind_retry", "tests.test_billing_reconciliation::test_lost_simulator_state_is_unresolved_and_never_triggers_a_new_checkout"]}]
+    },
+    {
+      "id": "P53-SIM-01",
+      "oracles": [{"id": "replay_and_collision", "cases": ["tests.test_billing_simulator::test_simulator_replays_an_identical_checkout_and_refuses_a_key_collision"]}]
+    },
+    {
+      "id": "P53-WEB-01",
+      "oracles": [{"id": "signature_and_freshness", "cases": ["tests.test_billing_webhook_admission::test_webhook_admission_rejects_bad_or_expired_signature_before_deserializing", "tests.test_billing_webhook_admission::test_webhook_admission_verifies_raw_hmac_then_deduplicates_and_detects_collision"]}]
+    },
+    {
+      "id": "P53-WEB-02",
+      "oracles": [{"id": "hundred_deliveries_one_admission", "cases": ["tests.integration.test_p53_10_billing_proofs::test_hundred_signed_webhooks_across_restart_have_one_durable_effect_and_no_external_calls"]}, {"id": "one_durable_projection", "cases": ["tests.integration.test_p53_10_billing_proofs::test_hundred_signed_webhooks_across_restart_have_one_durable_effect_and_no_external_calls"]}]
+    },
+    {
+      "id": "P53-WEB-03",
+      "oracles": [{"id": "stale_event_does_not_regress", "cases": ["tests.integration.test_billing_projection::test_billing_projection_is_atomic_monotone_and_recoverable", "tests.test_billing_simulator::test_simulator_exposes_duplicate_collision_and_stale_deliveries_for_future_admission_tests"]}]
+    },
+    {
+      "id": "P53-WEB-04",
+      "oracles": [{"id": "digest_collision_quarantined", "cases": ["tests.test_billing_webhook_admission::test_webhook_admission_verifies_raw_hmac_then_deduplicates_and_detects_collision", "tests.test_billing_webhook_admission::test_webhook_api_exposes_collision_as_409_without_provider_details"]}]
+    },
+    {
+      "id": "P53-SUB-01",
+      "oracles": [{"id": "paid_subscription_and_currency", "cases": ["tests.test_billing_simulator::test_simulator_emits_a_deterministic_signed_webhook_without_network[{currency}]", "tests.integration.test_billing_projection::test_billing_projection_is_atomic_monotone_and_recoverable"], "currencies": true}]
+    },
+    {
+      "id": "P53-SUB-02",
+      "oracles": [{"id": "failure_grace_suspend_recover", "cases": ["tests.test_billing_lifecycle::test_grace_and_cancellation_transitions_remain_closed", "tests.test_billing_domain::test_subscription_machine_accepts_only_the_approved_transitions[grace_period-grace_period_expired-suspended]"]}]
+    },
+    {
+      "id": "P53-CAN-01",
+      "oracles": [{"id": "schedule_and_revoke", "cases": ["tests.test_billing_lifecycle::test_grace_and_cancellation_transitions_remain_closed", "tests.test_billing_domain::test_subscription_machine_accepts_only_the_approved_transitions[canceling-cancellation_revoked-active]"]}]
+    },
+    {
+      "id": "P53-CAN-02",
+      "oracles": [{"id": "end_of_period_canceled", "cases": ["tests.test_billing_domain::test_subscription_machine_accepts_only_the_approved_transitions[canceling-cancellation_confirmed-canceled]", "tests.test_billing_lifecycle::test_grace_and_cancellation_transitions_remain_closed"]}]
+    },
+    {
+      "id": "P53-REF-01",
+      "oracles": [{"id": "eligibility_and_idempotency", "cases": ["tests.test_billing_lifecycle::test_simulated_refund_is_idempotent_and_exposes_no_provider_reference", "tests.test_billing_lifecycle::test_refund_requires_explicit_approval_and_recent_platform_session"]}]
+    },
+    {
+      "id": "P53-REC-01",
+      "oracles": [
+        {"id": "projection_divergence", "cases": ["tests.integration.test_billing_reconciliation_observations::test_shared_simulator_evidence_is_restart_safe_and_only_corrects_proven_local_stale[proven-local-stale-{currency}]"], "currencies": true},
+        {"id": "timeout_after_effect", "cases": ["tests.test_billing_reconciliation::test_lost_simulator_state_is_unresolved_and_never_triggers_a_new_checkout", "tests.test_billing_simulator::test_simulator_marks_a_timeout_after_effect_for_reconciliation_without_second_checkout"]}
+      ]
+    },
+    {
+      "id": "P53-REC-02",
+      "oracles": [{"id": "price_currency_mismatch_blocked", "cases": ["tests.integration.test_billing_reconciliation_observations::test_shared_simulator_evidence_is_restart_safe_and_only_corrects_proven_local_stale[price-mismatch-{currency}]", "tests.test_billing_reconciliation::test_price_and_currency_mismatches_take_precedence_over_newer_provider_state"], "currencies": true}]
+    },
+    {
+      "id": "P53-REC-03",
+      "oracles": [{"id": "restart_proven_or_unresolved", "cases": ["tests.test_billing_reconciliation::test_simulator_restart_without_durable_evidence_is_unresolved[{currency}]", "tests.integration.test_billing_reconciliation_observations::test_shared_simulator_evidence_is_restart_safe_and_only_corrects_proven_local_stale[proven-local-stale-{currency}]"], "currencies": true}]
+    },
+    {
+      "id": "P53-REC-04",
+      "oracles": [{"id": "manual_scope_auth_audit", "cases": ["tests.integration.test_billing_reconciliation_observations::test_manual_request_is_authorized_scoped_idempotent_and_audited"]}]
+    },
+    {
+      "id": "P53-RLS-01",
+      "oracles": [{"id": "tenant_isolation", "cases": ["tests.integration.test_billing_schema::test_billing_schema_is_tenant_isolated_and_commands_are_idempotent", "tests.integration.test_billing_reconciliation_observations::test_manual_request_is_authorized_scoped_idempotent_and_audited"]}]
+    },
+    {
+      "id": "P53-SEC-01",
+      "oracles": [
+        {"id": "minimal_responses", "cases": ["tests.test_billing_api::test_checkout_response_is_minimized_no_store_and_uses_closed_return_target", "tests.test_billing_webhook_admission::test_webhook_api_requires_raw_json_and_returns_minimized_stable_responses"]},
+        {"id": "minimal_audit", "cases": ["tests.test_audit::test_billing_transition_audit_keeps_only_closed_state_codes", "tests.test_audit::test_reconciliation_difference_audit_contains_only_the_closed_code", "tests.test_audit::test_reconciliation_correction_audit_contains_only_closed_transition_data"]},
+        {"id": "artifact_scan", "control": "artifact_scan"}
+      ]
+    },
+    {
+      "id": "P53-NOEXT-01",
+      "oracles": [{"id": "instrumented_network_and_smtp", "cases": ["tests.test_p53_10_local_proofs::test_p53_10_simulator_has_no_network_or_smtp_effect", "tests.integration.test_p53_10_billing_proofs::test_hundred_signed_webhooks_across_restart_have_one_durable_effect_and_no_external_calls"]}, {"id": "disabled_provider", "cases": ["tests.test_billing_simulator::test_disabled_billing_gateway_fails_closed_without_provider_access"]}]
+    }
+  ]
+}

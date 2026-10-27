@@ -78,11 +78,13 @@ $script:testDependencyHost = '127.0.0.1'
 
 function Invoke-QualityStep {
     param([string]$Name, [scriptblock]$Action)
+    $script:currentQualityStepName = $Name
     Write-Host "`n[$Name]" -ForegroundColor Cyan
     & $Action
     if ($LASTEXITCODE -ne 0) {
         throw "Le contrôle '$Name' a échoué avec le code $LASTEXITCODE."
     }
+    $script:currentQualityStepName = $null
 }
 
 function Assert-QualityDiskSpace {
@@ -247,6 +249,7 @@ function Reset-QualityDatabaseForPytestRetry {
     Invoke-AlembicWithTransientDatabaseConnectionRetry `
         -PythonCommand $python `
         -AlembicConfig (Join-Path $workspace 'backend\alembic.ini') `
+        -LogFileName 'alembic-pytest-retry-upgrade.log' `
         -Arguments @('upgrade', 'head')
     if ($LASTEXITCODE -ne 0) { throw 'La reconstruction Alembic avant reprise pytest a échoué.' }
 }
@@ -255,6 +258,7 @@ function Invoke-AlembicWithTransientDatabaseConnectionRetry {
     param(
         [string]$PythonCommand,
         [string]$AlembicConfig,
+        [string]$LogFileName,
         [string[]]$Arguments
     )
 
@@ -304,7 +308,15 @@ function Invoke-AlembicWithTransientDatabaseConnectionRetry {
         $alembicOutput | ForEach-Object { Write-Host $_ }
         # Conserver la sortie complète rend un échec de migration diagnostiquable
         # après le nettoyage des dépendances Docker dans le finally du verrou.
-        $alembicOutput | Set-Content -LiteralPath (Join-Path $testResults 'alembic-upgrade.log') -Encoding utf8
+        $logLines = @("Tentative Alembic $attempt : $($Arguments -join ' ')") + $alembicOutput
+        foreach ($logPath in @((Join-Path $testResults $LogFileName), (Join-Path $p53RunRoot $LogFileName))) {
+            if ($attempt -eq 1) {
+                $logLines | Set-Content -LiteralPath $logPath -Encoding utf8
+            }
+            else {
+                $logLines | Add-Content -LiteralPath $logPath -Encoding utf8
+            }
+        }
         if ($alembicExitCode -eq 0) {
             $global:LASTEXITCODE = 0
             return
@@ -527,22 +539,49 @@ function Resolve-WslDistribution {
     throw "Aucune distribution WSL utilisable avec Docker n'a été trouvée. Précisez -WslDistribution avec une distribution Linux valide."
 }
 
-if (-not (Test-Path -LiteralPath $python)) {
-    throw 'Environnement Python .venv introuvable.'
-}
-Assert-QualityDiskSpace -Path $qualityBase
-New-Item -ItemType Directory -Force -Path $testResults | Out-Null
-New-Item -ItemType Directory -Force -Path $qualityBase | Out-Null
-New-Item -ItemType Directory -Force -Path $qualityRoot | Out-Null
-
-$env:TEST_POSTGRES_PORT = [string]$TestPostgresPort
-$env:TEST_REDIS_PORT = [string]$TestRedisPort
-$env:TEST_MAILPIT_SMTP_PORT = [string]$TestMailpitSmtpPort
-$env:TEST_MAILPIT_API_PORT = [string]$TestMailpitApiPort
-$env:REQUIRE_INFRASTRUCTURE_TESTS = 'true'
-Set-TestDependencyUrls -HostName $script:testDependencyHost
-
 try {
+    New-Item -ItemType Directory -Force -Path $testResults | Out-Null
+    $p53EvidenceRoot = Join-Path $testResults 'p53-10'
+    $runId = [guid]::NewGuid().ToString('N')
+    $p53RunRoot = Join-Path $p53EvidenceRoot ("runs\{0}" -f $runId)
+    $qualitySummary = Join-Path $testResults 'quality-summary.md'
+    @(
+        '# Rapport du verrou qualité local'
+        ''
+        "- Exécution P53-10 : $runId"
+        '- Verdict automatisé : EN COURS'
+    ) | Set-Content -LiteralPath $qualitySummary -Encoding utf8
+    New-Item -ItemType Directory -Force -Path $p53RunRoot | Out-Null
+    if (-not (Test-Path -LiteralPath $python)) {
+        throw 'Environnement Python .venv introuvable.'
+    }
+    Assert-QualityDiskSpace -Path $qualityBase
+    New-Item -ItemType Directory -Force -Path $qualityBase | Out-Null
+    New-Item -ItemType Directory -Force -Path $qualityRoot | Out-Null
+
+    $env:TEST_POSTGRES_PORT = [string]$TestPostgresPort
+    $env:TEST_REDIS_PORT = [string]$TestRedisPort
+    $env:TEST_MAILPIT_SMTP_PORT = [string]$TestMailpitSmtpPort
+    $env:TEST_MAILPIT_API_PORT = [string]$TestMailpitApiPort
+    $env:REQUIRE_INFRASTRUCTURE_TESTS = 'true'
+    Set-TestDependencyUrls -HostName $script:testDependencyHost
+
+    $gitRevision = (git -C $workspace rev-parse HEAD).Trim()
+    if ($LASTEXITCODE -ne 0) { throw 'La révision Git P53-10 est introuvable.' }
+    $gitDirty = @((git -C $workspace status --porcelain)).Count -gt 0
+    if ($LASTEXITCODE -ne 0) { throw "L'état Git P53-10 est introuvable." }
+    $sourceFingerprint = & $python (Join-Path $workspace 'scripts\p53_10_evidence.py') fingerprint $workspace
+    if ($LASTEXITCODE -ne 0 -or $sourceFingerprint -notmatch '^[0-9a-f]{64}$') {
+        throw "L'empreinte de l'arbre source P53-10 est introuvable."
+    }
+    @{
+        source = 'synthetic'
+        run_id = $runId
+        started_at = [DateTime]::UtcNow.ToString('o')
+        git_revision = $gitRevision
+        git_dirty = $gitDirty
+        source_tree_sha256 = $sourceFingerprint
+    } | ConvertTo-Json | Set-Content -LiteralPath (Join-Path $p53RunRoot 'run-context.json') -Encoding utf8
     Invoke-QualityStep 'Docker disponible' {
         Initialize-DockerCli
         Write-Host "Mode Docker retenu : $script:resolvedDockerMode"
@@ -573,19 +612,27 @@ try {
         Invoke-AlembicWithTransientDatabaseConnectionRetry `
             -PythonCommand $python `
             -AlembicConfig (Join-Path $workspace 'backend\alembic.ini') `
+            -LogFileName 'alembic-upgrade.log' `
             -Arguments @('upgrade', 'head')
     }
     Invoke-QualityStep 'Alembic reconstruction' {
         Invoke-AlembicWithTransientDatabaseConnectionRetry `
             -PythonCommand $python `
             -AlembicConfig (Join-Path $workspace 'backend\alembic.ini') `
+            -LogFileName 'alembic-downgrade.log' `
             -Arguments @('downgrade', '20260723_0002')
         if ($LASTEXITCODE -ne 0) { throw 'Le downgrade Alembic de test a échoué.' }
         Invoke-AlembicWithTransientDatabaseConnectionRetry `
             -PythonCommand $python `
             -AlembicConfig (Join-Path $workspace 'backend\alembic.ini') `
+            -LogFileName 'alembic-reupgrade.log' `
             -Arguments @('upgrade', 'head')
     }
+    @{
+        status = 'passed'
+        revision = $expectedAlembicRevision
+        generated_at = [DateTime]::UtcNow.ToString('o')
+    } | ConvertTo-Json | Set-Content -LiteralPath (Join-Path $p53RunRoot 'alembic-reconstruction.json') -Encoding utf8
     Invoke-QualityStep 'Alembic current' {
         $currentReport = Join-Path $testResults 'alembic-current.txt'
         $currentOutput = & $python -m alembic -c (Join-Path $workspace 'backend\alembic.ini') current
@@ -595,8 +642,8 @@ try {
         & $python (Join-Path $workspace 'scripts\quality_gate.py') alembic-current $currentReport $expectedAlembicRevision
     }
     Invoke-QualityStep 'Alembic check' { & $python -m alembic -c (Join-Path $workspace 'backend\alembic.ini') check }
-    Invoke-QualityStep 'Ruff' { & $python -m ruff check (Join-Path $workspace 'backend\app') (Join-Path $workspace 'tests') (Join-Path $workspace 'scripts\quality_gate.py') }
-    Invoke-QualityStep 'Format Ruff' { & $python -m ruff format --check (Join-Path $workspace 'backend\app') (Join-Path $workspace 'tests') (Join-Path $workspace 'scripts\quality_gate.py') }
+    Invoke-QualityStep 'Ruff' { & $python -m ruff check (Join-Path $workspace 'backend\app') (Join-Path $workspace 'tests') (Join-Path $workspace 'scripts\quality_gate.py') (Join-Path $workspace 'scripts\p53_10_evidence.py') }
+    Invoke-QualityStep 'Format Ruff' { & $python -m ruff format --check (Join-Path $workspace 'backend\app') (Join-Path $workspace 'tests') (Join-Path $workspace 'scripts\quality_gate.py') (Join-Path $workspace 'scripts\p53_10_evidence.py') }
     Invoke-QualityStep 'mypy' { Push-Location $workspace; try { & $python -m mypy } finally { Pop-Location } }
     Invoke-QualityStep 'P53-01 socle métier' {
         Push-Location $workspace
@@ -714,6 +761,11 @@ try {
         }
     }
     Invoke-QualityStep 'Zéro skip backend' { & $python (Join-Path $workspace 'scripts\quality_gate.py') junit-no-skips (Join-Path $testResults 'pytest-quality.xml') }
+    Invoke-QualityStep 'Conservation du JUnit P53-10' {
+        Copy-Item -LiteralPath (Join-Path $testResults 'pytest-quality.xml') `
+            -Destination (Join-Path $p53RunRoot 'pytest-quality.xml') -Force
+        $global:LASTEXITCODE = 0
+    }
     Invoke-QualityStep 'Preuves IMP-A6' {
         $gitRevision = (git -C $workspace rev-parse HEAD).Trim()
         if ($LASTEXITCODE -ne 0) { throw 'La révision Git IMP-A6 est introuvable.' }
@@ -777,11 +829,29 @@ try {
     Invoke-QualityStep 'Sources navigateur' { & $python (Join-Path $workspace 'scripts\quality_gate.py') browser-sources (Join-Path $client 'src') }
     Invoke-QualityStep 'Artefact Vite' { & $python (Join-Path $workspace 'scripts\quality_gate.py') artifact (Join-Path $qualityClient 'dist') }
     Invoke-QualityStep 'Diff Git' { Push-Location $workspace; try { git --no-pager diff --check } finally { Pop-Location } }
+    Invoke-QualityStep 'Empreinte source P53-10' {
+        $sourceFingerprintAfter = & $python (Join-Path $workspace 'scripts\p53_10_evidence.py') fingerprint $workspace
+        if ($LASTEXITCODE -ne 0 -or $sourceFingerprintAfter -ne $sourceFingerprint) {
+            throw "L'arbre source a changé pendant le verrou P53-10."
+        }
+    }
+    Invoke-QualityStep 'P53-10 preuves et recette synthétique' {
+        & $python (Join-Path $workspace 'scripts\p53_10_evidence.py') `
+            (Join-Path $workspace 'docs\recettes\p53-10\manifest.json') `
+            $testResults $expectedAlembicRevision $gitRevision $runId
+    }
+    Invoke-QualityStep 'P53-10 vérification du paquet' {
+        & $python (Join-Path $workspace 'scripts\p53_10_evidence.py') verify `
+            (Join-Path $p53RunRoot 'packet.zip') (Join-Path $p53RunRoot 'packet.sha256') `
+            (Join-Path $p53RunRoot 'pytest-quality.xml')
+    }
     $summary = @(
         '# Rapport du verrou qualité local'
         ''
         "- Date UTC : $([DateTime]::UtcNow.ToString('u'))"
         "- Mode Docker : $script:resolvedDockerMode"
+        "- Exécution P53-10 : $runId"
+        "- Empreinte source SHA-256 : $sourceFingerprint"
         "- Révision Alembic attendue : $expectedAlembicRevision"
         '- P52-07 : contrats API internes, réponses minimisées et preuve RLS exécutés par pytest réel.'
         '- P52-08 : recette synthétique archivée dans `p52-08/evidence.json`.'
@@ -792,14 +862,27 @@ try {
         '- P53-05 : worker de projection transactionnelle, ordre et dead-letter prouvés dans `pytest-p53-05.xml`.'
         '- P53-06 : Checkout et portail simulés, idempotence durable et réponses minimisées prouvés dans `pytest-p53-06.xml`.'
         '- P53-07 : grâce, annulation fournisseur et remboursement simulé prouvés dans `pytest-p53-07.xml`.'
+        '- P53-08 : réconciliation du simulateur prouvée dans `pytest-p53-08.xml`.'
+        "- P53-10 : scénarios locaux, absence de skip et paquet expurgé prouvés dans ``p53-10/runs/$runId/evidence.json`` ; Stripe sandbox reporté."
         '- Verdict automatisé : VERT'
-        '- Rapports : `pytest-quality.xml`, `pytest-p53-01.xml`, `pytest-p53-03.xml`, `pytest-p53-04.xml`, `pytest-p53-05.xml`, `pytest-p53-06.xml`, `pytest-p53-07.xml`, `p52-08/evidence.json`, `vitest.xml`, `alembic-upgrade.log`, `alembic-current.txt`'
+        "- Rapports : ``pytest-quality.xml``, ``pytest-p53-01.xml``, ``pytest-p53-03.xml``, ``pytest-p53-04.xml``, ``pytest-p53-05.xml``, ``pytest-p53-06.xml``, ``pytest-p53-07.xml``, ``pytest-p53-08.xml``, ``p52-08/evidence.json``, ``p53-10/runs/$runId/evidence.json``, ``p53-10/runs/$runId/junit-extract.xml``, ``p53-10/runs/$runId/pytest-quality.xml``, ``p53-10/runs/$runId/packet.sha256``, ``vitest.xml``, ``alembic-upgrade.log``, ``alembic-downgrade.log``, ``alembic-reupgrade.log``, ``alembic-current.txt``"
     )
-    Set-Content -LiteralPath (Join-Path $testResults 'quality-summary.md') -Value $summary -Encoding utf8
+    Set-Content -LiteralPath $qualitySummary -Value $summary -Encoding utf8
     Write-Host "`nVerrou qualité local : VERT" -ForegroundColor Green
 }
 catch {
     $qualityFailure = $_
+    if ($qualitySummary) {
+        @(
+            '# Rapport du verrou qualité local'
+            ''
+            "- Date UTC : $([DateTime]::UtcNow.ToString('u'))"
+            "- Exécution P53-10 : $runId"
+            '- Verdict automatisé : ROUGE'
+            "- Contrôle interrompu : $(if ($script:currentQualityStepName) { $script:currentQualityStepName } else { 'préparation du verrou' })"
+            '- Motif : un contrôle du verrou a échoué ; consulter la sortie locale de cette exécution.'
+        ) | Set-Content -LiteralPath $qualitySummary -Encoding utf8
+    }
     if ($script:resolvedDockerMode) {
         $dependencyLogs = Join-Path $testResults 'quality-dependencies-on-failure.log'
         try {
