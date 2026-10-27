@@ -49,7 +49,7 @@ class SqlAlchemyBillingCommandRepository:
         result = await self._json_call(
             context,
             (
-                "SELECT app_private.prepare_stripe_sandbox_checkout(:command_id,:plan_version_id,:key,:fingerprint,:now)"
+                "SELECT app_private.prepare_stripe_sandbox_checkout_v2(:command_id,:plan_version_id,:key,:fingerprint,:now)"
                 if self._stripe_price_references is not None
                 else "SELECT app_private.prepare_billing_checkout(:command_id,:plan_version_id,:key,:fingerprint,:now)"
             ),
@@ -89,7 +89,41 @@ class SqlAlchemyBillingCommandRepository:
             )
         except (KeyError, TypeError, ValueError) as error:
             raise BillingOperationError(BillingErrorCode.STATE_UNKNOWN) from error
-        return BillingCheckoutPreparation(returned_id, state, command)
+        existing_reference = None
+        if self._stripe_price_references is not None and state is BillingCommandState.SUCCEEDED:
+            existing_reference = await self._stripe_checkout_reference(context, returned_id)
+            if existing_reference is None:
+                raise BillingOperationError(BillingErrorCode.RECONCILIATION_REQUIRED)
+        return BillingCheckoutPreparation(returned_id, state, command, existing_reference)
+
+    async def read_stripe_state(self, *, context: TenantContext) -> dict[str, object]:
+        if self._stripe_price_references is None:
+            raise BillingOperationError(BillingErrorCode.PROVIDER_DISABLED)
+        try:
+            async with self._tenant_unit_of_work_factory(context) as unit:
+                raw = await unit.session.scalar(text("SELECT app_private.tenant_stripe_billing_state()"))
+            if not isinstance(raw, dict):
+                raise BillingOperationError(BillingErrorCode.CAPABILITY_REQUIRED)
+            return cast(dict[str, object], raw)
+        except BillingOperationError:
+            raise
+        except SQLAlchemyError as error:
+            raise BillingOperationError(BillingErrorCode.PROVIDER_UNAVAILABLE) from error
+
+    async def _stripe_checkout_reference(self, context: TenantContext, command_id: UUID) -> str | None:
+        try:
+            async with self._tenant_unit_of_work_factory(context) as unit:
+                reference = await unit.session.scalar(
+                    text("SELECT app_private.tenant_stripe_checkout_reference(:command_id)"),
+                    {"command_id": command_id},
+                )
+        except SQLAlchemyError as error:
+            raise BillingOperationError(BillingErrorCode.PROVIDER_UNAVAILABLE) from error
+        if reference is None:
+            return None
+        if not isinstance(reference, str) or not reference.startswith("cs_test_"):
+            raise BillingOperationError(BillingErrorCode.STATE_UNKNOWN)
+        return reference
 
     async def _stripe_customer_reference(self, context: TenantContext) -> str | None:
         try:

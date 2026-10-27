@@ -16,6 +16,13 @@ export const billingApi = {
       fallbackMessage: 'Impossible de consulter le contrat courant.',
     })
   },
+  subscription(signal) {
+    return request('/api/billing/subscription', {
+      signal,
+      cache: 'no-store',
+      fallbackMessage: 'Impossible de consulter l’état de la facturation.',
+    })
+  },
   createCheckout(planVersionId, idempotencyKey) {
     return postJson('/api/billing/checkout-session', {
       plan_version_id: planVersionId,
@@ -23,6 +30,11 @@ export const billingApi = {
     }, {
       headers: { 'Idempotency-Key': idempotencyKey },
       fallbackMessage: 'Impossible de créer la session Checkout.',
+    })
+  },
+  resumeCheckout() {
+    return postJson('/api/billing/resume-checkout', {}, {
+      fallbackMessage: 'Impossible de reprendre la session Checkout.',
     })
   },
 }

@@ -71,6 +71,36 @@ class _BillingSessions:
             raise BillingOperationError(BillingErrorCode.CAPABILITY_REQUIRED)
         return BillingSessionGrant("http://billing-simulator.local/portal/opaque", NOW + timedelta(minutes=30))
 
+    async def read_stripe_state(self, **kwargs: object) -> dict[str, object]:
+        self.calls.append(kwargs)
+        return {
+            "contract": {
+                "state": "pending",
+                "currency": "CAD",
+                "plan_version_id": str(uuid4()),
+                "plan_code": "starter",
+                "version_number": 1,
+                "effective_until": None,
+            },
+            "subscription": None,
+            "checkout": {
+                "state": "open",
+                "plan_version_id": str(uuid4()),
+                "currency": "CAD",
+                "expires_at": NOW + timedelta(hours=1),
+                "reference": "cs_test_secret",
+                "customer_reference": "cus_secret",
+                "price_reference": "price_secret",
+            },
+            "command": None,
+        }
+
+    async def resume_stripe_checkout(self, **kwargs: object) -> BillingSessionGrant:
+        self.calls.append(kwargs)
+        if kwargs["authorized"] is not True:
+            raise BillingOperationError(BillingErrorCode.CAPABILITY_REQUIRED)
+        return BillingSessionGrant("https://checkout.stripe.com/c/pay/cs_test_resume", NOW + timedelta(minutes=30))
+
 
 class _BillingRefunds:
     def __init__(self) -> None:
@@ -96,12 +126,67 @@ def _app(identity: AuthenticatedIdentity, billing: _BillingSessions, refunds: _B
     )
 
 
+def _stripe_app(identity: AuthenticatedIdentity, billing: _BillingSessions) -> FastAPI:
+    return create_app(
+        container=AppContainer(
+            settings=Settings(
+                app_env="test",
+                cors_allowed_origins=("http://test",),
+                billing_provider_mode="stripe_sandbox",
+                billing_stripe_test_secret_key="sk_test_synthetic",
+                billing_stripe_webhook_secret="whsec_synthetic",
+            ),
+            search_google_places=object(),  # type: ignore[arg-type]
+            get_map_snapshot=object(),  # type: ignore[arg-type]
+            get_current_session=_CurrentSession(identity),  # type: ignore[arg-type]
+            billing_sessions=billing,  # type: ignore[arg-type]
+        )
+    )
+
+
 async def _client(
     identity: AuthenticatedIdentity, billing: _BillingSessions, refunds: _BillingRefunds | None = None
 ) -> AsyncClient:
     client = AsyncClient(transport=ASGITransport(app=_app(identity, billing, refunds)), base_url="http://test")
     client.cookies.set("prospect_session", "session-current")
     return client
+
+
+async def test_stripe_state_and_resume_are_tenant_authorized_and_hide_provider_references() -> None:
+    billing = _BillingSessions()
+    identity = _identity()
+    async with AsyncClient(
+        transport=ASGITransport(app=_stripe_app(identity, billing)), base_url="http://test"
+    ) as client:
+        client.cookies.set("prospect_session", "session-current")
+        status = await client.get("/api/billing/subscription")
+        missing_csrf = await client.post("/api/billing/resume-checkout", json={}, headers={"origin": "http://test"})
+        resumed = await client.post(
+            "/api/billing/resume-checkout",
+            json={},
+            headers={"origin": "http://test", "x-csrf-token": "csrf-current"},
+        )
+    assert status.status_code == 200
+    assert status.headers["cache-control"] == "no-store, max-age=0"
+    assert status.json()["contract"]["plan_code"] == "starter"
+    assert set(status.json()["checkout"]) == {"state", "plan_version_id", "currency", "expires_at"}
+    assert "cs_test_secret" not in status.text
+    assert missing_csrf.status_code == 403
+    assert resumed.status_code == 200
+    assert set(resumed.json()) == {"url", "expires_at"}
+
+    billing.calls.clear()
+    viewer = _identity(MembershipRole.MANAGER)
+    async with AsyncClient(transport=ASGITransport(app=_stripe_app(viewer, billing)), base_url="http://test") as client:
+        client.cookies.set("prospect_session", "session-current")
+        denied_status = await client.get("/api/billing/subscription")
+        denied_resume = await client.post(
+            "/api/billing/resume-checkout",
+            json={},
+            headers={"origin": "http://test", "x-csrf-token": "csrf-current"},
+        )
+    assert denied_status.status_code == denied_resume.status_code == 403
+    assert billing.calls == []
 
 
 async def test_checkout_response_is_minimized_no_store_and_uses_closed_return_target() -> None:

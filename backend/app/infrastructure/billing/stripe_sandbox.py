@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from datetime import UTC, datetime
+from uuid import UUID
 
 from ...application.errors import BillingOperationError
 from ...application.ports.billing import (
@@ -17,6 +18,7 @@ from ...application.ports.billing import (
     PortalSession,
 )
 from ...domain.billing import BillingErrorCode
+from ...domain.catalog import CurrencyCode
 from .stripe_client import StripeSandboxClient
 from .stripe_contract import subscription_snapshot_from_object
 
@@ -48,6 +50,31 @@ class StripeSandboxProviderGateway(BillingProviderGateway):
         return CheckoutSession(
             provider_checkout_reference=checkout.reference,
             provider_customer_reference=customer,
+            provider_subscription_reference=None,
+            subscription=None,
+            checkout_url=checkout.url,
+            expires_at=checkout.expires_at,
+        )
+
+    async def resume_checkout(
+        self,
+        *,
+        reference: str,
+        command_id: UUID,
+        customer_reference: str,
+        price_reference: str,
+        currency: CurrencyCode,
+    ) -> CheckoutSession:
+        checkout = await self._client.resume_checkout(
+            reference=reference,
+            command_reference=str(command_id),
+            customer_reference=customer_reference,
+            price_reference=price_reference,
+            currency=currency,
+        )
+        return CheckoutSession(
+            provider_checkout_reference=checkout.reference,
+            provider_customer_reference=customer_reference,
             provider_subscription_reference=None,
             subscription=None,
             checkout_url=checkout.url,

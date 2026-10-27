@@ -30,10 +30,64 @@ from ..schemas import (
     BillingRefundRequest,
     BillingRefundResponse,
     BillingSessionResponse,
+    BillingStateResponse,
 )
 from ..security import require_csrf_token, require_json_content_type, require_trusted_origin
 
 router = APIRouter()
+
+
+@router.get("/api/billing/subscription", response_model=BillingStateResponse)
+async def get_billing_subscription(request: Request, container: ContainerDependency) -> Response:
+    try:
+        authentication = await required_authentication(request, container)
+        if "billing:manage" not in capabilities_for(
+            authentication.identity.user, authentication.identity.active_membership
+        ):
+            raise BillingOperationError(BillingErrorCode.CAPABILITY_REQUIRED)
+        if container.settings.billing_provider_mode != "stripe_sandbox" or container.billing_sessions is None:
+            raise BillingOperationError(BillingErrorCode.PROVIDER_DISABLED)
+        raw = await container.billing_sessions.read_stripe_state(context=_tenant_context(request, authentication))
+        payload = BillingStateResponse.model_validate(
+            {
+                "contract": raw.get("contract"),
+                "subscription": raw.get("subscription"),
+                "checkout": raw.get("checkout"),
+                "command": raw.get("command"),
+            }
+        )
+    except Exception as error:
+        response = _billing_api_error(request, error)
+        if response is not None:
+            return response
+        raise
+    return JSONResponse(payload.model_dump(mode="json"), headers=NO_STORE_HEADERS)
+
+
+@router.post("/api/billing/resume-checkout", response_model=BillingSessionResponse)
+async def resume_checkout_session(request: Request, container: ContainerDependency) -> Response:
+    try:
+        authentication = await _authenticated_mutation(request, container)
+        if "billing:manage" not in capabilities_for(
+            authentication.identity.user, authentication.identity.active_membership
+        ):
+            raise BillingOperationError(BillingErrorCode.CAPABILITY_REQUIRED)
+        if container.settings.billing_provider_mode != "stripe_sandbox" or container.billing_sessions is None:
+            raise BillingOperationError(BillingErrorCode.PROVIDER_DISABLED)
+        outcome = await container.billing_sessions.resume_stripe_checkout(
+            context=_tenant_context(request, authentication),
+            authorized=True,
+            session_issued_at=authentication.identity.session_issued_at,
+        )
+    except Exception as error:
+        response = _billing_api_error(request, error)
+        if response is not None:
+            return response
+        raise
+    return JSONResponse(
+        BillingSessionResponse(url=outcome.url, expires_at=outcome.expires_at).model_dump(mode="json"),
+        headers=NO_STORE_HEADERS,
+    )
 
 
 @router.get("/api/billing/checkout-options", response_model=BillingCheckoutOptionsResponse)

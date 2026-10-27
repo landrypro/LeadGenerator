@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
+from unittest.mock import AsyncMock
 from uuid import UUID, uuid4
 
 import pytest
@@ -59,6 +60,9 @@ class _Repository:
 
     async def prepare_portal(self, **_: object) -> BillingPortalPreparation:
         return BillingPortalPreparation(self.command_id, self.state, self.portal_command)
+
+    async def read_stripe_state(self, **_: object) -> dict[str, object]:
+        return {}
 
     async def complete_checkout(self, *, session: CheckoutSession, **_: object) -> None:
         self.completed_checkout = session
@@ -177,3 +181,71 @@ async def test_timeout_after_possible_effect_marks_unknown_and_blocks_blind_retr
     assert first.value.code is BillingErrorCode.RECONCILIATION_REQUIRED
     assert replay.value.code is BillingErrorCode.RECONCILIATION_REQUIRED
     assert repository.failure_marks == [BillingCommandState.UNKNOWN]
+
+
+@pytest.mark.asyncio
+async def test_stripe_succeeded_replay_recovers_checkout_without_creating_another() -> None:
+    _, repository, _, context = _service()
+    command = repository.checkout_command
+    repository.checkout_command = BillingCheckoutCommand(
+        command.organization_id,
+        command.plan_version_id,
+        command.currency,
+        "price_test_dev02",
+        command.return_target,
+        provider_customer_reference="cus_test_dev02",
+    )
+    repository.state = BillingCommandState.SUCCEEDED
+    repository.prepare_checkout = AsyncMock(
+        return_value=BillingCheckoutPreparation(  # type: ignore[method-assign]
+            repository.command_id,
+            repository.state,
+            repository.checkout_command,
+            "cs_test_dev02",
+        )
+    )
+    provider = AsyncMock()
+    recovery = AsyncMock()
+    recovery.resume_checkout.return_value = CheckoutSession(
+        "cs_test_dev02",
+        "cus_test_dev02",
+        None,
+        None,
+        "https://checkout.stripe.com/c/pay/cs_test_dev02",
+        NOW + timedelta(minutes=30),
+    )
+    service = BillingSessionUseCases(repository, provider, _Clock(), recovery)
+
+    grant = await service.create_checkout(
+        context=context,
+        plan_version_id=command.plan_version_id,
+        idempotency_key="replay-key",
+        return_target=BillingReturnTarget.SUBSCRIPTION,
+        authorized=True,
+        session_issued_at=NOW,
+    )
+
+    assert grant.url == "https://checkout.stripe.com/c/pay/cs_test_dev02"
+    provider.create_checkout.assert_not_called()
+    recovery.resume_checkout.assert_awaited_once()
+
+
+@pytest.mark.asyncio
+async def test_expired_checkout_cannot_be_resumed_from_untrusted_browser_state() -> None:
+    _, repository, _, context = _service()
+    repository.read_stripe_state = AsyncMock(
+        return_value={  # type: ignore[method-assign]
+            "contract": {"state": "pending"},
+            "subscription": None,
+            "checkout": {"state": "expired"},
+            "command": None,
+        }
+    )
+    recovery = AsyncMock()
+    service = BillingSessionUseCases(repository, AsyncMock(), _Clock(), recovery)
+
+    with pytest.raises(BillingOperationError) as raised:
+        await service.resume_stripe_checkout(context=context, authorized=True, session_issued_at=NOW)
+
+    assert raised.value.code is BillingErrorCode.RECONCILIATION_REQUIRED
+    recovery.resume_checkout.assert_not_called()

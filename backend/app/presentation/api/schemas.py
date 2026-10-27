@@ -261,6 +261,47 @@ class BillingCheckoutOptionsResponse(BaseModel):
     options: list[BillingCheckoutOptionResponse]
 
 
+class BillingCurrentContractResponse(BaseModel):
+    state: str
+    currency: str
+    plan_version_id: UUID
+    plan_code: str
+    version_number: int
+    effective_until: datetime | None
+
+
+class BillingCurrentSubscriptionResponse(BaseModel):
+    state: str
+    provider: str
+    plan_version_id: UUID
+    plan_code: str
+    version_number: int
+    currency: str
+    current_period_end: datetime | None
+    cancel_at_period_end: bool
+    grace_ends_at: datetime | None
+    paid_until: datetime | None
+
+
+class BillingPendingCheckoutResponse(BaseModel):
+    state: Literal["open", "expired"]
+    plan_version_id: UUID
+    currency: str
+    expires_at: datetime
+
+
+class BillingPendingCommandResponse(BaseModel):
+    state: Literal["reserved", "unknown"]
+    created_at: datetime
+
+
+class BillingStateResponse(BaseModel):
+    contract: BillingCurrentContractResponse | None
+    subscription: BillingCurrentSubscriptionResponse | None
+    checkout: BillingPendingCheckoutResponse | None
+    command: BillingPendingCommandResponse | None
+
+
 class MemberPageResponse(BaseModel):
     items: list[MemberResponse]
     next_cursor: str | None

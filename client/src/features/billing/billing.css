@@ -13,3 +13,10 @@
 .billing-checkout-link { display: grid; gap: 5px; margin-top: 20px; font-size: 13px; }
 .billing-checkout-link a { color: #126f92; font-weight: 700; }
 .billing-checkout-link small { color: #5f7984; }
+.billing-state { display: grid; gap: 7px; margin-top: 12px; color: #385867; font-size: 14px; }
+.billing-state strong { color: #12384b; font-size: 16px; }
+.billing-actions { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 18px; }
+.billing-review { display: grid; gap: 6px; padding: 15px; border: 1px solid #cfe0e6; border-radius: 12px; background: #f6fbfc; font-size: 14px; }
+.billing-review strong { color: #12384b; font-size: 17px; }
+.billing-review p { margin: 4px 0 0; color: #49636d; }
+.billing-existing { max-width: 660px; margin-top: 16px; color: #385867; font-size: 14px; }

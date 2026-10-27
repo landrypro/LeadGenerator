@@ -112,6 +112,48 @@ class StripeSandboxClient:
             raise BillingOperationError(BillingErrorCode.STATE_UNKNOWN)
         return self._require_reference(result.get("id"), "cus_")
 
+    async def resume_checkout(
+        self,
+        *,
+        reference: str,
+        command_reference: str,
+        customer_reference: str,
+        price_reference: str,
+        currency: CurrencyCode,
+    ) -> StripeCheckoutDraft:
+        self._require_uuid(command_reference)
+        self._require_reference(customer_reference, "cus_")
+        self._require_reference(price_reference, "price_")
+        result = await self.read_object("checkout", reference)
+        expires_at = self._timestamp(result.get("expires_at"))
+        url = result.get("url")
+        if (
+            result.get("mode") != "subscription"
+            or result.get("status") != "open"
+            or result.get("client_reference_id") != command_reference
+            or result.get("customer") != customer_reference
+            or result.get("currency") != currency.value.lower()
+            or result.get("subscription") is not None
+            or expires_at <= datetime.now(UTC)
+            or not isinstance(url, str)
+            or not url.startswith("https://checkout.stripe.com/")
+        ):
+            raise BillingOperationError(BillingErrorCode.RECONCILIATION_REQUIRED)
+        lines = await self._request("GET", f"/v1/checkout/sessions/{reference}/line_items", params={"limit": "2"})
+        items = lines.get("data")
+        if (
+            lines.get("has_more") is not False
+            or not isinstance(items, list)
+            or len(items) != 1
+            or not isinstance(items[0], dict)
+            or items[0].get("quantity") != 1
+            or not isinstance(items[0].get("price"), dict)
+            or items[0]["price"].get("id") != price_reference
+            or items[0]["price"].get("currency") != currency.value.lower()
+        ):
+            raise BillingOperationError(BillingErrorCode.RECONCILIATION_REQUIRED)
+        return StripeCheckoutDraft(reference, url, expires_at)
+
     async def get_subscription(self, reference: str) -> dict[str, Any]:
         self._require_reference(reference, "sub_")
         result = await self._request("GET", f"/v1/subscriptions/{reference}")

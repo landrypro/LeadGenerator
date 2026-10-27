@@ -155,6 +155,7 @@ class BillingCheckoutPreparation:
     command_id: UUID
     state: BillingCommandState
     command: BillingCheckoutCommand
+    existing_checkout_reference: str | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -188,6 +189,18 @@ class BillingProviderGateway(Protocol):
     ) -> NormalizedBillingEvent: ...
 
 
+class BillingCheckoutRecovery(Protocol):
+    async def resume_checkout(
+        self,
+        *,
+        reference: str,
+        command_id: UUID,
+        customer_reference: str,
+        price_reference: str,
+        currency: CurrencyCode,
+    ) -> CheckoutSession: ...
+
+
 class BillingWebhookVerifier(Protocol):
     def verify(self, *, raw_body: bytes, signature_header: str, received_at: datetime) -> NormalizedBillingEvent: ...
 
@@ -211,6 +224,8 @@ class BillingCommandRepository(Protocol):
         request_fingerprint: str,
         now: datetime,
     ) -> BillingCheckoutPreparation: ...
+
+    async def read_stripe_state(self, *, context: TenantContext) -> dict[str, object]: ...
 
     async def prepare_portal(
         self,

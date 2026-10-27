@@ -9,8 +9,10 @@ from datetime import datetime, timedelta
 from uuid import UUID, uuid4
 
 from ...domain.billing import BillingErrorCode
+from ...domain.catalog import CurrencyCode
 from ..errors import BillingOperationError
 from ..ports.billing import (
+    BillingCheckoutRecovery,
     BillingCommandRepository,
     BillingCommandState,
     BillingProviderGateway,
@@ -29,10 +31,17 @@ class BillingSessionGrant:
 
 
 class BillingSessionUseCases:
-    def __init__(self, repository: BillingCommandRepository, provider: BillingProviderGateway, clock: Clock) -> None:
+    def __init__(
+        self,
+        repository: BillingCommandRepository,
+        provider: BillingProviderGateway,
+        clock: Clock,
+        checkout_recovery: BillingCheckoutRecovery | None = None,
+    ) -> None:
         self._repository = repository
         self._provider = provider
         self._clock = clock
+        self._checkout_recovery = checkout_recovery
 
     async def create_checkout(
         self,
@@ -55,6 +64,17 @@ class BillingSessionUseCases:
             now=now,
         )
         self._require_known_state(preparation.state)
+        if preparation.state is BillingCommandState.SUCCEEDED and preparation.existing_checkout_reference is not None:
+            if self._checkout_recovery is None or preparation.command.provider_customer_reference is None:
+                raise BillingOperationError(BillingErrorCode.RECONCILIATION_REQUIRED)
+            resumed = await self._checkout_recovery.resume_checkout(
+                reference=preparation.existing_checkout_reference,
+                command_id=preparation.command_id,
+                customer_reference=preparation.command.provider_customer_reference,
+                price_reference=preparation.command.provider_price_reference,
+                currency=preparation.command.currency,
+            )
+            return BillingSessionGrant(resumed.checkout_url, resumed.expires_at)
         try:
             session = await self._provider.create_checkout(
                 command=preparation.command,
@@ -65,6 +85,46 @@ class BillingSessionUseCases:
             raise
         await self._repository.complete_checkout(context=context, preparation=preparation, session=session)
         return BillingSessionGrant(session.checkout_url, session.expires_at)
+
+    async def read_stripe_state(self, *, context: TenantContext) -> dict[str, object]:
+        return await self._repository.read_stripe_state(context=context)
+
+    async def resume_stripe_checkout(
+        self,
+        *,
+        context: TenantContext,
+        authorized: bool,
+        session_issued_at: datetime | None,
+    ) -> BillingSessionGrant:
+        self._require_recent_authorization(authorized, session_issued_at, self._clock.now())
+        if self._checkout_recovery is None:
+            raise BillingOperationError(BillingErrorCode.PROVIDER_DISABLED)
+        state = await self._repository.read_stripe_state(context=context)
+        checkout = state.get("checkout")
+        subscription = state.get("subscription")
+        contract = state.get("contract")
+        if isinstance(subscription, dict) and subscription.get("state") != "canceled":
+            raise BillingOperationError(BillingErrorCode.SUBSCRIPTION_EXISTS)
+        if isinstance(contract, dict) and contract.get("state") in {"active", "suspended"}:
+            raise BillingOperationError(BillingErrorCode.SUBSCRIPTION_EXISTS)
+        if not isinstance(checkout, dict) or checkout.get("state") != "open":
+            raise BillingOperationError(BillingErrorCode.RECONCILIATION_REQUIRED)
+        try:
+            command_id = UUID(str(checkout["command_id"]))
+            currency = CurrencyCode(str(checkout["currency"]))
+            reference = str(checkout["reference"])
+            customer_reference = str(checkout["customer_reference"])
+            price_reference = str(checkout["price_reference"])
+        except (KeyError, TypeError, ValueError) as error:
+            raise BillingOperationError(BillingErrorCode.STATE_UNKNOWN) from error
+        resumed = await self._checkout_recovery.resume_checkout(
+            reference=reference,
+            command_id=command_id,
+            customer_reference=customer_reference,
+            price_reference=price_reference,
+            currency=currency,
+        )
+        return BillingSessionGrant(resumed.checkout_url, resumed.expires_at)
 
     async def create_portal(
         self,

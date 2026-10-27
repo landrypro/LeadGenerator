@@ -264,6 +264,92 @@ async def test_one_time_price_cannot_start_subscription_checkout() -> None:
 
 
 @pytest.mark.asyncio
+async def test_resume_checkout_reads_only_the_matching_open_session_and_price() -> None:
+    command_id = uuid4()
+    seen: list[httpx.Request] = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        seen.append(request)
+        if request.url.path.endswith("/line_items"):
+            return httpx.Response(
+                200,
+                json={
+                    "has_more": False,
+                    "data": [{"quantity": 1, "price": {"id": "price_test_contract", "currency": "cad"}}],
+                },
+            )
+        return httpx.Response(
+            200,
+            json={
+                "object": "checkout.session",
+                "id": "cs_test_resume",
+                "livemode": False,
+                "mode": "subscription",
+                "status": "open",
+                "client_reference_id": str(command_id),
+                "customer": "cus_test_contract",
+                "currency": "cad",
+                "subscription": None,
+                "url": "https://checkout.stripe.com/c/pay/cs_test_resume",
+                "expires_at": int(datetime.now(UTC).timestamp()) + 3600,
+            },
+        )
+
+    async with httpx.AsyncClient(transport=httpx.MockTransport(handler)) as http_client:
+        client = StripeSandboxClient(test_secret_key="sk_test_synthetic", client=http_client)
+        draft = await client.resume_checkout(
+            reference="cs_test_resume",
+            command_reference=str(command_id),
+            customer_reference="cus_test_contract",
+            price_reference="price_test_contract",
+            currency=CurrencyCode.CAD,
+        )
+    assert draft.reference == "cs_test_resume"
+    assert [request.method for request in seen] == ["GET", "GET"]
+    assert all(request.headers["Stripe-Version"] == STRIPE_API_VERSION for request in seen)
+
+
+@pytest.mark.asyncio
+async def test_resume_checkout_rejects_changed_price() -> None:
+    command_id = uuid4()
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        if request.url.path.endswith("/line_items"):
+            return httpx.Response(
+                200,
+                json={"has_more": False, "data": [{"quantity": 1, "price": {"id": "price_other", "currency": "cad"}}]},
+            )
+        return httpx.Response(
+            200,
+            json={
+                "object": "checkout.session",
+                "id": "cs_test_resume",
+                "livemode": False,
+                "mode": "subscription",
+                "status": "open",
+                "client_reference_id": str(command_id),
+                "customer": "cus_test_contract",
+                "currency": "cad",
+                "subscription": None,
+                "url": "https://checkout.stripe.com/c/pay/cs_test_resume",
+                "expires_at": int(datetime.now(UTC).timestamp()) + 3600,
+            },
+        )
+
+    async with httpx.AsyncClient(transport=httpx.MockTransport(handler)) as http_client:
+        client = StripeSandboxClient(test_secret_key="sk_test_synthetic", client=http_client)
+        with pytest.raises(BillingOperationError) as error:
+            await client.resume_checkout(
+                reference="cs_test_resume",
+                command_reference=str(command_id),
+                customer_reference="cus_test_contract",
+                price_reference="price_test_contract",
+                currency=CurrencyCode.CAD,
+            )
+    assert error.value.code is BillingErrorCode.RECONCILIATION_REQUIRED
+
+
+@pytest.mark.asyncio
 async def test_customer_contains_only_the_internal_organization_reference() -> None:
     organization_id = uuid4()
     seen: list[httpx.Request] = []

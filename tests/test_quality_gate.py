@@ -14,7 +14,7 @@ from scripts.quality_gate import (
 
 
 def test_quality_gate_alembic_expectations_track_the_current_head() -> None:
-    expected_revision = "20261027_0064"
+    expected_revision = "20261027_0065"
     local_gate = Path("scripts/Test-QualityGateLocal.ps1").read_text(encoding="utf-8")
     pipeline = Path("azure-pipelines.yml").read_text(encoding="utf-8")
 

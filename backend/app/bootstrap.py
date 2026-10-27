@@ -136,6 +136,7 @@ from .infrastructure.assistant.fake import FakeAssistantInterpreter
 from .infrastructure.audit_pagination import HmacAuditCursorCodec
 from .infrastructure.billing import build_billing_provider_gateway
 from .infrastructure.billing.stripe_contract import StripeSandboxWebhookVerifier
+from .infrastructure.billing.stripe_sandbox import StripeSandboxProviderGateway
 from .infrastructure.billing.webhooks import BillingWebhookAdmissionService, SimulatedBillingWebhookVerifier
 from .infrastructure.clock import SystemClock
 from .infrastructure.google.location import GoogleLocationResolver
@@ -416,6 +417,7 @@ def build_container(settings: Settings) -> AppContainer:
     usage_store = PostgresUsageStore(database.session_factory, metrics) if database is not None else None
     if database is not None and settings.billing_provider_mode in {"disabled", "simulated", "stripe_sandbox"}:
         billing_clock = SystemClock()
+        checkout_gateway = build_billing_provider_gateway(settings, clock=billing_clock.now)
         billing_sessions = BillingSessionUseCases(
             SqlAlchemyBillingCommandRepository(
                 database.tenant_unit_of_work,
@@ -425,8 +427,9 @@ def build_container(settings: Settings) -> AppContainer:
                     else None
                 ),
             ),
-            build_billing_provider_gateway(settings, clock=billing_clock.now),
+            checkout_gateway,
             billing_clock,
+            checkout_recovery=checkout_gateway if isinstance(checkout_gateway, StripeSandboxProviderGateway) else None,
         )
         billing_refunds = BillingRefundUseCases(
             SqlAlchemyBillingRefundRepository(database.actor_unit_of_work),
