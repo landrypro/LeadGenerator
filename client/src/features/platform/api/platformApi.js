@@ -28,6 +28,24 @@ export const platformApi = {
   reactivateOrganization(organizationId, payload, signal) {
     return post(`/api/platform/organizations/${encodeURIComponent(organizationId)}/reactivate`, payload, signal, 'Impossible de réactiver l’organisation.')
   },
+
+  listBillingOrganizations({ cursor = '', limit = 25, state = '', source = '' } = {}, signal) {
+    const parameters = new URLSearchParams({ limit: String(limit) })
+    if (cursor) parameters.set('cursor', cursor)
+    if (state) parameters.set('state', state)
+    if (source) parameters.set('source', source)
+    return request(`/api/platform/billing/organizations?${parameters}`, {
+      signal,
+      fallbackMessage: 'Impossible de charger la consultation Billing de la plateforme.',
+    })
+  },
+
+  getBillingOrganization(organizationId, signal) {
+    return request(`/api/platform/billing/organizations/${encodeURIComponent(organizationId)}`, {
+      signal,
+      fallbackMessage: 'Impossible de charger le détail Billing de cette organisation.',
+    })
+  },
 }
 
 

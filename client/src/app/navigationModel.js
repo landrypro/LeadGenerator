@@ -1,6 +1,6 @@
 import { navigationRoutes } from './routes'
 
-const directIds = ['dashboard', 'automation', 'tasks', 'prospects', 'pipeline', 'opportunities', 'platform-organizations', 'platform-audit']
+const directIds = ['dashboard', 'automation', 'tasks', 'prospects', 'pipeline', 'opportunities', 'platform-organizations', 'platform-billing', 'platform-audit']
 const mobileIds = ['dashboard', 'tasks', 'prospects', 'pipeline']
 const groups = [
   { id: 'acquisition', labels: { 'fr-CA': 'Acquisition', 'en-CA': 'Acquisition' }, ids: ['google-place-search', 'compliance-sources'] },

@@ -129,6 +129,7 @@ from .application.use_cases.billing import BillingSessionUseCases
 from .application.use_cases.billing_reconciliation import BillingManualReconciliation
 from .application.use_cases.billing_refunds import BillingRefundUseCases
 from .application.use_cases.dashboard import GetDashboardSummaryUseCase
+from .application.use_cases.platform_billing import PlatformBillingConsultationUseCase
 from .application.use_cases.usage import GetCurrentUsageUseCase, GetUsageReportUseCase
 from .config import Settings
 from .container import AppContainer
@@ -180,6 +181,7 @@ from .infrastructure.postgres.connector_pilot import MetaLeadWebhookService
 from .infrastructure.postgres.dashboard_reader import PostgresDashboardReader
 from .infrastructure.postgres.export_service import ExportService
 from .infrastructure.postgres.import_history import ImportHistoryReader
+from .infrastructure.postgres.platform_billing_reader import SqlAlchemyPlatformBillingReader
 from .infrastructure.postgres.usage_store import PostgresUsageStore
 from .infrastructure.redis import (
     RedisGenerationGuard,
@@ -414,7 +416,12 @@ def build_container(settings: Settings) -> AppContainer:
     billing_sessions: BillingSessionUseCases | None = None
     billing_refunds: BillingRefundUseCases | None = None
     billing_manual_reconciliation: BillingManualReconciliation | None = None
+    platform_billing_consultation: PlatformBillingConsultationUseCase | None = None
     usage_store = PostgresUsageStore(database.session_factory, metrics) if database is not None else None
+    if database is not None:
+        platform_billing_consultation = PlatformBillingConsultationUseCase(
+            SqlAlchemyPlatformBillingReader(database.actor_unit_of_work)
+        )
     if database is not None and settings.billing_provider_mode in {"disabled", "simulated", "stripe_sandbox"}:
         billing_clock = SystemClock()
         checkout_gateway = build_billing_provider_gateway(settings, clock=billing_clock.now)
@@ -803,6 +810,7 @@ def build_container(settings: Settings) -> AppContainer:
         billing_sessions=billing_sessions,
         billing_refunds=billing_refunds,
         billing_manual_reconciliation=billing_manual_reconciliation,
+        platform_billing_consultation=platform_billing_consultation,
         meta_lead_webhooks=meta_lead_webhooks,
         meta_connector_management=meta_connector_management,
         create_manual_prospect=create_manual_prospect,

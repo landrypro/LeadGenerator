@@ -110,6 +110,7 @@ from .application.use_cases.billing import BillingSessionUseCases
 from .application.use_cases.billing_reconciliation import BillingManualReconciliation
 from .application.use_cases.billing_refunds import BillingRefundUseCases
 from .application.use_cases.dashboard import GetDashboardSummaryUseCase
+from .application.use_cases.platform_billing import PlatformBillingConsultationUseCase
 from .application.use_cases.usage import GetCurrentUsageUseCase, GetUsageReportUseCase
 from .config import Settings
 from .infrastructure.billing.webhooks import BillingWebhookAdmissionService
@@ -155,6 +156,7 @@ class AppContainer:
     billing_sessions: BillingSessionUseCases | None = None
     billing_refunds: BillingRefundUseCases | None = None
     billing_manual_reconciliation: BillingManualReconciliation | None = None
+    platform_billing_consultation: PlatformBillingConsultationUseCase | None = None
     meta_lead_webhooks: MetaLeadWebhookService | None = None
     meta_connector_management: MetaConnectorManagement | None = None
     create_manual_prospect: CreateManualProspectUseCase | None = None

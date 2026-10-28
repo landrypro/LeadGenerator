@@ -2,7 +2,9 @@
 
 from __future__ import annotations
 
-from fastapi import APIRouter, Header, Request
+from uuid import UUID
+
+from fastapi import APIRouter, Header, Query, Request
 from fastapi.responses import JSONResponse, Response
 
 from ....application.errors import (
@@ -11,6 +13,8 @@ from ....application.errors import (
     BillingOperationError,
     CatalogServiceUnavailable,
     CsrfValidationFailed,
+    InsufficientCapability,
+    ProvisioningResourceNotFound,
 )
 from ....application.ports.billing import BillingReturnTarget, BillingWebhookAdmissionCode
 from ....application.tenancy import ActorContext, TenantContext
@@ -31,10 +35,87 @@ from ..schemas import (
     BillingRefundResponse,
     BillingSessionResponse,
     BillingStateResponse,
+    PlatformBillingDetailResponse,
+    PlatformBillingEventResponse,
+    PlatformBillingInterventionResponse,
+    PlatformBillingOrganizationPageResponse,
+    PlatformBillingOrganizationResponse,
 )
 from ..security import require_csrf_token, require_json_content_type, require_trusted_origin
 
 router = APIRouter()
+
+
+@router.get("/api/platform/billing/organizations", response_model=PlatformBillingOrganizationPageResponse)
+async def list_platform_billing_organizations(
+    request: Request,
+    container: ContainerDependency,
+    cursor: str | None = Query(default=None, max_length=36),
+    limit: int = Query(default=25, ge=1, le=100),
+    state: str | None = Query(default=None, max_length=32),
+    source: str | None = Query(default=None, max_length=32),
+) -> Response:
+    try:
+        authentication = await required_authentication(request, container)
+        if container.platform_billing_consultation is None:
+            raise CatalogServiceUnavailable
+        page = await container.platform_billing_consultation.list(
+            context=ActorContext(authentication.identity.user.id, getattr(request.state, "request_id", "unknown")),
+            has_platform_capability="platform:billing:manage"
+            in capabilities_for(authentication.identity.user, authentication.identity.active_membership),
+            cursor=cursor,
+            limit=limit,
+            state=state,
+            source=source,
+        )
+    except Exception as error:
+        response = _platform_billing_error(request, error)
+        if response is not None:
+            return response
+        raise
+    return JSONResponse(
+        PlatformBillingOrganizationPageResponse(
+            items=[_platform_billing_organization(item) for item in page.items], next_cursor=page.next_cursor
+        ).model_dump(mode="json"),
+        headers=NO_STORE_HEADERS,
+    )
+
+
+@router.get("/api/platform/billing/organizations/{organization_id}", response_model=PlatformBillingDetailResponse)
+async def get_platform_billing_organization(
+    organization_id: UUID, request: Request, container: ContainerDependency
+) -> Response:
+    try:
+        authentication = await required_authentication(request, container)
+        if container.platform_billing_consultation is None:
+            raise CatalogServiceUnavailable
+        detail = await container.platform_billing_consultation.get(
+            context=ActorContext(authentication.identity.user.id, getattr(request.state, "request_id", "unknown")),
+            has_platform_capability="platform:billing:manage"
+            in capabilities_for(authentication.identity.user, authentication.identity.active_membership),
+            organization_id=organization_id,
+        )
+    except Exception as error:
+        response = _platform_billing_error(request, error)
+        if response is not None:
+            return response
+        raise
+    return JSONResponse(
+        PlatformBillingDetailResponse(
+            organization=_platform_billing_organization(detail.organization),
+            events=[
+                PlatformBillingEventResponse(event_type=item.event_type, occurred_at=item.occurred_at)
+                for item in detail.events
+            ],
+            interventions=[
+                PlatformBillingInterventionResponse(
+                    kind=item.kind, status=item.status, created_at=item.created_at, updated_at=item.updated_at
+                )
+                for item in detail.interventions
+            ],
+        ).model_dump(mode="json"),
+        headers=NO_STORE_HEADERS,
+    )
 
 
 @router.get("/api/billing/subscription", response_model=BillingStateResponse)
@@ -383,4 +464,24 @@ def _billing_api_error(request: Request, error: Exception) -> Response | None:
         return api_error(request, 503, "billing_provider_unavailable", "Le service est temporairement indisponible.")
     if isinstance(error, (ValueError, TypeError)):
         return api_error(request, 422, "validation_failed", "La commande Billing est invalide.")
+    return None
+
+
+def _platform_billing_organization(item: object) -> PlatformBillingOrganizationResponse:
+    return PlatformBillingOrganizationResponse.model_validate(item, from_attributes=True)
+
+
+def _platform_billing_error(request: Request, error: Exception) -> Response | None:
+    if isinstance(error, AuthenticationRequired):
+        return api_error(request, 401, "authentication_required", "Authentification requise.")
+    if isinstance(error, InsufficientCapability):
+        return api_error(request, 403, "insufficient_capability", "Autorisation plateforme insuffisante.")
+    if isinstance(error, ProvisioningResourceNotFound):
+        return api_error(request, 404, "billing_organization_not_found", "Organisation de facturation introuvable.")
+    if isinstance(error, (AuthenticationServiceUnavailable, CatalogServiceUnavailable)):
+        return api_error(
+            request, 503, "billing_consultation_unavailable", "La consultation Billing est temporairement indisponible."
+        )
+    if isinstance(error, (ValueError, TypeError)):
+        return api_error(request, 422, "validation_failed", "Les filtres de consultation sont invalides.")
     return None

@@ -13,6 +13,7 @@ const PlaceSearchPage = lazyNamed(() => import('../features/lead-search/LeadGene
 const OrganizationPage = lazyNamed(() => import('../features/organizations/OrganizationPage'), 'OrganizationPage')
 const MembersPage = lazyNamed(() => import('../features/organizations/MembersPage'), 'MembersPage')
 const PlatformOrganizationsPage = lazyNamed(() => import('../features/platform/PlatformOrganizationsPage'), 'PlatformOrganizationsPage')
+const PlatformBillingPage = lazyNamed(() => import('../features/platform/PlatformBillingPage'), 'PlatformBillingPage')
 const ProvidersAcquisitionsPage = lazyNamed(() => import('../features/compliance/ProvidersAcquisitionsPage'), 'ProvidersAcquisitionsPage')
 const RetentionImportsPage = lazyNamed(() => import('../features/retention/RetentionImportsPage'), 'RetentionImportsPage')
 const ImportHistoryPage = lazyNamed(() => import('../features/retention/ImportHistoryPage'), 'ImportHistoryPage')
@@ -59,6 +60,7 @@ export const CRM_PATHS = Object.freeze({
   automationSettings: '/app/admin/automation',
   users: '/app/admin/users',
   platformOrganizations: '/app/platform/organizations',
+  platformBilling: '/app/platform/billing',
   audit: '/app/audit',
   platformAudit: '/app/platform/audit',
 })
@@ -87,6 +89,7 @@ const ROUTE_MESSAGES = Object.freeze({
   'automation-settings': Object.freeze({ 'fr-CA': Object.freeze({ label: 'Automatisation', title: 'Automatisation — Paramètres' }), 'en-CA': Object.freeze({ label: 'Automation', title: 'Automation — Settings' }) }),
   'tenant-audit': Object.freeze({ 'fr-CA': Object.freeze({ label: 'Journal d’activité', title: 'Journal d’activité' }), 'en-CA': Object.freeze({ label: 'Activity log', title: 'Activity log' }) }),
   'platform-organizations': Object.freeze({ 'fr-CA': Object.freeze({ label: 'Plateforme', title: 'Organisations de la plateforme' }), 'en-CA': Object.freeze({ label: 'Platform', title: 'Platform organizations' }) }),
+  'platform-billing': Object.freeze({ 'fr-CA': Object.freeze({ label: 'Facturation plateforme', title: 'Consultation Billing' }), 'en-CA': Object.freeze({ label: 'Platform billing', title: 'Billing consultation' }) }),
   'platform-audit': Object.freeze({ 'fr-CA': Object.freeze({ label: 'Audit plateforme', title: 'Audit plateforme' }), 'en-CA': Object.freeze({ label: 'Platform audit', title: 'Platform audit' }) }),
   account: Object.freeze({ 'fr-CA': Object.freeze({ label: 'Compte', title: 'Mon compte' }), 'en-CA': Object.freeze({ label: 'Account', title: 'My account' }) }),
 })
@@ -252,6 +255,15 @@ export const routes = Object.freeze([
     requiredCapability: 'platform:organizations:read',
     requiresActiveOrganization: false,
     Component: PlatformOrganizationsPage,
+  }),
+  Object.freeze({
+    id: 'platform-billing',
+    path: CRM_PATHS.platformBilling,
+    label: 'Facturation plateforme',
+    title: 'Consultation Billing',
+    requiredCapability: 'platform:billing:manage',
+    requiresActiveOrganization: false,
+    Component: PlatformBillingPage,
   }),
   Object.freeze({
     id: 'platform-audit',

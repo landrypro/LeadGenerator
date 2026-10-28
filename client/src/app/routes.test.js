@@ -34,6 +34,7 @@ describe('routes CRM', () => {
       automationSettings: '/app/admin/automation',
       users: '/app/admin/users',
       platformOrganizations: '/app/platform/organizations',
+      platformBilling: '/app/platform/billing',
       audit: '/app/audit',
       platformAudit: '/app/platform/audit',
     })
@@ -64,10 +65,12 @@ describe('routes CRM', () => {
       '/app/admin/automation',
       '/app/audit',
       '/app/platform/organizations',
+      '/app/platform/billing',
       '/app/platform/audit',
       '/app/account',
     ])
     expect(findRoute('/app/platform/organizations')?.requiredCapability).toBe('platform:organizations:read')
+    expect(findRoute('/app/platform/billing')?.requiredCapability).toBe('platform:billing:manage')
     expect(findRoute('/app/usage')?.requiredCapability).toBe('usage:read:self')
     expect(findRoute('/app/billing')?.requiredCapability).toBe('billing:manage')
     expect(findRoute('/app/automation/today')?.requiredCapability).toBe('automation:plan:create')

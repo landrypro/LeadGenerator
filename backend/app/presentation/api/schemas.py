@@ -394,6 +394,44 @@ class PlatformOrganizationPageResponse(BaseModel):
     next_cursor: str | None
 
 
+class PlatformBillingOrganizationResponse(BaseModel):
+    id: UUID
+    name: str
+    organization_status: str
+    plan_code: str | None
+    version_number: int | None
+    currency: str | None
+    subscription_state: str | None
+    contract_state: str | None
+    source: Literal["stripe", "simulated", "catalog_only", "none"]
+    current_period_end: datetime | None
+    cancel_at_period_end: bool
+    reconciliation_status: Literal["needs_review", "not_checked"]
+
+
+class PlatformBillingOrganizationPageResponse(BaseModel):
+    items: list[PlatformBillingOrganizationResponse]
+    next_cursor: str | None
+
+
+class PlatformBillingEventResponse(BaseModel):
+    event_type: str
+    occurred_at: datetime
+
+
+class PlatformBillingInterventionResponse(BaseModel):
+    kind: str
+    status: str
+    created_at: datetime
+    updated_at: datetime
+
+
+class PlatformBillingDetailResponse(BaseModel):
+    organization: PlatformBillingOrganizationResponse
+    events: list[PlatformBillingEventResponse]
+    interventions: list[PlatformBillingInterventionResponse]
+
+
 class AuditActorResponse(BaseModel):
     kind: str
     id: UUID | None
