@@ -164,7 +164,7 @@ describe('AppRouter', () => {
     window.history.replaceState({}, '', '/app/search')
     renderRouter({ status: 'loading', session: null, login: vi.fn(), logout: vi.fn() })
 
-    expect(screen.getByText('Vérification de la session…')).toBeInTheDocument()
+    expect(screen.getByRole('heading', { name: 'Vérification de la session…' })).toBeInTheDocument()
     expect(screen.queryByRole('navigation')).not.toBeInTheDocument()
   })
 

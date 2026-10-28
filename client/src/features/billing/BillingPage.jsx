@@ -26,6 +26,8 @@ const COPY = {
     review: 'Vous allez ouvrir Stripe Checkout pour cette offre fictive.',
     reviewNote: 'Le paiement et les droits ne seront confirmés qu’après vérification par le serveur. Aucune conversion de devise n’est effectuée.',
     resume: 'Reprendre la session Checkout', resumeLoading: 'Vérification de la session…',
+    portal: 'Gérer la facturation', portalLoading: 'Ouverture du portail…',
+    portalUnavailable: 'La réponse du portail de facturation est invalide.',
     pending: 'Paiement en attente de confirmation', preparing: 'Préparation du paiement à vérifier',
     expired: 'La session a expiré. Son état doit être rapproché avant un nouveau paiement.',
     active: 'Paiement confirmé', grace_period: 'Renouvellement à régulariser', canceling: 'Annulation programmée',
@@ -51,6 +53,8 @@ const COPY = {
     review: 'You are about to open Stripe Checkout for this fictitious offer.',
     reviewNote: 'Payment and access are confirmed only after server verification. No currency conversion is performed.',
     resume: 'Resume Checkout session', resumeLoading: 'Checking session…',
+    portal: 'Manage billing', portalLoading: 'Opening billing portal…',
+    portalUnavailable: 'The billing portal response is invalid.',
     pending: 'Payment awaiting confirmation', preparing: 'Payment preparation needs verification',
     expired: 'The session expired. Its status must be reconciled before another payment.',
     active: 'Payment confirmed', grace_period: 'Renewal payment needs attention', canceling: 'Cancellation scheduled',
@@ -69,6 +73,15 @@ function stripeCheckoutUrl(value) {
   }
 }
 
+function stripePortalUrl(value) {
+  try {
+    const url = new URL(value)
+    return url.origin === 'https://billing.stripe.com' && !url.username && !url.password ? url.href : null
+  } catch {
+    return null
+  }
+}
+
 function offerPrice(option, locale) {
   const amount = option.currency === 'XAF' ? option.amount_minor : option.amount_minor / 100
   return new Intl.NumberFormat(locale, { style: 'currency', currency: option.currency, currencyDisplay: 'code' }).format(amount)
@@ -80,17 +93,6 @@ function optionLabel(option, locale) {
 
 function displayDate(value, locale) {
   return new Intl.DateTimeFormat(locale, { dateStyle: 'medium', timeStyle: 'short' }).format(new Date(value))
-}
-
-function checkoutKey(organization, plan) {
-  try {
-    const saved = JSON.parse(window.sessionStorage.getItem(`billing-checkout:${organization}`))
-    return saved?.plan === plan && typeof saved.key === 'string' ? saved.key : null
-  } catch { return null }
-}
-
-function saveCheckoutKey(organization, plan, key) {
-  try { window.sessionStorage.setItem(`billing-checkout:${organization}`, JSON.stringify({ plan, key })) } catch { /* Optional storage. */ }
 }
 
 export function BillingPage({ session, navigateToCheckout = (url) => window.location.assign(url) }) {
@@ -109,6 +111,7 @@ export function BillingPage({ session, navigateToCheckout = (url) => window.loca
   const [reviewing, setReviewing] = useState(false)
   const [submitting, setSubmitting] = useState(false)
   const [resuming, setResuming] = useState(false)
+  const [openingPortal, setOpeningPortal] = useState(false)
   const [error, setError] = useState('')
   const [checkout, setCheckout] = useState(null)
   const pendingRef = useRef(false)
@@ -151,6 +154,9 @@ export function BillingPage({ session, navigateToCheckout = (url) => window.loca
   const hasCurrentContract = contract && ['active', 'suspended'].includes(contract.state)
   const canStart = Boolean(status && !statusError && !loadingStatus && !hasCurrentSubscription && !hasCurrentContract && !pendingCheckout && !pendingCommand)
   const canResume = Boolean(pendingCheckout?.state === 'open' && !hasCurrentSubscription && !hasCurrentContract)
+  const canOpenPortal = Boolean(
+    status?.portal_available && subscription && ['active', 'past_due', 'grace_period', 'suspended', 'canceling'].includes(subscription.state)
+  )
   const chosen = options.find(option => option.id === planVersionId)
   const waitForConfirmation = Boolean(status && (pendingCheckout || pendingCommand || subscription?.state === 'pending_checkout' ||
     (returnStatus === 'success' && !['active', 'canceling', 'grace_period', 'suspended', 'canceled'].includes(subscription?.state))))
@@ -178,9 +184,8 @@ export function BillingPage({ session, navigateToCheckout = (url) => window.loca
     pendingRef.current = true
     setSubmitting(true)
     setError('')
-    const key = commandRef.current?.plan === plan ? commandRef.current.key : checkoutKey(organization, plan) || createRequestId()
+    const key = commandRef.current?.plan === plan ? commandRef.current.key : createRequestId()
     commandRef.current = { plan, key }
-    saveCheckoutKey(organization, plan, key)
     try {
       const response = await billingApi.createCheckout(plan, key)
       const url = stripeCheckoutUrl(response.url)
@@ -213,6 +218,25 @@ export function BillingPage({ session, navigateToCheckout = (url) => window.loca
     } finally {
       pendingRef.current = false
       setResuming(false)
+    }
+  }
+
+  async function openPortal() {
+    if (pendingRef.current || !canOpenPortal) return
+    pendingRef.current = true
+    setOpeningPortal(true)
+    setError('')
+    try {
+      const response = await billingApi.createPortal(createRequestId())
+      const url = stripePortalUrl(response.url)
+      if (!url) throw new Error(copy.portalUnavailable)
+      navigateToCheckout(url)
+    } catch (requestError) {
+      setError(toUserMessage(requestError, copy.portalUnavailable))
+      setStatusReload(value => value + 1)
+    } finally {
+      pendingRef.current = false
+      setOpeningPortal(false)
     }
   }
 
@@ -252,6 +276,8 @@ export function BillingPage({ session, navigateToCheckout = (url) => window.loca
         <button type="button" className="secondary-button" onClick={() => setStatusReload(value => value + 1)}>{copy.refresh}</button>
         {canResume && <button type="button" className="primary-button" onClick={resume} disabled={resuming}>
           {resuming ? copy.resumeLoading : copy.resume}</button>}
+        {canOpenPortal && <button type="button" className="secondary-button" onClick={openPortal} disabled={openingPortal}>
+          {openingPortal ? copy.portalLoading : copy.portal}</button>}
       </div>
     </section>
 

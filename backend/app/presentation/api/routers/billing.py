@@ -54,6 +54,7 @@ async def get_billing_subscription(request: Request, container: ContainerDepende
                 "subscription": raw.get("subscription"),
                 "checkout": raw.get("checkout"),
                 "command": raw.get("command"),
+                "portal_available": container.settings.stripe_sandbox_portal_enabled,
             }
         )
     except Exception as error:
@@ -207,6 +208,11 @@ async def create_portal_session(
             raise ValueError("Idempotency-Key est obligatoire.")
         payload = BillingPortalSessionRequest.model_validate(await request.json())
         if container.billing_sessions is None:
+            raise BillingOperationError(BillingErrorCode.PROVIDER_DISABLED)
+        if (
+            container.settings.billing_provider_mode == "stripe_sandbox"
+            and not container.settings.stripe_sandbox_portal_enabled
+        ):
             raise BillingOperationError(BillingErrorCode.PROVIDER_DISABLED)
         outcome = await container.billing_sessions.create_portal(
             context=_tenant_context(request, authentication),

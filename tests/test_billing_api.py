@@ -126,7 +126,7 @@ def _app(identity: AuthenticatedIdentity, billing: _BillingSessions, refunds: _B
     )
 
 
-def _stripe_app(identity: AuthenticatedIdentity, billing: _BillingSessions) -> FastAPI:
+def _stripe_app(identity: AuthenticatedIdentity, billing: _BillingSessions, *, portal_enabled: bool = True) -> FastAPI:
     return create_app(
         container=AppContainer(
             settings=Settings(
@@ -135,6 +135,7 @@ def _stripe_app(identity: AuthenticatedIdentity, billing: _BillingSessions) -> F
                 billing_provider_mode="stripe_sandbox",
                 billing_stripe_test_secret_key="sk_test_synthetic",
                 billing_stripe_webhook_secret="whsec_synthetic",
+                billing_stripe_portal_configuration_id="bpc_synthetic" if portal_enabled else "",
             ),
             search_google_places=object(),  # type: ignore[arg-type]
             get_map_snapshot=object(),  # type: ignore[arg-type]
@@ -169,6 +170,7 @@ async def test_stripe_state_and_resume_are_tenant_authorized_and_hide_provider_r
     assert status.status_code == 200
     assert status.headers["cache-control"] == "no-store, max-age=0"
     assert status.json()["contract"]["plan_code"] == "starter"
+    assert status.json()["portal_available"] is True
     assert set(status.json()["checkout"]) == {"state", "plan_version_id", "currency", "expires_at"}
     assert "cs_test_secret" not in status.text
     assert missing_csrf.status_code == 403
@@ -253,6 +255,24 @@ async def test_billing_mutation_requires_idempotency_csrf_and_admin_capability()
     assert all(
         response.headers["cache-control"] == "no-store, max-age=0" for response in (missing_key, bad_csrf, forbidden)
     )
+
+
+async def test_stripe_portal_is_rejected_before_creating_a_command_when_unconfigured() -> None:
+    billing = _BillingSessions()
+    identity = _identity()
+    async with AsyncClient(
+        transport=ASGITransport(app=_stripe_app(identity, billing, portal_enabled=False)), base_url="http://test"
+    ) as client:
+        client.cookies.set("prospect_session", "session-current")
+        response = await client.post(
+            "/api/billing/portal-session",
+            json={"return_target": "subscription"},
+            headers={"origin": "http://test", "x-csrf-token": "csrf-current", "idempotency-key": "portal-closed"},
+        )
+
+    assert response.status_code == 503
+    assert response.json()["error"]["code"] == "billing_provider_disabled"
+    assert billing.calls == []
 
 
 async def test_platform_refund_is_minimized_and_never_accepts_provider_references() -> None:

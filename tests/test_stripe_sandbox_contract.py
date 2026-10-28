@@ -12,7 +12,7 @@ import httpx
 import pytest
 
 from backend.app.application.errors import BillingOperationError
-from backend.app.application.ports.billing import BillingCheckoutCommand, BillingReturnTarget
+from backend.app.application.ports.billing import BillingCheckoutCommand, BillingPortalCommand, BillingReturnTarget
 from backend.app.config import Settings
 from backend.app.domain.billing import BillingErrorCode, BillingEventType, SubscriptionState
 from backend.app.domain.catalog import CurrencyCode
@@ -481,6 +481,99 @@ async def test_sandbox_gateway_reuses_the_organizations_existing_customer() -> N
         "/v1/checkout/sessions",
     ]
     assert b"customer=cus_test_existing" in requests[-1].content
+
+
+@pytest.mark.asyncio
+async def test_portal_session_requires_the_pinned_safe_sandbox_configuration() -> None:
+    requests: list[httpx.Request] = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        requests.append(request)
+        if request.method == "GET":
+            return httpx.Response(
+                200,
+                json={
+                    "object": "billing_portal.configuration",
+                    "id": "bpc_test_contract",
+                    "livemode": False,
+                    "active": True,
+                    "features": {
+                        "invoice_history": {"enabled": True},
+                        "payment_method_update": {"enabled": True},
+                        "customer_update": {"enabled": False},
+                        "subscription_cancel": {
+                            "enabled": True,
+                            "mode": "at_period_end",
+                            "proration_behavior": "none",
+                        },
+                        "subscription_update": {"enabled": False, "default_allowed_updates": []},
+                    },
+                },
+            )
+        return httpx.Response(
+            200,
+            json={
+                "object": "billing_portal.session",
+                "id": "bps_test_contract",
+                "livemode": False,
+                "customer": "cus_test_contract",
+                "configuration": "bpc_test_contract",
+                "return_url": "http://localhost:5173/app/billing",
+                "url": "https://billing.stripe.com/p/session-test-contract",
+            },
+        )
+
+    async with httpx.AsyncClient(transport=httpx.MockTransport(handler)) as http_client:
+        gateway = StripeSandboxProviderGateway(
+            client=StripeSandboxClient(test_secret_key="sk_test_synthetic", client=http_client),
+            return_origin="http://localhost:5173",
+            portal_configuration_id="bpc_test_contract",
+        )
+        portal = await gateway.create_portal_session(
+            command=BillingPortalCommand(uuid4(), "cus_test_contract", BillingReturnTarget.SUBSCRIPTION),
+            idempotency_key="portal:test-contract",
+        )
+
+    assert portal.provider_portal_reference == "bps_test_contract"
+    assert portal.expires_at is None
+    assert [request.method for request in requests] == ["GET", "POST"]
+    assert requests[-1].headers["Idempotency-Key"] == "portal:test-contract"
+    assert b"customer=cus_test_contract" in requests[-1].content
+
+
+@pytest.mark.asyncio
+async def test_portal_session_rejects_a_configuration_that_allows_subscription_changes() -> None:
+    def handler(_request: httpx.Request) -> httpx.Response:
+        return httpx.Response(
+            200,
+            json={
+                "object": "billing_portal.configuration",
+                "id": "bpc_test_contract",
+                "livemode": False,
+                "active": True,
+                "features": {
+                    "invoice_history": {"enabled": True},
+                    "payment_method_update": {"enabled": True},
+                    "customer_update": {"enabled": False},
+                    "subscription_cancel": {"enabled": True, "mode": "at_period_end", "proration_behavior": "none"},
+                    "subscription_update": {"enabled": True, "default_allowed_updates": ["price"]},
+                },
+            },
+        )
+
+    async with httpx.AsyncClient(transport=httpx.MockTransport(handler)) as http_client:
+        gateway = StripeSandboxProviderGateway(
+            client=StripeSandboxClient(test_secret_key="sk_test_synthetic", client=http_client),
+            return_origin="http://localhost:5173",
+            portal_configuration_id="bpc_test_contract",
+        )
+        with pytest.raises(BillingOperationError) as raised:
+            await gateway.create_portal_session(
+                command=BillingPortalCommand(uuid4(), "cus_test_contract", BillingReturnTarget.SUBSCRIPTION),
+                idempotency_key="portal:unsafe-config",
+            )
+
+    assert raised.value.code is BillingErrorCode.PROVIDER_DISABLED
 
 
 @pytest.mark.asyncio

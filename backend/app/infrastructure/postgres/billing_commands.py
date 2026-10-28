@@ -151,9 +151,14 @@ class SqlAlchemyBillingCommandRepository:
         request_fingerprint: str,
         now: Any,
     ) -> BillingPortalPreparation:
+        function = (
+            "app_private.prepare_stripe_sandbox_portal"
+            if self._stripe_price_references is not None
+            else "app_private.prepare_billing_portal"
+        )
         result = await self._json_call(
             context,
-            "SELECT app_private.prepare_billing_portal(:command_id,:key,:fingerprint,:now)",
+            f"SELECT {function}(:command_id,:key,:fingerprint,:now)",
             {"command_id": command_id, "key": idempotency_key_digest, "fingerprint": request_fingerprint, "now": now},
         )
         _raise_public_error(result)
@@ -269,9 +274,14 @@ class SqlAlchemyBillingCommandRepository:
         preparation: BillingPortalPreparation,
         session: PortalSession,
     ) -> None:
+        function = (
+            "app_private.complete_stripe_sandbox_portal"
+            if self._stripe_price_references is not None
+            else "app_private.complete_billing_portal"
+        )
         result = await self._json_call(
             context,
-            "SELECT app_private.complete_billing_portal(:command_id,:reference)",
+            f"SELECT {function}(:command_id,:reference)",
             {"command_id": preparation.command_id, "reference": session.provider_portal_reference},
         )
         _require_completion(result)

@@ -24,9 +24,10 @@ from .stripe_contract import subscription_snapshot_from_object
 
 
 class StripeSandboxProviderGateway(BillingProviderGateway):
-    def __init__(self, *, client: StripeSandboxClient, return_origin: str) -> None:
+    def __init__(self, *, client: StripeSandboxClient, return_origin: str, portal_configuration_id: str = "") -> None:
         self._client = client
         self._return_origin = return_origin
+        self._portal_configuration_id = portal_configuration_id
 
     async def create_checkout(self, *, command: BillingCheckoutCommand, idempotency_key: str) -> CheckoutSession:
         if command.amount_minor <= 0:
@@ -82,8 +83,19 @@ class StripeSandboxProviderGateway(BillingProviderGateway):
         )
 
     async def create_portal_session(self, *, command: BillingPortalCommand, idempotency_key: str) -> PortalSession:
-        del command, idempotency_key
-        raise BillingOperationError(BillingErrorCode.PROVIDER_DISABLED)
+        if not self._portal_configuration_id:
+            raise BillingOperationError(BillingErrorCode.PROVIDER_DISABLED)
+        session = await self._client.create_portal_session(
+            customer_reference=command.provider_customer_reference,
+            configuration_reference=self._portal_configuration_id,
+            return_origin=self._return_origin,
+            idempotency_key=idempotency_key,
+        )
+        return PortalSession(
+            provider_portal_reference=session.reference,
+            portal_url=session.url,
+            expires_at=None,
+        )
 
     async def get_subscription(self, *, provider_subscription_reference: str) -> NormalizedSubscriptionSnapshot:
         return subscription_snapshot_from_object(

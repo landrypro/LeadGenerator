@@ -39,4 +39,5 @@ def build_billing_provider_gateway(
     return StripeSandboxProviderGateway(
         client=StripeSandboxClient(test_secret_key=settings.billing_stripe_test_secret_key),
         return_origin=settings.public_app_url or "http://localhost:5173",
+        portal_configuration_id=settings.billing_stripe_portal_configuration_id,
     )

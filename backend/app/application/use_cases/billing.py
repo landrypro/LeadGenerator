@@ -27,7 +27,7 @@ _RECENT_SESSION_WINDOW = timedelta(minutes=15)
 @dataclass(frozen=True, slots=True)
 class BillingSessionGrant:
     url: str
-    expires_at: datetime
+    expires_at: datetime | None
 
 
 class BillingSessionUseCases:

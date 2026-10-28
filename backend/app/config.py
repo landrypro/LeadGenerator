@@ -116,6 +116,7 @@ class Settings:
     billing_stripe_price_usd_monthly: str = ""
     billing_stripe_price_eur_monthly: str = ""
     billing_stripe_price_xaf_monthly: str = ""
+    billing_stripe_portal_configuration_id: str = ""
     billing_webhook_tolerance_seconds: int = 300
     log_format: str = "text"
     instance_id: str = ""
@@ -163,6 +164,12 @@ class Settings:
         for reference in self.stripe_sandbox_price_references.values():
             if reference and (not reference.startswith("price_") or not reference.isascii()):
                 raise ValueError("Les références de prix Stripe sandbox sont invalides.")
+        if self.billing_stripe_portal_configuration_id and (
+            not self.billing_stripe_portal_configuration_id.startswith("bpc_")
+            or not self.billing_stripe_portal_configuration_id.isascii()
+            or not self.billing_stripe_portal_configuration_id.replace("_", "").isalnum()
+        ):
+            raise ValueError("La configuration de portail Stripe sandbox est invalide.")
         if (
             self.billing_provider_mode == "simulated"
             and len(self.billing_simulator_webhook_secret.encode("utf-8")) < 32
@@ -341,6 +348,10 @@ class Settings:
         }
 
     @property
+    def stripe_sandbox_portal_enabled(self) -> bool:
+        return self.billing_provider_mode == "stripe_sandbox" and bool(self.billing_stripe_portal_configuration_id)
+
+    @property
     def google_places_search_available(self) -> bool:
         """Indique si Text Search est disponible sans révéler sa configuration."""
         return self.google_places_simulator_enabled or bool(self.google_maps_api_key)
@@ -474,6 +485,7 @@ class Settings:
             billing_stripe_price_usd_monthly=values.get("BILLING_STRIPE_PRICE_USD_MONTHLY", "").strip(),
             billing_stripe_price_eur_monthly=values.get("BILLING_STRIPE_PRICE_EUR_MONTHLY", "").strip(),
             billing_stripe_price_xaf_monthly=values.get("BILLING_STRIPE_PRICE_XAF_MONTHLY", "").strip(),
+            billing_stripe_portal_configuration_id=values.get("BILLING_STRIPE_PORTAL_CONFIGURATION_ID", "").strip(),
             billing_webhook_tolerance_seconds=int(values.get("BILLING_WEBHOOK_TOLERANCE_SECONDS", "300")),
             log_format=values.get("LOG_FORMAT", "json" if app_env in {"staging", "production"} else "text")
             .strip()

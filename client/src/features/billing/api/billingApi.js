@@ -37,4 +37,12 @@ export const billingApi = {
       fallbackMessage: 'Impossible de reprendre la session Checkout.',
     })
   },
+  createPortal(idempotencyKey) {
+    return postJson('/api/billing/portal-session', {
+      return_target: 'subscription',
+    }, {
+      headers: { 'Idempotency-Key': idempotencyKey },
+      fallbackMessage: 'Impossible d’ouvrir le portail de facturation.',
+    })
+  },
 }

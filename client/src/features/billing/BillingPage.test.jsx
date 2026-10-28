@@ -6,7 +6,7 @@ import { billingApi } from './api/billingApi'
 
 vi.mock('./api/billingApi', () => ({ billingApi: {
   currentCatalog: vi.fn(), subscription: vi.fn(), checkoutOptions: vi.fn(),
-  createCheckout: vi.fn(), resumeCheckout: vi.fn(),
+  createCheckout: vi.fn(), resumeCheckout: vi.fn(), createPortal: vi.fn(),
 } }))
 
 const PLAN = '12345678-1234-4234-8234-123456789abc'
@@ -16,11 +16,11 @@ const SESSION = { active_organization: { id: 'org-1', locale: 'fr-CA' }, capabil
 describe('BillingPage', () => {
   beforeEach(() => {
     window.history.replaceState({}, '', '/app/billing')
-    window.sessionStorage.clear()
-    billingApi.subscription.mockReset().mockResolvedValue({ contract: null, subscription: null, checkout: null, command: null })
+    billingApi.subscription.mockReset().mockResolvedValue({ contract: null, subscription: null, checkout: null, command: null, portal_available: false })
     billingApi.checkoutOptions.mockReset().mockResolvedValue({ options: [OFFER] })
     billingApi.createCheckout.mockReset()
     billingApi.resumeCheckout.mockReset()
+    billingApi.createPortal.mockReset()
   })
 
   it('affiche l’absence de contrat et déclenche le Checkout sandbox après confirmation', async () => {
@@ -103,13 +103,39 @@ describe('BillingPage', () => {
     billingApi.subscription.mockResolvedValue({
       contract: { currency: 'CAD', state: 'active', plan_code: 'starter', version_number: 1 }, checkout: null, command: null,
       subscription: { state: 'active', provider: 'stripe', currency: 'CAD', plan_code: 'starter', version_number: 1,
-        current_period_end: '2026-12-01T00:00:00Z' },
+        current_period_end: '2026-12-01T00:00:00Z' }, portal_available: true,
     })
     render(<BillingPage session={SESSION} />)
     expect(await screen.findByText('Paiement confirmé')).toBeInTheDocument()
     expect(screen.getByText('starter · v1 · CAD')).toBeInTheDocument()
     expect(screen.queryByRole('button', { name: 'Voir le détail' })).not.toBeInTheDocument()
     expect(billingApi.createCheckout).not.toHaveBeenCalled()
+  })
+
+  it('ouvre exclusivement une URL de portail Stripe après confirmation serveur', async () => {
+    billingApi.subscription.mockResolvedValue({
+      contract: { currency: 'CAD', state: 'active', plan_code: 'starter', version_number: 1 }, checkout: null, command: null,
+      subscription: { state: 'active', provider: 'stripe', currency: 'CAD', plan_code: 'starter', version_number: 1,
+        current_period_end: '2026-12-01T00:00:00Z' }, portal_available: true,
+    })
+    billingApi.createPortal.mockResolvedValue({ url: 'https://billing.stripe.com/p/session-test', expires_at: null })
+    const navigateToCheckout = vi.fn()
+    render(<BillingPage session={SESSION} navigateToCheckout={navigateToCheckout} />)
+    fireEvent.click(await screen.findByRole('button', { name: 'Gérer la facturation' }))
+    await waitFor(() => expect(navigateToCheckout).toHaveBeenCalledWith('https://billing.stripe.com/p/session-test'))
+    expect(billingApi.createPortal).toHaveBeenCalledWith(expect.any(String))
+  })
+
+  it('refuse une destination de portail étrangère', async () => {
+    billingApi.subscription.mockResolvedValue({
+      contract: { currency: 'CAD', state: 'active', plan_code: 'starter', version_number: 1 }, checkout: null, command: null,
+      subscription: { state: 'active', provider: 'stripe', currency: 'CAD', plan_code: 'starter', version_number: 1,
+        current_period_end: '2026-12-01T00:00:00Z' }, portal_available: true,
+    })
+    billingApi.createPortal.mockResolvedValue({ url: 'https://example.invalid/portal' })
+    render(<BillingPage session={SESSION} />)
+    fireEvent.click(await screen.findByRole('button', { name: 'Gérer la facturation' }))
+    await waitFor(() => expect(screen.getByRole('alert')).toHaveTextContent('réponse du portail de facturation est invalide'))
   })
 
   it('reprend une session existante sans créer de nouveau Checkout', async () => {

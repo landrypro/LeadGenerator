@@ -25,6 +25,12 @@ class StripeCheckoutDraft:
     expires_at: datetime
 
 
+@dataclass(frozen=True, slots=True)
+class StripePortalDraft:
+    reference: str
+    url: str
+
+
 class StripeSandboxClient:
     """Isole l'authentification, les erreurs et l'absence d'API réelle."""
 
@@ -111,6 +117,47 @@ class StripeSandboxClient:
         if result.get("object") != "customer" or result.get("livemode") is not False:
             raise BillingOperationError(BillingErrorCode.STATE_UNKNOWN)
         return self._require_reference(result.get("id"), "cus_")
+
+    async def create_portal_session(
+        self,
+        *,
+        customer_reference: str,
+        configuration_reference: str,
+        return_origin: str,
+        idempotency_key: str,
+    ) -> StripePortalDraft:
+        """Crée une URL courte vers une configuration de portail explicitement vérifiée."""
+
+        self._require_reference(customer_reference, "cus_")
+        self._require_reference(configuration_reference, "bpc_")
+        self._require_return_origin(return_origin)
+        configuration = await self._request("GET", f"/v1/billing_portal/configurations/{configuration_reference}")
+        if not self._portal_configuration_is_safe(configuration, configuration_reference):
+            raise BillingOperationError(BillingErrorCode.PROVIDER_DISABLED)
+        return_url = f"{return_origin}/app/billing"
+        result = await self._request(
+            "POST",
+            "/v1/billing_portal/sessions",
+            data={
+                "customer": customer_reference,
+                "configuration": configuration_reference,
+                "return_url": return_url,
+            },
+            idempotency_key=idempotency_key,
+        )
+        reference = self._require_reference(result.get("id"), "bps_")
+        url = result.get("url")
+        if (
+            result.get("object") != "billing_portal.session"
+            or result.get("livemode") is not False
+            or result.get("customer") != customer_reference
+            or result.get("configuration") != configuration_reference
+            or result.get("return_url") != return_url
+            or not isinstance(url, str)
+            or not self._portal_url(url)
+        ):
+            raise BillingOperationError(BillingErrorCode.STATE_UNKNOWN)
+        return StripePortalDraft(reference, url)
 
     async def resume_checkout(
         self,
@@ -279,6 +326,51 @@ class StripeSandboxClient:
             raise ValueError("Origine de retour invalide.")
         if parsed.scheme == "http" and parsed.hostname not in {"localhost", "127.0.0.1"}:
             raise ValueError("Une origine HTTP distante est interdite.")
+
+    @staticmethod
+    def _portal_url(value: object) -> bool:
+        if not isinstance(value, str):
+            return False
+        parsed = urlsplit(value)
+        return (
+            parsed.scheme == "https"
+            and parsed.netloc == "billing.stripe.com"
+            and bool(parsed.path)
+            and not parsed.username
+            and not parsed.password
+        )
+
+    @staticmethod
+    def _portal_configuration_is_safe(value: dict[str, Any], reference: str) -> bool:
+        features = value.get("features")
+        if (
+            value.get("object") != "billing_portal.configuration"
+            or value.get("id") != reference
+            or value.get("livemode") is not False
+            or value.get("active") is not True
+            or not isinstance(features, dict)
+        ):
+            return False
+        invoice = features.get("invoice_history")
+        payment_method = features.get("payment_method_update")
+        customer_update = features.get("customer_update")
+        cancel = features.get("subscription_cancel")
+        update = features.get("subscription_update")
+        return (
+            isinstance(invoice, dict)
+            and invoice.get("enabled") is True
+            and isinstance(payment_method, dict)
+            and payment_method.get("enabled") is True
+            and isinstance(customer_update, dict)
+            and customer_update.get("enabled") is False
+            and isinstance(cancel, dict)
+            and cancel.get("enabled") is True
+            and cancel.get("mode") == "at_period_end"
+            and cancel.get("proration_behavior") == "none"
+            and isinstance(update, dict)
+            and update.get("enabled") is False
+            and update.get("default_allowed_updates") == []
+        )
 
     @staticmethod
     def _timestamp(value: object) -> datetime:

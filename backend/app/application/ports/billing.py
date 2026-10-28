@@ -111,7 +111,9 @@ class CheckoutSession:
 class PortalSession:
     provider_portal_reference: str
     portal_url: str
-    expires_at: datetime
+    # Stripe does not expose a portal-session expiry. The URL remains ephemeral
+    # but the API must not invent a deadline for it.
+    expires_at: datetime | None
 
 
 @dataclass(frozen=True, slots=True)

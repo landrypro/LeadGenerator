@@ -245,7 +245,7 @@ class BillingPortalSessionRequest(StrictCommand):
 
 class BillingSessionResponse(BaseModel):
     url: str
-    expires_at: datetime
+    expires_at: datetime | None
 
 
 class BillingCheckoutOptionResponse(BaseModel):
@@ -300,6 +300,7 @@ class BillingStateResponse(BaseModel):
     subscription: BillingCurrentSubscriptionResponse | None
     checkout: BillingPendingCheckoutResponse | None
     command: BillingPendingCommandResponse | None
+    portal_available: bool
 
 
 class MemberPageResponse(BaseModel):
