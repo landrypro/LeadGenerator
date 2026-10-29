@@ -177,6 +177,12 @@ def _entity_type(action: AuditAction) -> str:
         AuditAction.CATALOG_CONTRACT_OVERRIDE_REVOKED,
     }:
         return "plan_contract_override"
+    if action in {
+        AuditAction.BILLING_MANUAL_GRANT_PROPOSED,
+        AuditAction.BILLING_MANUAL_GRANT_APPROVED,
+        AuditAction.BILLING_MANUAL_GRANT_REVOKED,
+    }:
+        return "manual_billing_grant"
     if action is AuditAction.EXPORT_RULE_CHANGED:
         return "source_export_rule"
     if action in {

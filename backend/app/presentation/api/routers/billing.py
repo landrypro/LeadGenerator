@@ -14,12 +14,15 @@ from ....application.errors import (
     CatalogServiceUnavailable,
     CsrfValidationFailed,
     InsufficientCapability,
+    ManualBillingGrantUnavailable,
     ProvisioningResourceNotFound,
 )
 from ....application.ports.billing import BillingReturnTarget, BillingWebhookAdmissionCode
+from ....application.ports.manual_billing_grants import ManualBillingGrantView
 from ....application.tenancy import ActorContext, TenantContext
 from ....application.use_cases.billing_reconciliation import ReconciliationReason
-from ....domain.billing import BillingErrorCode
+from ....application.use_cases.manual_billing_grants import ProposeManualBillingGrantCommand
+from ....domain.billing import BillingErrorCode, ManualBillingGrantReasonCode
 from ....domain.identity import capabilities_for
 from ....infrastructure.billing.webhooks import MAX_WEBHOOK_BODY_BYTES
 from ..dependencies import ContainerDependency, RequestAuthentication, required_authentication
@@ -40,6 +43,10 @@ from ..schemas import (
     PlatformBillingInterventionResponse,
     PlatformBillingOrganizationPageResponse,
     PlatformBillingOrganizationResponse,
+    PlatformManualBillingGrantOptionResponse,
+    PlatformManualBillingGrantResponse,
+    ProposePlatformManualBillingGrantRequest,
+    VersionedPlatformManualBillingGrantRequest,
 )
 from ..security import require_csrf_token, require_json_content_type, require_trusted_origin
 
@@ -113,9 +120,102 @@ async def get_platform_billing_organization(
                 )
                 for item in detail.interventions
             ],
+            manual_grant=_platform_manual_billing_grant(detail.manual_grant) if detail.manual_grant else None,
         ).model_dump(mode="json"),
         headers=NO_STORE_HEADERS,
     )
+
+
+@router.get(
+    "/api/platform/billing/manual-grant-options",
+    response_model=list[PlatformManualBillingGrantOptionResponse],
+)
+async def list_platform_manual_billing_grant_options(request: Request, container: ContainerDependency) -> Response:
+    try:
+        authentication = await required_authentication(request, container)
+        if container.platform_billing_consultation is None:
+            raise CatalogServiceUnavailable
+        if container.manual_billing_grants is None:
+            raise BillingOperationError(BillingErrorCode.PROVIDER_DISABLED)
+        options = await container.platform_billing_consultation.list_manual_grant_options(
+            context=ActorContext(authentication.identity.user.id, getattr(request.state, "request_id", "unknown")),
+            has_platform_capability="platform:billing:manage"
+            in capabilities_for(authentication.identity.user, authentication.identity.active_membership),
+        )
+    except Exception as error:
+        response = _platform_billing_error(request, error)
+        if response is not None:
+            return response
+        raise
+    return JSONResponse(
+        [
+            PlatformManualBillingGrantOptionResponse(
+                plan_version_id=item.plan_version_id,
+                code=item.code,
+                version_number=item.version_number,
+                currency=item.currency,
+                amount_minor=item.amount_minor,
+            ).model_dump(mode="json")
+            for item in options
+        ],
+        headers=NO_STORE_HEADERS,
+    )
+
+
+@router.post("/api/platform/billing/manual-grants", response_model=PlatformManualBillingGrantResponse)
+async def propose_platform_manual_billing_grant(
+    request: Request,
+    container: ContainerDependency,
+    idempotency_key: str | None = Header(default=None, alias="Idempotency-Key", max_length=128),
+) -> Response:
+    try:
+        authentication = await _authenticated_mutation(request, container)
+        if idempotency_key is None:
+            raise ValueError("Idempotency-Key est obligatoire.")
+        payload = ProposePlatformManualBillingGrantRequest.model_validate(await request.json())
+        if container.manual_billing_grants is None:
+            raise BillingOperationError(BillingErrorCode.PROVIDER_DISABLED)
+        grant = await container.manual_billing_grants.propose(
+            context=ActorContext(authentication.identity.user.id, getattr(request.state, "request_id", "unknown")),
+            command=ProposeManualBillingGrantCommand(
+                organization_id=payload.organization_id,
+                plan_version_id=payload.plan_version_id,
+                reason_code=ManualBillingGrantReasonCode(payload.reason_code),
+                duration_days=payload.duration_days,
+            ),
+            idempotency_key=idempotency_key,
+            has_platform_capability="platform:billing:manage"
+            in capabilities_for(authentication.identity.user, authentication.identity.active_membership),
+            session_issued_at=authentication.identity.session_issued_at,
+        )
+    except Exception as error:
+        response = _platform_billing_error(request, error)
+        if response is not None:
+            return response
+        raise
+    return JSONResponse(_platform_manual_billing_grant(grant).model_dump(mode="json"), headers=NO_STORE_HEADERS)
+
+
+@router.post(
+    "/api/platform/billing/manual-grants/{grant_id}/approve", response_model=PlatformManualBillingGrantResponse
+)
+async def approve_platform_manual_billing_grant(
+    grant_id: UUID,
+    request: Request,
+    container: ContainerDependency,
+    idempotency_key: str | None = Header(default=None, alias="Idempotency-Key", max_length=128),
+) -> Response:
+    return await _mutate_platform_manual_billing_grant(grant_id, request, container, idempotency_key, "approve")
+
+
+@router.post("/api/platform/billing/manual-grants/{grant_id}/revoke", response_model=PlatformManualBillingGrantResponse)
+async def revoke_platform_manual_billing_grant(
+    grant_id: UUID,
+    request: Request,
+    container: ContainerDependency,
+    idempotency_key: str | None = Header(default=None, alias="Idempotency-Key", max_length=128),
+) -> Response:
+    return await _mutate_platform_manual_billing_grant(grant_id, request, container, idempotency_key, "revoke")
 
 
 @router.get("/api/billing/subscription", response_model=BillingStateResponse)
@@ -135,6 +235,7 @@ async def get_billing_subscription(request: Request, container: ContainerDepende
                 "subscription": raw.get("subscription"),
                 "checkout": raw.get("checkout"),
                 "command": raw.get("command"),
+                "manual_grant": raw.get("manual_grant"),
                 "portal_available": container.settings.stripe_sandbox_portal_enabled,
             }
         )
@@ -453,6 +554,10 @@ def _billing_api_error(request: Request, error: Exception) -> Response | None:
             BillingErrorCode.SUBSCRIPTION_EXISTS: "Un abonnement courant existe déjà.",
             BillingErrorCode.STATE_UNKNOWN: "L'état du paiement doit être vérifié.",
             BillingErrorCode.RECONCILIATION_REQUIRED: "Une réconciliation du paiement est requise.",
+            BillingErrorCode.MANUAL_GRANT_NOT_FOUND: "L’attribution sandbox est introuvable.",
+            BillingErrorCode.MANUAL_GRANT_CONFLICT: "Une attribution ou un forfait incompatible existe déjà.",
+            BillingErrorCode.MANUAL_GRANT_APPROVAL_REQUIRED: "Un autre administrateur plateforme doit approuver cette attribution.",
+            BillingErrorCode.MANUAL_GRANT_INVALID_STATE: "L’état de cette attribution ne permet pas cette action.",
         }
         return api_error(
             request,
@@ -471,14 +576,81 @@ def _platform_billing_organization(item: object) -> PlatformBillingOrganizationR
     return PlatformBillingOrganizationResponse.model_validate(item, from_attributes=True)
 
 
+def _platform_manual_billing_grant(item: ManualBillingGrantView) -> PlatformManualBillingGrantResponse:
+    return PlatformManualBillingGrantResponse(
+        id=item.id,
+        organization_id=item.organization_id,
+        plan_version_id=item.plan_version_id,
+        plan_code=item.plan_code,
+        version_number=item.version_number,
+        currency=item.currency,
+        reason_code=item.reason_code.value,
+        duration_days=item.duration_days,
+        state=item.state.value,
+        starts_at=item.starts_at,
+        ends_at=item.ends_at,
+        version=item.version,
+    )
+
+
+async def _mutate_platform_manual_billing_grant(
+    grant_id: UUID,
+    request: Request,
+    container: ContainerDependency,
+    idempotency_key: str | None,
+    action: str,
+) -> Response:
+    try:
+        authentication = await _authenticated_mutation(request, container)
+        if idempotency_key is None:
+            raise ValueError("Idempotency-Key est obligatoire.")
+        payload = VersionedPlatformManualBillingGrantRequest.model_validate(await request.json())
+        if container.manual_billing_grants is None:
+            raise BillingOperationError(BillingErrorCode.PROVIDER_DISABLED)
+        context = ActorContext(authentication.identity.user.id, getattr(request.state, "request_id", "unknown"))
+        has_platform_capability = "platform:billing:manage" in capabilities_for(
+            authentication.identity.user, authentication.identity.active_membership
+        )
+        if action == "approve":
+            grant = await container.manual_billing_grants.approve(
+                context=context,
+                grant_id=grant_id,
+                expected_version=payload.version,
+                idempotency_key=idempotency_key,
+                has_platform_capability=has_platform_capability,
+                session_issued_at=authentication.identity.session_issued_at,
+            )
+        elif action == "revoke":
+            grant = await container.manual_billing_grants.revoke(
+                context=context,
+                grant_id=grant_id,
+                expected_version=payload.version,
+                idempotency_key=idempotency_key,
+                has_platform_capability=has_platform_capability,
+                session_issued_at=authentication.identity.session_issued_at,
+            )
+        else:
+            raise ValueError("Action d’attribution inconnue.")
+    except Exception as error:
+        response = _platform_billing_error(request, error)
+        if response is not None:
+            return response
+        raise
+    return JSONResponse(_platform_manual_billing_grant(grant).model_dump(mode="json"), headers=NO_STORE_HEADERS)
+
+
 def _platform_billing_error(request: Request, error: Exception) -> Response | None:
     if isinstance(error, AuthenticationRequired):
         return api_error(request, 401, "authentication_required", "Authentification requise.")
+    if isinstance(error, CsrfValidationFailed):
+        return api_error(request, 403, "request_rejected", "La requête a été refusée.")
     if isinstance(error, InsufficientCapability):
         return api_error(request, 403, "insufficient_capability", "Autorisation plateforme insuffisante.")
     if isinstance(error, ProvisioningResourceNotFound):
         return api_error(request, 404, "billing_organization_not_found", "Organisation de facturation introuvable.")
-    if isinstance(error, (AuthenticationServiceUnavailable, CatalogServiceUnavailable)):
+    if isinstance(error, BillingOperationError):
+        return _billing_api_error(request, error)
+    if isinstance(error, (AuthenticationServiceUnavailable, CatalogServiceUnavailable, ManualBillingGrantUnavailable)):
         return api_error(
             request, 503, "billing_consultation_unavailable", "La consultation Billing est temporairement indisponible."
         )

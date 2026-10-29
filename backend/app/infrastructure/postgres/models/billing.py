@@ -85,6 +85,72 @@ class BillingCommandModel(Base):
     version: Mapped[int] = mapped_column(Integer, server_default=text("1"))
 
 
+class ManualBillingGrantModel(Base):
+    """Exception de sandbox : distincte de toute souscription ou facture."""
+
+    __tablename__ = "manual_billing_grants"
+    __table_args__ = (
+        CheckConstraint(
+            "reason_code IN ('sandbox_validation','sandbox_support','sandbox_demonstration')", name="reason_code"
+        ),
+        CheckConstraint("duration_days BETWEEN 1 AND 31", name="duration_days"),
+        CheckConstraint("state IN ('pending_approval','active','revoked')", name="state"),
+        CheckConstraint("approved_by_user_id IS NULL OR approved_by_user_id <> requested_by_user_id", name="approver"),
+        CheckConstraint("ends_at IS NULL OR (starts_at IS NOT NULL AND ends_at > starts_at)", name="active_range"),
+        CheckConstraint(
+            "state <> 'pending_approval' OR (approved_by_user_id IS NULL AND approved_at IS NULL "
+            "AND starts_at IS NULL AND ends_at IS NULL)",
+            name="pending_shape",
+        ),
+        CheckConstraint(
+            "state <> 'active' OR (approved_by_user_id IS NOT NULL AND approved_at IS NOT NULL "
+            "AND starts_at IS NOT NULL AND ends_at IS NOT NULL AND revoked_by_user_id IS NULL AND revoked_at IS NULL)",
+            name="active_shape",
+        ),
+        CheckConstraint(
+            "state <> 'revoked' OR (revoked_by_user_id IS NOT NULL AND revoked_at IS NOT NULL)",
+            name="revoked_shape",
+        ),
+        CheckConstraint("version > 0", name="version_positive"),
+        Index("ix_manual_billing_grants_org_state", "organization_id", "state", "ends_at"),
+    )
+
+    id: Mapped[UUID] = mapped_column(primary_key=True, default=uuid4, server_default=text("gen_random_uuid()"))
+    organization_id: Mapped[UUID] = mapped_column(ForeignKey("organizations.id", ondelete="RESTRICT"))
+    plan_version_id: Mapped[UUID] = mapped_column(ForeignKey("plan_versions.id", ondelete="RESTRICT"))
+    reason_code: Mapped[str] = mapped_column(String(48))
+    duration_days: Mapped[int] = mapped_column(SmallInteger)
+    state: Mapped[str] = mapped_column(String(32), server_default=text("'pending_approval'"))
+    requested_by_user_id: Mapped[UUID] = mapped_column(ForeignKey("users.id", ondelete="RESTRICT"))
+    approved_by_user_id: Mapped[UUID | None] = mapped_column(ForeignKey("users.id", ondelete="RESTRICT"))
+    revoked_by_user_id: Mapped[UUID | None] = mapped_column(ForeignKey("users.id", ondelete="RESTRICT"))
+    starts_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    ends_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    approved_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    revoked_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=text("CURRENT_TIMESTAMP"))
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=text("CURRENT_TIMESTAMP"))
+    version: Mapped[int] = mapped_column(Integer, server_default=text("1"))
+
+
+class ManualBillingGrantOperationModel(Base):
+    __tablename__ = "manual_billing_grant_operations"
+    __table_args__ = (
+        CheckConstraint("command IN ('propose','approve','revoke')", name="command"),
+        CheckConstraint("idempotency_key_digest ~ '^[a-f0-9]{64}$'", name="key_digest"),
+        CheckConstraint("request_fingerprint ~ '^[a-f0-9]{64}$'", name="fingerprint"),
+        UniqueConstraint("actor_id", "idempotency_key_digest", name="uq_manual_billing_grant_operations_actor_key"),
+    )
+
+    id: Mapped[UUID] = mapped_column(primary_key=True, default=uuid4, server_default=text("gen_random_uuid()"))
+    grant_id: Mapped[UUID] = mapped_column(ForeignKey("manual_billing_grants.id", ondelete="RESTRICT"))
+    actor_id: Mapped[UUID] = mapped_column(ForeignKey("users.id", ondelete="RESTRICT"))
+    command: Mapped[str] = mapped_column(String(16))
+    idempotency_key_digest: Mapped[str] = mapped_column(CHAR(64))
+    request_fingerprint: Mapped[str] = mapped_column(CHAR(64))
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=text("CURRENT_TIMESTAMP"))
+
+
 class StripeSandboxCheckoutSessionModel(Base):
     """Session Stripe ouverte, sans abonnement local avant le webhook signé."""
 

@@ -34,6 +34,9 @@ const COPY = {
     suspended: 'Forfait suspendu', canceled: 'Abonnement terminé', pending_checkout: 'Paiement en attente',
     past_due: 'Paiement à régulariser', existing: 'Un forfait ou un paiement est déjà en cours. Aucun nouveau Checkout ne sera créé.',
     due: 'Période courante jusqu’au', graceUntil: 'Délai de régularisation jusqu’au',
+    manualGrantActive: 'Accès sandbox temporaire accordé', manualGrantPending: 'Attribution sandbox en attente d’approbation',
+    manualGrantNote: 'Cet accès ne correspond à aucun paiement ni abonnement Stripe.',
+    manualGrantExisting: 'Un accès sandbox temporaire est en cours. Un administrateur plateforme doit le révoquer ou attendre son expiration avant un Checkout.',
   },
   'en-CA': {
     title: 'Billing', intro: 'Create a Checkout session for Stripe sandbox testing.',
@@ -61,6 +64,9 @@ const COPY = {
     suspended: 'Plan suspended', canceled: 'Subscription ended', pending_checkout: 'Payment pending',
     past_due: 'Payment needs attention', existing: 'A plan or payment is already in progress. No new Checkout will be created.',
     due: 'Current period ends', graceUntil: 'Grace period ends',
+    manualGrantActive: 'Temporary sandbox access granted', manualGrantPending: 'Sandbox grant awaiting approval',
+    manualGrantNote: 'This access does not represent a Stripe payment or subscription.',
+    manualGrantExisting: 'Temporary sandbox access is in progress. A platform administrator must revoke it or wait for it to expire before Checkout.',
   },
 }
 
@@ -150,10 +156,12 @@ export function BillingPage({ session, navigateToCheckout = (url) => window.loca
   const contract = status?.contract
   const pendingCheckout = status?.checkout
   const pendingCommand = status?.command
+  const manualGrant = status?.manual_grant
   const hasCurrentSubscription = subscription && subscription.state !== 'canceled'
   const hasCurrentContract = contract && ['active', 'suspended'].includes(contract.state)
-  const canStart = Boolean(status && !statusError && !loadingStatus && !hasCurrentSubscription && !hasCurrentContract && !pendingCheckout && !pendingCommand)
-  const canResume = Boolean(pendingCheckout?.state === 'open' && !hasCurrentSubscription && !hasCurrentContract)
+  const hasManualGrant = manualGrant && ['pending_approval', 'active'].includes(manualGrant.state)
+  const canStart = Boolean(status && !statusError && !loadingStatus && !hasCurrentSubscription && !hasCurrentContract && !hasManualGrant && !pendingCheckout && !pendingCommand)
+  const canResume = Boolean(pendingCheckout?.state === 'open' && !hasCurrentSubscription && !hasCurrentContract && !hasManualGrant)
   const canOpenPortal = Boolean(
     status?.portal_available && subscription && ['active', 'past_due', 'grace_period', 'suspended', 'canceling'].includes(subscription.state)
   )
@@ -264,6 +272,11 @@ export function BillingPage({ session, navigateToCheckout = (url) => window.loca
           <span>{subscription.plan_code} · v{subscription.version_number} · {subscription.currency}</span>
           {subscription.current_period_end && <span>{copy.due} {displayDate(subscription.current_period_end, locale)}</span>}
           {subscription.grace_ends_at && <span>{copy.graceUntil} {displayDate(subscription.grace_ends_at, locale)}</span>}
+        </> : manualGrant ? <>
+          <strong>{manualGrant.state === 'active' ? copy.manualGrantActive : copy.manualGrantPending}</strong>
+          <span>{manualGrant.plan_code} · v{manualGrant.version_number} · {manualGrant.currency}</span>
+          {manualGrant.ends_at && <span>{copy.due} {displayDate(manualGrant.ends_at, locale)}</span>}
+          <span>{copy.manualGrantNote}</span>
         </> : pendingCheckout ? <>
           <strong>{pendingCheckout.state === 'expired' ? copy.expired : copy.pending}</strong>
           <span>{pendingCheckout.currency} · {copy.expires} {displayDate(pendingCheckout.expires_at, locale)}</span>
@@ -310,7 +323,7 @@ export function BillingPage({ session, navigateToCheckout = (url) => window.loca
         <a href={checkout.url} rel="noopener noreferrer">{copy.continue}</a>
         {checkout.expiresAt && <small>{copy.expires} {displayDate(checkout.expiresAt, locale)}</small>}
       </p>}
-    </section> : status && !statusError && <p className="billing-existing" role="note">{copy.existing}</p>}
+    </section> : status && !statusError && <p className="billing-existing" role="note">{hasManualGrant ? copy.manualGrantExisting : copy.existing}</p>}
     {error && !canStart && <ErrorBanner>{error}</ErrorBanner>}
   </main>
 }

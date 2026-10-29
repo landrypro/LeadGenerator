@@ -122,6 +122,10 @@ class CatalogServiceUnavailable(RuntimeError):
     """Le stockage transactionnel du catalogue est indisponible."""
 
 
+class ManualBillingGrantUnavailable(RuntimeError):
+    """La persistance de l'exception Billing sandbox est indisponible."""
+
+
 class CatalogResourceNotFound(RuntimeError):
     """Le plan, la version ou le contrat interne n’existe pas."""
 

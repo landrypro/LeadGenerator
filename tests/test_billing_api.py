@@ -102,6 +102,22 @@ class _BillingSessions:
         return BillingSessionGrant("https://checkout.stripe.com/c/pay/cs_test_resume", NOW + timedelta(minutes=30))
 
 
+class _ManualGrantBillingSessions(_BillingSessions):
+    async def read_stripe_state(self, **kwargs: object) -> dict[str, object]:
+        state = await super().read_stripe_state(**kwargs)
+        state["manual_grant"] = {
+            "state": "active",
+            "plan_version_id": str(uuid4()),
+            "plan_code": "starter",
+            "version_number": 4,
+            "currency": "XAF",
+            "ends_at": NOW + timedelta(days=1),
+            "requested_by_user_id": str(uuid4()),
+            "provider_subscription_reference": "sub_must_not_leak",
+        }
+        return state
+
+
 class _BillingRefunds:
     def __init__(self) -> None:
         self.calls: list[dict[str, object]] = []
@@ -189,6 +205,27 @@ async def test_stripe_state_and_resume_are_tenant_authorized_and_hide_provider_r
         )
     assert denied_status.status_code == denied_resume.status_code == 403
     assert billing.calls == []
+
+
+async def test_stripe_state_exposes_a_manual_grant_without_payment_references() -> None:
+    billing = _ManualGrantBillingSessions()
+    async with AsyncClient(
+        transport=ASGITransport(app=_stripe_app(_identity(), billing)), base_url="http://test"
+    ) as client:
+        client.cookies.set("prospect_session", "session-current")
+        response = await client.get("/api/billing/subscription")
+
+    assert response.status_code == 200
+    assert response.json()["manual_grant"]["state"] == "active"
+    assert set(response.json()["manual_grant"]) == {
+        "state",
+        "plan_version_id",
+        "plan_code",
+        "version_number",
+        "currency",
+        "ends_at",
+    }
+    assert "sub_must_not_leak" not in response.text
 
 
 async def test_checkout_response_is_minimized_no_store_and_uses_closed_return_target() -> None:

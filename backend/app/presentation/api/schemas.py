@@ -283,6 +283,15 @@ class BillingCurrentSubscriptionResponse(BaseModel):
     paid_until: datetime | None
 
 
+class BillingCurrentManualGrantResponse(BaseModel):
+    state: Literal["pending_approval", "active"]
+    plan_version_id: UUID
+    plan_code: str
+    version_number: int
+    currency: str
+    ends_at: datetime | None
+
+
 class BillingPendingCheckoutResponse(BaseModel):
     state: Literal["open", "expired"]
     plan_version_id: UUID
@@ -300,6 +309,7 @@ class BillingStateResponse(BaseModel):
     subscription: BillingCurrentSubscriptionResponse | None
     checkout: BillingPendingCheckoutResponse | None
     command: BillingPendingCommandResponse | None
+    manual_grant: BillingCurrentManualGrantResponse | None = None
     portal_available: bool
 
 
@@ -403,10 +413,11 @@ class PlatformBillingOrganizationResponse(BaseModel):
     currency: str | None
     subscription_state: str | None
     contract_state: str | None
-    source: Literal["stripe", "simulated", "catalog_only", "none"]
+    source: Literal["stripe", "simulated", "catalog_only", "manual_grant", "none"]
     current_period_end: datetime | None
     cancel_at_period_end: bool
     reconciliation_status: Literal["needs_review", "not_checked"]
+    manual_grant_state: Literal["pending_approval", "active", "expired", "revoked"] | None = None
 
 
 class PlatformBillingOrganizationPageResponse(BaseModel):
@@ -426,10 +437,45 @@ class PlatformBillingInterventionResponse(BaseModel):
     updated_at: datetime
 
 
+class PlatformManualBillingGrantResponse(BaseModel):
+    id: UUID
+    organization_id: UUID
+    plan_version_id: UUID
+    plan_code: str
+    version_number: int
+    currency: str
+    reason_code: Literal["sandbox_validation", "sandbox_support", "sandbox_demonstration"]
+    duration_days: int
+    state: Literal["pending_approval", "active", "expired", "revoked"]
+    starts_at: datetime | None
+    ends_at: datetime | None
+    version: int
+
+
+class PlatformManualBillingGrantOptionResponse(BaseModel):
+    plan_version_id: UUID
+    code: str
+    version_number: int
+    currency: str
+    amount_minor: int
+
+
+class ProposePlatformManualBillingGrantRequest(StrictCommand):
+    organization_id: UUID
+    plan_version_id: UUID
+    reason_code: Literal["sandbox_validation", "sandbox_support", "sandbox_demonstration"]
+    duration_days: int = Field(ge=1, le=31)
+
+
+class VersionedPlatformManualBillingGrantRequest(StrictCommand):
+    version: int = Field(ge=1)
+
+
 class PlatformBillingDetailResponse(BaseModel):
     organization: PlatformBillingOrganizationResponse
     events: list[PlatformBillingEventResponse]
     interventions: list[PlatformBillingInterventionResponse]
+    manual_grant: PlatformManualBillingGrantResponse | None = None
 
 
 class AuditActorResponse(BaseModel):

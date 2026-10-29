@@ -17,6 +17,7 @@ from .audited_unit_of_work import (
 )
 from .catalog_unit_of_work import SqlAlchemyCatalogAuditedUnitOfWork
 from .identity_unit_of_work import SqlAlchemyIdentityUnitOfWork
+from .manual_billing_grant_unit_of_work import SqlAlchemyManualBillingGrantUnitOfWork
 from .prospect_unit_of_work import SqlAlchemyProspectUnitOfWork
 from .tenant_unit_of_work import SqlAlchemyTenantUnitOfWork
 from .unit_of_work import SqlAlchemyUnitOfWork
@@ -84,6 +85,9 @@ class PostgresDatabase:
 
     def catalog_audited_unit_of_work(self, context: ActorContext) -> SqlAlchemyCatalogAuditedUnitOfWork:
         return SqlAlchemyCatalogAuditedUnitOfWork(self._session_factory, context)
+
+    def manual_billing_grant_unit_of_work(self, context: ActorContext) -> SqlAlchemyManualBillingGrantUnitOfWork:
+        return SqlAlchemyManualBillingGrantUnitOfWork(self._session_factory, context)
 
     def actor_audited_unit_of_work(self, context: ActorContext) -> SqlAlchemyActorAuditedUnitOfWork:
         return SqlAlchemyActorAuditedUnitOfWork(self._session_factory, context)

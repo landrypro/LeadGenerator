@@ -8,6 +8,7 @@ from typing import Protocol
 from uuid import UUID
 
 from ..errors import InsufficientCapability, ProvisioningResourceNotFound
+from ..ports.manual_billing_grants import ManualBillingGrantOption, ManualBillingGrantView
 from ..tenancy import ActorContext
 
 
@@ -25,6 +26,7 @@ class PlatformBillingOrganization:
     current_period_end: datetime | None
     cancel_at_period_end: bool
     reconciliation_status: str
+    manual_grant_state: str | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -46,6 +48,7 @@ class PlatformBillingDetail:
     organization: PlatformBillingOrganization
     events: tuple[PlatformBillingEvent, ...]
     interventions: tuple[PlatformBillingIntervention, ...]
+    manual_grant: ManualBillingGrantView | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -68,6 +71,8 @@ class PlatformBillingReader(Protocol):
     async def get_organization(
         self, *, context: ActorContext, organization_id: UUID
     ) -> PlatformBillingDetail | None: ...
+
+    async def list_manual_grant_options(self, *, context: ActorContext) -> tuple[ManualBillingGrantOption, ...]: ...
 
 
 class PlatformBillingConsultationUseCase:
@@ -100,6 +105,12 @@ class PlatformBillingConsultationUseCase:
         if detail is None:
             raise ProvisioningResourceNotFound
         return detail
+
+    async def list_manual_grant_options(
+        self, *, context: ActorContext, has_platform_capability: bool
+    ) -> tuple[ManualBillingGrantOption, ...]:
+        self._require(has_platform_capability)
+        return await self._reader.list_manual_grant_options(context=context)
 
     @staticmethod
     def _require(has_platform_capability: bool) -> None:

@@ -46,12 +46,36 @@ export const platformApi = {
       fallbackMessage: 'Impossible de charger le détail Billing de cette organisation.',
     })
   },
+
+  listManualBillingGrantOptions(signal) {
+    return request('/api/platform/billing/manual-grant-options', {
+      signal,
+      cache: 'no-store',
+      fallbackMessage: 'Impossible de charger les forfaits attribuables en sandbox.',
+    })
+  },
+
+  proposeManualBillingGrant(payload, idempotencyKey, signal) {
+    return post('/api/platform/billing/manual-grants', payload, signal, 'Impossible de proposer l’attribution sandbox.', idempotencyKey)
+  },
+
+  approveManualBillingGrant(grantId, version, idempotencyKey, signal) {
+    return post(`/api/platform/billing/manual-grants/${encodeURIComponent(grantId)}/approve`, { version }, signal,
+      'Impossible d’approuver l’attribution sandbox.', idempotencyKey)
+  },
+
+  revokeManualBillingGrant(grantId, version, idempotencyKey, signal) {
+    return post(`/api/platform/billing/manual-grants/${encodeURIComponent(grantId)}/revoke`, { version }, signal,
+      'Impossible de révoquer l’attribution sandbox.', idempotencyKey)
+  },
 }
 
 
-function post(path, payload, signal, fallbackMessage) {
+function post(path, payload, signal, fallbackMessage, idempotencyKey = '') {
   return request(path, {
-    method: 'POST', signal, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload), fallbackMessage,
+    method: 'POST', signal,
+    headers: { 'Content-Type': 'application/json', ...(idempotencyKey ? { 'Idempotency-Key': idempotencyKey } : {}) },
+    body: JSON.stringify(payload), fallbackMessage,
   })
 }
 

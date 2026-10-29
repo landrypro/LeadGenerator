@@ -50,6 +50,26 @@ class BillingProviderMode(StrEnum):
         return None
 
 
+class ManualBillingGrantReasonCode(StrEnum):
+    """Motifs fermés des exceptions d'accès de la sandbox.
+
+    Une attribution manuelle n'est pas une remise commerciale, ni une preuve
+    de paiement. Le registre fermé évite que des commentaires libres (et
+    potentiellement sensibles) deviennent une seconde base de données métier.
+    """
+
+    SANDBOX_VALIDATION = "sandbox_validation"
+    SANDBOX_SUPPORT = "sandbox_support"
+    SANDBOX_DEMONSTRATION = "sandbox_demonstration"
+
+
+class ManualBillingGrantState(StrEnum):
+    PENDING_APPROVAL = "pending_approval"
+    ACTIVE = "active"
+    REVOKED = "revoked"
+    EXPIRED = "expired"
+
+
 class SubscriptionState(StrEnum):
     PENDING_CHECKOUT = "pending_checkout"
     ACTIVE = "active"
@@ -99,6 +119,10 @@ class BillingErrorCode(StrEnum):
     STATE_UNKNOWN = "billing_state_unknown"
     REFUND_NOT_ELIGIBLE = "billing_refund_not_eligible"
     RECONCILIATION_REQUIRED = "billing_reconciliation_required"
+    MANUAL_GRANT_NOT_FOUND = "billing_manual_grant_not_found"
+    MANUAL_GRANT_CONFLICT = "billing_manual_grant_conflict"
+    MANUAL_GRANT_APPROVAL_REQUIRED = "billing_manual_grant_approval_required"
+    MANUAL_GRANT_INVALID_STATE = "billing_manual_grant_invalid_state"
 
     @property
     def http_status(self) -> int:
@@ -121,6 +145,10 @@ BILLING_ERROR_HTTP_STATUS: Final[dict[BillingErrorCode, int]] = {
     BillingErrorCode.STATE_UNKNOWN: 503,
     BillingErrorCode.REFUND_NOT_ELIGIBLE: 422,
     BillingErrorCode.RECONCILIATION_REQUIRED: 409,
+    BillingErrorCode.MANUAL_GRANT_NOT_FOUND: 404,
+    BillingErrorCode.MANUAL_GRANT_CONFLICT: 409,
+    BillingErrorCode.MANUAL_GRANT_APPROVAL_REQUIRED: 422,
+    BillingErrorCode.MANUAL_GRANT_INVALID_STATE: 422,
 }
 
 

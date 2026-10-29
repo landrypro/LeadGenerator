@@ -15,6 +15,7 @@ from .catalog_unit_of_work import SqlAlchemyCatalogAuditedUnitOfWork
 from .database import PostgresDatabase
 from .identity_repository import SqlAlchemyIdentityRepository
 from .identity_unit_of_work import SqlAlchemyIdentityUnitOfWork
+from .manual_billing_grant_unit_of_work import SqlAlchemyManualBillingGrantUnitOfWork
 from .models import NAMING_CONVENTION, Base
 from .organization_gateway import SqlAlchemyOrganizationAdministrationGateway
 from .provisioning_gateway import SqlAlchemyProvisioningGateway
@@ -33,6 +34,7 @@ __all__ = [
     "SqlAlchemyIdentityRepository",
     "SqlAlchemyIdentityUnitOfWork",
     "SqlAlchemyInvitationAcceptanceUnitOfWork",
+    "SqlAlchemyManualBillingGrantUnitOfWork",
     "SqlAlchemyOrganizationAdministrationGateway",
     "SqlAlchemyPlatformAuditReadUnitOfWork",
     "SqlAlchemyPlatformAuditedUnitOfWork",

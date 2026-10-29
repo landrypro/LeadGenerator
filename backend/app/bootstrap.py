@@ -129,6 +129,7 @@ from .application.use_cases.billing import BillingSessionUseCases
 from .application.use_cases.billing_reconciliation import BillingManualReconciliation
 from .application.use_cases.billing_refunds import BillingRefundUseCases
 from .application.use_cases.dashboard import GetDashboardSummaryUseCase
+from .application.use_cases.manual_billing_grants import ManualBillingGrantUseCases
 from .application.use_cases.platform_billing import PlatformBillingConsultationUseCase
 from .application.use_cases.usage import GetCurrentUsageUseCase, GetUsageReportUseCase
 from .config import Settings
@@ -416,11 +417,18 @@ def build_container(settings: Settings) -> AppContainer:
     billing_sessions: BillingSessionUseCases | None = None
     billing_refunds: BillingRefundUseCases | None = None
     billing_manual_reconciliation: BillingManualReconciliation | None = None
+    manual_billing_grants: ManualBillingGrantUseCases | None = None
     platform_billing_consultation: PlatformBillingConsultationUseCase | None = None
     usage_store = PostgresUsageStore(database.session_factory, metrics) if database is not None else None
     if database is not None:
         platform_billing_consultation = PlatformBillingConsultationUseCase(
             SqlAlchemyPlatformBillingReader(database.actor_unit_of_work)
+        )
+    if database is not None and settings.billing_provider_mode == "stripe_sandbox":
+        manual_billing_grants = ManualBillingGrantUseCases(
+            database.manual_billing_grant_unit_of_work,
+            SystemClock(),
+            sandbox_enabled=True,
         )
     if database is not None and settings.billing_provider_mode in {"disabled", "simulated", "stripe_sandbox"}:
         billing_clock = SystemClock()
@@ -810,6 +818,7 @@ def build_container(settings: Settings) -> AppContainer:
         billing_sessions=billing_sessions,
         billing_refunds=billing_refunds,
         billing_manual_reconciliation=billing_manual_reconciliation,
+        manual_billing_grants=manual_billing_grants,
         platform_billing_consultation=platform_billing_consultation,
         meta_lead_webhooks=meta_lead_webhooks,
         meta_connector_management=meta_connector_management,

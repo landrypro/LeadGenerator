@@ -134,6 +134,9 @@ class AuditAction(StrEnum):
     BILLING_RECONCILIATION_DIFFERENCE_DETECTED = "billing.reconciliation_difference_detected"
     BILLING_RECONCILIATION_CORRECTION_APPLIED = "billing.reconciliation_correction_applied"
     BILLING_RECONCILIATION_REQUESTED = "billing.reconciliation_requested"
+    BILLING_MANUAL_GRANT_PROPOSED = "billing.manual_grant_proposed"
+    BILLING_MANUAL_GRANT_APPROVED = "billing.manual_grant_approved"
+    BILLING_MANUAL_GRANT_REVOKED = "billing.manual_grant_revoked"
 
 
 _ENTITY_TYPE_PATTERN = re.compile(r"^[a-z][a-z0-9_]{0,63}$", re.ASCII)
@@ -385,6 +388,9 @@ _ACTION_ENTITY_TYPES = {
     AuditAction.BILLING_RECONCILIATION_DIFFERENCE_DETECTED: "billing_reconciliation_difference",
     AuditAction.BILLING_RECONCILIATION_CORRECTION_APPLIED: "billing_reconciliation_difference",
     AuditAction.BILLING_RECONCILIATION_REQUESTED: "billing_reconciliation_run",
+    AuditAction.BILLING_MANUAL_GRANT_PROPOSED: "manual_billing_grant",
+    AuditAction.BILLING_MANUAL_GRANT_APPROVED: "manual_billing_grant",
+    AuditAction.BILLING_MANUAL_GRANT_REVOKED: "manual_billing_grant",
     AuditAction.CATALOG_PLAN_CREATED: "plan_catalog",
     AuditAction.CATALOG_PLAN_VERSION_CREATED: "plan_version",
     AuditAction.CATALOG_PLAN_VERSION_PUBLISHED: "plan_version",
@@ -481,6 +487,64 @@ class AuditMetadataPolicy:
                 ),
                 "previous_state": cls._choice(values["previous_state"], states, "previous_state"),
                 "next_state": cls._choice(values["next_state"], states, "next_state"),
+            }
+
+        if action is AuditAction.BILLING_MANUAL_GRANT_PROPOSED:
+            cls._require_keys(values, {"organization_id", "plan_version_id", "reason_code", "duration_days", "state"})
+            duration_days = values["duration_days"]
+            if not isinstance(duration_days, int) or isinstance(duration_days, bool) or not 1 <= duration_days <= 31:
+                raise InvalidAuditMetadata("duration_days est invalide.")
+            return {
+                "organization_id": cls._uuid(values["organization_id"], "organization_id"),
+                "plan_version_id": cls._uuid(values["plan_version_id"], "plan_version_id"),
+                "reason_code": cls._choice(
+                    values["reason_code"],
+                    frozenset({"sandbox_validation", "sandbox_support", "sandbox_demonstration"}),
+                    "reason_code",
+                ),
+                "duration_days": duration_days,
+                "state": cls._choice(values["state"], frozenset({"pending_approval"}), "state"),
+            }
+
+        if action is AuditAction.BILLING_MANUAL_GRANT_APPROVED:
+            cls._require_keys(
+                values,
+                {"organization_id", "plan_version_id", "reason_code", "duration_days", "state", "version"},
+            )
+            duration_days = values["duration_days"]
+            version = values["version"]
+            if not isinstance(duration_days, int) or isinstance(duration_days, bool) or not 1 <= duration_days <= 31:
+                raise InvalidAuditMetadata("duration_days est invalide.")
+            if not isinstance(version, int) or isinstance(version, bool) or version < 1:
+                raise InvalidAuditMetadata("version est invalide.")
+            return {
+                "organization_id": cls._uuid(values["organization_id"], "organization_id"),
+                "plan_version_id": cls._uuid(values["plan_version_id"], "plan_version_id"),
+                "reason_code": cls._choice(
+                    values["reason_code"],
+                    frozenset({"sandbox_validation", "sandbox_support", "sandbox_demonstration"}),
+                    "reason_code",
+                ),
+                "duration_days": duration_days,
+                "state": cls._choice(values["state"], frozenset({"active"}), "state"),
+                "version": version,
+            }
+
+        if action is AuditAction.BILLING_MANUAL_GRANT_REVOKED:
+            cls._require_keys(values, {"organization_id", "plan_version_id", "reason_code", "state", "version"})
+            version = values["version"]
+            if not isinstance(version, int) or isinstance(version, bool) or version < 1:
+                raise InvalidAuditMetadata("version est invalide.")
+            return {
+                "organization_id": cls._uuid(values["organization_id"], "organization_id"),
+                "plan_version_id": cls._uuid(values["plan_version_id"], "plan_version_id"),
+                "reason_code": cls._choice(
+                    values["reason_code"],
+                    frozenset({"sandbox_validation", "sandbox_support", "sandbox_demonstration"}),
+                    "reason_code",
+                ),
+                "state": cls._choice(values["state"], frozenset({"revoked"}), "state"),
+                "version": version,
             }
 
         if action is AuditAction.BILLING_RECONCILIATION_REQUESTED:

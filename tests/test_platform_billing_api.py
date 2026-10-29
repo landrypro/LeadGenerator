@@ -132,6 +132,7 @@ async def test_platform_billing_list_is_paginated_filtered_and_hides_provider_re
         "currency",
         "subscription_state",
         "contract_state",
+        "manual_grant_state",
         "source",
         "current_period_end",
         "cancel_at_period_end",

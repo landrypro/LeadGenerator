@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from collections.abc import Callable
-from datetime import datetime
+from datetime import UTC, datetime
 from typing import Any
 from uuid import UUID
 
@@ -11,6 +11,10 @@ from sqlalchemy import text
 from sqlalchemy.exc import SQLAlchemyError
 
 from ...application.errors import ProvisioningServiceUnavailable
+from ...application.ports.manual_billing_grants import (
+    ManualBillingGrantOption,
+    ManualBillingGrantView,
+)
 from ...application.tenancy import ActorContext
 from ...application.use_cases.platform_billing import (
     PlatformBillingDetail,
@@ -19,6 +23,7 @@ from ...application.use_cases.platform_billing import (
     PlatformBillingOrganization,
     PlatformBillingPage,
 )
+from ...domain.billing import ManualBillingGrantReasonCode, ManualBillingGrantState
 
 
 class SqlAlchemyPlatformBillingReader:
@@ -60,7 +65,37 @@ class SqlAlchemyPlatformBillingReader:
             )
             for item in _items(payload, "interventions")
         )
-        return PlatformBillingDetail(organization=organization, events=events, interventions=interventions)
+        raw_grant = payload.get("manual_grant")
+        manual_grant = _manual_grant(raw_grant) if isinstance(raw_grant, dict) else None
+        return PlatformBillingDetail(
+            organization=organization,
+            events=events,
+            interventions=interventions,
+            manual_grant=manual_grant,
+        )
+
+    async def list_manual_grant_options(self, *, context: ActorContext) -> tuple[ManualBillingGrantOption, ...]:
+        payload = await self._read_json(
+            context,
+            "SELECT app_private.list_platform_manual_billing_grant_options(:now)",
+            {"now": datetime.now(UTC)},
+        )
+        raw_items = payload.get("items") if isinstance(payload, dict) else None
+        if not isinstance(raw_items, list) or not all(isinstance(item, dict) for item in raw_items):
+            raise ProvisioningServiceUnavailable
+        try:
+            return tuple(
+                ManualBillingGrantOption(
+                    plan_version_id=UUID(str(item["plan_version_id"])),
+                    code=str(item["code"]),
+                    version_number=int(item["version_number"]),
+                    currency=str(item["currency"]),
+                    amount_minor=int(item["amount_minor"]),
+                )
+                for item in raw_items
+            )
+        except (KeyError, TypeError, ValueError) as error:
+            raise ProvisioningServiceUnavailable from error
 
     async def _read_json(
         self, context: ActorContext, statement: str, parameters: dict[str, object]
@@ -91,7 +126,28 @@ def _organization(value: dict[str, object]) -> PlatformBillingOrganization:
         current_period_end=_datetime_or_none(value.get("current_period_end")),
         cancel_at_period_end=bool(value.get("cancel_at_period_end", False)),
         reconciliation_status=str(value["reconciliation_status"]),
+        manual_grant_state=_string_or_none(value.get("manual_grant_state")),
     )
+
+
+def _manual_grant(value: dict[str, object]) -> ManualBillingGrantView:
+    try:
+        return ManualBillingGrantView(
+            id=UUID(str(value["id"])),
+            organization_id=UUID(str(value["organization_id"])),
+            plan_version_id=UUID(str(value["plan_version_id"])),
+            plan_code=str(value["plan_code"]),
+            version_number=_int(value["version_number"]),
+            currency=str(value["currency"]),
+            reason_code=ManualBillingGrantReasonCode(str(value["reason_code"])),
+            duration_days=_int(value["duration_days"]),
+            state=ManualBillingGrantState(str(value["state"])),
+            starts_at=_datetime_or_none(value.get("starts_at")),
+            ends_at=_datetime_or_none(value.get("ends_at")),
+            version=_int(value["version"]),
+        )
+    except (KeyError, TypeError, ValueError) as error:
+        raise ProvisioningServiceUnavailable from error
 
 
 def _object(value: object) -> dict[str, object]:
@@ -128,3 +184,14 @@ def _string_or_none(value: object) -> str | None:
 
 def _int_or_none(value: object) -> int | None:
     return value if isinstance(value, int) and not isinstance(value, bool) else None
+
+
+def _int(value: object) -> int:
+    if isinstance(value, int) and not isinstance(value, bool):
+        return value
+    if isinstance(value, str):
+        try:
+            return int(value)
+        except ValueError as error:
+            raise ProvisioningServiceUnavailable from error
+    raise ProvisioningServiceUnavailable

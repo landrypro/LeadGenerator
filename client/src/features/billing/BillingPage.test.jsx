@@ -112,6 +112,23 @@ describe('BillingPage', () => {
     expect(billingApi.createCheckout).not.toHaveBeenCalled()
   })
 
+  it('affiche un accès manuel sandbox sans créer de parcours de paiement', async () => {
+    billingApi.subscription.mockResolvedValue({
+      contract: null, subscription: null, checkout: null, command: null, portal_available: false,
+      manual_grant: {
+        state: 'active', plan_version_id: PLAN, plan_code: 'starter', version_number: 4,
+        currency: 'XAF', ends_at: '2026-12-01T00:00:00Z', provider_subscription_reference: 'sub_must_not_leak',
+      },
+    })
+    render(<BillingPage session={SESSION} />)
+
+    expect(await screen.findByText('Accès sandbox temporaire accordé')).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Voir le détail' })).not.toBeInTheDocument()
+    expect(document.body.textContent).toContain('ne correspond à aucun paiement ni abonnement Stripe')
+    expect(document.body.textContent).not.toContain('sub_must_not_leak')
+    expect(billingApi.createCheckout).not.toHaveBeenCalled()
+  })
+
   it('ouvre exclusivement une URL de portail Stripe après confirmation serveur', async () => {
     billingApi.subscription.mockResolvedValue({
       contract: { currency: 'CAD', state: 'active', plan_code: 'starter', version_number: 1 }, checkout: null, command: null,
